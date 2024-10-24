@@ -309,6 +309,7 @@
     () => {
       configStore.$patch((state) => {
         state.allConfigCount = configsCount.value;
+        state.allExistConfigCount = configList.value.filter((item) => item.kv_state !== 'DELETE').length;
       });
     },
     { immediate: true, deep: true },
@@ -377,7 +378,6 @@
       configsCount.value = res.count;
       configStore.$patch((state) => {
         state.allConfigCount = res.count;
-        state.allExistConfigCount = res.exclusion_count;
       });
       selecTableDataCount.value = Number(res.exclusion_count);
       emits('sendTableDataCount', selecTableDataCount.value);
@@ -507,12 +507,6 @@
     }
     recoverConfig.value!.kv_state = 'UNCHANGE';
     isRecoverConfigDialogShow.value = false;
-
-    const res = await getKvList(props.bkBizId, props.appId, { start: 0, all: true });
-    configStore.$patch((state) => {
-      state.allConfigCount = res.count;
-      state.allExistConfigCount = res.exclusion_count;
-    });
   };
 
   // 批量删除配置项后刷新配置项列表

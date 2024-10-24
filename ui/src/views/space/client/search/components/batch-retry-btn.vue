@@ -30,4 +30,8 @@
 
   const isRetryOpen = ref(false);
 </script>
-
+<style lang="scss" scoped>
+  .bk-button {
+    margin-bottom: 16px;
+  }
+</style>

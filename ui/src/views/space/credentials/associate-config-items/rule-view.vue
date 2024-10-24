@@ -17,13 +17,7 @@
     </div>
     <bk-exception v-else scene="part" type="empty">
       <p class="empty-tips">{{ t('暂未设置关联规则') }}</p>
-      <bk-button
-        v-if="!props.hasManagePerm"
-        class="edit-rule-btn"
-        text
-        theme="primary"
-        size="small"
-        @click="emits('edit')">
+      <bk-button class="edit-rule-btn" text theme="primary" size="small" @click="emits('edit')">
         {{ t('编辑规则') }}
       </bk-button>
     </bk-exception>
@@ -38,7 +32,6 @@
   const props = defineProps<{
     rules: ICredentialRule[];
     previewRule: IPreviewRule | null;
-    hasManagePerm: boolean;
   }>();
 
   const emits = defineEmits(['edit', 'update:previewRule']);

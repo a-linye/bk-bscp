@@ -164,11 +164,9 @@ export interface IExampleFormData {
   clientKey: string;
   privacyCredential: string;
   tempDir: string;
-  configName?: string;
+  httpConfigName?: string;
   labelArr: string[];
   clusterSwitch?: boolean;
   clusterInfo?: string;
   rules?: string[];
-  systemType: 'Unix' | 'Windows';
-  selectedLineBreak?: 'LF' | 'CRLF';
 }

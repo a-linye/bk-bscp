@@ -83,11 +83,10 @@
   const shouldValidate = ref(false);
   const errorLine = ref<errorLineItem[]>([]);
   const editorPlaceholder = ref([
-    `${t('示例')}：`,
+    t('示例：'),
     t('变量名 变量类型 变量值 变量描述（可选）'),
     'bk_bscp_nginx_ip string 1.1.1.1',
-    'bk_bscp_nginx_port number 8080 nginx端口',
-    'bk_bscp_nginx_access_log string ""（变量值为空的情况） nginx访问日志路径',
+    t(' bk_bscp_nginx_port number 8080 nginx端口'),
   ]);
 
   watch(
@@ -102,17 +101,6 @@
     () => errorLine.value,
     (val) => {
       shouldValidate.value = val.length > 0;
-    },
-  );
-
-  watch(
-    () => separator.value,
-    (newVal, oldVal) => {
-      editorPlaceholder.value.forEach((item, index) => {
-        if (index > 1) {
-          editorPlaceholder.value[index] = item.replaceAll(oldVal, newVal);
-        }
-      });
     },
   );
 
@@ -154,7 +142,6 @@
       const key = variablesContent[0];
       const type = variablesContent[1];
       const value = variablesContent[2];
-      value === '""' && (variablesContent[2] = ''); // "" 转空字符串 代表变量为空值
       if (variablesContent.length < 3) {
         errorLine.value.push({
           errorInfo: t('请检查是否已正确使用分隔符'),

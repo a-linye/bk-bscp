@@ -4,17 +4,12 @@
       <ClientHeader :title="t('客户端查询')" @search="loadList" />
     </div>
     <div v-if="appId" class="content">
-      <div class="operation-btns">
-        <bk-button class="refresh-btn" @click="loadList">
-          <right-turn-line class="icon" />
-        </bk-button>
-        <BatchRetryBtn
-          :bk-biz-id="bkBizId"
-          :app-id="appId"
-          :selections="selectedClient"
-          :is-across-checked="isAcrossChecked"
-          @retried="handleRetryConfirm" />
-      </div>
+      <BatchRetryBtn
+        :bk-biz-id="bkBizId"
+        :app-id="appId"
+        :selections="selectedClient"
+        :is-across-checked="isAcrossChecked"
+        @retried="handleRetryConfirm" />
       <bk-loading style="min-height: 100px" :loading="listLoading">
         <bk-table
           ref="tableRef"
@@ -266,7 +261,7 @@
 <script lang="ts" setup>
   import { ref, watch, onBeforeMount, onBeforeUnmount, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
-  import { Share, InfoLine, Spinner, RightTurnLine } from 'bkui-vue/lib/icon';
+  import { Share, InfoLine, Spinner } from 'bkui-vue/lib/icon';
   import { storeToRefs } from 'pinia';
   import { Tag } from 'bkui-vue';
   import { getClientQueryList } from '../../../../api/client';
@@ -841,20 +836,6 @@
       &.Offline {
         background: #979ba5;
         border: 3px solid #eeeef0;
-      }
-    }
-  }
-
-  .operation-btns {
-    display: flex;
-    align-items: center;
-    margin-bottom: 16px;
-    gap: 8px;
-    .refresh-btn {
-      width: 32px;
-      height: 32px;
-      .icon {
-        font-size: 16px;
       }
     }
   }

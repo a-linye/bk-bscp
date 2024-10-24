@@ -17,11 +17,6 @@
     ">
     <template #tableOperations>
       <AddConfigs :show-add-existing-config-option="true" @refresh="refreshConfigList" />
-      <CountTips
-        :max="spaceFeatureFlags.RESOURCE_LIMIT.TmplSetTmplCnt"
-        :current="countOfTemplatesForCurrentPackage"
-        :is-temp="true"
-        :is-file-type="false" />
       <BatchOperationButton
         :space-id="spaceId"
         :configs="selectedConfigs"
@@ -46,11 +41,10 @@
   import CommonConfigTable from './common-config-table.vue';
   import AddConfigs from '../operations/add-configs/add-button.vue';
   import BatchOperationButton from '../operations/batch-operations/batch-operation-btn.vue';
-  import CountTips from '../../../../service/detail/config/components/count-tips.vue';
 
-  const { spaceId, spaceFeatureFlags } = storeToRefs(useGlobalStore());
+  const { spaceId } = storeToRefs(useGlobalStore());
   const templateStore = useTemplateStore();
-  const { currentTemplateSpace, currentPkg, countOfTemplatesForCurrentPackage } = storeToRefs(templateStore);
+  const { currentTemplateSpace, currentPkg } = storeToRefs(templateStore);
 
   const configTable = ref();
   const selectedConfigs = ref<ITemplateConfigItem[]>([]);

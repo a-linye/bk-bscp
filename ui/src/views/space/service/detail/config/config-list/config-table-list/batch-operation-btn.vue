@@ -150,6 +150,7 @@
   .batch-set-btn {
     min-width: 108px;
     height: 32px;
+    margin-left: 8px;
     &.popover-open {
       .angle-icon {
         transform: rotate(-180deg);

@@ -202,13 +202,9 @@
   };
 
   const getAllConfigList = async () => {
+    const [commonConfigCount, tplConfigCount] = await Promise.all([getCommonConfigList(), getBoundTemplateList()]);
     configStore.$patch((state) => {
-      state.createVersionBtnLoading = true;
-    });
-    const [existConfigCount, tplConfigCount] = await Promise.all([getCommonConfigList(), getBoundTemplateList()]);
-    configStore.$patch((state) => {
-      state.createVersionBtnLoading = false;
-      state.allExistConfigCount = existConfigCount + tplConfigCount;
+      state.allConfigCount = commonConfigCount + tplConfigCount;
     });
   };
 
@@ -219,7 +215,7 @@
       all: true,
     };
     const res = await getConfigList(spaceId.value, props.appId, params);
-    return res.details.filter((item: any) => item.file_state !== 'DELETE').length;
+    return res.count;
   };
 
   // 获取模板配置文件列表
