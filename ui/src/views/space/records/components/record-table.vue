@@ -47,7 +47,7 @@
               <div
                 v-if="row.audit && row.audit.spec.res_instance"
                 v-html="convertInstance(row.audit.spec.res_instance)"
-                class="multi-line-styles"></div>
+                class="multi-line-styles" />
               <div v-else class="multi-line-styles">--</div>
               <!-- <div>{{ row.audit?.spec.res_instance || '--' }}</div> -->
             </template>
