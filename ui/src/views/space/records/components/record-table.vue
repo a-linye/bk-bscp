@@ -225,6 +225,8 @@
     },
   );
 
+  const emits = defineEmits(['handle-table-filter']);
+
   const router = useRouter();
   const route = useRoute();
   const { t, locale } = useI18n();
@@ -475,10 +477,10 @@
       case 7:
         searchParams.value.status = checked.join(',');
         break;
-
       default:
         break;
     }
+    emits('handle-table-filter'); // 使用表格过滤同步搜索框
     loadRecordList();
   };
 

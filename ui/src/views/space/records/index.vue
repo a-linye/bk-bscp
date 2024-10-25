@@ -3,7 +3,7 @@
     <div class="operate-area">
       <service-selector />
       <date-picker class="date-picker" @change-time="updateParams" />
-      <search-option @send-search-data="updateParams" />
+      <search-option ref="searchOptionRef" @send-search-data="updateParams" />
     </div>
     <record-table ref="recordTableRef" :space-id="spaceId" :search-params="searchParams" />
   </section>

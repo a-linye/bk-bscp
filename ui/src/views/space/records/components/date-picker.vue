@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-  import { onBeforeMount, ref } from 'vue';
+  import { onMounted, ref } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import dayjs from 'dayjs';
 
@@ -62,7 +62,7 @@
   const datePickerRef = ref(null);
   const defaultValue = ref<string[]>([]);
 
-  onBeforeMount(() => {
+  onMounted(() => {
     const hasQueryTime = ['start_time', 'end_time'].every(
       (key) => key in route.query && route.query[key]?.length === 19,
     );

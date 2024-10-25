@@ -47,7 +47,7 @@
     {
       name: t('资源类型'),
       id: SEARCH_ID.resource_type,
-      multiple: false,
+      multiple: true,
       children: Object.entries(RECORD_RES_TYPE).map(([key, value]) => ({
         name: value,
         id: key,
@@ -57,7 +57,7 @@
     {
       name: t('操作行为'),
       id: SEARCH_ID.action,
-      multiple: false,
+      multiple: true,
       children: Object.entries(ACTION).map(([key, value]) => ({
         name: value,
         id: key,
@@ -67,13 +67,13 @@
     {
       name: t('资源实例'),
       id: SEARCH_ID.res_instance,
-      multiple: false,
+      multiple: true,
       async: false,
     },
     {
       name: t('状态'),
       id: SEARCH_ID.status,
-      multiple: false,
+      multiple: true,
       children: Object.entries(STATUS).map(([key, value]) => ({
         name: value,
         id: key,
@@ -83,13 +83,13 @@
     {
       name: t('操作人'),
       id: SEARCH_ID.operator,
-      multiple: false,
+      multiple: true,
       async: false,
     },
     {
       name: t('操作途径'),
       id: SEARCH_ID.operate_way,
-      multiple: false,
+      multiple: true,
       async: false,
     },
   ];
@@ -97,7 +97,7 @@
   const routeSearchValue = computed(() => {
     return searchValue.value.reduce<{ [key: string]: string }>((acc, item) => {
       const key = item.id; // 获取 id 作为键
-      const value = item.values.map((v) => v.id).join(';'); // 获取 values 的 id 并用分号连接
+      const value = item.values.map((v) => v.id).join(','); // 获取 values 的 id 并用逗号连接
       acc[key] = value; // 将结果放入累加器
       return acc;
     }, {});
@@ -180,10 +180,12 @@
         let values = null;
         // 设置子元素
         values = String(route.query[routeKey])
-          .split(';')
+          .split(',')
           .map((valItem) => {
             if (searchData[index].children) {
-              const getObj = searchData[index].children?.find((item) => item.id === route.query[routeKey]);
+              // 单选
+              // const getObj = searchData[index].children?.find((item) => item.id === route.query[routeKey]);
+              const getObj = searchData[index].children?.find((item) => route.query[routeKey]?.includes(item.id));
               return {
                 id: valItem,
                 name: getObj!.name, // searchData正确配置肯定会有name
