@@ -161,6 +161,9 @@
   });
 
   const getOptionData = async (data: any) => {
+    // windows下的临时目录为根目录时，如果路径结尾为:，示例预览部分的路径需要在最后添加\
+    const tempDir =
+      data.systemType === 'Windows' && /^[a-zA-Z]:$/.test(data.tempDir) ? `${data.tempDir}\\` : data.tempDir;
     let labelArr = [];
     // 标签展示方式加工
     if (data.labelArr.length) {
@@ -175,6 +178,7 @@
     }
     optionData.value = {
       ...data,
+      tempDir,
       labelArr,
     };
   };

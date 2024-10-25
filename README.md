@@ -1,4 +1,4 @@
-![蓝鲸容器管理平台.png](./docs/logo/bscp_zh.png)
+![蓝鲸服务配置中心.png](./docs/logo/bscp_zh.png)
 
 ---
 
@@ -20,7 +20,7 @@
 - 支持 文件、KV、表格类型配置
 - 提供容器、主机、SDK、API、流水线插件等多种消费方式
 
-了解BSCP更详细功能，请参考蓝鲸容器管理平台[白皮书](https://bk.tencent.com/docs/markdown/BSCP/UserGuide/Introduction/product_introduction.md)
+了解BSCP更详细功能，请参考蓝鲸服务配置中心[白皮书](https://bk.tencent.com/docs/markdown/BSCP/UserGuide/Introduction/product_introduction.md)
 
 ## Getting Started
 

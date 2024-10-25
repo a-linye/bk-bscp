@@ -280,9 +280,13 @@
 
   // 监听传来的数据
   const getOptionData = (data: any) => {
+    // windows下的临时目录为根目录时，如果路径结尾为:，示例预览部分的路径需要在最后添加\
+    const tempDir =
+      data.systemType === 'Windows' && /^[a-zA-Z]:$/.test(data.tempDir) ? `${data.tempDir}\\` : data.tempDir;
     const labelArr = data.labelArr.length ? data.labelArr.join(', ') : '';
     optionData.value = {
       ...data,
+      tempDir,
       labelArr,
     };
     updateVariables(); // 表单数据更新，配置需要同时更新
