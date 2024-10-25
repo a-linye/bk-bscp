@@ -5,7 +5,7 @@
       <date-picker class="date-picker" @change-time="updateParams" />
       <search-option ref="searchOptionRef" @send-search-data="updateParams" />
     </div>
-    <record-table ref="recordTableRef" :space-id="spaceId" :search-params="searchParams" />
+    <record-table :space-id="spaceId" :search-params="searchParams" />
   </section>
 </template>
 <script setup lang="ts">
@@ -19,7 +19,6 @@
 
   const route = useRoute();
 
-  const recordTableRef = ref();
   const spaceId = ref(String(route.params.spaceId));
   const searchParams = ref<IRecordQuery>({}); // 外部搜索数据参数汇总
   const dateTimeParams = ref<{ start_time?: string; end_time?: string }>({}); // 日期组件参数
