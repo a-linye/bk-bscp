@@ -178,16 +178,6 @@
   const handleConfirm = async () => {
     btnLoading.value = true;
     try {
-      // await approve(props.spaceId, props.appId, props.releaseId, {
-      //   publish_status: APPROVE_STATUS.PendPublish,
-      // });
-      // BkMessage({
-      //   theme: 'success',
-      //   message: t('操作成功'),
-      // });
-      // emits('close', 'refresh');
-    } catch (e) {
-      console.log(e);
       await approve(props.spaceId, props.appId, props.releaseId, {
         publish_status: APPROVE_STATUS.PendPublish,
       });
@@ -196,8 +186,10 @@
         message: t('操作成功'),
       });
       emits('close', 'refresh');
+    } catch (e) {
+      console.log(e);
     } finally {
-      btnLoading.value = true;
+      btnLoading.value = false;
     }
   };
 
