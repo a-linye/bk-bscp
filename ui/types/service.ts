@@ -57,3 +57,19 @@ export interface IDiffDetail {
   };
   singleLineKVDiff?: ISingleLineKVDIffItem[];
 }
+
+interface IPublishRecord {
+  publish_time: string;
+  name: string;
+  scope: any;
+  creator: string;
+  fully_released: boolean;
+  updated_at: string;
+}
+
+export interface IPublishData {
+  is_publishing?: boolean; // 是否有其他版本在上线
+  updated_at: string; // 最后更新时间
+  version_name: string; // 最后上线的版本名称
+  publish_record?: IPublishRecord[]; // 最近的上线记录
+}

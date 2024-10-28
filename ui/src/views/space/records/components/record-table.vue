@@ -12,7 +12,7 @@
           @column-filter="handleFilter">
           <bk-table-column :label="t('操作时间')" width="155" :sort="true">
             <template #default="{ row }">
-              {{ row.audit?.revision.created_at }}
+              {{ convertTime(row.audit?.revision.created_at, 'local') }}
             </template>
           </bk-table-column>
           <bk-table-column :label="t('所属服务')" width="190">
@@ -80,7 +80,7 @@
                     [APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(row.audit.spec.status)
                   "
                   v-bk-tooltips="{
-                    content: `${t('定时上线')}: ${row.strategy.publish_time}${
+                    content: `${t('定时上线')}: ${convertTime(row.strategy.publish_time, 'local')}${
                       isTimeout(row.strategy.publish_time) ? `(${t('已过时')})` : ''
                     }`,
                     placement: 'top',
@@ -213,6 +213,7 @@
   import { InfoLine } from 'bkui-vue/lib/icon';
   import VersionDiff from './version-diff.vue';
   import BkMessage from 'bkui-vue/lib/message';
+  import { convertTime } from '../../../../utils';
   import dayjs from 'dayjs';
 
   const props = withDefaults(
@@ -306,10 +307,13 @@
   const loadRecordList = async () => {
     try {
       loading.value = true;
+      const { start_time, end_time } = searchParams.value;
       const params: IRecordQuery = {
         start: pagination.value.limit * (pagination.value.current - 1),
         limit: pagination.value.limit,
         ...searchParams.value,
+        start_time: convertTime(start_time!, 'utc'),
+        end_time: convertTime(end_time!, 'utc'),
       };
       const res = await getRecordList(props.spaceId, params);
       // actionTimeSrotMode.value ? tableDataSort(res.details) : (tableData.value = res.details);
@@ -365,15 +369,15 @@
     const { updated_at: time, reject_reason: reason, reviser } = row.strategy;
     switch (status) {
       case APPROVE_STATUS.AlreadyPublish:
-        return t('提示-已上线文案', { reviser, time });
+        return t('提示-已上线文案', { reviser, time: convertTime(time, 'local') });
       case APPROVE_STATUS.RejectedApproval:
         return t('提示-审批驳回', {
           reviser,
-          time,
+          time: convertTime(time, 'local'),
           reason,
         });
       case APPROVE_STATUS.RevokedPublish:
-        return t('提示-已撤销', { reviser, time });
+        return t('提示-已撤销', { reviser, time: convertTime(time, 'local') });
       case APPROVE_STATUS.Failure:
         return t('提示-失败');
       default:
@@ -384,7 +388,7 @@
   // 上线时间是否超时
   const isTimeout = (time: string) => {
     const currentTime = dayjs();
-    const publishTime = dayjs(time);
+    const publishTime = dayjs(convertTime(time, 'local'));
     // 定时的上线时间是否在当前时间之前
     return publishTime.isBefore(currentTime);
   };

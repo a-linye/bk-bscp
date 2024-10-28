@@ -25,9 +25,9 @@
     <div v-if="dialogType === 'confirm'" class="content-info">
       正在上线的版本：
       <span class="content-info__bd">
-        {{ dialogData }}
+        {{ dialogData.version_name }}
       </span>
-      <share class="share" @click="handleLinkTo" />
+      <share class="share" @click="handleLinkTo($event, dialogData.updated_at)" />
     </div>
     <template v-else>
       <div class="content-info is-special">
@@ -36,7 +36,7 @@
       </div>
       <div class="record-hd">
         <span>近三次版本上线记录</span>
-        <bk-link theme="primary" target="_blank" @click="handleLinkTo">
+        <bk-link theme="primary" target="_blank" @click="handleLinkTo($event, 'all')">
           <share class="share" />查看全部上线记录
         </bk-link>
       </div>
@@ -48,8 +48,8 @@
             <div class="table-th">上线范围</div>
             <div class="table-th">操作人</div>
           </div>
-          <div class="table-tr" v-for="(item, index) in dialogData" :key="index">
-            <div class="table-td">{{ item.publish_time || '--' }}</div>
+          <div class="table-tr" v-for="(item, index) in dialogData.publish_record" :key="index">
+            <div class="table-td">{{ item.publish_time ? convertTime(item.publish_time, 'local') : '--' }}</div>
             <div class="table-td">{{ item.name || '--' }}</div>
             <div class="table-td">{{ item.fully_released ? '全部实例' : versionScope(item.scope.groups) }}</div>
             <div class="table-td">{{ item.creator || '--' }}</div>
@@ -64,13 +64,16 @@
   import { computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { ExclamationCircleShape, Share } from 'bkui-vue/lib/icon';
+  import { IPublishData } from '../../../../../../types/service';
+  import { convertTime } from '../../../../../utils';
+  import { APPROVE_STATUS } from '../../../../../constants/record';
 
   const emits = defineEmits(['update:show', 'confirm']);
 
   const props = withDefaults(
     defineProps<{
       show: boolean;
-      dialogData: string | any[];
+      dialogData: IPublishData;
     }>(),
     {},
   );
@@ -78,12 +81,21 @@
   const route = useRoute();
   const router = useRouter();
 
-  const dialogType = computed(() => (typeof props.dialogData === 'string' ? 'confirm' : 'other'));
+  const dialogType = computed(() => (props.dialogData.is_publishing ? 'confirm' : 'other'));
 
-  const handleLinkTo = ($event: MouseEvent) => {
+  const handleLinkTo = ($event: MouseEvent, time: string) => {
     $event.preventDefault();
+    const query: { start_time?: string; end_time?: string; status?: string } = {
+      start_time: time === 'all' ? '' : convertTime(time, 'local'),
+      end_time: time === 'all' ? '' : convertTime(time, 'local'),
+      status: time === 'all' ? APPROVE_STATUS.AlreadyPublish : '',
+    };
+    if (time !== 'all') {
+      delete query.status;
+    }
     const url = router.resolve({
       name: 'records-app',
+      query,
       params: {
         appId: route.params.appId,
       },
@@ -98,7 +110,7 @@
     emits('update:show', false);
   };
   const handleConfirm = () => {
-    emits('confirm', typeof props.dialogData !== 'string');
+    emits('confirm', dialogType.value === 'other');
   };
 </script>
 
@@ -176,6 +188,7 @@
     font-size: 12px;
     color: #3a84ff;
     vertical-align: middle;
+    cursor: pointer;
   }
   .record-hd {
     position: relative;

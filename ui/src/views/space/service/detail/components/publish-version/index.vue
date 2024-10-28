@@ -17,7 +17,7 @@
       v-cursor="{ active: !props.hasPerm }"
       v-bk-tooltips="{
         disabled: approveData.type !== ONLINE_TYPE.Periodically,
-        content: approveData.time,
+        content: convertTime(approveData.time, 'local'),
         placement: 'bottom-end',
       }"
       theme="primary"
@@ -82,7 +82,7 @@
       :current-version-groups="groupsPendingtoPublish"
       @publish="handleOpenPublishDialog"
       @close="isDiffSliderShow = false" />
-    <dialogWarn v-model:show="warnDialogShow" :dialog-data="warnDialogData" @confirm="dialogConfirm" />
+    <dialog-warn v-model:show="warnDialogShow" :dialog-data="warnDialogData" @confirm="dialogConfirm" />
   </section>
 </template>
 <script setup lang="ts">
@@ -100,12 +100,15 @@
   import { approve } from '../../../../../../api/record';
   import { getServiceGroupList } from '../../../../../../api/group';
   import { IConfigVersion, IReleasedGroup } from '../../../../../../../types/config';
+  import { IPublishData } from '../../../../../../../types/service';
   import VersionLayout from '../../config/components/version-layout.vue';
   import ConfirmDialog from './confirm-dialog.vue';
   import SelectGroup from './select-group/index.vue';
   import PublishVersionDiff from '../publish-version-diff.vue';
   import { ONLINE_TYPE, APPROVE_STATUS } from '../../../../../../constants/config';
   import DialogWarn from '../dialog-publish-warn.vue';
+  import { convertTime } from '../../../../../../utils';
+  import dayjs from 'dayjs';
 
   const { permissionQuery, showApplyPermDialog } = storeToRefs(useGlobalStore());
   const serviceStore = useServiceStore();
@@ -141,7 +144,10 @@
   const groups = ref<IGroupToPublish[]>([]);
   const baseVersionId = ref(0);
   const warnDialogShow = ref(false);
-  const warnDialogData = ref<string | any[]>('');
+  const warnDialogData = ref<IPublishData>({
+    updated_at: '', // 最后更新时间
+    version_name: '', // 最后上线的版本名称
+  });
 
   const permissionQueryResource = computed(() => [
     {
@@ -349,19 +355,19 @@
   const checkVersionStatus = async () => {
     const resp = await versionStatusCheck(props.bkBizId, props.appId);
     const { data } = resp;
+    warnDialogData.value = data;
     if (data?.is_publishing) {
       // 当前服务有其他版本上线，不允许当前版本上线
       warnDialogShow.value = true;
-      warnDialogData.value = data.version_name;
       return false;
     }
     if (data?.publish_record.length) {
       // 最近上线的版本时间与当前系统时间在2小时内，风险提示弹窗
-      const publishTime = new Date(data.publish_record[0].publish_time).getTime();
-      const currentTime = Date.now();
-      if (publishTime + 7200000 > currentTime) {
+      const time = data.publish_record[0].publish_time;
+      const publishTime = dayjs(convertTime(time, 'local'));
+      const currentTime = dayjs();
+      if (publishTime.add(2, 'hour').isAfter(currentTime)) {
         warnDialogShow.value = true;
-        warnDialogData.value = data.publish_record;
         return false;
       }
     }

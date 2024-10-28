@@ -135,7 +135,8 @@
   import useConfigStore from '../../../../../../store/config';
   import { aggregatePreviewData, aggregateExcludedData } from '../hooks/aggregate-groups';
   import RuleTag from '../../../../groups/components/rule-tag.vue';
-  import { datetimeFormat } from '../../../../../../utils';
+  import dayjs from 'dayjs';
+  import { convertTime } from '../../../../../../utils';
 
   const versionStore = useConfigStore();
   const { versionData } = storeToRefs(versionStore);
@@ -183,7 +184,7 @@
     all: false,
     memo: '',
     publish_type: '',
-    publish_time: new Date(new Date().getTime() + 7200000), // 默认当前时间的后两小时
+    publish_time: dayjs().add(2, 'hour').format('YYYY-MM-DD HH:mm:ss'), // 默认当前时间的后两小时
   });
   const previewData = ref<IModifyReleasePreviewItem[]>([]);
   const excludeGroups = ref<IGroupToPublish[]>([]);
@@ -200,7 +201,7 @@
     ],
     publish_time: [
       {
-        validator: (value: Date) => value.getTime() >= Date.now(),
+        validator: (value: Date) => dayjs(value).isAfter(dayjs()),
         message: t('不能选择过去的时间'),
       },
     ],
@@ -249,7 +250,7 @@
   );
 
   const disabledDate = (date: any) => {
-    return date && date.valueOf() < Date.now() - 86400000;
+    return date && dayjs(date).isBefore(dayjs().subtract(1, 'day'));
   };
 
   const handleClose = () => {
@@ -259,7 +260,7 @@
       all: false,
       memo: '',
       publish_type: '',
-      publish_time: new Date(new Date().getTime() + 7200000),
+      publish_time: dayjs().add(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
     };
   };
 
@@ -279,13 +280,17 @@
       }
       // 非定时上线，publishTime清空
       params.publish_time =
-        localVal.value.publish_type === 'Periodically' ? datetimeFormat(String(params.publish_time)) : '';
+        localVal.value.publish_type === 'Periodically' ? convertTime(params.publish_time as string, 'utc') : '';
       const resp = await publishVerSubmit(props.bkBizId, props.appId, versionData.value.id, params);
       handleClose();
       // 目前组件库dialog关闭自带250ms的延迟，所以这里延时300ms
       setTimeout(() => {
-        emits('confirm', resp.data.have_pull as boolean, params.publish_type, params.publish_time);
-        // emits('confirm', resp.data.have_pull as boolean);
+        emits(
+          'confirm',
+          resp.data.have_pull as boolean,
+          params.publish_type,
+          convertTime(params.publish_time as string, 'local'),
+        );
       }, 300);
     } catch (e) {
       console.error(e);
