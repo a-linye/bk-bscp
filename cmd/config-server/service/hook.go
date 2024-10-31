@@ -242,6 +242,7 @@ func (s *Service) ListHooks(ctx context.Context, req *pbcs.ListHooksReq) (*pbcs.
 		All:       req.All,
 		NotTag:    req.NotTag,
 		SearchKey: req.SearchKey,
+		TopIds:    req.TopIds,
 	}
 
 	if !req.All {

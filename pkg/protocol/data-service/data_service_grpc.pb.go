@@ -182,6 +182,7 @@ const (
 	Data_UnDeleteKv_FullMethodName                        = "/pbds.Data/UnDeleteKv"
 	Data_UndoKv_FullMethodName                            = "/pbds.Data/UndoKv"
 	Data_KvFetchIDsExcluding_FullMethodName               = "/pbds.Data/KvFetchIDsExcluding"
+	Data_KvFetchKeysExcluding_FullMethodName              = "/pbds.Data/KvFetchKeysExcluding"
 	Data_ListClients_FullMethodName                       = "/pbds.Data/ListClients"
 	Data_RetryClients_FullMethodName                      = "/pbds.Data/RetryClients"
 	Data_ListClientEvents_FullMethodName                  = "/pbds.Data/ListClientEvents"
@@ -386,6 +387,7 @@ type DataClient interface {
 	UnDeleteKv(ctx context.Context, in *UnDeleteKvReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
 	UndoKv(ctx context.Context, in *UndoKvReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
 	KvFetchIDsExcluding(ctx context.Context, in *KvFetchIDsExcludingReq, opts ...grpc.CallOption) (*KvFetchIDsExcludingResp, error)
+	KvFetchKeysExcluding(ctx context.Context, in *KvFetchKeysExcludingReq, opts ...grpc.CallOption) (*KvFetchKeysExcludingResp, error)
 	// client related interface
 	ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error)
 	RetryClients(ctx context.Context, in *RetryClientsReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
@@ -1787,6 +1789,15 @@ func (c *dataClient) KvFetchIDsExcluding(ctx context.Context, in *KvFetchIDsExcl
 	return out, nil
 }
 
+func (c *dataClient) KvFetchKeysExcluding(ctx context.Context, in *KvFetchKeysExcludingReq, opts ...grpc.CallOption) (*KvFetchKeysExcludingResp, error) {
+	out := new(KvFetchKeysExcludingResp)
+	err := c.cc.Invoke(ctx, Data_KvFetchKeysExcluding_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataClient) ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error) {
 	out := new(ListClientsResp)
 	err := c.cc.Invoke(ctx, Data_ListClients_FullMethodName, in, out, opts...)
@@ -2173,6 +2184,7 @@ type DataServer interface {
 	UnDeleteKv(context.Context, *UnDeleteKvReq) (*base.EmptyResp, error)
 	UndoKv(context.Context, *UndoKvReq) (*base.EmptyResp, error)
 	KvFetchIDsExcluding(context.Context, *KvFetchIDsExcludingReq) (*KvFetchIDsExcludingResp, error)
+	KvFetchKeysExcluding(context.Context, *KvFetchKeysExcludingReq) (*KvFetchKeysExcludingResp, error)
 	// client related interface
 	ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error)
 	RetryClients(context.Context, *RetryClientsReq) (*base.EmptyResp, error)
@@ -2663,6 +2675,9 @@ func (UnimplementedDataServer) UndoKv(context.Context, *UndoKvReq) (*base.EmptyR
 }
 func (UnimplementedDataServer) KvFetchIDsExcluding(context.Context, *KvFetchIDsExcludingReq) (*KvFetchIDsExcludingResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method KvFetchIDsExcluding not implemented")
+}
+func (UnimplementedDataServer) KvFetchKeysExcluding(context.Context, *KvFetchKeysExcludingReq) (*KvFetchKeysExcludingResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method KvFetchKeysExcluding not implemented")
 }
 func (UnimplementedDataServer) ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListClients not implemented")
@@ -5463,6 +5478,24 @@ func _Data_KvFetchIDsExcluding_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_KvFetchKeysExcluding_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(KvFetchKeysExcludingReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).KvFetchKeysExcluding(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_KvFetchKeysExcluding_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).KvFetchKeysExcluding(ctx, req.(*KvFetchKeysExcludingReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Data_ListClients_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListClientsReq)
 	if err := dec(in); err != nil {
@@ -6487,6 +6520,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "KvFetchIDsExcluding",
 			Handler:    _Data_KvFetchIDsExcluding_Handler,
+		},
+		{
+			MethodName: "KvFetchKeysExcluding",
+			Handler:    _Data_KvFetchKeysExcluding_Handler,
 		},
 		{
 			MethodName: "ListClients",

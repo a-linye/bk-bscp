@@ -114,6 +114,12 @@ service Config {
             "{id}/app_id/{app_id}/biz_id/{biz_id}"
     };
   }
+  rpc BatchUnDeleteConfigItem(BatchUnDeleteConfigItemReq) returns (BatchUnDeleteConfigItemResp) {
+    option (google.api.http) = {
+      post: "/api/v1/config/biz_id/{biz_id}/app_id/{app_id}/config_items/batch_undelete"
+      body: "*"
+    };
+  }
   rpc UndoConfigItem(UndoConfigItemReq) returns (UndoConfigItemResp) {
     option (google.api.http) = {
       post: "/api/v1/config/undo/config_item/config_item/config_item_id/{id}/"
@@ -930,6 +936,12 @@ option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/{key}/undelete"
     };
   };
+  rpc BatchUnDeleteKv(BatchUnDeleteKvReq) returns (BatchUnDeleteKvResp) {
+    option (google.api.http) = {
+      post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/batch_undelete"
+      body: "*"
+    };
+  };
   rpc UndoKv(UndoKvReq) returns (UndoKvResp) {
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/{key}/undo"
@@ -1322,6 +1334,17 @@ message UnDeleteConfigItemReq {
 
 message UnDeleteConfigItemResp {}
 
+message BatchUnDeleteConfigItemReq {
+  uint32 biz_id = 1;
+  uint32 app_id = 2;
+  repeated uint32 ids = 3;
+}
+
+message BatchUnDeleteConfigItemResp {
+  repeated uint32 successful_ids = 1;
+  repeated uint32 failed_ids = 2;
+}
+
 message UndoConfigItemReq {
   uint32 id = 1;
   uint32 biz_id = 2;
@@ -1570,6 +1593,7 @@ message ListHooksReq {
   uint32 start = 6;
   uint32 limit = 7;
   string searchKey = 8;
+  string top_ids = 9;
 }
 
 message ListHooksResp {
@@ -2889,6 +2913,18 @@ message UnDeleteKvReq {
 
 message UnDeleteKvResp {}
 
+message BatchUnDeleteKvReq {
+  uint32 biz_id = 1;
+  uint32 app_id = 2;
+  repeated string keys = 3;
+  bool exclusion_operation = 4;
+}
+
+message BatchUnDeleteKvResp {
+  repeated string successful_keys = 1;
+  repeated string failed_keys = 2;
+}
+
 message UndoKvReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
@@ -2904,7 +2940,9 @@ message ImportKvsReq {
   string data = 4;
 }
 
-message ImportKvsResp {}
+message ImportKvsResp {
+  repeated uint32 ids = 1;
+}
 
 message ListClientsReq {
   message Order {

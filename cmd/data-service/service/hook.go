@@ -124,9 +124,10 @@ func (s *Service) ListHooks(ctx context.Context, req *pbds.ListHooksReq) (*pbds.
 	if err := opt.Validate(po); err != nil {
 		return nil, err
 	}
-
+	// StrToUint32Slice the comma separated string goes to uint32 slice
+	topIds, _ := tools.StrToUint32Slice(req.TopIds)
 	// ListWithRefer hooks with refer info.
-	details, count, err := s.dao.Hook().ListWithRefer(kt, opt)
+	details, count, err := s.dao.Hook().ListWithRefer(kt, opt, topIds)
 	if err != nil {
 		logs.Errorf("list hook failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err

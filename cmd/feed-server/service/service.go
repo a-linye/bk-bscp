@@ -257,7 +257,7 @@ func (s *Service) handlerGw() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Route("/api/v1/feed", func(r chi.Router) {
-		r.Get("/biz/{biz_id}/app/{app}/files/*", s.DownloadFile)
+		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/app/{app}/files/*", s.DownloadFile)
 		r.Mount("/", s.gwMux)
 	})
 	return r
@@ -349,9 +349,6 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		Labels: labelsMap,
 	}
 
-	cancel := kt.CtxWithTimeoutMS(1500)
-	defer cancel()
-
 	metas, err := s.bll.Release().ListAppLatestReleaseMeta(kt, meta)
 	if err != nil {
 		render.Render(w, r, rest.BadRequest(err))
@@ -420,4 +417,31 @@ func (s *Service) Healthz(w http.ResponseWriter, req *http.Request) {
 	}
 
 	rest.WriteResp(w, rest.NewBaseResp(errf.OK, "healthy"))
+}
+
+// UpdateLastConsumedTime 更新服务拉取时间中间件
+func (s *Service) UpdateLastConsumedTime(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.FromGrpcContext(r.Context())
+		// 获取路径参数
+		bizIdStr := chi.URLParam(r, "biz_id")
+		app := chi.URLParam(r, "app")
+		bizID, _ := strconv.Atoi(bizIdStr)
+		appID, err := s.bll.AppCache().GetAppID(kt, uint32(bizID), app)
+		if err != nil {
+			logs.Errorf("get app id failed, err: %v", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if bizID != 0 && appID != 0 {
+			if err := s.bll.AppCache().BatchUpdateLastConsumedTime(kt, uint32(bizID), []uint32{appID}); err != nil {
+				logs.Errorf("batch update app last consumed failed, err: %v", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+			logs.Infof("batch update app last consumed time success")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

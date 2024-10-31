@@ -22,6 +22,7 @@ import (
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
 	dtypes "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/types"
+	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/utils"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/i18n"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
@@ -32,7 +33,8 @@ type Hook interface {
 	// CreateWithTx create one hook instance with transaction.
 	CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, hook *table.Hook) (uint32, error)
 	// ListWithRefer hooks with refer info.
-	ListWithRefer(kit *kit.Kit, opt *types.ListHooksWithReferOption) ([]*types.ListHooksWithReferDetail, int64, error)
+	ListWithRefer(kit *kit.Kit, opt *types.ListHooksWithReferOption, topIDs []uint32) (
+		[]*types.ListHooksWithReferDetail, int64, error)
 	// ListHookReferences list hook references.
 	ListHookReferences(kit *kit.Kit, opt *types.ListHookReferencesOption) (
 		[]*types.ListHookReferencesDetail, int64, error)
@@ -180,13 +182,20 @@ func (dao *hookDao) CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, g *table.Hook) (
 }
 
 // ListWithRefer hooks with options.
-func (dao *hookDao) ListWithRefer(kit *kit.Kit, opt *types.ListHooksWithReferOption) (
+func (dao *hookDao) ListWithRefer(kit *kit.Kit, opt *types.ListHooksWithReferOption, topIDs []uint32) (
 	[]*types.ListHooksWithReferDetail, int64, error) {
 
 	h := dao.genQ.Hook
 	hr := dao.genQ.HookRevision
 	rh := dao.genQ.ReleasedHook
-	q := dao.genQ.Hook.WithContext(kit.Ctx).Where(h.BizID.Eq(opt.BizID)).Order(h.Name)
+	q := dao.genQ.Hook.WithContext(kit.Ctx).Where(h.BizID.Eq(opt.BizID))
+
+	if len(topIDs) != 0 {
+		q = q.Order(utils.NewCustomExpr(`CASE WHEN (?) IN (?) THEN 0 ELSE 1 END,(?) ASC`,
+			[]interface{}{h.ID, topIDs, h.Name}))
+	} else {
+		q = q.Order(h.Name)
+	}
 
 	if opt.Name != "" {
 		q = q.Where(h.Name.Like("%" + opt.Name + "%"))

@@ -728,3 +728,23 @@ export const versionStatusQuery = (bizId: string, appId: number, releaseId: numb
  */
 export const versionStatusCheck = (bizId: string, appId: number) =>
   http.get(`/config/biz_id/${bizId}/app_id/${appId}/last/publish`);
+
+/**
+ * 批量恢复kv配置项
+ * @param bizId 业务ID
+ * @param appId 应用ID
+ * @param ids 恢复的id列表
+ * @returns
+ */
+export const batchUndeleteKv = (bizId: string, appId: number, keys: string[], exclusion_operation: boolean) =>
+  http.post(`config/biz/${bizId}/apps/${appId}/kvs/batch_undelete`, { keys, exclusion_operation });
+
+/**
+ * 批量恢复服务型配置项
+ * @param bizId 业务ID
+ * @param appId 应用ID
+ * @param ids 恢复的id列表
+ * @returns
+ */
+export const batchUndeleteFile = (bizId: string, appId: number, ids: number[]) =>
+  http.post(`config/biz_id/${bizId}/app_id/${appId}/config_items/batch_undelete`, { ids });

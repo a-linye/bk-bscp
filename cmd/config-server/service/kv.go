@@ -507,7 +507,7 @@ func (s *Service) ImportKvs(ctx context.Context, req *pbcs.ImportKvsReq) (*pbcs.
 		return nil, err
 	}
 
-	_, err = s.BatchUpsertKvs(grpcKit.RpcCtx(), &pbcs.BatchUpsertKvsReq{
+	resp, err := s.BatchUpsertKvs(grpcKit.RpcCtx(), &pbcs.BatchUpsertKvsReq{
 		BizId:      req.GetBizId(),
 		AppId:      req.GetAppId(),
 		Kvs:        kvs,
@@ -516,7 +516,7 @@ func (s *Service) ImportKvs(ctx context.Context, req *pbcs.ImportKvsReq) (*pbcs.
 	if err != nil {
 		return nil, err
 	}
-	return &pbcs.ImportKvsResp{}, nil
+	return &pbcs.ImportKvsResp{Ids: resp.Ids}, nil
 }
 
 func handleKv(kit *kit.Kit, result map[string]interface{}) ([]*pbcs.BatchUpsertKvsReq_Kv, error) {
@@ -785,4 +785,85 @@ func validateCertificate(certPEM string) bool {
 	}
 
 	return true
+}
+
+// BatchUnDeleteKv 批量恢复删除的kv
+func (s *Service) BatchUnDeleteKv(ctx context.Context, req *pbcs.BatchUnDeleteKvReq) (
+	*pbcs.BatchUnDeleteKvResp, error) {
+	kit := kit.FromGrpcContext(ctx)
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.Update, ResourceID: req.AppId}, BizID: req.BizId},
+	}
+	err := s.authorizer.Authorize(kit, res...)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := req.GetKeys()
+	if req.ExclusionOperation {
+		result, err := s.client.DS.KvFetchKeysExcluding(kit.RpcCtx(), &pbds.KvFetchKeysExcludingReq{
+			BizId: req.BizId,
+			AppId: req.AppId,
+			Keys:  req.GetKeys(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		keys = result.GetKeys()
+	}
+
+	if len(keys) == 0 {
+		return nil, errf.Errorf(errf.InvalidArgument, i18n.T(kit, "keys is required"))
+	}
+
+	eg, egCtx := errgroup.WithContext(kit.RpcCtx())
+	eg.SetLimit(10)
+
+	successfulKeys := []string{}
+	failedKeys := []string{}
+	var mux sync.Mutex
+
+	// 使用 data-service 原子接口
+	for _, v := range keys {
+		v := v
+		eg.Go(func() error {
+			r := &pbds.UnDeleteKvReq{
+				Key:   v,
+				BizId: req.GetBizId(),
+				AppId: req.GetAppId(),
+			}
+			if _, err := s.client.DS.UnDeleteKv(egCtx, r); err != nil {
+				logs.Errorf("recovery kv %d failed, err: %v, rid: %s", v, err, kit.Rid)
+
+				// 错误不返回异常，记录错误ID
+				mux.Lock()
+				failedKeys = append(failedKeys, v)
+				mux.Unlock()
+				return nil
+			}
+
+			mux.Lock()
+			successfulKeys = append(successfulKeys, v)
+			mux.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		logs.Errorf("batch recovery kv failed, err: %v, rid: %s", err, kit.Rid)
+		return nil, errf.Errorf(errf.Aborted, i18n.T(kit, "batch recovery kv failed"))
+	}
+
+	// 全部失败, 当前API视为失败
+	if len(failedKeys) == len(keys) {
+		return nil, errf.Errorf(errf.Aborted, i18n.T(kit, "batch recovery kv failed"))
+	}
+
+	return &pbcs.BatchUnDeleteKvResp{
+		SuccessfulKeys: successfulKeys,
+		FailedKeys:     failedKeys,
+	}, nil
 }

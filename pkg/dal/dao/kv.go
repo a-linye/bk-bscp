@@ -62,6 +62,8 @@ type Kv interface {
 	DeleteByStateWithTx(kit *kit.Kit, tx *gen.QueryTx, kv *table.Kv) error
 	// FetchIDsExcluding 获取指定ID后排除的ID
 	FetchIDsExcluding(kit *kit.Kit, bizID uint32, appID uint32, ids []uint32) ([]uint32, error)
+	// FetchKeysExcluding 获取指定keys后排除的keys
+	FetchKeysExcluding(kit *kit.Kit, bizID uint32, appID uint32, keys []string) ([]string, error)
 	// CountNumberUnDeleted 统计未删除的数量
 	CountNumberUnDeleted(kit *kit.Kit, bizID uint32, opt *types.ListKvOption) (int64, error)
 	// ListAllByAppIDWithTx list all Kv by appID using a transaction
@@ -75,6 +77,23 @@ type kvDao struct {
 	genQ     *gen.Query
 	idGen    IDGenInterface
 	auditDao AuditDao
+}
+
+// FetchKeysExcluding 获取指定keys后排除的keys
+func (dao *kvDao) FetchKeysExcluding(kit *kit.Kit, bizID uint32, appID uint32, keys []string) ([]string, error) {
+	m := dao.genQ.Kv
+	q := dao.genQ.Kv.WithContext(kit.Ctx)
+
+	var result []string
+	if err := q.Select(m.Key).
+		Where(m.BizID.Eq(bizID), m.AppID.Eq(appID),
+			m.Key.NotIn(keys...),
+			m.KvState.Eq(table.KvStateDelete.String())).
+		Pluck(m.Key, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // ListAllByAppIDWithTx list all Kv by appID using a transaction
@@ -97,7 +116,8 @@ func (dao *kvDao) ListAllByAppIDWithTx(kit *kit.Kit, tx *gen.QueryTx, appID uint
 // CountNumberUnDeleted 统计未删除的数量
 func (dao *kvDao) CountNumberUnDeleted(kit *kit.Kit, bizID uint32, opt *types.ListKvOption) (int64, error) {
 	m := dao.genQ.Kv
-	q := dao.genQ.Kv.WithContext(kit.Ctx).Where(m.BizID.Eq(bizID), m.AppID.Eq(opt.AppID))
+	q := dao.genQ.Kv.WithContext(kit.Ctx).Where(m.BizID.Eq(bizID), m.AppID.Eq(opt.AppID),
+		m.KvState.Neq(table.KvStateDelete.String()))
 	if opt.SearchKey != "" {
 		searchKey := "(?i)" + opt.SearchKey
 		q = q.Where(q.Where(q.Or(m.Key.Regexp(searchKey)).Or(m.Creator.Regexp(searchKey)).Or(
@@ -108,7 +128,7 @@ func (dao *kvDao) CountNumberUnDeleted(kit *kit.Kit, bizID uint32, opt *types.Li
 		q = q.Where(m.KvState.In(opt.Status...))
 	}
 
-	return q.Where(m.BizID.Eq(opt.BizID)).Where(m.KvState.Neq(table.KvStateDelete.String())).Count()
+	return q.Count()
 }
 
 // FetchIDsExcluding 获取指定ID后排除的ID

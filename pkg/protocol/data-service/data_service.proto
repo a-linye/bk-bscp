@@ -237,6 +237,7 @@ service Data {
   rpc UnDeleteKv(UnDeleteKvReq) returns (pbbase.EmptyResp) {};
   rpc UndoKv(UndoKvReq) returns (pbbase.EmptyResp) {};
   rpc KvFetchIDsExcluding(KvFetchIDsExcludingReq) returns (KvFetchIDsExcludingResp) {};
+  rpc KvFetchKeysExcluding(KvFetchKeysExcludingReq) returns (KvFetchKeysExcludingResp) {};
 
   // client related interface
   rpc ListClients(ListClientsReq) returns (ListClientsResp) {};
@@ -740,6 +741,7 @@ message ListHooksReq {
   uint32 start = 7;
   uint32 limit = 8;
   string searchKey = 9;
+  string top_ids = 10;
 }
 
 message ListHooksResp {
@@ -1887,6 +1889,16 @@ message KvFetchIDsExcludingReq {
 
 message KvFetchIDsExcludingResp {
   repeated uint32 ids = 1;
+}
+
+message KvFetchKeysExcludingReq {
+  uint32 biz_id = 1;
+  uint32 app_id = 2;
+  repeated string keys = 3;
+}
+
+message KvFetchKeysExcludingResp {
+  repeated string keys = 1;
 }
 
 message BatchUpsertClientMetricsReq {
