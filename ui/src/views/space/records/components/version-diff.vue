@@ -179,7 +179,7 @@
     btnLoading.value = true;
     try {
       await approve(props.spaceId, props.appId, props.releaseId, {
-        publish_status: APPROVE_STATUS.PendPublish,
+        publish_status: APPROVE_STATUS.pending_publish,
       });
       BkMessage({
         theme: 'success',

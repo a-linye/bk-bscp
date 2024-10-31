@@ -77,7 +77,7 @@
                 <div
                   v-if="
                     row.strategy?.publish_time &&
-                    [APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(row.audit.spec.status)
+                    [APPROVE_STATUS.pending_approval, APPROVE_STATUS.pending_publish].includes(row.audit.spec.status)
                   "
                   v-bk-tooltips="{
                     content: `${t('定时上线')}: ${convertTime(row.strategy.publish_time, 'local')}${
@@ -88,7 +88,9 @@
                   class="time-icon"></div>
                 <!-- 信息提示icon -->
                 <info-line
-                  v-if="![APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(row.audit.spec.status)"
+                  v-if="
+                    ![APPROVE_STATUS.pending_approval, APPROVE_STATUS.pending_publish].includes(row.audit.spec.status)
+                  "
                   v-bk-tooltips="{
                     content: statusTip(row),
                     placement: 'top',
@@ -107,7 +109,9 @@
               <div v-if="row.audit && row.audit.spec.action === 'PublishVersionConfig'" class="action-btns">
                 <!-- 创建者且版本待上线 才展示上线按钮;审批通过的时间在定时上线的时间以前，上线按钮置灰 -->
                 <bk-button
-                  v-if="row.audit.spec.status === APPROVE_STATUS.PendPublish && row.app.creator === userInfo.username"
+                  v-if="
+                    row.audit.spec.status === APPROVE_STATUS.pending_publish && row.app.creator === userInfo.username
+                  "
                   class="action-btn"
                   text
                   theme="primary"
@@ -120,7 +124,7 @@
 
                 <template
                   v-else-if="
-                    row.audit.spec.status === APPROVE_STATUS.PendApproval &&
+                    row.audit.spec.status === APPROVE_STATUS.pending_approval &&
                     row.strategy.approver_progress.includes(userInfo.username)
                   ">
                   <!-- 当前的记录在目标分组首次上线，直接审批通过 -->
@@ -140,8 +144,9 @@
                 <!-- 审批驳回/已撤销才可显示 -->
                 <bk-button
                   v-else-if="
-                    [APPROVE_STATUS.RejectedApproval, APPROVE_STATUS.RevokedPublish].includes(row.audit.spec.status) &&
-                    row.app.creator === userInfo.username
+                    [APPROVE_STATUS.rejected_approval, APPROVE_STATUS.revoked_publish].includes(
+                      row.audit.spec.status,
+                    ) && row.app.creator === userInfo.username
                   "
                   class="action-btn"
                   text
@@ -153,7 +158,7 @@
                 <!-- 待上线/去审批状态 才显示更多操作；目前仅创建者有撤销权限 -->
                 <MoreActions
                   v-if="
-                    [APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(row.audit.spec.status) &&
+                    [APPROVE_STATUS.pending_approval, APPROVE_STATUS.pending_publish].includes(row.audit.spec.status) &&
                     row.strategy.creator === userInfo.username
                   "
                   @handle-undo="handleConfirm(row, $event)" />
@@ -368,17 +373,17 @@
     const { status } = row.audit.spec;
     const { updated_at: time, reject_reason: reason, reviser } = row.strategy;
     switch (status) {
-      case APPROVE_STATUS.AlreadyPublish:
+      case APPROVE_STATUS.already_publish:
         return t('提示-已上线文案', { reviser, time: convertTime(time, 'local') });
-      case APPROVE_STATUS.RejectedApproval:
+      case APPROVE_STATUS.rejected_approval:
         return t('提示-审批驳回', {
           reviser,
           time: convertTime(time, 'local'),
           reason,
         });
-      case APPROVE_STATUS.RevokedPublish:
+      case APPROVE_STATUS.revoked_publish:
         return t('提示-已撤销', { reviser, time: convertTime(time, 'local') });
-      case APPROVE_STATUS.Failure:
+      case APPROVE_STATUS.failure:
         return t('提示-失败');
       default:
         return '--';
@@ -426,7 +431,7 @@
       const { biz_id, app_id } = row.audit.attachment;
       const { release_id } = row.strategy;
       await approve(String(biz_id), app_id, release_id, {
-        publish_status: APPROVE_STATUS.PendPublish,
+        publish_status: APPROVE_STATUS.pending_publish,
       });
       BkMessage({
         theme: 'success',
@@ -461,7 +466,7 @@
   const openApprovalSideBar = () => {
     // 如果url的操作记录id为待审批状态，且为可对比状态并且当前登录用户有权限审批时，允许打开审批抽屉
     const isCompare = tableData.value[0]?.audit.spec.is_compare; // 是否可以对比版本不同
-    const pendApproval = tableData.value[0]?.strategy.publish_status === APPROVE_STATUS.PendApproval; // 是否待审批状态
+    const pendApproval = tableData.value[0]?.strategy.publish_status === APPROVE_STATUS.pending_approval; // 是否待审批状态
     const isAuthorized = tableData.value[0]?.strategy.approver_progress.includes(userInfo.value.username); // 当前用户是否有权限审批
     if (isCompare && pendApproval && isAuthorized) {
       handleApproval(tableData.value[0]);
@@ -512,12 +517,12 @@
   // 审批状态颜色
   const setApprovalClass = (status: APPROVE_STATUS) => {
     return [
-      [APPROVE_STATUS.AlreadyPublish, APPROVE_STATUS.Success].includes(status) ? 'green' : '',
-      status === APPROVE_STATUS.PendPublish ? 'gray' : '',
-      [APPROVE_STATUS.RevokedPublish, APPROVE_STATUS.RejectedApproval, APPROVE_STATUS.Failure].includes(status)
+      [APPROVE_STATUS.already_publish, APPROVE_STATUS.success].includes(status) ? 'green' : '',
+      status === APPROVE_STATUS.pending_publish ? 'gray' : '',
+      [APPROVE_STATUS.revoked_publish, APPROVE_STATUS.rejected_approval, APPROVE_STATUS.failure].includes(status)
         ? 'red'
         : '',
-      status === APPROVE_STATUS.PendApproval ? 'orange' : '',
+      status === APPROVE_STATUS.pending_approval ? 'orange' : '',
     ];
   };
 

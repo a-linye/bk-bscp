@@ -3,29 +3,29 @@
     <bk-button
       v-if="
         !approveData?.status ||
-        ![APPROVE_STATUS.PendPublish, APPROVE_STATUS.AlreadyPublish].includes(approveData.status as APPROVE_STATUS)
+        ![APPROVE_STATUS.pending_publish, APPROVE_STATUS.already_publish].includes(approveData.status as APPROVE_STATUS)
       "
       v-cursor="{ active: !props.hasPerm }"
       theme="primary"
       :class="['trigger-button', { 'bk-button-with-no-perm': !props.hasPerm }]"
-      :disabled="props.permCheckLoading || approveData?.status === APPROVE_STATUS.PendApproval"
+      :disabled="props.permCheckLoading || approveData?.status === APPROVE_STATUS.pending_approval"
       @click="handleBtnClick">
       {{ t('上线版本') }}
     </bk-button>
     <bk-button
-      v-if="approveData?.status === APPROVE_STATUS.PendPublish"
+      v-if="approveData?.status === APPROVE_STATUS.pending_publish"
       v-cursor="{ active: !props.hasPerm }"
       v-bk-tooltips="{
-        disabled: approveData.type !== ONLINE_TYPE.Periodically,
+        disabled: approveData.type !== ONLINE_TYPE.scheduled,
         content: convertTime(approveData.time, 'local'),
         placement: 'bottom-end',
       }"
       theme="primary"
       :class="['trigger-button', { 'bk-button-with-no-perm': !props.hasPerm }]"
-      :disabled="approveData.type === ONLINE_TYPE.Periodically"
+      :disabled="approveData.type === ONLINE_TYPE.scheduled"
       @click="handlePublishClick">
       <!-- 审批通过时间在定时上线时间之后，后端自动转为手动上线 -->
-      {{ approveData.type === ONLINE_TYPE.Periodically ? t('等待定时上线') : t('确定上线') }}
+      {{ approveData.type === ONLINE_TYPE.scheduled ? t('等待定时上线') : t('确定上线') }}
     </bk-button>
     <Teleport to="body">
       <VersionLayout v-if="isSelectGroupPanelOpen">
@@ -105,7 +105,7 @@
   import ConfirmDialog from './confirm-dialog.vue';
   import SelectGroup from './select-group/index.vue';
   import PublishVersionDiff from '../publish-version-diff.vue';
-  import { ONLINE_TYPE, APPROVE_STATUS } from '../../../../../../constants/config';
+  import { ONLINE_TYPE, APPROVE_STATUS } from '../../../../../../constants/record';
   import DialogWarn from '../dialog-publish-warn.vue';
   import { convertTime } from '../../../../../../utils';
   import dayjs from 'dayjs';
@@ -284,7 +284,7 @@
     const { bkBizId: biz_id, appId: app_id } = props;
     // 上线后查询当前版本状态
     const resp = await approve(biz_id, app_id, versionData.value.id, {
-      publish_status: APPROVE_STATUS.AlreadyPublish,
+      publish_status: APPROVE_STATUS.already_publish,
     });
     handleConfirm(resp.haveCredentials);
   };

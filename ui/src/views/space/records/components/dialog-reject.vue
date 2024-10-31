@@ -76,7 +76,7 @@
     btnLoading.value = true;
     try {
       await approve(props.spaceId, props.appId, props.releaseId, {
-        publish_status: APPROVE_STATUS.RejectedApproval,
+        publish_status: APPROVE_STATUS.rejected_approval,
         reason: reason.value,
       });
       BkMessage({

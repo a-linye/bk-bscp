@@ -71,25 +71,8 @@ export const GET_UNNAMED_VERSION_DATA = (): IConfigVersion => ({
 
 // 版本上线格式
 export enum APPROVE_TYPE {
-  PendApproval, // 0 待审批
-  PendPublish, // 1 审批通过
-  Rejected, // 2 驳回
-  Revoke, // 3 撤销
-}
-
-// 版本上线方式
-export enum ONLINE_TYPE {
-  Manually = 'Manually', // 手动上线
-  Automatically = 'Automatically', // 审批通过后自动上线
-  Periodically = 'Periodically', // 定时上线
-  Immediately = 'Immediately', // 立即上线
-}
-
-// 版本状态
-export enum APPROVE_STATUS {
-  PendApproval = 'PendApproval', // 待审批
-  PendPublish = 'PendPublish', // 待上线
-  RevokedPublish = 'RevokedPublish', // 撤销上线
-  RejectedApproval = 'RejectedApproval', // 审批驳回
-  AlreadyPublish = 'AlreadyPublish', // 已上线
+  PendingApproval, // 0 待审批
+  PendingPublish, // 1 审批通过
+  RejectedApproval, // 2 驳回
+  RevokedPublish, // 3 撤销
 }

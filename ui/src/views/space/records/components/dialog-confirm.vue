@@ -71,7 +71,7 @@
   const reason = ref('');
 
   const submitType = computed(() => {
-    return props.dialogType === 'publish' ? APPROVE_STATUS.AlreadyPublish : APPROVE_STATUS.RevokedPublish;
+    return props.dialogType === 'publish' ? APPROVE_STATUS.already_publish : APPROVE_STATUS.revoked_publish;
   });
 
   const handleClose = () => {

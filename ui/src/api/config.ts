@@ -292,7 +292,7 @@ export const publishVerSubmit = (
     groups: Array<number>;
     all: boolean;
     memo: string;
-    publish_type: 'Manually' | 'Automatically' | 'Periodically' | 'Immediately' | '';
+    publish_type: 'manually' | 'automatically' | 'periodically' | 'immediately' | '';
     publish_time: Date | string;
     is_compare: boolean;
   },

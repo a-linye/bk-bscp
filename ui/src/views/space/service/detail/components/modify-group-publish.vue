@@ -3,7 +3,9 @@
     <bk-button
       v-if="
         !approveData?.status ||
-        ![APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(approveData.status as APPROVE_STATUS)
+        ![APPROVE_STATUS.pending_approval, APPROVE_STATUS.pending_publish].includes(
+          approveData.status as APPROVE_STATUS,
+        )
       "
       v-cursor="{ active: !props.hasPerm }"
       theme="primary"
@@ -13,19 +15,19 @@
       {{ t('调整分组上线') }}
     </bk-button>
     <bk-button
-      v-if="approveData?.status === APPROVE_STATUS.PendPublish"
+      v-if="approveData?.status === APPROVE_STATUS.pending_publish"
       v-cursor="{ active: !props.hasPerm }"
       v-bk-tooltips="{
-        disabled: approveData.type !== ONLINE_TYPE.Periodically,
+        disabled: approveData.type !== ONLINE_TYPE.scheduled,
         content: convertTime(approveData.time, 'local'),
         placement: 'bottom-end',
       }"
-      :disabled="approveData.type === ONLINE_TYPE.Periodically"
+      :disabled="approveData.type === ONLINE_TYPE.scheduled"
       theme="primary"
       :class="['trigger-button', { 'bk-button-with-no-perm': !props.hasPerm }]"
       @click="handlePublishClick">
       <!-- 审批通过时间在定时上线时间之后，后端自动转为手动上线 -->
-      {{ approveData.type === ONLINE_TYPE.Periodically ? t('等待定时上线') : t('确定上线') }}
+      {{ approveData.type === ONLINE_TYPE.scheduled ? t('等待定时上线') : t('确定上线') }}
     </bk-button>
     <Teleport to="body">
       <VersionLayout v-if="isSelectGroupPanelOpen">
@@ -111,7 +113,7 @@
   import ConfirmDialog from './publish-version/confirm-dialog.vue';
   import SelectGroup from './publish-version/select-group/index.vue';
   import PublishVersionDiff from './publish-version-diff.vue';
-  import { ONLINE_TYPE, APPROVE_STATUS } from '../../../../../constants/config';
+  import { ONLINE_TYPE, APPROVE_STATUS } from '../../../../../constants/record';
   import DialogWarn from './dialog-publish-warn.vue';
   import { convertTime } from '../../../../../utils';
   import dayjs from 'dayjs';
@@ -335,7 +337,7 @@
   const handlePublishClick = async () => {
     const { bkBizId: biz_id, appId: app_id } = props;
     const resp = await approve(biz_id, app_id, versionData.value.id, {
-      publish_status: APPROVE_STATUS.AlreadyPublish,
+      publish_status: APPROVE_STATUS.already_publish,
     });
     handleConfirm(resp.haveCredentials);
   };

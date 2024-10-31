@@ -7,8 +7,9 @@
         <li
           class="more-options-li"
           v-if="
-            [APPROVE_STATUS.PendApproval, APPROVE_STATUS.PendPublish].includes(props.approveStatus as APPROVE_STATUS) &&
-            creator === userInfo.username
+            [APPROVE_STATUS.pending_approval, APPROVE_STATUS.pending_publish].includes(
+              props.approveStatus as APPROVE_STATUS,
+            ) && creator === userInfo.username
           "
           @click="handleUndo">
           {{ $t('撤销') }}
@@ -26,7 +27,7 @@
   import { Ellipsis } from 'bkui-vue/lib/icon';
   import { approve } from '../../../../../api/record';
   import BkMessage from 'bkui-vue/lib/message';
-  import { APPROVE_STATUS } from '../../../../../constants/config';
+  import { APPROVE_STATUS } from '../../../../../constants/record';
   import { useI18n } from 'vue-i18n';
 
   const { userInfo } = storeToRefs(useUserStore());
@@ -66,7 +67,9 @@
     loading.value = true;
     try {
       const { spaceId: biz_id, appId: app_id, versionId: release_id } = route.params;
-      await approve(String(biz_id), Number(app_id), Number(release_id), { publish_status: 'RevokedPublish' });
+      await approve(String(biz_id), Number(app_id), Number(release_id), {
+        publish_status: APPROVE_STATUS.revoked_publish,
+      });
       BkMessage({
         theme: 'success',
         message: t('成功'),

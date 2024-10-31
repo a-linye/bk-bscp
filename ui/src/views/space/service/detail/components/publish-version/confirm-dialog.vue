@@ -92,18 +92,18 @@
           <bk-radio-group v-model="localVal.publish_type" :class="{ 'publish-type-wrap': locale !== 'zh-cn' }">
             <!-- 未开启审批 -->
             <template v-if="!isApprove">
-              <bk-radio label="Immediately">{{ t('立即上线') }}</bk-radio>
-              <bk-radio label="Periodically">{{ t('定时上线') }}</bk-radio>
+              <bk-radio label="immediately">{{ t('立即上线') }}</bk-radio>
+              <bk-radio label="periodically">{{ t('定时上线') }}</bk-radio>
             </template>
             <!-- 开启审批 -->
             <template v-else>
-              <bk-radio label="Manually">{{ t('手动上线') }}</bk-radio>
-              <bk-radio label="Automatically">{{ t('审批通过后立即上线') }}</bk-radio>
-              <bk-radio label="Periodically">{{ t('定时上线') }}</bk-radio>
+              <bk-radio label="manually">{{ t('手动上线') }}</bk-radio>
+              <bk-radio label="automatically">{{ t('审批通过后立即上线') }}</bk-radio>
+              <bk-radio label="periodically">{{ t('定时上线') }}</bk-radio>
             </template>
           </bk-radio-group>
           <bk-date-picker
-            v-if="localVal.publish_type === 'Periodically'"
+            v-if="localVal.publish_type === 'periodically'"
             v-model="localVal.publish_time"
             :editable="false"
             :clearable="false"
@@ -147,7 +147,7 @@
     groups: number[];
     all: boolean;
     memo: string;
-    publish_type: 'Manually' | 'Automatically' | 'Periodically' | 'Immediately' | '';
+    publish_type: 'manually' | 'automatically' | 'periodically' | 'immediately' | '';
     publish_time: Date | string;
   }
 
@@ -280,7 +280,7 @@
       }
       // 非定时上线，publishTime清空
       params.publish_time =
-        localVal.value.publish_type === 'Periodically' ? convertTime(params.publish_time as string, 'utc') : '';
+        localVal.value.publish_type === 'periodically' ? convertTime(params.publish_time as string, 'utc') : '';
       const resp = await publishVerSubmit(props.bkBizId, props.appId, versionData.value.id, params);
       handleClose();
       // 目前组件库dialog关闭自带250ms的延迟，所以这里延时300ms
@@ -320,7 +320,7 @@
         localVal.value.publish_type = publish_type;
       } else {
         // 无审批类型，默认选择选项的第一个
-        localVal.value.publish_type = is_approve ? 'Manually' : 'Immediately';
+        localVal.value.publish_type = is_approve ? 'manually' : 'immediately';
       }
     } catch (error) {
       console.log(error);
