@@ -371,7 +371,7 @@
       return '--';
     }
     const { status } = row.audit.spec;
-    const { updated_at: time, reject_reason: reason, reviser } = row.strategy;
+    const { final_approval_time: time, reject_reason: reason, reviser } = row.strategy;
     switch (status) {
       case APPROVE_STATUS.already_publish:
         return t('提示-已上线文案', { reviser, time: convertTime(time, 'local') });

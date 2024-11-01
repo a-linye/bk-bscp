@@ -27,7 +27,7 @@
       <span class="content-info__bd">
         {{ dialogData.version_name }}
       </span>
-      <share class="share" @click="handleLinkTo($event, dialogData.updated_at)" />
+      <share class="share" @click="handleLinkTo($event, dialogData.final_approval_time)" />
     </div>
     <template v-else>
       <div class="content-info is-special">
@@ -88,7 +88,7 @@
     const query: { start_time?: string; end_time?: string; status?: string } = {
       start_time: time === 'all' ? '' : convertTime(time, 'local'),
       end_time: time === 'all' ? '' : convertTime(time, 'local'),
-      status: time === 'all' ? APPROVE_STATUS.AlreadyPublish : '',
+      status: time === 'all' ? APPROVE_STATUS.already_publish : '',
     };
     if (time !== 'all') {
       delete query.status;

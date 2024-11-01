@@ -56,7 +56,8 @@ export interface IRowData {
     reject_reason: string;
     approver: string;
     approver_progress: string;
-    updated_at: string;
+    // updated_at: string;
+    final_approval_time: string;
     reviser: string;
     release_id: number;
     scope: {

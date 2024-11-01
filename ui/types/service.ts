@@ -69,7 +69,7 @@ interface IPublishRecord {
 
 export interface IPublishData {
   is_publishing?: boolean; // 是否有其他版本在上线
-  updated_at: string; // 最后更新时间
+  final_approval_time: string; // 最后更新时间
   version_name: string; // 最后上线的版本名称
   publish_record?: IPublishRecord[]; // 最近的上线记录
 }

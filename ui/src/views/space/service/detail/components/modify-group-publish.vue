@@ -155,7 +155,7 @@
   const selectGroupRef = ref();
   const warnDialogShow = ref(false);
   const warnDialogData = ref<IPublishData>({
-    updated_at: '', // 最后更新时间
+    final_approval_time: '', // 最后更新时间
     version_name: '', // 最后上线的版本名称
   });
 
