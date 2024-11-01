@@ -22,13 +22,13 @@ export const INSTANCE = {
 
 // 状态
 export const STATUS = {
-  PendApproval: localT('待审批'),
-  PendPublish: localT('待上线'),
-  RevokedPublish: localT('撤销上线'),
-  RejectedApproval: localT('审批驳回'),
-  AlreadyPublish: localT('已上线'),
-  Failure: localT('失败'),
-  Success: localT('成功'),
+  pending_approval: localT('待审批'),
+  pending_publish: localT('待上线'),
+  revoked_publish: localT('撤销上线'),
+  rejected_approval: localT('审批驳回'),
+  already_publish: localT('已上线'),
+  failure: localT('失败'),
+  success: localT('成功'),
 };
 
 // 版本状态
@@ -52,8 +52,8 @@ export enum ONLINE_TYPE {
 
 // 过滤的Key
 export enum FILTER_KEY {
-  PublishVersionConfig = 'PublishVersionConfig', // 上线版本配置
-  Failure = 'Failure', // 失败
+  publish_release_config = 'publish_release_config', // 上线版本配置
+  failure = 'failure', // 失败
 }
 
 // 操作记录搜索字段
