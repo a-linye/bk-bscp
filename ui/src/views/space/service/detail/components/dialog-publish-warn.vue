@@ -49,7 +49,9 @@
             <div class="table-th">操作人</div>
           </div>
           <div class="table-tr" v-for="(item, index) in dialogData.publish_record" :key="index">
-            <div class="table-td">{{ item.publish_time ? convertTime(item.publish_time, 'local') : '--' }}</div>
+            <div class="table-td">
+              {{ item.final_approval_time ? convertTime(item.final_approval_time, 'local') : '--' }}
+            </div>
             <div class="table-td">{{ item.name || '--' }}</div>
             <div class="table-td">{{ item.fully_released ? '全部实例' : versionScope(item.scope.groups) }}</div>
             <div class="table-td">{{ item.creator || '--' }}</div>

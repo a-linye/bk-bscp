@@ -363,7 +363,7 @@
     }
     if (data?.publish_record.length) {
       // 最近上线的版本时间与当前系统时间在2小时内，风险提示弹窗
-      const time = data.publish_record[0].publish_time;
+      const time = data.final_approval_time;
       const publishTime = dayjs(convertTime(time, 'local'));
       const currentTime = dayjs();
       if (publishTime.add(2, 'hour').isAfter(currentTime)) {

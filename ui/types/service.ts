@@ -65,11 +65,12 @@ interface IPublishRecord {
   creator: string;
   fully_released: boolean;
   updated_at: string;
+  final_approval_time: string;
 }
 
 export interface IPublishData {
   is_publishing?: boolean; // 是否有其他版本在上线
-  final_approval_time: string; // 最后更新时间
+  final_approval_time: string; // 最近上线版本/驳回/通过/撤销 的时间
   version_name: string; // 最后上线的版本名称
   publish_record?: IPublishRecord[]; // 最近的上线记录
 }
