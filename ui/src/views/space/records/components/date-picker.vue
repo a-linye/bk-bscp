@@ -63,6 +63,8 @@
   const defaultValue = ref<string[]>([]);
 
   onMounted(() => {
+    // 有limit参数时，不自动选择最近7天时间
+    if (route.query.limit) return;
     const hasQueryTime = ['start_time', 'end_time'].every(
       (key) => key in route.query && route.query[key]?.length === 19,
     );
@@ -94,9 +96,15 @@
   };
 
   const setUrlParams = () => {
+    const query = route.query;
+    // 重新选择时间后不再精确查询
+    if (query.limit || query.id) {
+      delete query.limit;
+      delete query.id;
+    }
     router.replace({
       query: {
-        ...route.query,
+        ...query,
         start_time: defaultValue.value[0],
         end_time: defaultValue.value[1],
       },

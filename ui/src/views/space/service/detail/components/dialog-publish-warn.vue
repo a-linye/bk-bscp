@@ -87,13 +87,18 @@
 
   const handleLinkTo = ($event: MouseEvent, time: string) => {
     $event.preventDefault();
-    const query: { start_time?: string; end_time?: string; status?: string } = {
+    const query: { start_time?: string; end_time?: string; status?: string; limit?: number } = {
       start_time: time === 'all' ? '' : convertTime(time, 'local'),
       end_time: time === 'all' ? '' : convertTime(time, 'local'),
       status: time === 'all' ? APPROVE_STATUS.already_publish : '',
+      limit: 1,
     };
     if (time !== 'all') {
+      delete query.start_time;
+      delete query.end_time;
       delete query.status;
+    } else {
+      delete query.limit;
     }
     const url = router.resolve({
       name: 'records-app',

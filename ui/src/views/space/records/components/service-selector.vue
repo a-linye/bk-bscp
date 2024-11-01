@@ -94,6 +94,10 @@
   // 下拉列表操作
   const handleAppChange = async (appId: number) => {
     const service = serviceList.value.find((service) => service.id === Number(appId));
+    // 重新选择服务后不再精确查询
+    const query = route.query;
+    delete query.id;
+    delete query.limit;
     if (service) {
       localApp.value = {
         name: service.spec.name,
@@ -101,14 +105,14 @@
         serviceType: service.spec.config_type!,
       };
       setLastAccessedServiceDetail(appId);
-      await router.push({ name: 'records-app', params: { spaceId: bizId.value, appId }, query: route.query });
+      await router.push({ name: 'records-app', params: { spaceId: bizId.value, appId }, query });
     } else {
       localApp.value = {
         name: t('全部服务'),
         id: -1,
         serviceType: '',
       };
-      await router.push({ name: 'records-all', params: { spaceId: bizId.value }, query: route.query });
+      await router.push({ name: 'records-all', params: { spaceId: bizId.value }, query });
     }
   };
 

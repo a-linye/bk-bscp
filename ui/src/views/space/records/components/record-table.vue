@@ -315,13 +315,12 @@
       const { start_time, end_time } = searchParams.value;
       const params: IRecordQuery = {
         start: pagination.value.limit * (pagination.value.current - 1),
-        limit: pagination.value.limit,
+        limit: Number(route.query.limit) || pagination.value.limit,
         ...searchParams.value,
-        start_time: convertTime(start_time!, 'utc'),
-        end_time: convertTime(end_time!, 'utc'),
+        start_time: start_time ? convertTime(start_time!, 'utc') : '',
+        end_time: end_time ? convertTime(end_time!, 'utc') : '',
       };
       const res = await getRecordList(props.spaceId, params);
-      // actionTimeSrotMode.value ? tableDataSort(res.details) : (tableData.value = res.details);
       tableDataSort(res.details);
       pagination.value.count = res.count;
       // 是否打开审批抽屉
