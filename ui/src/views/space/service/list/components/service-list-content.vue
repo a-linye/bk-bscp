@@ -154,7 +154,7 @@
       data_type: '',
       is_approve: true,
       approver: '',
-      approve_type: 'OrSign',
+      approve_type: 'or_sign',
     },
     revision: {
       creator: '',

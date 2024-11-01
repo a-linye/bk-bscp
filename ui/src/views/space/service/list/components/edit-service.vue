@@ -40,7 +40,7 @@
             </li>
             <li class="approval-li">
               <div class="approval-hd">审批方式</div>
-              <div class="approval-bd">{{ serviceData!.spec.approve_type === 'OrSign' ? t('或签') : t('会签') }}</div>
+              <div class="approval-bd">{{ serviceData!.spec.approve_type === 'or_sign' ? t('或签') : t('会签') }}</div>
             </li>
           </ul>
           <span v-else>未开启</span>
@@ -116,7 +116,7 @@
     memo: '',
     is_approve: true,
     approver: '',
-    approve_type: 'OrSign',
+    approve_type: 'or_sign',
   });
   const serviceData = ref<IAppItem>();
   const pending = ref(false);

@@ -72,7 +72,7 @@
     memo: '', // @todo 包含换行符后接口会报错
     is_approve: true,
     approver: '',
-    approve_type: 'OrSign',
+    approve_type: 'or_sign',
     // encryptionSwtich: false,
     // encryptionKey: '',
   });
@@ -95,7 +95,7 @@
           memo: '',
           is_approve: true,
           approver: '',
-          approve_type: 'OrSign',
+          approve_type: 'or_sign',
           // encryptionSwtich: false,
           // encryptionKey: '',
         };

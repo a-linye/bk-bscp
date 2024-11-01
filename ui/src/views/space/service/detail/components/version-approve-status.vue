@@ -64,16 +64,16 @@
   const publishStatusText = (type: string) => {
     switch (type) {
       case 'pending_approval':
-        approveStatus.value = APPROVE_TYPE.PendingApproval;
+        approveStatus.value = APPROVE_TYPE.pending_approval;
         return t('待审批');
       case 'rejected_approval':
-        approveStatus.value = APPROVE_TYPE.RejectedApproval;
+        approveStatus.value = APPROVE_TYPE.rejected_approval;
         return t('审批驳回');
       case 'revoked_publish':
-        approveStatus.value = APPROVE_TYPE.RevokedPublish;
+        approveStatus.value = APPROVE_TYPE.revoked_publish;
         return t('撤销上线');
       case 'Pending_publish':
-        approveStatus.value = APPROVE_TYPE.PendingPublish;
+        approveStatus.value = APPROVE_TYPE.pending_publish;
         return t('审批通过');
       case 'already_publish':
       default:
