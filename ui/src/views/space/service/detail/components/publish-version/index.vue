@@ -302,12 +302,12 @@
   // 版本上线文案
   const publishTitle = (type: string, time: string) => {
     switch (type) {
-      case 'Manually':
+      case ONLINE_TYPE.manually:
         return t('手动上线文案');
-      case 'Automatically':
+      case ONLINE_TYPE.automatically:
         // return t('待审批通过后，调整分组将自动上线');
         return t('审批通过后上线文案');
-      case 'Periodically':
+      case ONLINE_TYPE.scheduled:
         return t('定时上线文案', { time });
       default:
         return t('版本已上线');
