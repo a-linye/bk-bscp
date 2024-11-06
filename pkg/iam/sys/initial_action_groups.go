@@ -65,6 +65,14 @@ func genBusinessManagementActionGroups() []client.ActionGroup {
 			// 		{ID: GroupDelete},
 			// 	},
 			// },
+
+		},
+		{
+			Name:   "操作记录",
+			NameEn: "Audit",
+			Actions: []client.ActionWithID{ // 操作记录查看
+				{ID: AuditView},
+			},
 		},
 	}
 }
