@@ -183,16 +183,18 @@ const (
 	// ItsmTicketTypeDelete enum string for itsm ticket type delete
 	ItsmTicketTypeDelete = "delete"
 
-	// ItsmApproveOrSignType 或签负责人审批
-	ItsmApproveOrSignType = "或签负责人审批"
-	// ItsmApproveCountSingType 会签负责人审批
-	ItsmApproveCountSignType = "会签负责人审批"
+	// ItsmApproveCountSingType 会签审批
+	ItsmApproveCountSignType = "会签审批"
+	// ItsmApproveOrSignType 或签审批
+	ItsmApproveOrSignType = "或签审批"
 	// 负责人审批类型
 	ItsmApproveType = "APPROVAL"
 	// ItsmApproveServiceName 服务名称
 	ItsmApproveServiceName = "创建上线审批"
-	// ItsmApproveResult itsm已处理人的结果
-	ItsmApproveResult = "已处理【负责人审批】(通过)"
+	// ItsmPassApproveResult itsm已处理人的结果
+	ItsmPassedApproveResult = "通过" // nolint: gosec
+	// ItsmRejectApproveResult itsm已处理人的结果
+	ItsmRejectedApproveResult = "拒绝"
 
 	// 单据状态:
 

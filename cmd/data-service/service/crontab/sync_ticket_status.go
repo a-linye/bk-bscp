@@ -116,6 +116,9 @@ func (c *SyncTicketStatus) syncTicketStatus(kt *kit.Kit) {
 	}
 
 	for _, ticket := range tickets {
+		md := metadata.MD{
+			strings.ToLower(constant.OperateWayKey): []string{string(enumor.API)}, // 从定时任务调用的
+		}
 		// 正常状态的单据
 		if ticket.CurrentStatus == constant.TicketRunningStatu {
 			ticketStatus, err := itsm.GetTicketStatus(kt.Ctx, ticket.SN)
@@ -142,6 +145,7 @@ func (c *SyncTicketStatus) syncTicketStatus(kt *kit.Kit) {
 				if !gan.Data.ApproveResult {
 					req.PublishStatus = string(table.RejectedApproval)
 					req.Reason = gan.Data.ApproveRemark
+					md[strings.ToLower(constant.UserKey)] = []string{gan.Data.Processeduser}
 				}
 				req.ApprovedBy = strings.Split(gan.Data.Processeduser, ",")
 
@@ -159,9 +163,7 @@ func (c *SyncTicketStatus) syncTicketStatus(kt *kit.Kit) {
 				req.PublishStatus = string(table.PendingApproval)
 				req.ApprovedBy = passApprover
 			}
-			ctx := metadata.NewIncomingContext(kt.Ctx, metadata.MD{
-				strings.ToLower(constant.OperateWayKey): []string{string(enumor.API)}, // 从定时任务调用的
-			})
+			ctx := metadata.NewIncomingContext(kt.Ctx, md)
 			_, err = c.srv.Approve(ctx, req)
 			if err != nil {
 				logs.Errorf("sync ticket status approve failed, err: %s", err.Error())
@@ -176,10 +178,8 @@ func (c *SyncTicketStatus) syncTicketStatus(kt *kit.Kit) {
 				PublishStatus: string(table.RevokedPublish),
 				StrategyId:    strategyMap[ticket.SN].ID,
 			}
-			ctx := metadata.NewIncomingContext(kt.Ctx, metadata.MD{
-				strings.ToLower(constant.UserKey):       []string{ticket.Creator},
-				strings.ToLower(constant.OperateWayKey): []string{string(enumor.API)}, // 从定时任务调用的
-			})
+			md[constant.UserKey] = []string{ticket.Creator}
+			ctx := metadata.NewIncomingContext(kt.Ctx, md)
 			_, err := c.srv.Approve(ctx, req)
 			if err != nil {
 				logs.Errorf("sync ticket status approve failed, err: %s", err.Error())

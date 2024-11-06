@@ -244,7 +244,11 @@ func GetTicketLogsByPass(ctx context.Context, sn string) ([]string, error) {
 	}
 
 	for _, v := range result.Data.Logs {
-		if strings.Contains(v.Message, constant.ItsmApproveResult) {
+		if strings.Contains(v.Message, constant.ItsmRejectedApproveResult) {
+			return []string{v.Operator}, nil
+		}
+
+		if strings.Contains(v.Message, constant.ItsmPassedApproveResult) {
 			resp = append(resp, v.Operator)
 		}
 	}

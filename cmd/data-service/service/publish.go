@@ -232,15 +232,22 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 		return nil, err
 	}
 
-	// 从itsm回调的，如果状态跟数据库一样直接返回结果
-	if grpcKit.OperateWay == "" && strategy.Spec.PublishStatus == table.PublishStatus(req.PublishStatus) {
+	app, err := s.dao.App().GetByID(grpcKit, req.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	// 从itsm回调的，如果状态跟数据库一样或者待上线状态直接返回结果
+	if grpcKit.OperateWay == "" && (strategy.Spec.PublishStatus == table.PublishStatus(req.PublishStatus) ||
+		strategy.Spec.PublishStatus == table.PublishStatus(table.PendingPublish) ||
+		strategy.Spec.PublishStatus == table.PublishStatus(table.AlreadyPublish)) {
 		return &pbds.ApproveResp{}, nil
 	}
 
 	var message string
 	// 获取itsm ticket状态，不审批的不查
 	// message 不为空的情况：itsm操作后数据不正常的message皆不为空，但数据库需要更新
-	if strategy.Spec.Approver != "" {
+	if app.Spec.IsApprove {
 		req, message, err = checkTicketStatus(grpcKit,
 			strategy.Spec.ItsmTicketSn, strategy.Spec.ItsmTicketStateID, req)
 		if err != nil {
@@ -321,7 +328,7 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	}
 
 	// 从页面进来且需要审批的数据则同步itsm
-	if strategy.Spec.Approver != "" && message == "" {
+	if app.Spec.IsApprove && message == "" && strategy.Spec.ItsmTicketStatus == constant.ItsmTicketStatusCreated {
 		// 撤销状态下，直接撤销
 		if req.PublishStatus == string(table.RevokedPublish) {
 			err = itsm.WithdrawTicket(grpcKit.Ctx, itsmUpdata)
@@ -336,6 +343,12 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 				return nil, err
 			}
 		}
+	}
+
+	// 不是空值表示被客户端拉取过
+	var havePull bool
+	if app.Spec.LastConsumedTime != nil {
+		havePull = true
 	}
 
 	haveCredentials, err := s.checkAppHaveCredentials(grpcKit, req.BizId, req.AppId)
@@ -354,6 +367,7 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	}
 	return &pbds.ApproveResp{
 		HaveCredentials: haveCredentials,
+		HavePull:        havePull,
 	}, nil
 }
 
@@ -1013,7 +1027,7 @@ func (s *Service) submitCreateApproveTicket(
 			"value": scope,
 		}, {
 			"key":   "COMPARE",
-			"value": fmt.Sprintf("%s/space/2/records/all?id=%d", cc.DataService().ITSM.BscpPageUrl, aduitId),
+			"value": fmt.Sprintf("%s/space/%d/records/all?limit=1&id=%d", cc.DataService().ITSM.BscpPageUrl, app.BizID, aduitId),
 		}, {
 			"key":   "BIZ_ID",
 			"value": app.BizID,
@@ -1122,6 +1136,10 @@ func (s *Service) parseGroup(
 func checkTicketStatus(grpcKit *kit.Kit,
 	sn string, stateID int, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
 	var message string
+	// 上线操作直接返回
+	if req.PublishStatus == string(table.AlreadyPublish) {
+		return req, message, nil
+	}
 	// 先获取tikect status
 	ticketStatus, err := itsm.GetTicketStatus(grpcKit.Ctx, sn)
 	if err != nil {
@@ -1144,7 +1162,7 @@ func checkTicketStatus(grpcKit *kit.Kit,
 			// 审批人列表，驳回的时候只有一个，会签通过时会以逗号分隔
 			req.ApprovedBy = strings.Split(GetApproveNodeResultData.Data.Processeduser, ",")
 			// 审批通过，非待上线的情况
-			if GetApproveNodeResultData.Data.ApproveResult && req.PublishStatus != string(table.AlreadyPublish) {
+			if GetApproveNodeResultData.Data.ApproveResult {
 				req.PublishStatus = string(table.PendingPublish)
 				return req,
 					fmt.Sprintf("approval has been passed by itsm person: %s",
@@ -1158,19 +1176,25 @@ func checkTicketStatus(grpcKit *kit.Kit,
 					fmt.Sprintf("approval has been rejected by itsm person: %s",
 						GetApproveNodeResultData.Data.Processeduser), nil
 			}
+			logs.Infof("get approve node result, operateWay: %s, kit user: %s, approved by: %v, message: %s",
+				grpcKit.OperateWay, grpcKit.User, req.ApprovedBy, message)
 		} else {
-			// 统计itsm有多少人已经审批通过
-			passApprover, err := itsm.GetTicketLogsByPass(grpcKit.Ctx, sn)
+			// 回调过程中或者审批过程中
+			// 统计itsm有多少人已经审批通过,有可能处于回调过程中
+			approver, err := itsm.GetTicketLogsByPass(grpcKit.Ctx, sn)
 			if err != nil {
 				return req, message, err
 			}
-			req.ApprovedBy = passApprover
-			for _, v := range passApprover {
+			req.ApprovedBy = approver
+			for _, v := range approver {
 				// 已经审批过直接提示已经被审批过
-				if v == grpcKit.User {
-					return req, "approval has been passed", nil
+				if v == grpcKit.User || grpcKit.OperateWay == "" {
+					grpcKit.User = v
+					return req, "approval has been passed or rejected", nil
 				}
 			}
+			logs.Infof("get ticket logs by pass, operateWay: %s, kit user: %s, approved by: %v, message: %s",
+				grpcKit.OperateWay, grpcKit.User, req.ApprovedBy, message)
 		}
 		return req, message, nil
 
@@ -1178,7 +1202,8 @@ func checkTicketStatus(grpcKit *kit.Kit,
 		req.PublishStatus = string(table.RevokedPublish)
 		return req, "approval has been revoked by itsm person", nil
 	case constant.TicketFinishedStatu:
-		if req.PublishStatus == string(table.AlreadyPublish) {
+		// 允许审批通过后撤销
+		if req.PublishStatus == string(table.RevokedPublish) {
 			return req, message, nil
 		}
 		// 不是上线的状况下，单据已结束证明数据是正常的，直接报错返回

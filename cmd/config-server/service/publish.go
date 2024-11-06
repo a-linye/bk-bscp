@@ -138,6 +138,7 @@ func (s *Service) Approve(ctx context.Context, req *pbcs.ApproveReq) (*pbcs.Appr
 	resp := &pbcs.ApproveResp{
 		HaveCredentials: rp.HaveCredentials,
 		Code:            0,
+		HavePull:        rp.HavePull,
 	}
 	return resp, nil
 }

@@ -1794,6 +1794,7 @@ message ApproveReq {
 
 message ApproveResp {
   bool have_credentials = 1;
+  bool have_pull = 2;
 }
 
 message GetLastSelectReq {
