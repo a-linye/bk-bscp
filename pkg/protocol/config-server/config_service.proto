@@ -2907,6 +2907,7 @@ message GetLastPublishResp {
   string version_name = 2;
   string final_approval_time = 3;
   repeated pbrelease.PublishRecord publish_record = 4;
+  uint32 release_id = 5;
 }
 
 message GetReleasesStatusReq {

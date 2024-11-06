@@ -106,6 +106,7 @@ func (s *Service) GetLastPublish(ctx context.Context, req *pbds.GetLastPublishRe
 	}
 
 	resp.VersionName = releaseRecord.Spec.Name
+	resp.ReleaseId = strategyRecord.Spec.ReleaseID
 	resp.FinalApprovalTime = strategyRecord.Spec.FinalApprovalTime.Format(time.DateTime)
 
 	lrs, err := s.dao.Release().ListReleaseStrategies(grpcKit, req.BizId, req.AppId)

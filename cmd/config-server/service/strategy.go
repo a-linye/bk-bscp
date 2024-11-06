@@ -85,6 +85,7 @@ func (s *Service) GetLastPublish(ctx context.Context, req *pbcs.GetLastPublishRe
 		VersionName:       rp.VersionName,
 		FinalApprovalTime: rp.FinalApprovalTime,
 		PublishRecord:     rp.PublishRecord,
+		ReleaseId:         rp.ReleaseId,
 	}
 	return resp, nil
 }
