@@ -49,6 +49,7 @@ func genBizCommonActions() []client.CommonAction {
 				{ID: ReleasePublish},
 				{ID: CredentialView},
 				{ID: CredentialManage},
+				{ID: AuditView},
 			},
 		},
 	}
