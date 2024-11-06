@@ -26,7 +26,9 @@ var (
 	// GZIP files start with 1F 8B
 	gzipMagic = []byte{0x1F, 0x8B}
 	// ZIP files start with 50 4B 03 04 or 50 4B 05 06 or 50 4B 07 08
-	zipMagic = []byte{0x50, 0x4B}
+	zipLocalFileHeaderMagic       = []byte{0x50, 0x4B, 0x03, 0x04} // 主文件头
+	zipEndOfCentralDirectoryMagic = []byte{0x50, 0x4B, 0x05, 0x06} // 结束目录记录头
+	zipDataDescriptorMagic        = []byte{0x50, 0x4B, 0x07, 0x08} // 数据描述符
 	// Check if the buffer contains a valid tar header
 	ustarMagic  = []byte("ustar\x00")
 	gnuTarMagic = []byte("ustar  \x00")
@@ -96,7 +98,9 @@ func isGzip(buf []byte) bool {
 }
 
 func isZip(buf []byte) bool {
-	return len(buf) >= len(zipMagic) && bytes.HasPrefix(buf, zipMagic)
+	return len(buf) >= len(zipLocalFileHeaderMagic) && (bytes.HasPrefix(buf, zipLocalFileHeaderMagic) ||
+		bytes.HasPrefix(buf, zipEndOfCentralDirectoryMagic) ||
+		bytes.HasPrefix(buf, zipDataDescriptorMagic))
 }
 
 func isTar(buf []byte) bool {

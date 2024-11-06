@@ -1,6 +1,6 @@
 module github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp
 
-go 1.20
+go 1.23
 
 replace github.com/go-resty/resty/v2 => github.com/ifooth/resty/v2 v2.0.0-20230223083514-3015979960de
 
