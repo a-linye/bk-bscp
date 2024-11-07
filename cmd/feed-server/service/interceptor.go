@@ -34,11 +34,12 @@ import (
 var (
 	// 老的请求,不使用中间件
 	disabledMethod = map[string]struct{}{
-		"/pbfs.Upstream/Handshake":       {},
-		"/pbfs.Upstream/Messaging":       {},
-		"/pbfs.Upstream/Watch":           {},
-		"/pbfs.Upstream/PullAppFileMeta": {},
-		"/pbfs.Upstream/GetDownloadURL":  {},
+		"/pbfs.Upstream/Handshake":            {},
+		"/pbfs.Upstream/Messaging":            {},
+		"/pbfs.Upstream/Watch":                {},
+		"/pbfs.Upstream/PullAppFileMeta":      {},
+		"/pbfs.Upstream/GetDownloadURL":       {},
+		"/pbfs.Upstream/GetSingleFileContent": {},
 	}
 )
 
