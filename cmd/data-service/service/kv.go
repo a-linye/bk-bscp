@@ -15,8 +15,10 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
@@ -443,25 +445,37 @@ func (s *Service) getKv(kt *kit.Kit, bizID, appID, version uint32, key string) (
 
 // doBatchUpsertVault is used to perform bulk insertion or update of key-value data in Vault.
 func (s *Service) doBatchUpsertVault(kt *kit.Kit, req *pbds.BatchUpsertKvsReq) (map[string]int, error) {
-
+	var mux sync.Mutex
+	eg, _ := errgroup.WithContext(context.Background())
+	eg.SetLimit(10)
 	versionMap := make(map[string]int)
 	for _, kv := range req.Kvs {
-		opt := &types.UpsertKvOption{
-			BizID:  req.BizId,
-			AppID:  req.AppId,
-			Key:    kv.KvSpec.Key,
-			Value:  kv.KvSpec.Value,
-			KvType: table.DataType(kv.KvSpec.KvType),
-		}
-		version, err := s.vault.UpsertKv(kt, opt)
-		if err != nil {
-			return nil, err
-		}
-		versionMap[kv.KvSpec.Key] = version
+		kv := kv
+		eg.Go(func() error {
+			opt := &types.UpsertKvOption{
+				BizID:  req.BizId,
+				AppID:  req.AppId,
+				Key:    kv.KvSpec.Key,
+				Value:  kv.KvSpec.Value,
+				KvType: table.DataType(kv.KvSpec.KvType),
+			}
+			version, err := s.vault.UpsertKv(kt, opt)
+			if err != nil {
+				return err
+			}
+			mux.Lock()
+			versionMap[kv.KvSpec.Key] = version
+			mux.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, errf.Errorf(errf.Aborted, i18n.T(kt, "batch upsert vault failed, err: %v", err))
 	}
 
 	return versionMap, nil
-
 }
 
 func (s *Service) checkKvs(kt *kit.Kit, tx *gen.QueryTx, req *pbds.BatchUpsertKvsReq, versionMap map[string]int,

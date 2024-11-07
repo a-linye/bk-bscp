@@ -481,7 +481,7 @@ func (dao *kvDao) BatchCreateWithTx(kit *kit.Kit, tx *gen.QueryTx, kvs []*table.
 		}
 		kv.ID = ids[i]
 	}
-	if e := tx.Kv.WithContext(kit.Ctx).Save(kvs...); e != nil {
+	if e := tx.Kv.WithContext(kit.Ctx).CreateInBatches(kvs, 500); e != nil {
 		return e
 	}
 	return nil
