@@ -44,7 +44,6 @@ func (s *Service) ListAudits(ctx context.Context, req *pbcs.ListAuditsReq) (
 		StartTime:   req.StartTime,
 		EndTime:     req.EndTime,
 		Operate:     req.Operate,
-		OperateWay:  req.OperateWay,
 		Start:       req.Start,
 		Limit:       req.Limit,
 		All:         req.All,
@@ -62,6 +61,9 @@ func (s *Service) ListAudits(ctx context.Context, req *pbcs.ListAuditsReq) (
 	}
 	if req.ResourceType != "" {
 		r.ResourceType = strings.Split(req.ResourceType, ",")
+	}
+	if req.OperateWay != "" {
+		r.OperateWay = strings.Split(req.OperateWay, ",")
 	}
 	rp, err := s.client.DS.ListAudits(grpcKit.RpcCtx(), r)
 	if err != nil {

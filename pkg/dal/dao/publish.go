@@ -156,6 +156,7 @@ func genStrategy(kit *kit.Kit, opt *types.PublishOption, stgID uint32, groups []
 			Approver:          opt.Approver,
 			ApproverProgress:  opt.ApproverProgress,
 			FinalApprovalTime: time.Now().UTC(),
+			ApproveType:       opt.ApproveType,
 		},
 		State: &table.StrategyState{
 			PubState: state,

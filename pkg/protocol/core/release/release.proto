@@ -15,6 +15,7 @@ message Release {
   ReleaseStatus status = 3;
   ReleaseAttachment attachment = 4;
   pbbase.CreatedRevision revision = 5;
+  StrategyPublishStatus strategy_spec = 6;
 }
 
 // ReleaseSpec source resource reference: pkg/dal/table/release.go
@@ -57,4 +58,8 @@ message PublishRecord {
   bool fully_released = 5;
   string updated_at = 6;
   string final_approval_time = 7;
+}
+
+message StrategyPublishStatus {
+  string publish_status = 1;
 }
