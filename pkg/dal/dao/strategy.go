@@ -94,5 +94,12 @@ func (dao *strategyDao) UpdateByIDs(
 	}
 	s := tx.Strategy
 	_, err := s.WithContext(kit.Ctx).Where(s.ID.In(strategyIDs...)).Updates(m)
-	return err
+	if err != nil {
+		return err
+	}
+	_, err = s.WithContext(kit.Ctx).Where(s.ID.In(strategyIDs...)).UpdateSimple(s.Reviser.SetCol(s.Creator))
+	if err != nil {
+		return err
+	}
+	return nil
 }
