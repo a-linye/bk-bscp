@@ -28,7 +28,7 @@
           @click="handleSelectVersion(version)">
           <div v-if="pendingApprovalVersion?.id !== version.id" :class="['dot', version.status.publish_status]"></div>
           <div v-else class="status">
-            {{ version.strategy_spec?.publish_status === 'pending_approval' ? $t('待审批') : $t('待上线') }}
+            {{ version.status.strategy_status === 'pending_approval' ? $t('待审批') : $t('待上线') }}
           </div>
           <bk-overflow-title class="version-name" type="tips">
             {{ version.spec.name }}
@@ -128,9 +128,7 @@
   // 待审批状态版本
   const pendingApprovalVersion = computed(() => {
     return versionList.value.find(
-      (item) =>
-        item.strategy_spec?.publish_status === 'pending_publish' ||
-        item.strategy_spec?.publish_status === 'pending_approval',
+      (item) => item.status.strategy_status === 'pending_publish' || item.status.strategy_status === 'pending_approval',
     );
   });
 
@@ -170,6 +168,7 @@
     await getVersionList();
     if (pendingApprovalVersion.value) {
       versionData.value = pendingApprovalVersion.value;
+      router.push({ name: route.name as string, params: { versionId: versionData.value.id } });
     }
     if (route.params.versionId) {
       const version = versionList.value.find((item) => item.id === Number(route.params.versionId));
@@ -200,6 +199,24 @@
     }
   };
 
+  const refreshVersionApprovalStatus = async () => {
+    try {
+      const params = {
+        // 未命名版本不在实际的版本列表里，需要特殊处理
+        start: 0,
+        all: true,
+      };
+      const res = await getConfigVersionList(props.bkBizId, props.appId, params);
+      versionList.value.forEach((version: IConfigVersion) => {
+        const newVersion = res.data.details.find((item: IConfigVersion) => item.id === version.id);
+        if (newVersion) {
+          version.status.strategy_status = newVersion.status.strategy_status;
+        }
+      });
+      console.log(versionList.value, 111);
+    } catch (error) {}
+  };
+
   const handleSelectVersion = (version: IConfigVersion) => {
     configStore.$patch((state) => {
       state.allExistConfigCount = 0;
@@ -213,7 +230,9 @@
     if (version.id !== 0) {
       params.versionId = version.id;
     }
+    refreshVersionApprovalStatus();
     router.push({ name: route.name as string, params });
+    // 更新版本审批状态
   };
 
   const handleDiffDialogShow = (version: IConfigVersion) => {
