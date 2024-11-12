@@ -706,10 +706,9 @@ func (s *Service) ListReleases(ctx context.Context, req *pbds.ListReleasesReq) (
 	}
 
 	for _, r := range releases {
-		r.StrategySpec = &pbrelease.StrategyPublishStatus{}
 		for _, s := range st {
 			if r.Id == s.Spec.ReleaseID {
-				r.StrategySpec.PublishStatus = string(s.Spec.PublishStatus)
+				r.Status.StrategyStatus = string(s.Spec.PublishStatus)
 			}
 		}
 	}
