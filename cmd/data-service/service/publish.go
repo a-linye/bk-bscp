@@ -329,7 +329,8 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	}
 
 	// 从页面进来且需要审批的数据则同步itsm
-	if app.Spec.IsApprove && message == "" && strategy.Spec.ItsmTicketStatus == constant.ItsmTicketStatusCreated {
+	if app.Spec.IsApprove && grpcKit.OperateWay == string(enumor.WebUI) && message == "" &&
+		strategy.Spec.ItsmTicketStatus == constant.ItsmTicketStatusCreated {
 		// 撤销状态下，直接撤销
 		if req.PublishStatus == string(table.RevokedPublish) {
 			err = itsm.WithdrawTicket(grpcKit.Ctx, itsmUpdata)
@@ -1173,7 +1174,7 @@ func checkTicketStatus(grpcKit *kit.Kit,
 			req.ApprovedBy = approver
 			for _, v := range approver {
 				// 已经审批过直接提示已经被审批过
-				if v == grpcKit.User || grpcKit.OperateWay == "" {
+				if v == grpcKit.User || grpcKit.OperateWay != string(enumor.WebUI) {
 					grpcKit.User = v
 					return req, i18n.T(grpcKit, "this ticket has been approved, no further processing is required"), nil
 				}

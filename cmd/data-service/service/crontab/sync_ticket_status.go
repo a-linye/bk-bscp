@@ -160,7 +160,7 @@ func (c *SyncTicketStatus) syncTicketStatus(kt *kit.Kit) {
 					continue
 				}
 
-				req.PublishStatus = string(table.PendingApproval)
+				req.PublishStatus = string(table.PendingPublish)
 				req.ApprovedBy = passApprover
 			}
 			ctx := metadata.NewIncomingContext(kt.Ctx, md)
