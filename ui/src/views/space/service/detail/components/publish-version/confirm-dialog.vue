@@ -54,7 +54,8 @@
                 【{{ TYPE_MAP[previewGroup.type as keyof typeof TYPE_MAP] }}】
               </div>
               <span v-if="previewGroup.type === 'modify'" class="release-name">
-                {{ previewGroup.name }} <ArrowsRight class="arrow-icon" /> {{ versionData.spec.name }}
+                {{ previewGroup.name }} <ArrowsRight class="arrow-icon" />
+                {{ props.version ? props.version : versionData.spec.name }}
               </span>
             </div>
             <div v-show="!previewGroup.fold" class="group-list">
@@ -124,7 +125,7 @@
       <div class="dialog-footer">
         <bk-button v-if="props.secondConfirm" theme="primary" @click="handleSecondConfirm">{{ t('上线') }}</bk-button>
         <bk-button v-else theme="primary" :loading="pending" @click="handleConfirm">
-          {{ isApprove ? t('提交上线审批') : t('确定上线') }}
+          {{ isApprove ? t('提交上线审批') : t('确认上线') }}
         </bk-button>
         <bk-button :disabled="pending" @click="handleClose">{{ t('取消') }}</bk-button>
       </div>
