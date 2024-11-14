@@ -6,7 +6,7 @@ import "pkg/protocol/core/strategy/strategy.proto";
 
 package pbrelease;
 
-option go_package = "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/release;pbrelease";
+option go_package = "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/release;pbrelease";
 
 // Release source resource reference: pkg/dal/table/release.go
 message Release {

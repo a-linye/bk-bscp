@@ -4,7 +4,7 @@ import "pkg/protocol/core/group/group.proto";
 
 package pbstrategy;
 
-option go_package = "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/strategy;pbstrategy";
+option go_package = "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/strategy;pbstrategy";
 
 // strategy source resource reference: pkg/dal/table/strategy.go
 message Strategy {

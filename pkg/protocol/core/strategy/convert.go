@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	group "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/group"
+	group "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/group"
 )
 
 // StrategySpec convert pb StrategySpec to table StrategySpec

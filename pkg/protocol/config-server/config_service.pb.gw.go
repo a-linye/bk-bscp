@@ -13,8 +13,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/client"
+	"github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
+	"github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"google.golang.org/grpc"
