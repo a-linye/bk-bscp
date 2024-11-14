@@ -21,23 +21,23 @@ import (
 func init() {
 	// add current migration to migrator
 	migrator.GetMigrator().AddMigration(&migrator.Migration{
-		Version: "20241111105100",
-		Name:    "20241111105100_modify_strategy",
+		Version: "20241114143530",
+		Name:    "20241114143530_modify_strategy",
 		Mode:    migrator.GormMode,
-		Up:      mig20241111105100Up,
-		Down:    mig20241111105100Down,
+		Up:      mig20241114143530Up,
+		Down:    mig20241114143530Down,
 	})
 }
 
-// mig20241111105100Up for up migration
-func mig20241111105100Up(tx *gorm.DB) error {
-	// Strategies  : strategies add approve_type
+// mig20241114143530Up for up migration
+func mig20241114143530Up(tx *gorm.DB) error {
+	// Strategies  : strategies
 	type Strategies struct {
-		ApproveType string `gorm:"column:approve_type;type:varchar(20);default:'';NOT NULL"`
+		RejectReason string `gorm:"type:longtext"`
 	}
 	// Strategies add new column
-	if !tx.Migrator().HasColumn(&Strategies{}, "approve_type") {
-		if err := tx.Migrator().AddColumn(&Strategies{}, "approve_type"); err != nil {
+	if tx.Migrator().HasColumn(&Strategies{}, "reject_reason") {
+		if err := tx.Migrator().AlterColumn(&Strategies{}, "reject_reason"); err != nil {
 			return err
 		}
 	}
@@ -45,15 +45,15 @@ func mig20241111105100Up(tx *gorm.DB) error {
 	return nil
 }
 
-// mig20241111105100Down for down migration
-func mig20241111105100Down(tx *gorm.DB) error {
-	// Strategies  : strategies add approve_type
+// mig20241114143530Down for down migration
+func mig20241114143530Down(tx *gorm.DB) error {
+	// Strategies  : strategies
 	type Strategies struct {
-		ApproveType string `gorm:"column:approve_type;type:varchar(20);default:'';NOT NULL"`
+		RejectReason string `gorm:"column:reject_reason;type:varchar(256);default:NULL"`
 	}
-	// Strategies drop column
-	if tx.Migrator().HasColumn(&Strategies{}, "approve_type") {
-		if err := tx.Migrator().DropColumn(&Strategies{}, "approve_type"); err != nil {
+	// Strategies add new column
+	if tx.Migrator().HasColumn(&Strategies{}, "reject_reason") {
+		if err := tx.Migrator().AlterColumn(&Strategies{}, "reject_reason"); err != nil {
 			return err
 		}
 	}

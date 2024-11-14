@@ -1133,11 +1133,6 @@ func checkTicketStatus(grpcKit *kit.Kit,
 		return req, message, nil
 	}
 
-	// 如果从页面来的是撤回，直接返回，itsm撤销不会回调
-	if grpcKit.OperateWay == string(enumor.WebUI) && req.PublishStatus == string(table.RevokedPublish) {
-		return req, message, nil
-	}
-
 	// 先获取tikect status
 	ticketStatus, err := itsm.GetTicketStatus(grpcKit.Ctx, sn)
 	if err != nil {
@@ -1146,6 +1141,10 @@ func checkTicketStatus(grpcKit *kit.Kit,
 
 	switch ticketStatus.Data.CurrentStatus {
 	case constant.TicketRunningStatu:
+		// 如果从页面来的是撤回，直接返回，itsm撤销不会回调
+		if grpcKit.OperateWay == string(enumor.WebUI) && req.PublishStatus == string(table.RevokedPublish) {
+			return req, message, nil
+		}
 		// 统计itsm有多少人已经审批通过,有可能处于回调过程中
 		approveData, err := itsm.GetTicketLogs(grpcKit.Ctx, sn)
 		if err != nil {
