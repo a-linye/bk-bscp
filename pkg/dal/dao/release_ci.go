@@ -17,13 +17,13 @@ import (
 
 	rawgen "gorm.io/gen"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/utils"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/search"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/utils"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/search"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 )
 
 // ReleasedCI supplies all the released config item related operations.

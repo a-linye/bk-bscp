@@ -16,7 +16,7 @@ import (
 
 	"gorm.io/plugin/dbresolver"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
 func newGroupAppBind(db *gorm.DB, opts ...gen.DOOption) groupAppBind {

@@ -30,7 +30,7 @@ import (
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/resolver"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 // State defines the service's state related operations.

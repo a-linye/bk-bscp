@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
 func TestRearrangeSQLDataWithOption(t *testing.T) {

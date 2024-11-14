@@ -12,7 +12,7 @@
 
 package bklogin
 
-import "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/thirdparty/esb/types"
+import "github.com/TencentBlueKing/bk-bscp/pkg/thirdparty/esb/types"
 
 // nolint
 const (

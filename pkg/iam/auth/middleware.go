@@ -29,13 +29,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/components"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/constant"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/repository"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/rest"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/tools"
+	"github.com/TencentBlueKing/bk-bscp/pkg/components"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/repository"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/rest"
+	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
 	pbas "github.com/TencentBlueKing/bk-bscp/pkg/protocol/auth-server"
 )
 

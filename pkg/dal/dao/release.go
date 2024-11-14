@@ -18,12 +18,12 @@ import (
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/sharding"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/sharding"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 )
 
 // Release supplies all the release related operations.

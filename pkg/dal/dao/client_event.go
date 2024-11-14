@@ -20,10 +20,10 @@ import (
 	"gorm.io/gen/field"
 	"gorm.io/gorm/clause"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 

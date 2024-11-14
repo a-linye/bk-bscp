@@ -18,9 +18,9 @@ import (
 
 	pbstruct "github.com/golang/protobuf/ptypes/struct"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/iam/client"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/iam/sys"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/client"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/sys"
 	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
 )
 

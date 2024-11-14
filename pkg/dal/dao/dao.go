@@ -23,12 +23,12 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 	"gorm.io/plugin/prometheus"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/orm"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/sharding"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/orm"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/sharding"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
 
 // Set defines all the DAO to be operated.

@@ -13,9 +13,9 @@
 package iam
 
 import (
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/cmd/auth-server/types"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/iam/client"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/client"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 

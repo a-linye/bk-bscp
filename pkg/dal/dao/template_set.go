@@ -20,16 +20,16 @@ import (
 	rawgen "gorm.io/gen"
 	"gorm.io/gorm"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	dtypes "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/types"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/i18n"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/search"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/tools"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	dtypes "github.com/TencentBlueKing/bk-bscp/pkg/dal/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/search"
+	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 )
 
 // TemplateSet supplies all the template set related operations.

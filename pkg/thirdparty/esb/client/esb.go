@@ -16,12 +16,12 @@ package client
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/rest"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/rest/client"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/thirdparty/esb/bklogin"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/thirdparty/esb/cmdb"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/tools"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/rest"
+	"github.com/TencentBlueKing/bk-bscp/pkg/rest/client"
+	"github.com/TencentBlueKing/bk-bscp/pkg/thirdparty/esb/bklogin"
+	"github.com/TencentBlueKing/bk-bscp/pkg/thirdparty/esb/cmdb"
+	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
 )
 
 // Client NOTES

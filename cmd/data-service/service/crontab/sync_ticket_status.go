@@ -21,16 +21,16 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/cmd/data-service/service"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/components/itsm"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/constant"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/enumor"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/dao"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/runtime/shutdown"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/serviced"
+	"github.com/TencentBlueKing/bk-bscp/cmd/data-service/service"
+	"github.com/TencentBlueKing/bk-bscp/pkg/components/itsm"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/dao"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/runtime/shutdown"
+	"github.com/TencentBlueKing/bk-bscp/pkg/serviced"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 

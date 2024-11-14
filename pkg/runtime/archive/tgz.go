@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 )
 
 // TgzArchive 实现了 Archive 接口，用于处理 gzip 文件

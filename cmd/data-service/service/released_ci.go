@@ -17,10 +17,10 @@ import (
 	"path"
 	"sort"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/search"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/search"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 	pbrci "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/released-ci"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )

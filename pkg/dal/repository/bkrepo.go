@@ -22,13 +22,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/constant"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/metrics"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/thirdparty/repo"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/tools"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
+	"github.com/TencentBlueKing/bk-bscp/pkg/thirdparty/repo"
+	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
 )
 
 const (

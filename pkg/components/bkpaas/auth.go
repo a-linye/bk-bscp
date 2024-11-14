@@ -20,8 +20,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/components"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/components"
 )
 
 type userInfo struct {

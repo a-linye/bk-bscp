@@ -18,11 +18,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/gen"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	sfs "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/sf-share"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/types"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/gen"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	sfs "github.com/TencentBlueKing/bk-bscp/pkg/sf-share"
+	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 	pbce "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client-event"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )

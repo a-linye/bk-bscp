@@ -22,8 +22,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"k8s.io/klog/v2"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/rest"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/rest"
 )
 
 // UnaryServerInterceptor is a grpc interceptor that add audit.

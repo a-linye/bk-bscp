@@ -26,9 +26,9 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/metrics"
+	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
 )
 
 // RecoveryHandlerFuncContext 异常日志输出
