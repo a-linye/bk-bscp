@@ -15,7 +15,7 @@ package pbtemplate
 
 import (
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	pbbase "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
+	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
 )
 
 // Template convert pb Template to table Template

@@ -5,7 +5,7 @@ package pbaudit;
 import "pkg/protocol/core/app/app.proto";
 import "pkg/protocol/core/strategy/strategy.proto";
 
-option go_package = "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/audit;pbaudit";
+option go_package = "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/audit;pbaudit";
 
 // Audit audit source resource reference: pkg/dal/table/audit.go
 message Audit {

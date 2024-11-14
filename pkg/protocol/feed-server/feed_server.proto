@@ -10,7 +10,7 @@ import "pkg/protocol/core/kv/kvs.proto";
 import "pkg/protocol/core/content/content.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/feed-server;pbfs";
+option go_package = "github.com/TencentBlueKing/bk-bscp/pkg/protocol/feed-server;pbfs";
 
 service Upstream {
   // APIs for sidecar.

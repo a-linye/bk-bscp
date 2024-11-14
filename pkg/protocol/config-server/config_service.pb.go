@@ -7,32 +7,32 @@
 package pbcs
 
 import (
-	app "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/app"
-	app_template_binding "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/app-template-binding"
-	app_template_variable "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/app-template-variable"
-	audit "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/audit"
-	base "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
-	client "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/client"
-	client_event "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/client-event"
-	client_query "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/client-query"
-	config_item "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/config-item"
-	content "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/content"
-	credential "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/credential"
-	credential_scope "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/credential-scope"
-	group "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/group"
-	hook "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/hook"
-	hook_revision "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/hook-revision"
-	kv "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/kv"
-	release "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/release"
-	released_ci "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/released-ci"
-	released_kv "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/released-kv"
-	strategy "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/strategy"
-	template "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template"
-	template_binding_relation "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-binding-relation"
-	template_revision "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-revision"
-	template_set "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-set"
-	template_space "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-space"
-	template_variable "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-variable"
+	app "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/app"
+	app_template_binding "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/app-template-binding"
+	app_template_variable "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/app-template-variable"
+	audit "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/audit"
+	base "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
+	client "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client"
+	client_event "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client-event"
+	client_query "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client-query"
+	config_item "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/config-item"
+	content "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/content"
+	credential "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/credential"
+	credential_scope "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/credential-scope"
+	group "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/group"
+	hook "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/hook"
+	hook_revision "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/hook-revision"
+	kv "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/kv"
+	release "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/release"
+	released_ci "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/released-ci"
+	released_kv "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/released-kv"
+	strategy "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/strategy"
+	template "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template"
+	template_binding_relation "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-binding-relation"
+	template_revision "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-revision"
+	template_set "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-set"
+	template_space "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-space"
+	template_variable "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-variable"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	_ "google.golang.org/genproto/googleapis/api/visibility"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -27469,13 +27469,12 @@ var file_config_service_proto_rawDesc = []byte{
 	0x5f, 0x69, 0x64, 0x7d, 0x2f, 0x61, 0x70, 0x70, 0x73, 0x2f, 0x7b, 0x61, 0x70, 0x70, 0x5f, 0x69,
 	0x64, 0x7d, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x5f, 0x69, 0x74, 0x65, 0x6d, 0x73, 0x2f,
 	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x1a, 0x0f, 0xfa, 0xd2, 0xe4, 0x93, 0x02, 0x09, 0x12, 0x07, 0x42,
-	0x4b, 0x41, 0x50, 0x49, 0x47, 0x57, 0x42, 0x59, 0x5a, 0x57, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x4b, 0x41, 0x50, 0x49, 0x47, 0x57, 0x42, 0x44, 0x5a, 0x42, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
 	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x54, 0x65, 0x6e, 0x63, 0x65, 0x6e, 0x74, 0x42, 0x6c, 0x75, 0x65,
-	0x4b, 0x69, 0x6e, 0x67, 0x2f, 0x62, 0x6b, 0x2d, 0x62, 0x63, 0x73, 0x2f, 0x62, 0x63, 0x73, 0x2d,
-	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2f, 0x62, 0x63, 0x73, 0x2d, 0x62, 0x73, 0x63,
-	0x70, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2f, 0x63,
-	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x3b, 0x70, 0x62, 0x63,
-	0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x4b, 0x69, 0x6e, 0x67, 0x2f, 0x62, 0x6b, 0x2d, 0x62, 0x73, 0x63, 0x70, 0x2f, 0x70, 0x6b, 0x67,
+	0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x2d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x3b, 0x70, 0x62, 0x63, 0x73, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (

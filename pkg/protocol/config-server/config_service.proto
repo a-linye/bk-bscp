@@ -32,7 +32,7 @@ import "google/protobuf/struct.proto";
 
 package pbcs;
 
-option go_package = "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/config-server;pbcs";
+option go_package = "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server;pbcs";
 
 service Config {
   option (google.api.api_visibility).restriction = "BKAPIGW";

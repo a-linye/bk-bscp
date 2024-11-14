@@ -15,7 +15,7 @@ package pbtset
 
 import (
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	pbbase "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
+	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
 )
 
 // TemplateSet convert pb TemplateSet to table TemplateSet
