@@ -27,9 +27,9 @@ import (
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/iam/meta"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
-	pbcs "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/config-server"
-	pbtv "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/template-variable"
-	pbds "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/data-service"
+	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
+	pbtv "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-variable"
+	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 
 // CreateTemplateVariable create a template variable

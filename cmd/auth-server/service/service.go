@@ -49,16 +49,16 @@ import (
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/metrics"
-	pbas "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/auth-server"
-	pbcs "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/config-server"
-	base "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
-	basepb "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
-	pbds "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/data-service"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/rest/view/webannotation"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/serviced"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/space"
 	esbcli "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/tools"
+	pbas "github.com/TencentBlueKing/bk-bscp/pkg/protocol/auth-server"
+	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
+	base "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
+	basepb "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
+	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 
 // Service do all the data service's work

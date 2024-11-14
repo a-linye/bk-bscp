@@ -18,7 +18,7 @@ import (
 	"strconv"
 
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/table"
-	pbcs "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/config-server"
+	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
 )
 
 // genSceneData6 在biz_id=2001，app_id=100006的应用下，创建5个配置项，执行一次兜底策略发布、和199次Namespace策略发布。

@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/uuid"
-	pbbase "github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/protocol/core/base"
 	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/runtime/jsoni"
+	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
 )
 
 // RandName generate rand resource name.
