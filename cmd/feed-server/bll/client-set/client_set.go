@@ -18,12 +18,12 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/TencentBlueKing/bk-bscp/internal/dal/bedis"
+	iamauth "github.com/TencentBlueKing/bk-bscp/internal/iam/auth"
+	"github.com/TencentBlueKing/bk-bscp/internal/runtime/brpc"
+	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
-	"github.com/TencentBlueKing/bk-bscp/pkg/dal/bedis"
-	iamauth "github.com/TencentBlueKing/bk-bscp/pkg/iam/auth"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bscp/pkg/runtime/brpc"
-	"github.com/TencentBlueKing/bk-bscp/pkg/serviced"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/cache-service"
 )
 

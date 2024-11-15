@@ -18,12 +18,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TencentBlueKing/bk-bscp/pkg/dal/dao"
+	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
+	"github.com/TencentBlueKing/bk-bscp/internal/runtime/shutdown"
+	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bscp/pkg/runtime/shutdown"
-	"github.com/TencentBlueKing/bk-bscp/pkg/serviced"
 )
 
 const (
