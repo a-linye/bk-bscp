@@ -24,7 +24,7 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/criteria/errf"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 )
 
 // ZipArchive 实现了 Archive 接口，用于处理 zip 文件

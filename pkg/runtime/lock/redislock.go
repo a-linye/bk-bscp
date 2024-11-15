@@ -20,8 +20,8 @@ import (
 	prm "github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/atomic"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/dal/bedis"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/logs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/bedis"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 // RedisLock is a distributed resource lock

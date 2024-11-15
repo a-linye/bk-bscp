@@ -1,4 +1,4 @@
-module github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp
+module github.com/TencentBlueKing/bk-bscp
 
 go 1.23
 
@@ -6,7 +6,6 @@ replace github.com/go-resty/resty/v2 => github.com/ifooth/resty/v2 v2.0.0-202302
 
 require (
 	github.com/Tencent/bk-bcs/bcs-common v0.0.0-20240418123107-72b120390195
-	github.com/TencentBlueKing/bk-bscp/pkg/protocol v0.0.0-20241114031225-8fe0d429187f
 	github.com/TencentBlueKing/iam-go-sdk v0.1.6
 	github.com/bluele/gcache v0.0.2
 	github.com/dustin/go-humanize v1.0.1
@@ -55,6 +54,8 @@ require (
 	golang.org/x/sync v0.8.0
 	golang.org/x/text v0.18.0
 	golang.org/x/time v0.5.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237
 	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -67,11 +68,6 @@ require (
 	gorm.io/plugin/prometheus v0.0.0-20230504115745-1aec2356381b
 	gorm.io/sharding v0.6.0
 	k8s.io/klog/v2 v2.110.1
-)
-
-require (
-	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 )
 
 require (

@@ -16,8 +16,8 @@ package apigw
 import (
 	"fmt"
 
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/docs"
-	"github.com/TencentBlueKing/bk-bcs/bcs-services/bcs-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/docs"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 )
 
 const (
