@@ -53,6 +53,7 @@
             :key="row.id"
             :value="row.spec.value"
             :type="row.spec.kv_type"
+            :is-kv-value="true"
             @view-all="handleView(row)" />
         </template>
       </bk-table-column>
