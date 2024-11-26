@@ -98,8 +98,16 @@
         byte_size = detail.content.byte_size;
         signature = detail.content.signature;
       }
-      const { name, memo, path, file_type, permission } = detail.config_item.spec;
-      configForm.value = { id: props.configId, name, memo, file_type, path, ...permission };
+      const { name, memo, path, file_type, permission, charset } = detail.config_item.spec;
+      configForm.value = {
+        id: props.configId,
+        name,
+        memo,
+        file_type,
+        path,
+        charset: charset || 'UTF-8',
+        ...permission,
+      };
 
       if (file_type === 'binary') {
         content.value = { name, signature, size: byte_size };

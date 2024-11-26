@@ -636,6 +636,8 @@ export default {
   字段说明: 'Field description',
   格式说明: 'Format description',
   '示例：': 'Example:',
+  编码: 'Encoding',
+  批量设置编码: 'Batch set encoding',
   查看服务属性: 'View service attributes',
   '在未命名版本中发现过期证书，请处理证书问题后再生成版本': 'Expired certificates found in the unnamed version. Please handle the certificate issue before generating the version',
   '30天内过期的证书列表': 'List of certificates expiring within 30 days',

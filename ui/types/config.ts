@@ -78,6 +78,7 @@ export interface IConfigEditParams {
   name: string;
   memo: string;
   file_type: string;
+  charset: string;
   path?: string;
   file_mode?: string;
   user?: string;
@@ -221,6 +222,8 @@ export interface IConfigImportItem {
   file_name?: string;
   is_exist: boolean;
   fileAP?: string;
+  charset: string;
+  customId?: string;
 }
 
 // kv类型
