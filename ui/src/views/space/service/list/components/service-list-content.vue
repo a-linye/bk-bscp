@@ -11,58 +11,92 @@
         {{ t('新建服务') }}
       </bk-button>
       <div class="head-right">
+        <bk-checkbox v-model="onlyShowMyService" style="font-size: 12px" @change="handleChangeShowService">
+          {{ $t('只显示我创建的服务') }}
+        </bk-checkbox>
+        <div class="panel-wrap">
+          <div
+            v-for="panel in typePanels"
+            :key="panel.label"
+            :class="['panel', { active: activeType === panel.name }]"
+            @click="handlePanelChange(panel.name)">
+            <span class="text">{{ `${panel.label}(${panel.count})` }}</span>
+          </div>
+        </div>
         <bk-input
           class="search-app-name"
           type="search"
           v-model="searchStr"
-          :placeholder="t('服务名称')"
+          :placeholder="t('搜索 服务别名、服务名称、服务描述、更新人、创建人')"
           :clearable="true"
           @input="handleSearch"
           @clear="handleClearSearchStr">
         </bk-input>
+        <div class="panel-wrap">
+          <div
+            v-for="panel in showPanels"
+            :key="panel.name"
+            :class="['panel-icon', { active: activeShow === panel.name }]"
+            @click="handleShowChange(panel.name)">
+            <span :class="['bk-bscp-icon', panel.icon]"></span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="content-body">
-      <bk-loading style="height: 100%" :loading="isLoading">
-        <template v-if="!isLoading && isEmpty && !isSearchEmpty">
-          <bk-exception class="exception-wrap-item" type="empty" :description="t('你尚未创建或加入任何服务')">
-            <div class="exception-actions">
-              <bk-button
-                text
-                theme="primary"
-                :class="{ 'bk-button-with-no-perm': props.permCheckLoading || !props.hasCreateServicePerm }"
-                @click="handleCreateServiceClick">
-                {{ t('立即创建') }}
-              </bk-button>
-              <span class="divider-middle"></span>
-              <!-- <bk-button text theme="primary">{{ t("申请权限") }}</bk-button> -->
+      <!-- 卡片视图 -->
+      <template v-if="activeShow === 'card'">
+        <bk-loading :style="{ height: '100%', width: '100%' }" :loading="isLoading">
+          <!-- 空状态 -->
+          <EmptyList
+            v-if="isEmpty"
+            :is-search-empty="isSearchEmpty"
+            :has-create-service-perm="props.hasCreateServicePerm"
+            :perm-check-loading="props.permCheckLoading"
+            @create="handleCreateServiceClick"
+            @clear="handleClearSearchStr" />
+          <template v-else>
+            <div class="serving-list">
+              <Card
+                v-for="service in serviceList"
+                :key="service.id"
+                :service="service"
+                @edit="handleEditService"
+                @delete="handleDeleteService"
+                @update="handleDeletedUpdate" />
             </div>
-          </bk-exception>
+            <bk-pagination
+              v-model="pagination.current"
+              class="service-list-pagination"
+              location="left"
+              :layout="['total', 'limit', 'list']"
+              :count="pagination.count"
+              :limit="pagination.limit"
+              @change="loadAppList"
+              @limit-change="handleLimitChange" />
+          </template>
+        </bk-loading>
+      </template>
+      <!-- 表格视图 -->
+      <ServiceTable
+        v-else
+        :space-id="props.spaceId"
+        :data="serviceList"
+        :pagination="pagination"
+        :loading="isLoading"
+        @page-change="handleTablePageChange"
+        @limit-change="handleLimitChange"
+        @edit="handleEditService"
+        @delete="handleDeleteService">
+        <template #empty>
+          <EmptyList
+            :is-search-empty="isSearchEmpty"
+            :has-create-service-perm="props.hasCreateServicePerm"
+            :perm-check-loading="props.permCheckLoading"
+            @create="handleCreateServiceClick"
+            @clear="handleClearSearchStr" />
         </template>
-        <template v-else-if="!isLoading && isEmpty && isSearchEmpty">
-          <tableEmpty :is-search-empty="true" @clear="handleClearSearchStr" />
-        </template>
-        <template v-else>
-          <div class="serving-list">
-            <Card
-              v-for="service in serviceList"
-              :key="service.id"
-              :service="service"
-              @edit="handleEditService"
-              @delete="handleDeleteService"
-              @update="handleDeletedUpdate" />
-          </div>
-          <bk-pagination
-            v-model="pagination.current"
-            class="service-list-pagination"
-            location="left"
-            :layout="['total', 'limit', 'list']"
-            :count="pagination.count"
-            :limit="pagination.limit"
-            @change="loadAppList"
-            @limit-change="handleLimitChange" />
-        </template>
-      </bk-loading>
+      </ServiceTable>
     </div>
     <CreateService v-model:show="isCreateServiceOpen" @reload="loadAppList" />
     <EditService v-model:show="isEditServiceOpen" :service="editingService" @reload="loadAppList" />
@@ -119,16 +153,16 @@
   import Card from './card.vue';
   import CreateService from './create-service.vue';
   import EditService from './edit-service.vue';
-  import tableEmpty from '../../../../../components/table/table-empty.vue';
   import Message from 'bkui-vue/lib/message';
   import { debounce } from 'lodash';
+  import ServiceTable from './service-table.vue';
+  import EmptyList from './empty-list.vue';
 
   const { permissionQuery, showApplyPermDialog } = storeToRefs(useGlobalStore());
   const { userInfo } = storeToRefs(useUserStore());
   const { t } = useI18n();
 
   const props = defineProps<{
-    type: string;
     spaceId: string;
     permCheckLoading: boolean;
     hasCreateServicePerm: boolean;
@@ -141,6 +175,7 @@
   const isEditServiceOpen = ref(false);
   const dialogInputStr = ref('');
   const isShowDeleteDialog = ref(false);
+  const onlyShowMyService = ref(localStorage.getItem('onlyShowMyService') === 'true');
   const deleteService = ref<IAppItem>();
   const editingService = ref<IAppItem>({
     id: 0,
@@ -170,6 +205,17 @@
     count: 0,
   });
   const isSearchEmpty = ref(false);
+  const typePanels = ref([
+    { name: 'all', label: t('全部服务'), count: 0 },
+    { name: 'file', label: t('文件型'), count: 0 },
+    { name: 'kv', label: t('键值型'), count: 0 },
+  ]);
+  const showPanels = [
+    { icon: 'icon-app-store', name: 'card' },
+    { icon: 'icon-list', name: 'table' },
+  ];
+  const activeType = ref('all');
+  const activeShow = ref('card');
 
   // 查询条件
   const filters = computed(() => {
@@ -182,15 +228,18 @@
     if (searchStr.value) {
       rules.name = searchStr.value;
     }
-    if (props.type === 'service-mine') {
+    if (onlyShowMyService.value) {
       rules.operator = userInfo.value.username;
+    }
+    if (activeType.value) {
+      rules.config_type = activeType.value === 'all' ? '' : activeType.value;
     }
     return rules;
   });
   const isEmpty = computed(() => serviceList.value.length === 0);
 
   watch(
-    () => [props.type, props.spaceId],
+    () => [onlyShowMyService.value, props.spaceId, activeType.value],
     () => {
       searchStr.value = '';
       isSearchEmpty.value = false;
@@ -209,18 +258,26 @@
     try {
       const bizId = props.spaceId;
       const resp = await getAppList(bizId, filters.value);
-      if (resp.details.length > 0) {
-        const appIds = resp.details.map((item: IAppItem) => item.id);
+      const { file_apps_count, kv_apps_count, details, count } = resp;
+      if (details.length > 0) {
+        const appIds = details.map((item: IAppItem) => item.id);
         const appsConfigData = await getAppsConfigData(bizId, appIds);
-        resp.details.forEach((item: IAppItem, index: number) => {
+        details.forEach((item: IAppItem, index: number) => {
           const { count, update_at } = appsConfigData.details[index];
           item.config = { count, update_at };
         });
       }
-      // @ts-ignore
-      serviceList.value = resp.details;
-      // @ts-ignore
-      pagination.value.count = resp.count;
+      serviceList.value = details;
+      pagination.value.count = count;
+      typePanels.value.forEach((panel) => {
+        if (panel.name === 'all') {
+          panel.count = file_apps_count + kv_apps_count;
+        } else if (panel.name === 'file') {
+          panel.count = file_apps_count;
+        } else if (panel.name === 'kv') {
+          panel.count = kv_apps_count;
+        }
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -283,8 +340,29 @@
     loadAppList();
   };
 
+  // 切换展示服务表格
+  const handlePanelChange = (panel: string) => {
+    activeType.value = panel;
+  };
+
+  // 切换展示服务类型
+  const handleShowChange = (show: string) => {
+    activeShow.value = show;
+  };
+
+  // 切换展示我创建的服务
+  const handleChangeShowService = (val: boolean) => {
+    localStorage.setItem('onlyShowMyService', val.toString());
+  };
+
   const handleLimitChange = (limit: number) => {
     pagination.value.limit = limit;
+    loadAppList();
+  };
+
+  // 表格当前页改变
+  const handleTablePageChange = (page: number) => {
+    pagination.value.current = page;
     loadAppList();
   };
 
@@ -301,21 +379,56 @@
 <style lang="scss" scoped>
   .service-list-content {
     height: calc(100% - 90px);
+    padding: 0 24px;
   }
   .head-section {
     display: flex;
     justify-content: space-between;
-    margin: 0 auto;
-    padding: 16px 25px 16px 8px;
-    width: 1233px;
+    padding: 24px 24px 24px 16px;
+    width: 100%;
     .create-icon {
       font-size: 22px;
     }
     .head-right {
       display: flex;
+      gap: 12px;
       .search-app-name {
-        margin-left: 16px;
-        width: 240px;
+        width: 480px;
+      }
+    }
+    .panel-wrap {
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      height: 32px;
+      line-height: 32px;
+      background: #eaebf0;
+      border-radius: 2px;
+      color: #4d4f56;
+      .panel {
+        display: flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 12px;
+        font-size: 12px;
+        cursor: pointer;
+        color: #4d4f56;
+        &.active {
+          background-color: #fff;
+          color: #3a84ff;
+        }
+      }
+      .panel-icon {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 16px;
+        height: 24px;
+        width: 32px;
+        &.active {
+          background-color: #fff;
+          color: #3a84ff;
+        }
       }
     }
   }
@@ -325,10 +438,10 @@
     padding-bottom: 24px;
     margin-left: 13px;
     height: calc(100% - 64px);
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     .serving-list {
       display: flex;
-      width: 1233px;
       flex-wrap: wrap;
       align-content: flex-start;
       :deep(.bk-exception-description) {
