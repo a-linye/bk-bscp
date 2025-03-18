@@ -41,7 +41,7 @@ import (
 )
 
 // CreateRelease create release.
-// nolint:funlen
+// nolint:funlen,gocyclo
 func (s *Service) CreateRelease(ctx context.Context, req *pbds.CreateReleaseReq) (*pbds.CreateResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
@@ -126,6 +126,9 @@ func (s *Service) CreateRelease(ctx context.Context, req *pbds.CreateReleaseReq)
 		// get app's all config items.
 		cis, fErr := s.getAppConfigItems(grpcKit)
 		if fErr != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				logs.Errorf("transaction rollback failed, err: %v, rid: %s", rErr, grpcKit.Rid)
+			}
 			logs.Errorf("get app's all config items failed, err: %v, rid: %s", fErr, grpcKit.Rid)
 			return nil, fErr
 		}
@@ -133,6 +136,9 @@ func (s *Service) CreateRelease(ctx context.Context, req *pbds.CreateReleaseReq)
 		// get app template revisions which are template config items
 		tmplRevisions, fErr := s.getAppTmplRevisions(grpcKit)
 		if fErr != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				logs.Errorf("transaction rollback failed, err: %v, rid: %s", rErr, grpcKit.Rid)
+			}
 			logs.Errorf("get app template revisions failed, err: %v, rid: %s", fErr, grpcKit.Rid)
 			return nil, fErr
 		}
