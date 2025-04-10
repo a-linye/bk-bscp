@@ -215,7 +215,7 @@
     { icon: 'icon-list', name: 'table' },
   ];
   const activeType = ref('all');
-  const activeShow = ref('card');
+  const activeShow = ref('table');
 
   // 查询条件
   const filters = computed(() => {
@@ -226,7 +226,7 @@
       limit,
     };
     if (searchStr.value) {
-      rules.name = searchStr.value;
+      rules.search = searchStr.value;
     }
     if (onlyShowMyService.value) {
       rules.operator = userInfo.value.username;
