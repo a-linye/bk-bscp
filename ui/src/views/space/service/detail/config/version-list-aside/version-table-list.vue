@@ -89,13 +89,20 @@
                     </bk-button>
                     <bk-button
                       v-bk-tooltips="{
-                        disabled: row.status.publish_status === 'not_released',
+                        disabled:
+                          row.status.publish_status === 'not_released' ||
+                          row.status.strategy_status !== 'pending_approval' ||
+                          row.status.publish_status === 'pending_publish',
                         placement: 'bottom',
-                        content: t('只支持未上线版本'),
+                        content: t('只支持未上线和未待审批版本'),
                       }"
                       text
                       theme="primary"
-                      :disabled="row.status.publish_status !== 'not_released'"
+                      :disabled="
+                        row.status.publish_status !== 'not_released' ||
+                        row.status.strategy_status === 'pending_approval' ||
+                        row.status.publish_status !== 'pending_publish'
+                      "
                       @click.stop="handleDeprecate(row)">
                       {{ t('版本废弃') }}
                     </bk-button>

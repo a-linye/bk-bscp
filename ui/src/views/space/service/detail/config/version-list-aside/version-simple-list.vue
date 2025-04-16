@@ -70,11 +70,11 @@
       <div class="action-item" @click="handleDiffDialogShow(selectedVersion!)">{{ t('版本对比') }}</div>
       <div
         v-bk-tooltips="{
-          disabled: selectedVersion?.status.publish_status === 'not_released',
+          disabled: !isDeprecateDisabled,
           placement: 'bottom',
-          content: t('只支持未上线版本'),
+          content: t('只支持未上线和未待审批版本'),
         }"
-        :class="['action-item', { disabled: selectedVersion?.status.publish_status !== 'not_released' }]"
+        :class="['action-item', { disabled: isDeprecateDisabled }]"
         @click="handleDeprecateDialogShow(selectedVersion!)">
         {{ t('版本废弃') }}
       </div>
@@ -161,6 +161,16 @@
       const isNameMatched = item.spec.name.toLowerCase().includes(searchStr.value.toLocaleLowerCase());
       return item.id > 0 && isNameMatched;
     });
+  });
+
+  // 选择版本是否可废弃
+  const isDeprecateDisabled = computed(() => {
+    const { strategy_status, publish_status } = selectedVersion.value?.status || {};
+    return (
+      strategy_status === 'pending_approval' ||
+      strategy_status === 'pending_publish' ||
+      publish_status !== 'not_released'
+    );
   });
 
   // 待审批状态版本
@@ -279,7 +289,7 @@
   };
 
   const handleDeprecateDialogShow = (version: IConfigVersion) => {
-    if (version.status.publish_status !== 'not_released') {
+    if (isDeprecateDisabled.value) {
       return;
     }
     currentOperatingVersion.value = version;
