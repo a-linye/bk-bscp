@@ -8,7 +8,7 @@
       :loading="props.loading">
       <vxe-column :title="$t('服务别名')" width="170">
         <template #default="{ row }">
-          <bk-button size="small" text theme="primary" @click="handleJump(row.id, 'service-config')">
+          <bk-button size="small" text theme="primary" @click="handleEdit(row)">
             {{ row.spec.alias }}
           </bk-button>
         </template>
@@ -49,19 +49,18 @@
       </vxe-column>
       <vxe-column :title="$t('操作')" :width="locale === 'zh-cn' ? 200 : 260">
         <template #default="{ row }">
-          <div class="operation-wrap">
-            <bk-button size="small" text theme="primary" @click="handleJump(row.id, 'service-config')">
-              {{ $t('配置管理') }}
-            </bk-button>
-            <bk-button size="small" text theme="primary" @click="handleJump(row.id, 'client-search')">
-              {{ $t('客户端查询') }}
-            </bk-button>
-            <MoreAction
-              :app="row"
-              :space-id="props.spaceId"
-              @edit="emits('edit', row)"
-              @delete="emits('delete', row)" />
-          </div>
+          <template v-if="row.permissions.view">
+            <div class="operation-wrap">
+              <bk-button size="small" text theme="primary" @click="handleJump(row.id, 'service-config')">
+                {{ $t('配置管理') }}
+              </bk-button>
+              <bk-button size="small" text theme="primary" @click="handleJump(row.id, 'client-search')">
+                {{ $t('客户端查询') }}
+              </bk-button>
+              <MoreAction :app="row" :space-id="props.spaceId" @edit="handleEdit(row)" @delete="handleDelete(row)" />
+            </div>
+          </template>
+          <bk-button v-else class="apply-btn" text theme="primary" @click="applyViewPerm">{{ t('申请服务权限') }}</bk-button>
         </template>
       </vxe-column>
       <template #empty>
@@ -86,11 +85,14 @@
   import { IAppItem } from '../../../../../../types/app';
   import { useI18n } from 'vue-i18n';
   import { datetimeFormat } from '../../../../../utils';
-  import { IPagination } from '../../../../../../types/index';
+  import { IPagination, IPermissionQueryResourceItem } from '../../../../../../types/index';
+  import { storeToRefs } from 'pinia';
+  import useGlobalStore from '../../../../../store/global';
   import MoreAction from './more-action.vue';
 
   const { t, locale } = useI18n();
   const router = useRouter();
+  const { showApplyPermDialog, permissionQuery } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     spaceId: string;
@@ -134,6 +136,67 @@
       });
       window.open(routeData.href, '_blank');
     }
+  };
+
+  const handleDelete = (row: IAppItem) => {
+    if (row.permissions.delete) {
+      emits('delete', row);
+    } else {
+      const query = {
+        resources: [
+          {
+            biz_id: row.biz_id,
+            basic: {
+              type: 'app',
+              action: 'delete',
+              resource_id: row.id,
+            },
+          },
+        ],
+      };
+      openPermApplyDialog(query);
+    }
+  };
+
+  const handleEdit = (row: IAppItem) => {
+    if (row.permissions.update) {
+      emits('edit', row);
+    } else {
+      const query = {
+        resources: [
+          {
+            biz_id: row.biz_id,
+            basic: {
+              type: 'app',
+              action: 'update',
+              resource_id: row.id,
+            },
+          },
+        ],
+      };
+      openPermApplyDialog(query);
+    }
+  };
+
+  const applyViewPerm = (row: IAppItem) => {
+    const query = {
+      resources: [
+        {
+          biz_id: row.biz_id,
+          basic: {
+            type: 'app',
+            action: 'view',
+            resource_id: row.id,
+          },
+        },
+      ],
+    };
+    openPermApplyDialog(query);
+  };
+
+  const openPermApplyDialog = (query: { resources: IPermissionQueryResourceItem[] }) => {
+    permissionQuery.value = query;
+    showApplyPermDialog.value = true;
   };
 </script>
 
