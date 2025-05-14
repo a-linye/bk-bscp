@@ -16,6 +16,7 @@ package space
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 	esbcli "github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 )
 
@@ -78,16 +80,16 @@ func NewSpaceMgr(ctx context.Context, client esbcli.Client) (*Manager, error) {
 		requestedCmdbSpaces: make(map[string]struct{}),
 	}
 
-	initCtx, initCancel := context.WithTimeout(ctx, time.Second*10)
-	defer initCancel()
+	// initCtx, initCancel := context.WithTimeout(ctx, time.Second*10)
+	// defer initCancel()
 
 	// 启动初始化拉一次
-	if err := mgr.fetchAllSpace(initCtx); err != nil {
-		return nil, err
-	}
+	// if err := mgr.fetchAllSpace(initCtx); err != nil {
+	// 	return nil, err
+	// }
 
-	// 定期拉取
-	mgr.run(ctx)
+	// // 定期拉取
+	// mgr.run(ctx)
 
 	// 定期清理重置requestedCmdbSpaces
 	mgr.reset(ctx)
@@ -96,7 +98,7 @@ func NewSpaceMgr(ctx context.Context, client esbcli.Client) (*Manager, error) {
 }
 
 // run 定时刷新全量业务信息
-func (s *Manager) run(ctx context.Context) {
+func (s *Manager) run(ctx context.Context) { // nolint
 	ticker := time.NewTicker(10 * time.Minute)
 
 	go func() {
@@ -136,7 +138,11 @@ func (s *Manager) reset(ctx context.Context) {
 }
 
 // AllSpaces 返回全量业务
-func (s *Manager) AllSpaces() []*Space {
+func (s *Manager) AllSpaces(ctx context.Context) []*Space {
+	if err := s.fetchAllSpace(ctx); err != nil {
+		slog.Error("fetch all space failed", "err", err)
+	}
+
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -144,7 +150,7 @@ func (s *Manager) AllSpaces() []*Space {
 }
 
 // AllCMDBSpaces 返回全量CMDB空间
-func (s *Manager) AllCMDBSpaces() map[string]struct{} {
+func (s *Manager) AllCMDBSpaces(ctx context.Context) map[string]struct{} {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -152,7 +158,7 @@ func (s *Manager) AllCMDBSpaces() map[string]struct{} {
 }
 
 // reqCMDBSpaces 返回请求过的CMDB空间
-func (s *Manager) reqCMDBSpaces() map[string]struct{} {
+func (s *Manager) reqCMDBSpaces(_ context.Context) map[string]struct{} {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -160,8 +166,8 @@ func (s *Manager) reqCMDBSpaces() map[string]struct{} {
 }
 
 // GetSpaceByUID 按id查询业务
-func (s *Manager) GetSpaceByUID(uid string) (*Space, error) {
-	for _, v := range s.AllSpaces() {
+func (s *Manager) GetSpaceByUID(ctx context.Context, uid string) (*Space, error) {
+	for _, v := range s.AllSpaces(ctx) {
 		if v.SpaceId == uid {
 			return v, nil
 		}
@@ -170,14 +176,14 @@ func (s *Manager) GetSpaceByUID(uid string) (*Space, error) {
 }
 
 // QuerySpace 按uid批量查询业务
-func (s *Manager) QuerySpace(spaceUidList []string) ([]*Space, error) {
+func (s *Manager) QuerySpace(ctx context.Context, spaceUidList []string) ([]*Space, error) {
 	spaceList := []*Space{}
 	spaceUidMap := map[string]struct{}{}
 
 	for _, uid := range spaceUidList {
 		spaceUidMap[uid] = struct{}{}
 	}
-	for _, v := range s.AllSpaces() {
+	for _, v := range s.AllSpaces(ctx) {
 		if _, ok := spaceUidMap[v.SpaceId]; ok {
 			spaceList = append(spaceList, v)
 		}
@@ -187,19 +193,19 @@ func (s *Manager) QuerySpace(spaceUidList []string) ([]*Space, error) {
 
 // fetchAllSpace 获取全量业务列表
 func (s *Manager) fetchAllSpace(ctx context.Context) error {
-	bizList, err := s.client.Cmdb().ListAllBusiness(ctx)
+	bizList, err := bkcmdb.ListAllBusiness(ctx)
 	if err != nil {
 		return err
 	}
 
-	if len(bizList.Info) == 0 {
+	if len(bizList) == 0 {
 		return fmt.Errorf("biz list is empty")
 	}
 
-	spaceList := make([]*Space, 0, len(bizList.Info))
-	cmdbSpaces := make(map[string]struct{}, len(bizList.Info))
+	spaceList := make([]*Space, 0, len(bizList))
+	cmdbSpaces := make(map[string]struct{}, len(bizList))
 
-	for _, biz := range bizList.Info {
+	for _, biz := range bizList {
 		bizID := strconv.FormatInt(biz.BizID, 10)
 		spaceList = append(spaceList, &Space{
 			SpaceId:       bizID,
@@ -241,13 +247,13 @@ func BuildSpaceUid(t Type, id string) string {
 }
 
 // HasCMDBSpace checks if cmdb space exists
-func (s *Manager) HasCMDBSpace(spaceId string) bool {
-	if _, ok := s.AllCMDBSpaces()[spaceId]; ok {
+func (s *Manager) HasCMDBSpace(ctx context.Context, spaceId string) bool {
+	if _, ok := s.AllCMDBSpaces(ctx)[spaceId]; ok {
 		return true
 	}
 
 	// 已有缓存没找到，且最近较短时间内没有请求过该cmdb命名空间，则尝试重新拉取并刷新缓存
-	if _, ok := s.reqCMDBSpaces()[spaceId]; ok {
+	if _, ok := s.reqCMDBSpaces(ctx)[spaceId]; ok {
 		return false
 	}
 	ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
@@ -259,7 +265,7 @@ func (s *Manager) HasCMDBSpace(spaceId string) bool {
 	s.requestedCmdbSpaces[spaceId] = struct{}{}
 	s.mtx.Unlock()
 
-	if _, ok := s.AllCMDBSpaces()[spaceId]; ok {
+	if _, ok := s.AllCMDBSpaces(ctx)[spaceId]; ok {
 		return true
 	}
 	return false

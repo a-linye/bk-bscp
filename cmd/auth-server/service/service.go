@@ -16,6 +16,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -428,14 +429,29 @@ func (s *Service) GetUserInfo(ctx context.Context, req *pbas.UserCredentialReq) 
 		return nil, errors.New("token not provided")
 	}
 
+	conf := cc.AuthServer().LoginAuth
+	authLoginClient := bkpaas.NewAuthLoginClient(&conf)
+
+	// 多租户模式
+	if cc.AuthServer().FeatureFlags.EnableMultiTenantMode {
+		tenant, err := authLoginClient.GetTenantUserInfoByToken(ctx, token)
+		if err != nil {
+			if errors.Is(err, errf.ErrPermissionDenied) {
+				return nil, status.New(codes.PermissionDenied, errf.GetErrMsg(err)).Err()
+			}
+			return nil, err
+		}
+
+		slog.Info("get user info success in MultiTenantMode", "username", tenant.BkUsername, "tenant_id", tenant.TenantID)
+		return &pbas.UserInfoResp{Username: tenant.BkUsername, AvatarUrl: "", TenantId: tenant.TenantID}, nil
+
+	}
+
 	// 优先使用 InnerHost
 	host := cc.AuthServer().LoginAuth.Host
 	if cc.AuthServer().LoginAuth.InnerHost != "" {
 		host = cc.AuthServer().LoginAuth.InnerHost
 	}
-
-	conf := cc.AuthServer().LoginAuth
-	authLoginClient := bkpaas.NewAuthLoginClient(&conf)
 
 	var (
 		username string
@@ -455,6 +471,7 @@ func (s *Service) GetUserInfo(ctx context.Context, req *pbas.UserCredentialReq) 
 		return nil, err
 	}
 
+	slog.Info("get user info success", "username", username)
 	return &pbas.UserInfoResp{Username: username, AvatarUrl: ""}, nil
 }
 
@@ -507,7 +524,7 @@ func (s *Service) ListUserSpace(ctx context.Context, req *pbas.ListUserSpaceReq)
 	}
 
 	// 定期同步
-	spaceList := s.spaceMgr.AllSpaces()
+	spaceList := s.spaceMgr.AllSpaces(ctx)
 
 	items := make([]*pbas.Space, 0, len(spaceList))
 	for _, space := range spaceList {
@@ -531,7 +548,7 @@ func (s *Service) QuerySpace(ctx context.Context, req *pbas.QuerySpaceReq) (*pba
 		return &pbas.QuerySpaceResp{}, nil
 	}
 
-	spaceList, err := s.spaceMgr.QuerySpace(uidList)
+	spaceList, err := s.spaceMgr.QuerySpace(ctx, uidList)
 	if err != nil {
 		return nil, err
 	}

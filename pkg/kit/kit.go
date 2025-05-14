@@ -41,6 +41,8 @@ var (
 	lowRidKey         = strings.ToLower(constant.RidKey)
 	lowLangKey        = strings.ToLower(constant.LangKey)
 	lowUserKey        = strings.ToLower(constant.UserKey)
+	lowTenantKey      = strings.ToLower(constant.BkTenantID)
+	lowbkTokenKey     = strings.ToLower(constant.BkToken)
 	lowACKey          = strings.ToLower(constant.AppCodeKey)
 	lowSpaceIDKey     = strings.ToLower(constant.SpaceIDKey)
 	lowSpaceTypeIDKey = strings.ToLower(constant.SpaceTypeIDKey)
@@ -73,6 +75,16 @@ func FromGrpcContext(ctx context.Context) *Kit {
 	user := md[lowUserKey]
 	if len(user) != 0 {
 		kit.User = user[0]
+	}
+
+	tenantID := md[lowTenantKey]
+	if len(tenantID) != 0 {
+		kit.TenantID = tenantID[0]
+	}
+
+	bkToken := md[lowbkTokenKey]
+	if len(tenantID) != 0 {
+		kit.BkToken = bkToken[0]
 	}
 
 	appCode := md[lowACKey]
@@ -131,6 +143,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 type User struct {
 	Username  string `json:"username"`
 	AvatarUrl string `json:"avatar_url"`
+	TenantID  string `json:"tenant_id"`
 }
 
 // Kit defines the basic metadata info within a task.
@@ -140,6 +153,12 @@ type Kit struct {
 
 	// User's name.
 	User string
+
+	// TenantID is user's tenant id.
+	TenantID string
+
+	// BkToken is user's token.
+	BkToken string
 
 	// Rid is request id.
 	Rid string
@@ -165,6 +184,8 @@ func (c *Kit) Clone() *Kit {
 	return &Kit{
 		Ctx:         c.Ctx,
 		User:        c.User,
+		TenantID:    c.TenantID,
+		BkToken:     c.BkToken,
 		Rid:         c.Rid,
 		Lang:        c.Lang,
 		AppCode:     c.AppCode,
@@ -202,6 +223,8 @@ func (c *Kit) RPCMetaData() metadata.MD {
 		constant.RidKey:         c.Rid,
 		constant.LangKey:        c.Lang,
 		constant.UserKey:        c.User,
+		constant.BkTenantID:     c.TenantID,
+		constant.BkToken:        c.BkToken,
 		constant.AppCodeKey:     c.AppCode,
 		constant.SpaceIDKey:     c.SpaceID,
 		constant.SpaceTypeIDKey: c.SpaceTypeID,

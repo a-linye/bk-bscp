@@ -21,6 +21,8 @@ const (
 
 	// RidKey is request id header key.
 	RidKey = "X-Bkapi-Request-Id"
+	// bkTenantID is bk tenant id header key.
+	BkTenantID = "X-Bk-Tenant-Id"
 	// RidKeyGeneric for generic header key
 	RidKeyGeneric = "X-Request-Id"
 
@@ -48,6 +50,8 @@ const (
 	// BKGWJWTTokenKey is blueking api gateway jwt header key.
 	BKGWJWTTokenKey = "X-Bkapi-JWT" //nolint
 
+	// BkToken is bk token header key.
+	BkToken = "X-Bk-Token" // nolint:gosec
 	// BKTokenForTest is a token for test
 	BKTokenForTest = "bk-token-for-test" //nolint:gosec
 
