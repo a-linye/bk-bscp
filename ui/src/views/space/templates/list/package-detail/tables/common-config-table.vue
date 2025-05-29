@@ -77,12 +77,12 @@
         </template>
         <bk-table-column :label="t('创建人')" prop="revision.creator" :width="100">
           <template #default="{ row }">
-            <bk-user-display-name v-if="row.revision" :user-id="row.revision.creator" />
+            <user-name v-if="row.revision" :name="row.revision.creator" />
           </template>
         </bk-table-column>
         <bk-table-column :label="t('更新人')" prop="revision.reviser" :width="100">
           <template #default="{ row }">
-            <bk-user-display-name v-if="row.revision" :user-id="row.revision.reviser" />
+            <user-name v-if="row.revision" :name="row.revision.reviser"/>
           </template>
         </bk-table-column>
         <bk-table-column :label="t('更新时间')" prop="" :width="180">
@@ -207,6 +207,7 @@
   import acrossCheckBox from '../../../../../../components/across-checkbox.vue';
   import ViewConfig from '../operations/view-config/view-config.vue';
   import EditConfig from '../operations/edit-config/edit-config.vue';
+  import UserName from '../../../../../../components/user-name.vue';
 
   const router = useRouter();
   const { t, locale } = useI18n();

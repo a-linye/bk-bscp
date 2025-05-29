@@ -38,7 +38,7 @@
     </bk-table-column>
     <bk-table-column :label="t('创建人')" prop="revision.creator">
       <template #default="{ row }">
-        <bk-user-display-name v-if="row.revision" :user-id="row.revision.creator" />
+        <user-name v-if="row.revision" :name="row.revision.creator"/>
       </template>
     </bk-table-column>
     <bk-table-column :label="t('创建时间')" prop="revision.create_at">
@@ -86,6 +86,7 @@
   import { downloadTemplateContent } from '../../../../api/template';
   import VersionBoundByAppsDetail from './version-bound-by-apps-detail.vue';
   import TemplateVersionDiff from './template-version-diff.vue';
+  import UserName from '../../../../components/user-name.vue';
 
   const { t } = useI18n();
   const props = defineProps<{

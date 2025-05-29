@@ -148,7 +148,7 @@
           </bk-table-column>
           <bk-table-column :label="t('更新人')" width="88" prop="revision.reviser">
             <template #default="{ row }">
-              <bk-user-display-name v-if="row.revision" :user-id="row.revision.reviser" />
+              <user-name v-if="row.revision" :name="row.revision.reviser"/>
             </template>
           </bk-table-column>
           <bk-table-column :label="t('更新时间')" width="154">
@@ -280,7 +280,8 @@
   import { copyToClipBoard, datetimeFormat } from '../../../utils/index';
   import { ICredentialItem } from '../../../../types/credential';
   import AssociateConfigItems from './associate-config-items/index.vue';
-  import tableEmpty from '../../../components/table/table-empty.vue';
+  import TableEmpty from '../../../components/table/table-empty.vue';
+  import UserName from '../../../components/user-name.vue';
   import { debounce } from 'lodash';
 
   const { spaceId, permissionQuery, showApplyPermDialog } = storeToRefs(useGlobalStore());
