@@ -83,7 +83,8 @@ func (dao *appDao) GetOneAppByBiz(kit *kit.Kit, bizID uint32) (*table.App, error
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 
-	detail, err := q.Where(m.BizID.Eq(bizID), m.TenantID.IsNotNull()).Take()
+	// 租户ID不能为空
+	detail, err := q.Where(m.BizID.Eq(bizID), m.TenantID.Neq("")).Take()
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +518,7 @@ func (dao *appDao) ListAppMetaForCache(kit *kit.Kit, bizID uint32, appIDs []uint
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 
-	result, err := q.Select(m.ID, m.Name, m.ConfigType).
+	result, err := q.Select(m.ID, m.Name, m.TenantID, m.ConfigType).
 		Where(m.BizID.Eq(bizID), m.ID.In(appIDs...)).Find()
 	if err != nil {
 		return nil, err
@@ -527,6 +528,7 @@ func (dao *appDao) ListAppMetaForCache(kit *kit.Kit, bizID uint32, appIDs []uint
 	for _, one := range result {
 		meta[one.ID] = &types.AppCacheMeta{
 			Name:       one.Spec.Name,
+			TenantID:   one.Spec.TenantID,
 			ConfigType: one.Spec.ConfigType,
 		}
 	}
