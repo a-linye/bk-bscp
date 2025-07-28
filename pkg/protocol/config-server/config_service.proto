@@ -1226,7 +1226,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 创建键值配置项
   rpc CreateKv(CreateKvReq) returns (CreateKvResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs"
       body: "*"
@@ -1234,7 +1234,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   };
   // 更新键值配置项
   rpc UpdateKv(UpdateKvReq) returns (UpdateKvResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       put: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/{key}"
       body: "*"
@@ -1242,7 +1242,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   };
   // 获取键值配置项列表
   rpc ListKvs(ListKvsReq) returns (ListKvsResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/list"
       body: "*"
@@ -1250,7 +1250,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   };
   // 删除键值配置项
   rpc DeleteKv(DeleteKvReq) returns (DeleteKvResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       delete: "/api/v1/config/biz/{biz_id}/apps/{app_id}/kvs/{id}"
     };
@@ -3673,7 +3673,6 @@ message PublishReq {
   bool default = 7;
   repeated uint32 groups = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "分组上线：分组ID，如果有值那么all必须是false",
-    default: "[]"
   }];
   repeated google.protobuf.Struct labels = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "要发布的标签列表，仅在 gray_publish_mode 为 publish_by_labels 时生效"
@@ -3706,7 +3705,6 @@ message GenerateReleaseAndPublishReq {
   }];
   repeated string groups = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "分组上线：分组ID，如果有值那么all必须是false",
-    default: "[]"
   }];
   repeated google.protobuf.Struct labels = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "要发布的标签列表，仅在 gray_publish_mode 为 publish_by_labels 时生效"
