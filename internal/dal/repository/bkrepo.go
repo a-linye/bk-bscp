@@ -13,12 +13,14 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -101,7 +103,29 @@ func (c *bkrepoClient) buildProject(kt *kit.Kit) string {
 	return c.project
 }
 
+// ensureProject 多租户或者为外部自动化创建项目
+func (c *bkrepoClient) ensureProject(ctx context.Context) error {
+	exist, err := c.cli.IsProjectExist(ctx)
+	if err != nil {
+		return err
+	}
+	if exist {
+		return nil
+	}
+
+	if err = c.cli.CreateProject(ctx); err != nil {
+		return fmt.Errorf("create project: %w", err)
+	}
+
+	return nil
+}
+
 func (c *bkrepoClient) ensureRepo(kt *kit.Kit) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	ctx = kit.WithKit(ctx, kt)
+
 	repoName, err := repo.GenRepoName(kt.BizID)
 	if err != nil {
 		return err
@@ -109,6 +133,10 @@ func (c *bkrepoClient) ensureRepo(kt *kit.Kit) error {
 
 	if c.repoCreated.Exist(repoName) {
 		return nil
+	}
+
+	if err = c.ensureProject(ctx); err != nil {
+		return fmt.Errorf("ensure project: %w", err)
 	}
 
 	repoReq := &repo.CreateRepoReq{
@@ -119,7 +147,7 @@ func (c *bkrepoClient) ensureRepo(kt *kit.Kit) error {
 		Configuration: repo.Configuration{Type: repo.RepositoryCfgType},
 		Description:   fmt.Sprintf("bscp %d business repository", kt.BizID),
 	}
-	if err := c.cli.CreateRepo(kt.Ctx, repoReq); err != nil {
+	if err := c.cli.CreateRepo(ctx, repoReq); err != nil {
 		return err
 	}
 
