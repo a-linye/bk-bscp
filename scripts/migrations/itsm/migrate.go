@@ -38,8 +38,8 @@ var (
 )
 
 // InitServices 初始化BSCP相关流程服务
-func InitServices(ctx context.Context) error {
-
+func InitServices(ctx context.Context, tenantID string) error {
+	ctx = context.WithValue(ctx, constant.BkTenantID, tenantID) // nolint: staticcheck
 	// initial DAO set
 	set, err := dao.NewDaoSet(cc.DataService().Sharding, cc.DataService().Credential, cc.DataService().Gorm)
 	if err != nil {
@@ -48,14 +48,14 @@ func InitServices(ctx context.Context) error {
 
 	daoSet = set
 
-	resp, err := v4.ItsmV4SystemMigrate(ctx)
+	resp, err := v4.ItsmV4SystemMigrate(ctx, tenantID)
 	if err != nil {
 		fmt.Printf("init approve itsm services failed, err: %s\n", err.Error())
 		return err
 	}
 
 	itsm := itsm.NewITSMService()
-	// 通过 workflow_keys 获取 activity_key
+
 	workflow, err := itsm.ListWorkflow(ctx, api.ListWorkflowReq{
 		WorkflowKeys: resp.CreateApproveItsmWorkflowID.Value,
 	})
@@ -66,13 +66,13 @@ func InitServices(ctx context.Context) error {
 	// 存入配置表
 	itsmConfigs := []*table.Config{
 		{
-			Key:   constant.CreateApproveItsmWorkflowID,
+			Key:   fmt.Sprintf("%s-%s", tenantID, constant.CreateApproveItsmWorkflowID),
 			Value: resp.CreateApproveItsmWorkflowID.Value,
 		}, {
-			Key:   constant.CreateCountSignApproveItsmStateID,
+			Key:   fmt.Sprintf("%s-%s", tenantID, constant.CreateCountSignApproveItsmStateID),
 			Value: workflow[constant.ItsmApproveCountSignType],
 		}, {
-			Key:   constant.CreateOrSignApproveItsmStateID,
+			Key:   fmt.Sprintf("%s-%s", tenantID, constant.CreateOrSignApproveItsmStateID),
 			Value: workflow[constant.ItsmApproveOrSignType],
 		},
 	}

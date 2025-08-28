@@ -37,7 +37,7 @@ func ListWorkflow(ctx context.Context, req ListWorkflowReq) (map[string]string, 
 	if itsmConf.External {
 		host = itsmConf.Host
 	}
-	reqURL := fmt.Sprintf("%s%s", host, workflowPath)
+	reqURL := fmt.Sprintf("%s%s?workflow_keys=%s", host, workflowPath, req.WorkflowKeys)
 
 	// 请求API
 	body, err := ItsmRequest(ctx, http.MethodGet, reqURL, req)
@@ -51,7 +51,7 @@ func ListWorkflow(ctx context.Context, req ListWorkflowReq) (map[string]string, 
 		logs.Errorf("parse itsm body error, body: %v", body)
 		return nil, err
 	}
-	if resp.Code != 0 {
+	if !resp.Result {
 		logs.Errorf("request itsm list workflows %v failed, msg: %s", req, resp.Message)
 		return nil, errors.New(resp.Message)
 	}
