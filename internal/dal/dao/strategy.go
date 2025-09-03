@@ -13,8 +13,8 @@
 package dao
 
 import (
+	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
-	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
@@ -34,9 +34,6 @@ type Strategy interface {
 	// UpdateByIDs update strategy kv by ids
 	UpdateByIDs(
 		kit *kit.Kit, tx *gen.QueryTx, strategyID []uint32, m map[string]interface{}) error
-	// GetStrategyBySnAndState 根据单据ID和状态获取对应的数据
-	GetStrategyBySnAndState(kit *kit.Kit, itsmTicketSn string, itsmTicketStatus table.ItsmTicketStatus) (
-		*table.Strategy, error)
 }
 
 var _ Strategy = new(strategyDao)
@@ -45,14 +42,6 @@ type strategyDao struct {
 	genQ     *gen.Query
 	idGen    IDGenInterface
 	auditDao AuditDao
-}
-
-// GetStrategyBySn implements Strategy.
-func (dao *strategyDao) GetStrategyBySnAndState(kit *kit.Kit, itsmTicketSn string, itsmTicketStatus table.ItsmTicketStatus) (
-	*table.Strategy, error) {
-	m := dao.genQ.Strategy
-	return m.WithContext(kit.Ctx).Where(m.ItsmTicketSn.Eq(itsmTicketSn),
-		m.ItsmTicketStatus.Eq(itsmTicketStatus.String())).Take()
 }
 
 // GetLast Get strategy kv.
@@ -78,7 +67,8 @@ func (dao *strategyDao) GetStrategyByIDs(kit *kit.Kit, strategyIDs []uint32) ([]
 // GetStrategyByIDs Get strategy by ids.
 func (dao *strategyDao) ListStrategyByItsm(kit *kit.Kit) ([]*table.Strategy, error) {
 	m := dao.genQ.Strategy
-	return m.WithContext(kit.Ctx).Where(m.ItsmTicketStatus.Eq(constant.ItsmTicketStatusCreated),
+	return m.WithContext(kit.Ctx).Where(m.ItsmTicketStatus.In(
+		constant.ItsmTicketStatusCreated),
 		m.ItsmTicketStateID.Neq(""), m.ItsmTicketSn.Neq(""),
 		m.PublishStatus.In(string(table.PendingApproval), string(table.PendingPublish))).Find()
 }

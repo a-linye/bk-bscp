@@ -14,6 +14,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
+	"github.com/TencentBlueKing/bk-bscp/internal/components/itsm"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/itsm/api"
 	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
@@ -249,8 +251,22 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	// 获取itsm ticket状态，不审批的不查
 	// message 不为空的情况：itsm操作后数据不正常的message皆不为空，但数据库需要更新
 	if app.Spec.IsApprove {
-		req, message, err = s.checkTicketStatus(grpcKit,
-			strategy.Spec.ItsmTicketSn, strategy.Spec.ItsmTicketStateID, req)
+		// 获取active key
+		activeKey := ""
+
+		if cc.DataService().ITSM.EnableV4 {
+			// 根据版本和审批类型获取 stateIDKey 和 approveType
+			stateIDKey := itsm.BuildStateIDKey(grpcKit.TenantID, app.Spec.ApproveType)
+
+			// 获取 ITSM 配置
+			itsmSign, err := s.dao.Config().GetConfig(grpcKit, stateIDKey)
+			if err != nil {
+				return nil, err
+			}
+			activeKey = itsmSign.Value
+		}
+		req, message, err = s.handleTicketStatus(grpcKit,
+			strategy.Spec.ItsmTicketSn, strategy.Spec.ItsmTicketStateID, activeKey, req)
 		if err != nil {
 			return nil, err
 		}
@@ -328,6 +344,23 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	})
 	if err != nil {
 		return nil, err
+	}
+	// [v4]补充taskID和Operator
+	if cc.DataService().ITSM.EnableV4 {
+		taskIdUser := map[string]string{}
+		err = json.Unmarshal([]byte(strategy.Spec.ItsmTicketStateID), &taskIdUser)
+		if err != nil {
+			logs.Errorf("unmarshal itsm ticket state id failed, err: %v, rid: %s", err, grpcKit.Rid)
+			return nil, err
+		}
+		if taskIdUser[grpcKit.User] == "" {
+			// 没有该人的审批任务或者当前登录用户没有权限
+			logs.Errorf("no permission to approve this ticket, user: %s", grpcKit.User)
+			return nil, errors.New(i18n.T(grpcKit, "no permission to approve this ticket"))
+		}
+		itsmUpdata.TaskID = taskIdUser[grpcKit.User]
+		itsmUpdata.Operator = grpcKit.User
+		itsmUpdata.SystemID = cc.DataService().ITSM.SystemId
 	}
 
 	// 从页面进来且需要审批的数据则同步itsm
@@ -959,7 +992,7 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 	aduitId, releaseID uint32) (*api.CreateTicketData, error) {
 
 	// 根据版本和审批类型获取 stateIDKey 和 approveType
-	stateIDKey, approveType := buildApproveConfig(kt.TenantID, app.Spec.ApproveType, cc.DataService().ITSM.EnableV4)
+	stateIDKey := itsm.BuildStateIDKey(kt.TenantID, app.Spec.ApproveType)
 
 	// 获取 ITSM 配置
 	itsmSign, err := s.dao.Config().GetConfig(kt, stateIDKey)
@@ -974,11 +1007,17 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 	}
 
 	// 组装字段
-	fields := buildFields(bizName, app, releaseName, scope, aduitId, releaseID, approveType, memo)
+	approveTypeCH := table.OrSignCH
+	if app.Spec.ApproveType == table.CountSign {
+		approveTypeCH = table.CountSignCH
+	}
+	fields := buildFields(bizName, app, releaseName, scope, aduitId, releaseID, approveTypeCH, memo)
 	workFlowKey, err := s.dao.Config().GetConfig(kt, fmt.Sprintf("%s-%s", kt.TenantID, constant.CreateApproveItsmWorkflowID))
 	if err != nil {
 		return nil, err
 	}
+	callbackUrl := cc.DataService().ITSM.BscpGateway + "/api/v1/config/biz_id/%d/app_id/%d/release_id/%d/approval_callback"
+	callbackUrl = fmt.Sprintf(callbackUrl, app.BizID, app.ID, releaseID)
 	createTicketReq := api.CreateTicketReq{
 		WorkFlowKey: workFlowKey.Value,
 		Fields:      fields,
@@ -986,6 +1025,9 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 		Meta: map[string]any{
 			"state_processors": map[string]any{itsmSign.Value: app.Spec.Approver},
 		},
+		// v4 需要ActivityKey 用于获取任务ID
+		ActivityKey: itsmSign.Value,
+		CallbackUrl: callbackUrl,
 	}
 	if !cc.DataService().ITSM.EnableV4 {
 		itsmService, err1 := s.dao.Config().GetConfig(kt, constant.CreateApproveItsmServiceID)
@@ -999,29 +1041,7 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 	if err != nil {
 		return nil, err
 	}
-
-	// 获取审批节点 stateID
-	resp.StateID, err = s.resolveStateID(kt, resp.SN, itsmSign.Value, cc.DataService().ITSM.EnableV4)
-	if err != nil {
-		return nil, err
-	}
-
 	return resp, nil
-}
-
-// 提取配置
-func buildApproveConfig(tenantID string, approveType table.ApproveType, enableV4 bool) (string, table.ApproveType) {
-	if enableV4 {
-		if approveType == table.CountSign {
-			return fmt.Sprintf("%s-%s", tenantID, constant.CreateCountSignApproveItsmStateID), table.CountSignCH
-		}
-		return fmt.Sprintf("%s-%s", tenantID, constant.CreateOrSignApproveItsmStateID), table.OrSignCH
-	}
-
-	if approveType == table.CountSign {
-		return constant.CreateCountSignApproveItsmStateID, table.CountSignCH
-	}
-	return constant.CreateOrSignApproveItsmStateID, table.OrSignCH
 }
 
 // 获取业务名
@@ -1041,7 +1061,6 @@ func (s *Service) getBizName(kt *kit.Kit, bizID uint32) (string, error) {
 // 构建 fields
 func buildFields(bizName string, app *table.App, releaseName, scope string, aduitId, releaseID uint32,
 	approveType table.ApproveType, memo string) []map[string]any {
-
 	return []map[string]any{
 		{"key": "title", "value": "服务配置中心(BSCP)版本上线审批"},
 		{"key": "BIZ", "value": fmt.Sprintf("%s(%d)", bizName, app.BizID)},
@@ -1055,42 +1074,8 @@ func buildFields(bizName string, app *table.App, releaseName, scope string, adui
 		{"key": "RELEASE_ID", "value": fmt.Sprintf("%d", releaseID)},
 		{"key": "APPROVE_TYPE", "value": approveType},
 		{"key": "MEMO", "value": memo},
-		{"key": "approve_type", "value": approveType},
-		{"key": "approve", "value": app.Spec.Approver},
+		{"key": "approve", "value": strings.Split(app.Spec.Approver, ",")},
 	}
-}
-
-// 解析 stateID
-func (s *Service) resolveStateID(kt *kit.Kit, ticketSN, activityKey string, enableV4 bool) (string, error) {
-	if enableV4 {
-		// v4版本差异：审批任务ID是单据级别的，流程进入到审批流程中存在延迟，需要设置轮询
-		// v2版本的这个任务ID是全局无需这样的操作
-		ticker := time.NewTicker(1 * time.Second) // 优化为1秒重试
-		defer ticker.Stop()
-		// 加上超时时间30s
-		timeout := time.After(30 * time.Second)
-		for {
-			select {
-			case <-ticker.C:
-				tasks, err := s.itsm.ApprovalTasks(kt.Ctx, api.ApprovalTasksReq{
-					TicketID:    ticketSN,
-					ActivityKey: activityKey,
-				})
-				if err != nil {
-					logs.Warnf("get approval tasks failed, err: %v, will retry, rid: %s", err, kt.Rid)
-					continue
-				}
-				if len(tasks.Items) == 0 {
-					logs.Infof("no approval tasks found, will retry, rid: %s", kt.Rid)
-					continue
-				}
-				return tasks.Items[0].ID, nil
-			case <-timeout:
-				return "", fmt.Errorf("resolveStateID timeout after 30s")
-			}
-		}
-	}
-	return activityKey, nil
 }
 
 // 定时上线
@@ -1159,30 +1144,23 @@ func (s *Service) parseGroup(
 	return groupIDs, groupName, nil
 }
 
-func (s *Service) checkTicketStatus(kt *kit.Kit, sn, stateID string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
+func (s *Service) handleTicketStatus(kt *kit.Kit, sn, stateID, activityKey string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
 	if req.PublishStatus == string(table.AlreadyPublish) {
 		return req, "", nil
 	}
-
-	if cc.DataService().ITSM.EnableV4 {
-		return s.handleTicketStatusV4(kt, sn, req)
-	}
-	return s.handleTicketStatusV2(kt, sn, stateID, req)
-}
-
-func (s *Service) handleTicketStatusV2(kt *kit.Kit, sn, stateID string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
 	statusResp, err := s.itsm.GetTicketStatus(kt.Ctx, api.GetTicketStatusReq{TicketID: sn})
 	if err != nil {
 		return req, "", err
 	}
 
 	switch statusResp.CurrentStatus {
-	case constant.TicketRunningStatu:
-		return s.handleRunningStatus(kt, sn, stateID, req)
-	case constant.TicketRevokedStatu:
+	case constant.TicketRunningStatus:
+		// 页面发起的审批，单据就是Running状态
+		return s.handleRunningStatus(kt, sn, stateID, activityKey, req)
+	case constant.TicketRevokedStatus:
 		req.PublishStatus = string(table.RevokedPublish)
 		return req, i18n.T(kt, "this ticket has been revoked, no further processing is required"), nil
-	case constant.TicketFinishedStatu:
+	case constant.TicketFinishedStatus:
 		if req.PublishStatus == string(table.RevokedPublish) {
 			return req, "", nil
 		}
@@ -1194,37 +1172,33 @@ func (s *Service) handleTicketStatusV2(kt *kit.Kit, sn, stateID string, req *pbd
 	}
 }
 
-func (s *Service) handleRunningStatus(kt *kit.Kit, sn, stateID string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
+func (s *Service) handleRunningStatus(kt *kit.Kit, sn, stateID, activityKey string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
 	// 页面撤回直接返回
 	if kt.OperateWay == string(enumor.WebUI) && req.PublishStatus == string(table.RevokedPublish) {
 		return req, "", nil
 	}
 
-	logs, err := s.itsm.GetTicketLogs(kt.Ctx, api.GetTicketLogsReq{TicketID: sn})
+	approveResult, err := s.itsm.GetApproveResult(kt.Ctx, api.GetApproveResultReq{TicketID: sn, StateID: stateID, ActivityKey: activityKey})
 	if err != nil {
 		return req, "", err
 	}
 
-	approveMap := s.parseApproveLogs(logs.Items)
-
-	if rejectedUsers, ok := approveMap[constant.ItsmRejectedApproveResult]; ok {
-		reason, err := s.getApproveReason(kt, sn, stateID)
-		if err != nil {
-			return req, "", err
-		}
+	// 已有审批拒绝
+	if approveResult.Result != nil && !(*approveResult.Result) {
 		req.PublishStatus = string(table.RejectedApproval)
-		req.ApprovedBy = rejectedUsers
-		req.Reason = reason
-		return req, i18n.T(kt, "this ticket has been approved, no further processing is required"), nil
+		req.ApprovedBy = approveResult.RejectUsers
+		req.Reason = strings.Join(approveResult.Reasons, ",")
+		return req, i18n.T(kt, "this ticket has been rejected, no further processing is required"), nil
 	}
 
-	if passedUsers, ok := approveMap[constant.ItsmPassedApproveResult]; ok {
+	// 已有审批通过
+	if approveResult.Result != nil && *approveResult.Result {
 		if kt.OperateWay == string(enumor.WebUI) && req.PublishStatus == string(table.RejectedApproval) {
 			return req, "", nil
 		}
 		req.PublishStatus = string(table.PendingPublish)
-		req.ApprovedBy = passedUsers
-		for _, user := range passedUsers {
+		req.ApprovedBy = approveResult.PassUsers
+		for _, user := range approveResult.PassUsers {
 			if user == kt.User || kt.OperateWay != string(enumor.WebUI) {
 				kt.User = user
 				return req, i18n.T(kt, "this ticket has been approved, no further processing is required"), nil
@@ -1234,159 +1208,95 @@ func (s *Service) handleRunningStatus(kt *kit.Kit, sn, stateID string, req *pbds
 	return req, "", nil
 }
 
-func (s *Service) parseApproveLogs(items []*api.TicketLogsDataItems) map[string][]string {
-	result := make(map[string][]string)
-	for _, v := range items {
-		if strings.Contains(v.Message, constant.ItsmRejectedApproveResult) {
-			result[constant.ItsmRejectedApproveResult] = append(result[constant.ItsmRejectedApproveResult], v.Operator)
-		} else if strings.Contains(v.Message, constant.ItsmPassedApproveResult) {
-			result[constant.ItsmPassedApproveResult] = append(result[constant.ItsmPassedApproveResult], v.Operator)
-		}
-	}
-	return result
-}
-
-func (s *Service) getApproveReason(kt *kit.Kit, sn, stateID string) (string, error) {
-	data, err := s.itsm.GetApproveNodeResult(kt.Ctx, api.GetApproveNodeResultReq{
-		TicketID: sn,
-		StateID:  stateID,
-	})
-	if err != nil {
-		return "", err
-	}
-	return data.ApproveRemark, nil
-}
-
-func (s *Service) handleTicketStatusV4(kt *kit.Kit, sn string, req *pbds.ApproveReq) (*pbds.ApproveReq, string, error) {
-	detail, err := s.itsm.TicketDetail(kt.Ctx, api.TicketDetailReq{ID: sn})
-	if err != nil {
-		return req, "", err
-	}
-	for _, v := range detail.CurrentProcessors {
-		req.ApprovedBy = append(req.ApprovedBy, v.Processor)
-	}
-	req.PublishStatus = string(table.RevokedPublish)
-	req.Reason = detail.CallbackResult.Message
-	return req, "", nil
-}
-
 // ApprovalCallback implements pbds.DataServer.
 func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallbackReq) (*pbds.ApprovalCallbackResp, error) {
-	// grpcKit := kit.FromGrpcContext(ctx)
-	// // 单据创建时会触发回调
-	// // 单据更新状态时也会触发回调
-	// // 通过回调返回的状态来同步我们表中的状态
-	// // 只需要处理 处理中 的状态
-	// strategy, err := s.dao.Strategy().GetStrategyBySnAndState(grpcKit, req.Ticket.Id, table.RunningItsmTicketStatus)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	kit := kit.FromGrpcContext(ctx)
+	result := &pbds.ApprovalCallbackResp{
+		// 默认就是true 因为后面即便再重试也有问题，除非err级别错误
+		Result:  true,
+		Message: "ok",
+	}
+	// 审批回调接口，
+	// 查询策略
+	strategies, err := s.dao.Strategy().ListStrategyByReleasesIDs(kit, []uint32{req.ReleaseId})
+	if err != nil {
+		logs.Errorf("get strategy failed, err=%v, rid=%s", err, kit.Rid)
+		return nil, err
+	}
+	// 匹配ticket id
+	if req.Ticket == nil {
+		result.Result = false
+		result.Message = "ticket id is empty"
+		return result, nil
+	}
+	var matchedStrategy *table.Strategy
+	for _, strategy := range strategies {
+		if strategy.Spec.ItsmTicketSn == req.Ticket.Id {
+			matchedStrategy = strategy
+			break
+		}
+	}
+	if matchedStrategy == nil {
+		result.Message = "ticket id not match"
+		return result, nil
+	}
+	// 非created状态，表明都已经被处理过了
+	if matchedStrategy.Spec.ItsmTicketStatus != constant.ItsmTicketStatusCreated {
+		result.Message = "ticket status has been processed"
+		return result, nil
+	}
 
-	// if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-	// 	return nil, err
-	// }
+	// 查看状态是审批通过还是拒绝
+	approveReq := &pbds.ApproveReq{
+		BizId:         req.BizId,
+		AppId:         req.AppId,
+		ReleaseId:     req.ReleaseId,
+		PublishStatus: string(table.PendingPublish),
+		StrategyId:    matchedStrategy.ID,
+	}
 
-	// // 默认要回滚，除非已经提交
-	// tx := s.dao.GenQuery().Begin()
-	// committed := false
-	// defer func() {
-	// 	if !committed {
-	// 		if rErr := tx.Rollback(); rErr != nil {
-	// 			logs.Errorf("transaction rollback failed, err: %v, rid: %s", rErr, grpcKit.Rid)
-	// 		}
-	// 	}
-	// }()
+	// 获取active key
+	// 根据版本和审批类型获取 stateIDKey 和 approveType
+	stateIDKey := itsm.BuildStateIDKey(kit.TenantID, table.ApproveType(matchedStrategy.Spec.ApproveType))
 
-	// // 只处理已完成、终止、撤单的状态
-	// if req.Ticket.Status == table.FinishedItsmTicketStatus.String() ||
-	// 	req.Ticket.Status == table.TerminationItsmTicketStatus.String() ||
-	// 	req.Ticket.Status == table.RevokedItsmTicketStatus.String() {
-
-	// }
-
-	// var updateContent map[string]any
-
-	// switch req.Ticket.Status {
-	// // 撤单
-	// case table.RevokedItsmTicketStatus.String():
-	// 	// 只有待上线以及审批中的才能撤单
-	// 	if strategy.Spec.PublishStatus != table.PendingPublish && strategy.Spec.PublishStatus != table.PendingApproval {
-	// 		return nil, errors.New(i18n.T(grpcKit, "revoked not allowed, current publish status is: %s",
-	// 			strategy.Spec.PublishStatus))
-	// 	}
-
-	// 	updateContent = map[string]any{
-	// 		"publish_status":     table.RevokedPublish,
-	// 		"reject_reason":      req.GetTicket().GetCallbackResult().String(), // 目前把回调的结果当原因，如果获取不到，那只能通过日志
-	// 		"approver_progress":  strategy.Revision.Creator,
-	// 		"itsm_ticket_status": constant.ItsmTicketStatusRevoked,
-	// 	}
-	// case table.TerminationItsmTicketStatus.String():
-
-	// case table.FinishedItsmTicketStatus.String():
-	// 	updateContent = map[string]any{
-	// 		"publish_status":     table.RevokedPublish,
-	// 		"reject_reason":
-	// 		"approver_progress":  strategy.Revision.Creator,
-	// 		"itsm_ticket_status": constant.ItsmTicketStatusRevoked,
-	// 	}
-
-	// }
-
-	return &pbds.ApprovalCallbackResp{
-		Code:    0,
-		Message: "",
-	}, nil
-}
-
-// SubmitApproval implements pbds.DataServer.
-func (s *Service) SubmitApproval(ctx context.Context, req *pbds.SubmitApprovalReq) (*pbds.SubmitApprovalResp, error) {
-	grpcKit := kit.FromGrpcContext(ctx)
-
-	logs.Infof("start approve operateway: %s, user: %s, req: %v", grpcKit.OperateWay, grpcKit.User, req)
-
-	release, err := s.dao.Release().Get(grpcKit, req.BizId, req.AppId, req.ReleaseId)
+	// 获取 ITSM 配置
+	itsmSign, err := s.dao.Config().GetConfig(kit, stateIDKey)
 	if err != nil {
 		return nil, err
 	}
-	if release.Spec.Deprecated {
-		return nil, errors.New(i18n.T(grpcKit, "release %s is deprecated, can not be revoke", release.Spec.Name))
-	}
-
-	strategy, err := s.dao.Strategy().GetLast(grpcKit, req.BizId, req.AppId, req.ReleaseId, 0)
+	activeKey := itsmSign.Value
+	approveResult, err := s.itsm.GetApproveResult(ctx, api.GetApproveResultReq{
+		TicketID:    req.Ticket.Id,
+		ActivityKey: activeKey,
+	})
 	if err != nil {
+		logs.Errorf("get itsm approve result failed, err=%v, rid=%s", err, kit.Rid)
 		return nil, err
 	}
-
-	switch req.Action {
-	// 同意和拒绝
-	case "approve", "refuse":
-		err = s.itsm.ApprovalTicket(grpcKit.Ctx, api.ApprovalTicketReq{
-			TicketID:     strategy.Spec.ItsmTicketSn,
-			TaskID:       strategy.Spec.ItsmTicketStateID,
-			Operator:     grpcKit.TenantID,
-			OperatorType: grpcKit.User,
-			Action:       req.Action,
-			Desc:         req.Reason,
-		})
-		if err != nil {
-			return nil, err
-		}
-	// 撤单
-	case "revoked":
-		resp, errR := s.itsm.RevokedTicket(grpcKit.Ctx, api.ApprovalTicketReq{
-			TicketID: strategy.Spec.ItsmTicketSn,
-			SystemID: cc.DataService().ITSM.SystemId,
-		})
-		if errR != nil {
-			return nil, errR
-		}
-		if !resp.Result {
-			return nil, fmt.Errorf("单据撤回失败")
-		}
+	logs.Infof("itsm approve result: %v", approveResult)
+	if approveResult.Result == nil {
+		// 还没有结果， 等待
+		logs.Errorf("itsm state is in processing,ticket %s", req.Ticket.Id)
+		return result, nil
 	}
-
-	return &pbds.SubmitApprovalResp{
-		Message: "单据审核中",
-	}, nil
+	if *approveResult.Result {
+		// 通过
+		approveReq.PublishStatus = string(table.PendingPublish)
+		approveReq.ApprovedBy = approveResult.PassUsers
+	} else {
+		// 拒绝
+		approveReq.PublishStatus = string(table.RejectedApproval)
+		approveReq.ApprovedBy = approveResult.RejectUsers
+		approveReq.Reason = strings.Join(approveResult.Reasons, ",")
+	}
+	logs.Infof("itsm approve req: %v", approveReq)
+	// 补充user： 回调是不带user的
+	kit.User = matchedStrategy.Revision.Creator
+	_, err = s.Approve(kit.InternalRpcCtx(), approveReq)
+	if err != nil {
+		logs.Errorf("sync ticket status approve failed, err: %s", err.Error())
+		result.Result = false
+		return result, nil
+	}
+	return result, nil
 }

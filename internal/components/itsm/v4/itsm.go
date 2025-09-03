@@ -48,12 +48,15 @@ const (
 )
 
 func generateTemplateId(tenant string, systemCode string, category string) string {
-	return tools.RandomString(fmt.Sprintf("%s_%s_%s_", tenant, systemCode, category), 8)
+	if tenant != "" {
+		return tools.RandomString(fmt.Sprintf("%s_%s_%s_", tenant, systemCode, category), 8)
+	}
+	return tools.RandomString(fmt.Sprintf("%s_%s_", systemCode, category), 8)
 }
 
 // ItsmV4SystemMigrate 初始化模板
-func ItsmV4SystemMigrate(ctx context.Context, tenantID string) (*TenantWorkflowData, error) {
-	ctx = context.WithValue(ctx, constant.BkTenantID, tenantID) // nolint: staticcheck
+func ItsmV4SystemMigrate(ctx context.Context) (*TenantWorkflowData, error) {
+	kit := kit.FromGrpcContext(ctx)
 	// 读取模板文件内容
 	templateContent, err := os.ReadFile(migrateItsm)
 	if err != nil {
@@ -66,9 +69,9 @@ func ItsmV4SystemMigrate(ctx context.Context, tenantID string) (*TenantWorkflowD
 	}
 
 	values := ItsmV4TemplateRender{
-		FormModel:        generateTemplateId(tenantID, systemCode, formModel),
-		WorkflowCategory: generateTemplateId(tenantID, systemCode, workflowCategory),
-		Workflow:         generateTemplateId(tenantID, systemCode, workflow),
+		FormModel:        generateTemplateId(kit.TenantID, systemCode, formModel),
+		WorkflowCategory: generateTemplateId(kit.TenantID, systemCode, workflowCategory),
+		Workflow:         generateTemplateId(kit.TenantID, systemCode, workflow),
 	}
 
 	var buf bytes.Buffer
@@ -78,13 +81,13 @@ func ItsmV4SystemMigrate(ctx context.Context, tenantID string) (*TenantWorkflowD
 	}
 	content := buf.String()
 
-	if err = MigrateSystem(ctx, []byte(content), tenantID); err != nil {
+	if err = MigrateSystem(ctx, []byte(content)); err != nil {
 		return nil, err
 	}
 
 	return &TenantWorkflowData{
 		CreateApproveItsmWorkflowID: &table.Config{
-			Key:   fmt.Sprintf("%s-%s", tenantID, constant.CreateApproveItsmWorkflowID),
+			Key:   fmt.Sprintf("%s-%s", kit.TenantID, constant.CreateApproveItsmWorkflowID),
 			Value: values.Workflow,
 		},
 	}, nil
@@ -93,14 +96,6 @@ func ItsmV4SystemMigrate(ctx context.Context, tenantID string) (*TenantWorkflowD
 // GetAuthHeader 获取蓝鲸网关通用认证头
 func GetAuthHeader(ctx context.Context) map[string]string {
 	kit := kit.FromGrpcContext(ctx)
-	if len(kit.TenantID) == 0 {
-		// 尝试直接从 ctx.Value 取
-		if v := ctx.Value(constant.BkTenantID); v != nil {
-			if s, ok := v.(string); ok {
-				kit.TenantID = s
-			}
-		}
-	}
 
 	return map[string]string{
 		"Content-Type": "application/json",
