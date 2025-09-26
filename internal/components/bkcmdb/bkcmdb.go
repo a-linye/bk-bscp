@@ -48,6 +48,8 @@ var (
 	searchSet            = "%s/api/bk-cmdb/prod/api/v3/set/search/%s/%d"
 	searchModule         = "%s/api/bk-cmdb/prod/api/v3/module/search/%s/%d/%d"
 	findHostTopoRelation = "%s/api/bk-cmdb/prod/api/v3/host/topo/relation/read"
+	listBizHosts         = "%s/api/bk-cmdb/prod/api/v3/hosts/app/%d/list_hosts"
+	watchResource        = "%s/api/bk-cmdb/prod/api/v3/event/watch/resource/%s"
 )
 
 type HTTPMethod string
@@ -312,4 +314,34 @@ func (bkcmdb *CMDBService) SearchModule(ctx context.Context) {
 // FindHostTopoRelation  获取主机与拓扑的关系
 func (bkcmdb *CMDBService) FindHostTopoRelation(ctx context.Context) {
 
+}
+
+// ListBizHosts 查询业务下的主机
+func (bkcmdb *CMDBService) ListBizHosts(ctx context.Context, req *ListBizHostsRequest) (
+	*CMDBResponse[CMDBListData[HostInfo]], error) {
+	url := fmt.Sprintf(listBizHosts, bkcmdb.Host, req.BkBizID)
+
+	resp := new(CMDBResponse[CMDBListData[HostInfo]])
+	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// WatchResource 监听资源变化
+func (bkcmdb *CMDBService) WatchResource(ctx context.Context, req *WatchResourceRequest) (
+	*HostRelationWatchResponse, error) {
+	if req.BkResource == "" {
+		return nil, fmt.Errorf("resource type is required")
+	}
+
+	url := fmt.Sprintf(watchResource, bkcmdb.Host, req.BkResource)
+
+	resp := new(HostRelationWatchResponse)
+	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }

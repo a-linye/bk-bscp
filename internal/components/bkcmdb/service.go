@@ -27,6 +27,10 @@ type Service interface {
 	SearchBusiness(ctx context.Context, params *cmdb.SearchBizParams) (*cmdb.SearchBizResult, error)
 	// ListAllBusiness 读取全部业务列表
 	ListAllBusiness(ctx context.Context) (*cmdb.SearchBizResult, error)
+	// ListBizHosts 查询业务下的主机
+	ListBizHosts(ctx context.Context, req *ListBizHostsRequest) (*CMDBResponse[CMDBListData[HostInfo]], error)
+	// WatchResource 监听资源变化
+	WatchResource(ctx context.Context, req *WatchResourceRequest) (*HostRelationWatchResponse, error)
 }
 
 // New cmdb service
