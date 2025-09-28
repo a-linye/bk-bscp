@@ -430,13 +430,13 @@ type Event[T any] struct {
 	BkCursor    string `json:"bk_cursor"`     // 游标
 	BkResource  string `json:"bk_resource"`   // 资源类型
 	BkEventType string `json:"bk_event_type"` // 事件类型
-	BkDetail    T      `json:"bk_detail"`     // 事件详情
+	BkDetail    *T     `json:"bk_detail"`     // 事件详情，未监听到事件时未nil
 }
 
 // HostRelationDetail 主机关系事件详情
 type HostRelationDetail struct {
-	BkBizID  int `json:"bk_biz_id"`  // 业务ID
-	BkHostID int `json:"bk_host_id"` // 主机ID
+	BkBizID  *int `json:"bk_biz_id"`  // 业务ID
+	BkHostID *int `json:"bk_host_id"` // 主机ID
 }
 
 // HostRelationEvent 主机关系事件
