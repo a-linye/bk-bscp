@@ -45,6 +45,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
@@ -87,22 +88,21 @@ func Run(opt *options.Option) error {
 }
 
 type dataService struct {
-	serve       *grpc.Server
-	gwServe     *http.Server
-	service     *service.Service
-	sd          serviced.Service
-	daoSet      dao.Set
-	vault       vault.Set
-	esb         client.Client
-	spaceMgr    *space.Manager
-	repo        repository.Provider
-	ssd         serviced.ServiceDiscover
-	cmdbService bkcmdb.Service
+	serve    *grpc.Server
+	gwServe  *http.Server
+	service  *service.Service
+	sd       serviced.Service
+	daoSet   dao.Set
+	vault    vault.Set
+	cmdb     bkcmdb.Service
+	esb      client.Client
+	spaceMgr *space.Manager
+	repo     repository.Provider
+	ssd      serviced.ServiceDiscover
 }
 
 // prepare do prepare jobs before run data service.
-//
-//nolint:funlen
+// nolint:funlen
 func (ds *dataService) prepare(opt *options.Option) error {
 	// load settings from config file.
 	if err := cc.LoadSettings(opt.Sys); err != nil {
@@ -156,18 +156,6 @@ func (ds *dataService) prepare(opt *options.Option) error {
 
 	ds.daoSet = set
 
-	// initial cmdb service
-	cmdbService, err := bkcmdb.New(&cc.CMDBConfig{
-		AppCode:    cc.DataService().Esb.AppCode,
-		AppSecret:  cc.DataService().Esb.AppSecret,
-		Host:       cc.DataService().Esb.Endpoints[0],
-		BkUserName: cc.DataService().Esb.User,
-	}, nil)
-	if err != nil {
-		return fmt.Errorf("initial cmdb service failed, err: %v", err)
-	}
-	ds.cmdbService = cmdbService
-
 	// 同步客户端在线状态
 	state := crontab.NewSyncClientOnlineState(ds.daoSet, ds.sd)
 	state.Run()
@@ -178,12 +166,20 @@ func (ds *dataService) prepare(opt *options.Option) error {
 	}
 
 	// initialize esb client
-	settings := cc.DataService().Esb
-	esbCli, err := client.NewClient(&settings, metrics.Register())
+	esbCfg := cc.DataService().Esb
+	esbCli, err := client.NewClient(&esbCfg, metrics.Register())
 	if err != nil {
 		return fmt.Errorf("new esb client failed, err: %v", err)
 	}
 	ds.esb = esbCli
+
+	// initial cmdb service
+	cmdbCfg := cc.DataService().CMDB
+	cmdbCli, err := bkcmdb.New(&cmdbCfg, esbCli)
+	if err != nil {
+		return fmt.Errorf("initial cmdb service failed, err: %v", err)
+	}
+	ds.cmdb = cmdbCli
 
 	// initialize space manager
 	spaceMgr, err := space.NewSpaceMgr(context.Background(), esbCli)
@@ -410,6 +406,87 @@ func (ds *dataService) register() error {
 	return nil
 }
 
+// getBizHostCursor gets the biz host cursor
+func (ds *dataService) getBizHostCursor(timeAgo int64) {
+	kt := kit.New()
+	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Minute)
+	defer cancel()
+	kt.Ctx = ctx
+
+	req := &bkcmdb.WatchResourceRequest{
+		BkResource: crontab.HostRelation, // Listen to host relationships
+		// listen to create and delete events
+		BkEventTypes: []string{crontab.BizHostRelationCreateEvent, crontab.BizHostRelationDeleteEvent},
+		BkFields:     []string{"bk_biz_id", "bk_host_id"},
+		BkStartFrom:  &timeAgo,
+	}
+
+	watchResult, err := ds.cmdb.WatchHostRelationResource(kt.Ctx, req)
+	if err != nil {
+		logs.Errorf("watch host relation resource failed, err: %v", err)
+		return
+	}
+	if !watchResult.Result {
+		logs.Errorf("watch host relation resource failed: %s", watchResult.Message)
+		return
+	}
+	if len(watchResult.Data.BkEvents) > 0 {
+		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
+		config := &table.Config{
+			Key:   crontab.BizHostCursorKey,
+			Value: lastEvent.BkCursor,
+		}
+		logs.Infof("============================================================================")
+		logs.Infof("successfully updated biz host cursor to latest position: %s", lastEvent.BkCursor)
+		logs.Infof("============================================================================")
+		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
+		if err != nil {
+			logs.Errorf("update biz host cursor to config failed, err: %v", err)
+			return
+		}
+	}
+}
+
+// getHostDetailCursor gets the host detail cursor
+func (ds *dataService) getHostDetailCursor(timeAgo int64) {
+	kt := kit.New()
+	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Second)
+	defer cancel()
+	kt.Ctx = ctx
+
+	req := &bkcmdb.WatchResourceRequest{
+		BkResource:   crontab.Host,                      // Listen to host updates
+		BkEventTypes: []string{crontab.HostUpdateEvent}, // host update event
+		BkFields:     []string{"bk_host_id", "bk_agent_id"},
+		BkStartFrom:  &timeAgo,
+	}
+
+	watchResult, err := ds.cmdb.WatchHostResource(kt.Ctx, req)
+	if err != nil {
+		logs.Errorf("watch host resource failed, err: %v", err)
+		return
+	}
+	if !watchResult.Result {
+		logs.Errorf("watch host resource failed: %s", watchResult.Message)
+		return
+	}
+	if len(watchResult.Data.BkEvents) > 0 {
+		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
+		config := &table.Config{
+			Key:   crontab.HostDetailCursorKey,
+			Value: lastEvent.BkCursor,
+		}
+		logs.Infof("============================================================================")
+		logs.Infof("successfully updated host detail cursor to latest position: %s", lastEvent.BkCursor)
+		logs.Infof("============================================================================")
+		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
+		if err != nil {
+			logs.Errorf("update host detail cursor to config failed, err: %v", err)
+			return
+		}
+	}
+}
+
 // startCronTasks starts all cron tasks for data service
 func (ds *dataService) startCronTasks(svc *service.Service) {
 	// 同步客户端在线状态
@@ -417,6 +494,10 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 	status.Run()
 
 	crontabConfig := cc.DataService().Crontab
+
+	// 在启动定时任务之前，先获取事件cursor，避免丢失全量同步期间发生的事件
+	ds.getHostDetailCursor(time.Now().Add(-10 * time.Second).Unix())
+	ds.getBizHostCursor(time.Now().Add(-10 * time.Second).Unix())
 
 	// 启动同步业务主机关系任务
 	if crontabConfig.SyncBizHost.Enabled {
@@ -427,7 +508,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		}
 
 		bizHost := crontab.NewSyncBizHost(
-			ds.daoSet, ds.sd, ds.cmdbService, crontabConfig.SyncBizHost.QpsLimit, syncInterval)
+			ds.daoSet, ds.sd, ds.cmdb, crontabConfig.SyncBizHost.QpsLimit, syncInterval)
 
 		// 启动定时同步任务
 		bizHost.Run()
@@ -468,7 +549,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		}
 
 		watchBizHostRelation := crontab.NewWatchBizHostRelation(
-			ds.daoSet, ds.sd, ds.cmdbService, crontabConfig.WatchBizHostRelation.QpsLimit,
+			ds.daoSet, ds.sd, ds.cmdb, crontabConfig.WatchBizHostRelation.QpsLimit,
 			watchBizHostInterval)
 		watchBizHostRelation.Run()
 	}
@@ -482,7 +563,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		}
 
 		watchHostUpdates := crontab.NewWatchHostUpdates(
-			ds.daoSet, ds.sd, ds.cmdbService, watchHostInterval)
+			ds.daoSet, ds.sd, ds.cmdb, watchHostInterval)
 		watchHostUpdates.Run()
 	}
 
@@ -494,7 +575,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 			cleanupInterval = 1 * time.Hour // 1 hour
 		}
 
-		cleanupBizHost := crontab.NewCleanupBizHost(ds.daoSet, ds.sd, ds.cmdbService,
+		cleanupBizHost := crontab.NewCleanupBizHost(ds.daoSet, ds.sd, ds.cmdb,
 			crontabConfig.CleanupBizHost.QpsLimit, cleanupInterval)
 		cleanupBizHost.Run()
 	}

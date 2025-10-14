@@ -32,11 +32,11 @@ import (
 
 const (
 	// watch host update event
-	hostUpdateEvent = "update"
+	HostUpdateEvent = "update"
 	// watch resource types
-	host = "host"
+	Host = "host"
 	// Config keys for cursor storage
-	hostDetailCursorKey = "host_detail_cursor"
+	HostDetailCursorKey = "host_detail_cursor"
 )
 
 // NewWatchHostUpdates init watch host updates
@@ -103,14 +103,14 @@ func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
 	defer w.mutex.Unlock()
 	// Listen to host update events
 	req := &bkcmdb.WatchResourceRequest{
-		BkResource:   host,
-		BkEventTypes: []string{hostUpdateEvent},
+		BkResource:   Host,
+		BkEventTypes: []string{HostUpdateEvent},
 		BkFields:     []string{"bk_host_id", "bk_agent_id"},
 	}
-	config, err := w.set.Config().GetConfig(kt, hostDetailCursorKey)
+	config, err := w.set.Config().GetConfig(kt, HostDetailCursorKey)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", hostDetailCursorKey, err)
+			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", HostDetailCursorKey, err)
 			return
 		}
 		// cursor not found, use timestamp
@@ -143,7 +143,7 @@ func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
 		// update cursor to config table
 		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
 		config := &table.Config{
-			Key:   hostDetailCursorKey,
+			Key:   HostDetailCursorKey,
 			Value: lastEvent.BkCursor,
 		}
 		err := w.set.Config().UpsertConfig(kt, []*table.Config{config})
@@ -173,7 +173,7 @@ func (w *WatchHostUpdates) processHostEvent(
 	invaluedHost map[int]struct{},
 ) error {
 	switch event.BkEventType {
-	case hostUpdateEvent:
+	case HostUpdateEvent:
 		return w.handleHostUpdateEvent(kt, event, invaluedHost)
 	default:
 		// unknown host event type, skip

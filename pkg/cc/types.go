@@ -1658,11 +1658,17 @@ type ITSMConfig struct {
 
 // CMDBConfig cmdb相关的配置
 type CMDBConfig struct {
-	AppCode    string `yaml:"appCode"`
-	AppSecret  string `yaml:"appSecret"`
-	Host       string `yaml:"host"`
-	UseEsb     bool   `yaml:"useEsb"`
-	BkUserName string `yaml:"bkUserName"`
+	AppCode     string `yaml:"appCode"`
+	AppSecret   string `yaml:"appSecret"`
+	Host        string `yaml:"host"`
+	BkUserName  string `yaml:"bkUserName"`
+	Environment string `yaml:"environment"`
+}
+
+func (c *CMDBConfig) trySetDefault() {
+	if c.Environment == "" {
+		c.Environment = "prod"
+	}
 }
 
 // VerifyAgentIDBelongs defines apps that can download across different businesses
