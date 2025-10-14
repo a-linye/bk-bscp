@@ -436,9 +436,6 @@ func (ds *dataService) getBizHostCursor(timeAgo int64) {
 			Key:   crontab.BizHostCursorKey,
 			Value: lastEvent.BkCursor,
 		}
-		logs.Infof("============================================================================")
-		logs.Infof("successfully updated biz host cursor to latest position: %s", lastEvent.BkCursor)
-		logs.Infof("============================================================================")
 		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
 		if err != nil {
 			logs.Errorf("update biz host cursor to config failed, err: %v", err)
@@ -476,9 +473,6 @@ func (ds *dataService) getHostDetailCursor(timeAgo int64) {
 			Key:   crontab.HostDetailCursorKey,
 			Value: lastEvent.BkCursor,
 		}
-		logs.Infof("============================================================================")
-		logs.Infof("successfully updated host detail cursor to latest position: %s", lastEvent.BkCursor)
-		logs.Infof("============================================================================")
 		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
 		if err != nil {
 			logs.Errorf("update host detail cursor to config failed, err: %v", err)
