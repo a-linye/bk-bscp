@@ -32,11 +32,11 @@ import (
 
 const (
 	// watch host update event
-	HostUpdateEvent = "update"
+	hostUpdateEvent = "update"
 	// watch resource types
-	Host = "host"
+	host = "host"
 	// Config keys for cursor storage
-	HostDetailCursorKey = "host_detail_cursor"
+	hostDetailCursorKey = "host_detail_cursor"
 )
 
 // NewWatchHostUpdates init watch host updates
@@ -103,14 +103,14 @@ func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
 	defer w.mutex.Unlock()
 	// Listen to host update events
 	req := &bkcmdb.WatchResourceRequest{
-		BkResource:   Host,
-		BkEventTypes: []string{HostUpdateEvent},
+		BkResource:   host,
+		BkEventTypes: []string{hostUpdateEvent},
 		BkFields:     []string{"bk_host_id", "bk_agent_id"},
 	}
-	config, err := w.set.Config().GetConfig(kt, HostDetailCursorKey)
+	config, err := w.set.Config().GetConfig(kt, hostDetailCursorKey)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", HostDetailCursorKey, err)
+			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", hostDetailCursorKey, err)
 			return
 		}
 		// cursor not found, use timestamp
@@ -143,7 +143,7 @@ func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
 		// update cursor to config table
 		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
 		config := &table.Config{
-			Key:   HostDetailCursorKey,
+			Key:   hostDetailCursorKey,
 			Value: lastEvent.BkCursor,
 		}
 		err := w.set.Config().UpsertConfig(kt, []*table.Config{config})
@@ -173,7 +173,7 @@ func (w *WatchHostUpdates) processHostEvent(
 	invaluedHost map[int]struct{},
 ) error {
 	switch event.BkEventType {
-	case HostUpdateEvent:
+	case hostUpdateEvent:
 		return w.handleHostUpdateEvent(kt, event, invaluedHost)
 	default:
 		// unknown host event type, skip
@@ -244,8 +244,8 @@ func InitHostDetailCursor(set dao.Set, cmdbService bkcmdb.Service, timeAgo int64
 	kt.Ctx = ctx
 
 	req := &bkcmdb.WatchResourceRequest{
-		BkResource:   Host,
-		BkEventTypes: []string{HostUpdateEvent},
+		BkResource:   host,
+		BkEventTypes: []string{hostUpdateEvent},
 		BkFields:     []string{"bk_host_id", "bk_agent_id"},
 		BkStartFrom:  &timeAgo,
 	}
@@ -265,7 +265,7 @@ func InitHostDetailCursor(set dao.Set, cmdbService bkcmdb.Service, timeAgo int64
 
 	cursor := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1].BkCursor
 	config := &table.Config{
-		Key:   HostDetailCursorKey,
+		Key:   hostDetailCursorKey,
 		Value: cursor,
 	}
 

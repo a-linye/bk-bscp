@@ -35,13 +35,13 @@ const (
 	// find host biz relations api qps limit
 	findHostBizRelationsApiQpsLimit = 60.0
 	// watch biz host relation create event
-	BizHostRelationCreateEvent = "create"
+	bizHostRelationCreateEvent = "create"
 	// watch biz host relation delete event
-	BizHostRelationDeleteEvent = "delete"
+	bizHostRelationDeleteEvent = "delete"
 	// watch resource types
-	HostRelation = "host_relation"
+	hostRelation = "host_relation"
 	// config key for biz host cursor
-	BizHostCursorKey = "biz_host_cursor"
+	bizHostCursorKey = "biz_host_cursor"
 )
 
 // NewWatchBizHostRelation init watch biz host relation
@@ -119,16 +119,16 @@ func (w *WatchBizHostRelation) watchBizHost(kt *kit.Kit) {
 	}()
 	// Listen to host relationship change events
 	req := &bkcmdb.WatchResourceRequest{
-		BkResource: HostRelation, // Listen to host relationships
+		BkResource: hostRelation, // Listen to host relationships
 		// listen to create and delete events
-		BkEventTypes: []string{BizHostRelationCreateEvent, BizHostRelationDeleteEvent},
+		BkEventTypes: []string{bizHostRelationCreateEvent, bizHostRelationDeleteEvent},
 		BkFields:     []string{"bk_biz_id", "bk_host_id"},
 	}
 	// get cursor from config table, if not exist, use timestamp to get events
-	config, err := w.set.Config().GetConfig(kt, BizHostCursorKey)
+	config, err := w.set.Config().GetConfig(kt, bizHostCursorKey)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", BizHostCursorKey, err)
+			logs.Errorf("get cached cursor from config failed, key: %s, err: %v", bizHostCursorKey, err)
 			return
 		}
 		// cursor not found, use timestamp
@@ -160,7 +160,7 @@ func (w *WatchBizHostRelation) watchBizHost(kt *kit.Kit) {
 		// update cursor to config table
 		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
 		config := &table.Config{
-			Key:   BizHostCursorKey,
+			Key:   bizHostCursorKey,
 			Value: lastEvent.BkCursor,
 		}
 		err := w.set.Config().UpsertConfig(kt, []*table.Config{config})
@@ -189,9 +189,9 @@ func (w *WatchBizHostRelation) processEvent(
 	invaluedBiz map[int]struct{},
 ) error {
 	switch event.BkEventType {
-	case BizHostRelationCreateEvent:
+	case bizHostRelationCreateEvent:
 		return w.handleHostRelationCreateEvent(kt, event, invaluedBiz)
-	case BizHostRelationDeleteEvent:
+	case bizHostRelationDeleteEvent:
 		return w.handleHostRelationDeleteEvent(kt, event, invaluedBiz)
 	default:
 		logs.Warnf("unknown event type: %s", event.BkEventType)
@@ -352,8 +352,8 @@ func InitBizHostCursor(set dao.Set, cmdbService bkcmdb.Service, timeAgo int64) e
 	kt.Ctx = ctx
 
 	req := &bkcmdb.WatchResourceRequest{
-		BkResource:   HostRelation,
-		BkEventTypes: []string{BizHostRelationCreateEvent, BizHostRelationDeleteEvent},
+		BkResource:   hostRelation,
+		BkEventTypes: []string{bizHostRelationCreateEvent, bizHostRelationDeleteEvent},
 		BkFields:     []string{"bk_biz_id", "bk_host_id"},
 		BkStartFrom:  &timeAgo,
 	}
@@ -373,7 +373,7 @@ func InitBizHostCursor(set dao.Set, cmdbService bkcmdb.Service, timeAgo int64) e
 
 	cursor := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1].BkCursor
 	config := &table.Config{
-		Key:   BizHostCursorKey,
+		Key:   bizHostCursorKey,
 		Value: cursor,
 	}
 
