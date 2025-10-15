@@ -49,9 +49,9 @@ var (
 	searchSet            = "%s/api/bk-cmdb/prod/api/v3/set/search/%s/%d"
 	searchModule         = "%s/api/bk-cmdb/prod/api/v3/module/search/%s/%d/%d"
 	findHostTopoRelation = "%s/api/bk-cmdb/prod/api/v3/host/topo/relation/read"
-	listBizHosts         = "%s/%s/api/v3/hosts/app/%d/list_hosts"
-	watchResource        = "%s/%s/api/v3/event/watch/resource/%s"
-	findHostBizRelations = "%s/%s/api/v3/hosts/modules/read"
+	listBizHosts         = "%s/api/v3/hosts/app/%d/list_hosts"
+	watchResource        = "%s/api/v3/event/watch/resource/%s"
+	findHostBizRelations = "%s/api/v3/hosts/modules/read"
 )
 
 type HTTPMethod string
@@ -321,7 +321,7 @@ func (bkcmdb *CMDBService) FindHostTopoRelation(ctx context.Context) {
 // ListBizHosts query hosts under biz
 func (bkcmdb *CMDBService) ListBizHosts(ctx context.Context, req *ListBizHostsRequest) (
 	*CMDBResponse[CMDBListData[HostInfo]], error) {
-	url := fmt.Sprintf(listBizHosts, bkcmdb.Host, bkcmdb.Environment, req.BkBizID)
+	url := fmt.Sprintf(listBizHosts, bkcmdb.Host, req.BkBizID)
 
 	resp := new(CMDBResponse[CMDBListData[HostInfo]])
 	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
@@ -338,7 +338,7 @@ func (bkcmdb *CMDBService) WatchHostResource(ctx context.Context, req *WatchReso
 		return nil, fmt.Errorf("resource type is required")
 	}
 
-	url := fmt.Sprintf(watchResource, bkcmdb.Host, bkcmdb.Environment, req.BkResource)
+	url := fmt.Sprintf(watchResource, bkcmdb.Host, req.BkResource)
 
 	resp := new(HostWatchResponse)
 	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
@@ -355,7 +355,7 @@ func (bkcmdb *CMDBService) WatchHostRelationResource(ctx context.Context, req *W
 		return nil, fmt.Errorf("resource type is required")
 	}
 
-	url := fmt.Sprintf(watchResource, bkcmdb.Host, bkcmdb.Environment, req.BkResource)
+	url := fmt.Sprintf(watchResource, bkcmdb.Host, req.BkResource)
 
 	resp := new(HostRelationWatchResponse)
 	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
@@ -375,7 +375,7 @@ func (bkcmdb *CMDBService) FindHostBizRelations(ctx context.Context, req *FindHo
 		return nil, fmt.Errorf("bk_host_id list is required")
 	}
 
-	url := fmt.Sprintf(findHostBizRelations, bkcmdb.Host, bkcmdb.Environment)
+	url := fmt.Sprintf(findHostBizRelations, bkcmdb.Host)
 
 	resp := new(FindHostBizRelationsResponse)
 	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {

@@ -45,7 +45,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
-	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
@@ -406,81 +405,6 @@ func (ds *dataService) register() error {
 	return nil
 }
 
-// getBizHostCursor gets the biz host cursor
-func (ds *dataService) getBizHostCursor(timeAgo int64) {
-	kt := kit.New()
-	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Minute)
-	defer cancel()
-	kt.Ctx = ctx
-
-	req := &bkcmdb.WatchResourceRequest{
-		BkResource: crontab.HostRelation, // Listen to host relationships
-		// listen to create and delete events
-		BkEventTypes: []string{crontab.BizHostRelationCreateEvent, crontab.BizHostRelationDeleteEvent},
-		BkFields:     []string{"bk_biz_id", "bk_host_id"},
-		BkStartFrom:  &timeAgo,
-	}
-
-	watchResult, err := ds.cmdb.WatchHostRelationResource(kt.Ctx, req)
-	if err != nil {
-		logs.Errorf("watch host relation resource failed, err: %v", err)
-		return
-	}
-	if !watchResult.Result {
-		logs.Errorf("watch host relation resource failed: %s", watchResult.Message)
-		return
-	}
-	if len(watchResult.Data.BkEvents) > 0 {
-		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
-		config := &table.Config{
-			Key:   crontab.BizHostCursorKey,
-			Value: lastEvent.BkCursor,
-		}
-		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
-		if err != nil {
-			logs.Errorf("update biz host cursor to config failed, err: %v", err)
-			return
-		}
-	}
-}
-
-// getHostDetailCursor gets the host detail cursor
-func (ds *dataService) getHostDetailCursor(timeAgo int64) {
-	kt := kit.New()
-	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Second)
-	defer cancel()
-	kt.Ctx = ctx
-
-	req := &bkcmdb.WatchResourceRequest{
-		BkResource:   crontab.Host,                      // Listen to host updates
-		BkEventTypes: []string{crontab.HostUpdateEvent}, // host update event
-		BkFields:     []string{"bk_host_id", "bk_agent_id"},
-		BkStartFrom:  &timeAgo,
-	}
-
-	watchResult, err := ds.cmdb.WatchHostResource(kt.Ctx, req)
-	if err != nil {
-		logs.Errorf("watch host resource failed, err: %v", err)
-		return
-	}
-	if !watchResult.Result {
-		logs.Errorf("watch host resource failed: %s", watchResult.Message)
-		return
-	}
-	if len(watchResult.Data.BkEvents) > 0 {
-		lastEvent := watchResult.Data.BkEvents[len(watchResult.Data.BkEvents)-1]
-		config := &table.Config{
-			Key:   crontab.HostDetailCursorKey,
-			Value: lastEvent.BkCursor,
-		}
-		err := ds.daoSet.Config().UpsertConfig(kt, []*table.Config{config})
-		if err != nil {
-			logs.Errorf("update host detail cursor to config failed, err: %v", err)
-			return
-		}
-	}
-}
-
 // startCronTasks starts all cron tasks for data service
 func (ds *dataService) startCronTasks(svc *service.Service) {
 	// 同步客户端在线状态
@@ -490,8 +414,17 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 	crontabConfig := cc.DataService().Crontab
 
 	// 在启动定时任务之前，先获取事件cursor，避免丢失全量同步期间发生的事件
-	ds.getHostDetailCursor(time.Now().Add(-10 * time.Second).Unix())
-	ds.getBizHostCursor(time.Now().Add(-10 * time.Second).Unix())
+	timeAgo := time.Now().Add(-10 * time.Second).Unix()
+	if err := crontab.InitHostDetailCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
+		logs.Errorf("init host detail cursor failed, err: %v", err)
+		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
+		// PASS
+	}
+	if err := crontab.InitBizHostCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
+		logs.Errorf("init biz host cursor failed, err: %v", err)
+		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
+		// PASS
+	}
 
 	// 启动同步业务主机关系任务
 	if crontabConfig.SyncBizHost.Enabled {
@@ -539,7 +472,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		watchBizHostInterval, err := time.ParseDuration(crontabConfig.WatchBizHostRelation.Interval)
 		if err != nil {
 			logs.Errorf("parse watchBizHostRelation interval failed, using default: %v", err)
-			watchBizHostInterval = 1 * time.Minute // 1 minute
+			watchBizHostInterval = 5 * time.Second // 5 seconds
 		}
 
 		watchBizHostRelation := crontab.NewWatchBizHostRelation(
@@ -553,7 +486,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		watchHostInterval, err := time.ParseDuration(crontabConfig.WatchHostUpdates.Interval)
 		if err != nil {
 			logs.Errorf("parse watchHostUpdates interval failed, using default: %v", err)
-			watchHostInterval = 30 * time.Second // 30 seconds
+			watchHostInterval = 3 * time.Second // 3 seconds
 		}
 
 		watchHostUpdates := crontab.NewWatchHostUpdates(

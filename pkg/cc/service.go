@@ -339,7 +339,6 @@ func (s *DataServiceSetting) trySetDefault() {
 	s.FeatureFlags.trySetDefault()
 	s.Gorm.trySetDefault()
 	s.Crontab.trySetDefault()
-	s.CMDB.trySetDefault()
 }
 
 // Validate DataServiceSetting option.
