@@ -406,6 +406,7 @@ func (ds *dataService) register() error {
 }
 
 // startCronTasks starts all cron tasks for data service
+// nolint:funlen
 func (ds *dataService) startCronTasks(svc *service.Service) {
 	// 同步客户端在线状态
 	status := crontab.NewSyncTicketStatus(ds.daoSet, ds.sd, svc)
@@ -489,8 +490,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 			watchHostInterval = 3 * time.Second // 3 seconds
 		}
 
-		watchHostUpdates := crontab.NewWatchHostUpdates(
-			ds.daoSet, ds.sd, ds.cmdb, watchHostInterval)
+		watchHostUpdates := crontab.NewWatchHostUpdates(ds.daoSet, ds.sd, ds.cmdb, watchHostInterval)
 		watchHostUpdates.Run()
 	}
 
