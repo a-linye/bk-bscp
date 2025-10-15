@@ -473,7 +473,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		watchBizHostInterval, err := time.ParseDuration(crontabConfig.WatchBizHostRelation.Interval)
 		if err != nil {
 			logs.Errorf("parse watchBizHostRelation interval failed, using default: %v", err)
-			watchBizHostInterval = 5 * time.Second // 5 seconds
+			watchBizHostInterval = 10 * time.Second // 10 seconds
 		}
 
 		watchBizHostRelation := crontab.NewWatchBizHostRelation(
@@ -487,7 +487,7 @@ func (ds *dataService) startCronTasks(svc *service.Service) {
 		watchHostInterval, err := time.ParseDuration(crontabConfig.WatchHostUpdates.Interval)
 		if err != nil {
 			logs.Errorf("parse watchHostUpdates interval failed, using default: %v", err)
-			watchHostInterval = 3 * time.Second // 3 seconds
+			watchHostInterval = 5 * time.Second // 5 seconds
 		}
 
 		watchHostUpdates := crontab.NewWatchHostUpdates(ds.daoSet, ds.sd, ds.cmdb, watchHostInterval)
