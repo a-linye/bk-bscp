@@ -80,10 +80,9 @@ func Run(opt *options.Option) error {
 	if err := ds.register(); err != nil {
 		return err
 	}
-	// trigger the initial full sync
-	go ds.runInitialFullSync()
-	// 启动定时任务
-	ds.startCronTasks()
+
+	// 先执行全量同步，再启动定时任务
+	go ds.startCronTasks()
 
 	shutdown.RegisterFirstShutdown(ds.finalizer)
 	shutdown.WaitShutdown(20)
@@ -413,6 +412,19 @@ func (ds *dataService) startCronTasks() {
 	status := crontab.NewSyncTicketStatus(ds.daoSet, ds.sd, ds.service)
 	status.Run()
 
+	// 在启动全量同步之前，先获取事件cursor，避免丢失全量同步期间发生的事件
+	timeAgo := time.Now().Add(-10 * time.Second).Unix()
+	if err := crontab.InitHostDetailCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
+		logs.Errorf("init host detail cursor failed, err: %v", err)
+		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
+		// PASS
+	}
+	if err := crontab.InitBizHostCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
+		logs.Errorf("init biz host cursor failed, err: %v", err)
+		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
+		// PASS
+	}
+
 	crontabConfig := cc.DataService().Crontab
 	// 启动同步业务主机关系任务
 	if crontabConfig.SyncBizHost.Enabled {
@@ -427,6 +439,13 @@ func (ds *dataService) startCronTasks() {
 
 		// 启动定时同步任务
 		bizHost.Run()
+		// 等待服务注册生效
+		logs.Infof("waiting for service registration to take effect...")
+		time.Sleep(5 * time.Second)
+		// 立即执行一次全量同步，需要等数据完全同步再启动定时任务，避免事件丢失
+		if ds.sd.IsMaster() {
+			bizHost.SyncBizHost(kit.New())
+		}
 	}
 
 	// 启动监听业务主机关系任务
@@ -466,58 +485,5 @@ func (ds *dataService) startCronTasks() {
 		cleanupBizHost := crontab.NewCleanupBizHost(ds.daoSet, ds.sd, ds.cmdb,
 			crontabConfig.CleanupBizHost.QpsLimit, cleanupInterval)
 		cleanupBizHost.Run()
-	}
-}
-
-// runInitialFullSync runs a one-time full sync of biz hosts after service registration.
-func (ds *dataService) runInitialFullSync() {
-	if !ds.sd.IsMaster() {
-		logs.Infof("current service instance is slave, skip initial sync")
-		return
-	}
-
-	crontabConfig := cc.DataService().Crontab
-	if !crontabConfig.SyncBizHost.Enabled {
-		return
-	}
-
-	syncInterval, err := time.ParseDuration(crontabConfig.SyncBizHost.Interval)
-	if err != nil {
-		logs.Errorf("parse syncBizHost interval failed, using default: %v", err)
-		syncInterval = 7 * 24 * time.Hour
-	}
-
-	bizHost := crontab.NewSyncBizHost(
-		ds.daoSet, ds.sd, ds.cmdb, crontabConfig.SyncBizHost.QpsLimit, syncInterval)
-
-	// 在启动全量同步之前，先获取事件cursor，避免丢失全量同步期间发生的事件
-	timeAgo := time.Now().Add(-10 * time.Second).Unix()
-	if err := crontab.InitHostDetailCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
-		logs.Errorf("init host detail cursor failed, err: %v", err)
-		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
-		// PASS
-	}
-	if err := crontab.InitBizHostCursor(ds.daoSet, ds.cmdb, timeAgo); err != nil {
-		logs.Errorf("init biz host cursor failed, err: %v", err)
-		// 初始化cursor失败则依赖后续定时任务重新获取，可能存在丢失事件的风险
-		// PASS
-	}
-
-	logs.Infof("start initial full sync")
-	kt := kit.New()
-	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Minute)
-	kt.Ctx = ctx
-	defer cancel()
-
-	if err := func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("initial sync panic: %v", r)
-			}
-		}()
-		bizHost.SyncBizHost(kt)
-		return nil
-	}(); err != nil {
-		logs.Errorf("initial full sync failed: %v", err)
 	}
 }
