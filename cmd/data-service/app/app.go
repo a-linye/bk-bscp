@@ -439,9 +439,6 @@ func (ds *dataService) startCronTasks() {
 
 		// 启动定时同步任务
 		bizHost.Run()
-		// 等待服务注册生效
-		logs.Infof("waiting for service registration to take effect...")
-		time.Sleep(5 * time.Second)
 		// 立即执行一次全量同步，需要等数据完全同步再启动定时任务，避免事件丢失
 		if ds.sd.IsMaster() {
 			bizHost.SyncBizHost(kit.New())
