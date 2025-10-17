@@ -81,7 +81,7 @@ func Run(opt *options.Option) error {
 		return err
 	}
 
-	// 先执行全量同步，再启动定时任务
+	// 触发定时任务
 	go ds.startCronTasks()
 
 	shutdown.RegisterFirstShutdown(ds.finalizer)
