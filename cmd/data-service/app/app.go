@@ -441,6 +441,7 @@ func (ds *dataService) startCronTasks() {
 		bizHost.Run()
 		// 立即执行一次全量同步，需要等数据完全同步再启动定时任务，避免事件丢失
 		if ds.sd.IsMaster() {
+			logs.Infof("current service instance is master, start sync biz host")
 			bizHost.SyncBizHost(kit.New())
 		}
 	}
