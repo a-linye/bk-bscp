@@ -81,6 +81,7 @@ type Set interface {
 	Config() Config
 	Process() Process
 	ProcessInstance() ProcessInstance
+	TaskBatch() TaskBatch
 	BizHost() BizHost
 }
 
@@ -553,6 +554,14 @@ func (s *set) Process() Process {
 // ProcessInstance implements Set.
 func (s *set) ProcessInstance() ProcessInstance {
 	return &processInstanceDao{
+		idGen:    s.idGen,
+		auditDao: s.auditDao,
+		genQ:     s.genQ,
+	}
+}
+
+func (s *set) TaskBatch() TaskBatch {
+	return &taskBatchDao{
 		idGen:    s.idGen,
 		auditDao: s.auditDao,
 		genQ:     s.genQ,

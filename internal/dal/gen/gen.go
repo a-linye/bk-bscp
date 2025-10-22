@@ -50,6 +50,7 @@ var (
 	ReleasedKv                  *releasedKv
 	ResourceLock                *resourceLock
 	Strategy                    *strategy
+	TaskBatch                   *taskBatch
 	Template                    *template
 	TemplateRevision            *templateRevision
 	TemplateSet                 *templateSet
@@ -92,6 +93,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	ReleasedKv = &Q.ReleasedKv
 	ResourceLock = &Q.ResourceLock
 	Strategy = &Q.Strategy
+	TaskBatch = &Q.TaskBatch
 	Template = &Q.Template
 	TemplateRevision = &Q.TemplateRevision
 	TemplateSet = &Q.TemplateSet
@@ -135,6 +137,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		ReleasedKv:                  newReleasedKv(db, opts...),
 		ResourceLock:                newResourceLock(db, opts...),
 		Strategy:                    newStrategy(db, opts...),
+		TaskBatch:                   newTaskBatch(db, opts...),
 		Template:                    newTemplate(db, opts...),
 		TemplateRevision:            newTemplateRevision(db, opts...),
 		TemplateSet:                 newTemplateSet(db, opts...),
@@ -179,6 +182,7 @@ type Query struct {
 	ReleasedKv                  releasedKv
 	ResourceLock                resourceLock
 	Strategy                    strategy
+	TaskBatch                   taskBatch
 	Template                    template
 	TemplateRevision            templateRevision
 	TemplateSet                 templateSet
@@ -224,6 +228,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		ReleasedKv:                  q.ReleasedKv.clone(db),
 		ResourceLock:                q.ResourceLock.clone(db),
 		Strategy:                    q.Strategy.clone(db),
+		TaskBatch:                   q.TaskBatch.clone(db),
 		Template:                    q.Template.clone(db),
 		TemplateRevision:            q.TemplateRevision.clone(db),
 		TemplateSet:                 q.TemplateSet.clone(db),
@@ -276,6 +281,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		ReleasedKv:                  q.ReleasedKv.replaceDB(db),
 		ResourceLock:                q.ResourceLock.replaceDB(db),
 		Strategy:                    q.Strategy.replaceDB(db),
+		TaskBatch:                   q.TaskBatch.replaceDB(db),
 		Template:                    q.Template.replaceDB(db),
 		TemplateRevision:            q.TemplateRevision.replaceDB(db),
 		TemplateSet:                 q.TemplateSet.replaceDB(db),
@@ -318,6 +324,7 @@ type queryCtx struct {
 	ReleasedKv                  IReleasedKvDo
 	ResourceLock                IResourceLockDo
 	Strategy                    IStrategyDo
+	TaskBatch                   ITaskBatchDo
 	Template                    ITemplateDo
 	TemplateRevision            ITemplateRevisionDo
 	TemplateSet                 ITemplateSetDo
@@ -360,6 +367,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		ReleasedKv:                  q.ReleasedKv.WithContext(ctx),
 		ResourceLock:                q.ResourceLock.WithContext(ctx),
 		Strategy:                    q.Strategy.WithContext(ctx),
+		TaskBatch:                   q.TaskBatch.WithContext(ctx),
 		Template:                    q.Template.WithContext(ctx),
 		TemplateRevision:            q.TemplateRevision.WithContext(ctx),
 		TemplateSet:                 q.TemplateSet.WithContext(ctx),

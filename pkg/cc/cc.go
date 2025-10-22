@@ -19,15 +19,15 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
+// globalSettings : Global Configurations
+var globalSettings *GlobalSettings
+
 var runtimeOnce sync.Once
 
 // rt is the runtime Setting which is loaded from
 // config file.
 // It can be called only after LoadSettings is executed successfully.
 var rt *runtime
-
-// globalSettings : Global Configurations
-var globalSettings *GlobalSettings
 
 func initRuntime(s Setting) {
 	runtimeOnce.Do(func() {
@@ -55,6 +55,11 @@ func (r *runtime) Ready() bool {
 	}
 
 	return true
+}
+
+// G return global settings.
+func G() GlobalSettings {
+	return *globalSettings
 }
 
 // ApiServer return api server Setting.
@@ -93,11 +98,6 @@ func AuthServer() AuthServerSetting {
 	}
 
 	return *s
-}
-
-// G return global settings.
-func G() GlobalSettings {
-	return *globalSettings
 }
 
 // ConfigServer return config server Setting.

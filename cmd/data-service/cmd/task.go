@@ -18,12 +18,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TencentBlueKing/bk-bscp/internal/task"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/cmdb"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/hello"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/register"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
-	"github.com/TencentBlueKing/bk-bscp/pkg/task"
-	"github.com/TencentBlueKing/bk-bscp/pkg/task/builder/cmdb"
-	"github.com/TencentBlueKing/bk-bscp/pkg/task/builder/hello"
-	"github.com/TencentBlueKing/bk-bscp/pkg/task/register"
 )
 
 // cmd for migration
@@ -109,7 +109,7 @@ var taskSendCmd = &cobra.Command{
 	},
 }
 
-var taskSycnCMDBCmd = &cobra.Command{
+var taskSyncCMDBCmd = &cobra.Command{
 	Use:   "sycn-cmdb",
 	Short: "sycn cmdb task",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -151,9 +151,9 @@ var taskSycnCMDBCmd = &cobra.Command{
 func init() {
 	taskSendCmd.Flags().Int("a", 1, "a")
 	taskSendCmd.Flags().Int("b", 2, "b")
-	taskSycnCMDBCmd.Flags().Int("bizID", 3, "bizID")
+	taskSyncCMDBCmd.Flags().Int("bizID", 3, "bizID")
 
-	taskCmd.AddCommand(taskSycnCMDBCmd)
+	taskCmd.AddCommand(taskSyncCMDBCmd)
 	taskCmd.AddCommand(taskSendCmd)
 	taskCmd.AddCommand(taskRunCmd)
 

@@ -10,23 +10,29 @@
  * limitations under the License.
  */
 
-package cmdb
+package common
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/Tencent/bk-bcs/bcs-common/common/task/types"
-	"github.com/TencentBlueKing/bk-bscp/pkg/task/executor/cmdb"
+
+	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 )
 
-// Biz 同步业务步骤
-func SyncCMDB(bizID int) *types.Step {
-	add := types.NewStep("sync-cmdb-task", cmdb.SyncCMDB.String()).
-		SetAlias("sync-cmdb").
-		AddParam("bizID", strconv.Itoa(bizID)).
-		SetMaxExecution(3 * time.Minute).
-		SetMaxTries(3)
+// Builder common builder
+type Builder struct {
+	dao dao.Set
+}
 
-	return add
+// NewBuilder new
+func NewBuilder(dao dao.Set) *Builder {
+	return &Builder{
+		dao: dao,
+	}
+}
+
+// SetCommonProcessParam 设置
+func (builder *Builder) CommonProcessFinalize(task *types.Task, processInstanceID uint32) {
+	// TODO: 获取根据process_instance_id获取进程相关配置存储在commonParma中，方便查询task可以直接查询任务发起时的配置快照（也方便进行对比）
+	// 从db主动获取进行信息组装payload
+	// task.SetCommonPayload(&commonExecutor.ProcessPayload{})
 }

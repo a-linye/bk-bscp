@@ -48,10 +48,10 @@ func mig20250923114027Up(tx *gorm.DB) error {
 		StatusUpdatedAt time.Time `gorm:"column:status_updated_at;type:timestamp;default:CURRENT_TIMESTAMP;comment:状态更新时间" json:"status_updated_at"`                                // 状态更新时间
 
 		// Revision is revision info of the resource
-		Creator   string    `gorm:"type:varchar(64) not null"`
-		Reviser   string    `gorm:"type:varchar(64) not null"`
-		CreatedAt time.Time `gorm:"type:datetime(6) not null"`
-		UpdatedAt time.Time `gorm:"type:datetime(6) not null"`
+		Creator   string    `gorm:"type:varchar(64) not null" json:"creator"`
+		Reviser   string    `gorm:"type:varchar(64) not null" json:"reviser"`
+		CreatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+		UpdatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	}
 
 	// IDGenerators : ID生成器

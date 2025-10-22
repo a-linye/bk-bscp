@@ -39,6 +39,10 @@ message ProcessSpec {
   string prev_data = 10
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "上一次同步的数据" }];
   uint32 proc_num = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程数量" }];
+  // 展示操作按钮是否可以操作,是一个map，key代表动作，value代表是否可以操作
+  map<string, bool> actions = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "展示操作按钮是否可以操作(key可以是register,unregister,start,stop,restart,reload,kill)"
+  }];
 }
 
 message ProcessAttachment {

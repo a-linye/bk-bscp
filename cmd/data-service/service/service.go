@@ -28,6 +28,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/repository"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/vault"
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
+	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/internal/tmplprocess"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
@@ -45,15 +46,16 @@ type Service struct {
 	vault   vault.Set
 	gateway *gateway
 	// esb esb api client.
-	esb      client.Client
-	repo     repository.Provider
-	tmplProc tmplprocess.TmplProcessor
-	cmdb     bkcmdb.Service
+	esb         client.Client
+	repo        repository.Provider
+	tmplProc    tmplprocess.TmplProcessor
+	cmdb        bkcmdb.Service
+	taskManager *task.TaskManager
 }
 
 // NewService create a service instance.
 func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Set, vaultSet vault.Set,
-	esb client.Client, repo repository.Provider, cmdb bkcmdb.Service) (*Service, error) {
+	esb client.Client, repo repository.Provider, cmdb bkcmdb.Service, taskManager *task.TaskManager) (*Service, error) {
 	state, ok := sd.(serviced.State)
 	if !ok {
 		return nil, errors.New("discover convert state failed")
@@ -93,14 +95,15 @@ func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Se
 	}
 
 	svc := &Service{
-		dao:      daoSet,
-		vault:    vaultSet,
-		gateway:  gateway,
-		esb:      esb,
-		repo:     repo,
-		tmplProc: tmplprocess.NewTmplProcessor(),
-		cs:       pbcs.NewCacheClient(csConn),
-		cmdb:     cmdb,
+		dao:         daoSet,
+		vault:       vaultSet,
+		gateway:     gateway,
+		esb:         esb,
+		repo:        repo,
+		tmplProc:    tmplprocess.NewTmplProcessor(),
+		cs:          pbcs.NewCacheClient(csConn),
+		cmdb:        cmdb,
+		taskManager: taskManager,
 	}
 
 	return svc, nil

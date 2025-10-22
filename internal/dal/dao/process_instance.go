@@ -20,8 +20,10 @@ import (
 
 // ProcessInstance xxx
 type ProcessInstance interface {
-	// List released config items with options.
-	GetProcessInstancesByID(kit *kit.Kit, bizID uint32, processID []uint32) ([]*table.ProcessInstance, error)
+	// Update updates a process instance.
+	Update(kit *kit.Kit, processInstance *table.ProcessInstance) error
+	// GetByID gets process instances by IDs.
+	GetByID(kit *kit.Kit, bizID uint32, processID []uint32) ([]*table.ProcessInstance, error)
 	// BatchCreateWithTx batch create client instances with transaction.
 	BatchCreateWithTx(kit *kit.Kit, tx *gen.QueryTx, data []*table.ProcessInstance) error
 }
@@ -32,6 +34,32 @@ type processInstanceDao struct {
 	genQ     *gen.Query
 	idGen    IDGenInterface
 	auditDao AuditDao
+}
+
+// Update implements ProcessInstance.
+func (dao *processInstanceDao) Update(kit *kit.Kit, processInstance *table.ProcessInstance) error {
+	m := dao.genQ.ProcessInstance
+	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
+
+	if _, err := q.Where(m.ID.Eq(processInstance.ID)).Updates(processInstance); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetByID implements ProcessInstance.
+func (dao *processInstanceDao) GetByID(
+	kit *kit.Kit, bizID uint32, processID []uint32,
+) ([]*table.ProcessInstance, error) {
+	m := dao.genQ.ProcessInstance
+	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
+
+	result, err := q.Where(m.BizID.Eq(bizID), m.ProcessID.In(processID...)).Find()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, err
 }
 
 // BatchCreateWithTx implements ProcessInstance.
@@ -50,18 +78,4 @@ func (dao *processInstanceDao) BatchCreateWithTx(kit *kit.Kit, tx *gen.QueryTx, 
 	}
 
 	return tx.ProcessInstance.WithContext(kit.Ctx).CreateInBatches(data, 500)
-}
-
-// GetProcessInstancesByID implements ProcessInstance.
-func (dao *processInstanceDao) GetProcessInstancesByID(kit *kit.Kit, bizID uint32, processID []uint32) (
-	[]*table.ProcessInstance, error) {
-	m := dao.genQ.ProcessInstance
-	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
-
-	result, err := q.Where(m.BizID.Eq(bizID), m.ProcessID.In(processID...)).Find()
-	if err != nil {
-		return nil, err
-	}
-
-	return result, err
 }

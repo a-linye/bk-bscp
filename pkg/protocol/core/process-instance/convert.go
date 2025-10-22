@@ -14,8 +14,9 @@
 package pbpi
 
 import (
-	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
 // Process convert pb Process to table Process
@@ -41,7 +42,7 @@ func (p *ProcInstSpec) ProcInstSpec() *table.ProcessInstanceSpec {
 		LocalInstID:     p.LocalInstId,
 		InstID:          p.InstId,
 		Status:          table.ProcessStatus(p.Status),
-		ManagedStatus:   table.ManagedStatus(p.ManagedStatus),
+		ManagedStatus:   table.ProcessManagedStatus(p.ManagedStatus),
 		StatusUpdatedAt: p.GetStatusUpdatedAt().AsTime().UTC(),
 	}
 }

@@ -220,6 +220,7 @@ const (
 	Data_GetTemplateAndNonTemplateCICount_FullMethodName  = "/pbds.Data/GetTemplateAndNonTemplateCICount"
 	Data_BatchUpdateLastConsumedTime_FullMethodName       = "/pbds.Data/BatchUpdateLastConsumedTime"
 	Data_ListProcess_FullMethodName                       = "/pbds.Data/ListProcess"
+	Data_OperateProcess_FullMethodName                    = "/pbds.Data/OperateProcess"
 	Data_SyncCMDB_FullMethodName                          = "/pbds.Data/SyncCMDB"
 )
 
@@ -450,6 +451,9 @@ type DataClient interface {
 	BatchUpdateLastConsumedTime(ctx context.Context, in *BatchUpdateLastConsumedTimeReq, opts ...grpc.CallOption) (*BatchUpdateLastConsumedTimeResp, error)
 	// 进程管理列表
 	ListProcess(ctx context.Context, in *ListProcessReq, opts ...grpc.CallOption) (*ListProcessResp, error)
+	// 进程操作
+	OperateProcess(ctx context.Context, in *OperateProcessReq, opts ...grpc.CallOption) (*OperateProcessResp, error)
+	// 进程同步
 	SyncCMDB(ctx context.Context, in *SyncCMDBReq, opts ...grpc.CallOption) (*SyncCMDBResp, error)
 }
 
@@ -2153,6 +2157,15 @@ func (c *dataClient) ListProcess(ctx context.Context, in *ListProcessReq, opts .
 	return out, nil
 }
 
+func (c *dataClient) OperateProcess(ctx context.Context, in *OperateProcessReq, opts ...grpc.CallOption) (*OperateProcessResp, error) {
+	out := new(OperateProcessResp)
+	err := c.cc.Invoke(ctx, Data_OperateProcess_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataClient) SyncCMDB(ctx context.Context, in *SyncCMDBReq, opts ...grpc.CallOption) (*SyncCMDBResp, error) {
 	out := new(SyncCMDBResp)
 	err := c.cc.Invoke(ctx, Data_SyncCMDB_FullMethodName, in, out, opts...)
@@ -2389,6 +2402,9 @@ type DataServer interface {
 	BatchUpdateLastConsumedTime(context.Context, *BatchUpdateLastConsumedTimeReq) (*BatchUpdateLastConsumedTimeResp, error)
 	// 进程管理列表
 	ListProcess(context.Context, *ListProcessReq) (*ListProcessResp, error)
+	// 进程操作
+	OperateProcess(context.Context, *OperateProcessReq) (*OperateProcessResp, error)
+	// 进程同步
 	SyncCMDB(context.Context, *SyncCMDBReq) (*SyncCMDBResp, error)
 }
 
@@ -2959,6 +2975,9 @@ func (UnimplementedDataServer) BatchUpdateLastConsumedTime(context.Context, *Bat
 }
 func (UnimplementedDataServer) ListProcess(context.Context, *ListProcessReq) (*ListProcessResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListProcess not implemented")
+}
+func (UnimplementedDataServer) OperateProcess(context.Context, *OperateProcessReq) (*OperateProcessResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OperateProcess not implemented")
 }
 func (UnimplementedDataServer) SyncCMDB(context.Context, *SyncCMDBReq) (*SyncCMDBResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncCMDB not implemented")
@@ -6359,6 +6378,24 @@ func _Data_ListProcess_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_OperateProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OperateProcessReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).OperateProcess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_OperateProcess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).OperateProcess(ctx, req.(*OperateProcessReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Data_SyncCMDB_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SyncCMDBReq)
 	if err := dec(in); err != nil {
@@ -7135,6 +7172,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListProcess",
 			Handler:    _Data_ListProcess_Handler,
+		},
+		{
+			MethodName: "OperateProcess",
+			Handler:    _Data_OperateProcess_Handler,
 		},
 		{
 			MethodName: "SyncCMDB",

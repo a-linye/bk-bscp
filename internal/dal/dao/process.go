@@ -22,6 +22,8 @@ import (
 
 // Process xxx
 type Process interface {
+	// GetByID get client by id.
+	GetByID(kit *kit.Kit, bizID, id uint32) (*table.Process, error)
 	// List released config items with options.
 	List(kit *kit.Kit, bizID uint32) ([]*table.Process, int64, error)
 	// BatcheUpsertWithTx 批量更新插入数据
@@ -40,6 +42,22 @@ type processDao struct {
 	genQ     *gen.Query
 	idGen    IDGenInterface
 	auditDao AuditDao
+}
+
+func (dao *processDao) GetByID(kit *kit.Kit, bizID, id uint32) (*table.Process, error) {
+	m := dao.genQ.Process
+	q := dao.genQ.Process.WithContext(kit.Ctx)
+
+	result, err := q.Where(m.ID.Eq(id), m.BizID.Eq(bizID)).Find()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, nil
+	}
+
+	return result[0], nil
 }
 
 // UpdateSyncStatus implements Process.

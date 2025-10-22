@@ -20,6 +20,41 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
 )
 
+// ProcessStatus 进程状态
+type ProcessStatus string
+
+// 托管状态
+type ProcessManagedStatus string
+
+const (
+	// 运行中
+	ProcessStatusRunning ProcessStatus = "running"
+	// 部分运行
+	ProcessStatusPartlyRunning ProcessStatus = "partly_running"
+	// 启动中
+	ProcessStatusStarting ProcessStatus = "starting"
+	// 重启中
+	ProcessStatusRestarting ProcessStatus = "restarting"
+	// 停止中
+	ProcessStatusStopping ProcessStatus = "stopping"
+	// 重载中
+	ProcessStatusReloading ProcessStatus = "reloading"
+	// 已停止(即未运行)
+	ProcessStatusStopped ProcessStatus = "stopped"
+)
+const (
+	// 正执行托管中
+	ProcessManagedStatusStarting ProcessManagedStatus = "starting"
+	// 正在取消托管中
+	ProcessManagedStatusStopping ProcessManagedStatus = "stopping"
+	// 托管中
+	ProcessManagedStatusManaged ProcessManagedStatus = "managed"
+	// 未托管
+	ProcessManagedStatusUnmanaged ProcessManagedStatus = "unmanaged"
+	// 部分托管中
+	ProcessManagedStatusPartlyManaged ProcessManagedStatus = "partly_managed"
+)
+
 // ProcessInstances defines an process_instances detail information
 type ProcessInstance struct {
 	ID         uint32                     `json:"id" gorm:"primaryKey"`
@@ -45,11 +80,11 @@ func (p *ProcessInstance) ResType() string {
 
 // ProcessInstanceSpec xxx
 type ProcessInstanceSpec struct {
-	LocalInstID     string        `gorm:"column:local_inst_id" json:"local_inst_id"`         // LocalInstID
-	InstID          string        `gorm:"column:inst_id" json:"inst_id"`                     // InstID
-	Status          ProcessStatus `gorm:"column:status" json:"status"`                       // 进程状态:running,stopped
-	ManagedStatus   ManagedStatus `gorm:"column:managed_status" json:"managed_status"`       // 托管状态:managed,unmanaged
-	StatusUpdatedAt time.Time     `gorm:"column:status_updated_at" json:"status_updated_at"` // 状态更新时间
+	LocalInstID     string               `gorm:"column:local_inst_id" json:"local_inst_id"`         // LocalInstID
+	InstID          string               `gorm:"column:inst_id" json:"inst_id"`                     // InstID
+	Status          ProcessStatus        `gorm:"column:status" json:"status"`                       // 进程状态:running,stopped
+	ManagedStatus   ProcessManagedStatus `gorm:"column:managed_status" json:"managed_status"`       // 托管状态:managed,unmanaged
+	StatusUpdatedAt time.Time            `gorm:"column:status_updated_at" json:"status_updated_at"` // 状态更新时间
 }
 
 // ProcessInstanceAttachment xxx
@@ -60,16 +95,6 @@ type ProcessInstanceAttachment struct {
 	CcProcessID uint32 `gorm:"column:cc_process_id" json:"cc_process_id"` // cc进程ID
 }
 
-// ProcessStatus 进程状态
-type ProcessStatus string
-
-const (
-	// Running 运行中
-	Running ProcessStatus = "running"
-	// stopped 已停止
-	Stopped ProcessStatus = "stopped"
-)
-
 // String get string value of process status
 func (p ProcessStatus) String() string {
 	return string(p)
@@ -78,34 +103,26 @@ func (p ProcessStatus) String() string {
 // Validate validate process status is valid or not.
 func (p ProcessStatus) Validate() error {
 	switch p {
-	case Running, Stopped:
+	case ProcessStatusRunning, ProcessStatusStopped, ProcessStatusPartlyRunning, ProcessStatusStarting,
+		ProcessStatusRestarting, ProcessStatusStopping, ProcessStatusReloading:
 		return nil
 	default:
 		return errors.New("invalid process status")
 	}
 }
 
-// ManagedStatus 托管状态
-type ManagedStatus string
-
-const (
-	// Running 运行中
-	Managed ManagedStatus = "managed"
-	// stopped 已停止
-	Unmanaged ManagedStatus = "unmanaged"
-)
-
-// String get string value of managed status
-func (p ManagedStatus) String() string {
+// String get string value of process managed status
+func (p ProcessManagedStatus) String() string {
 	return string(p)
 }
 
-// Validate validate managed status is valid or not.
-func (p ManagedStatus) Validate() error {
+// Validate validate process managed status is valid or not.
+func (p ProcessManagedStatus) Validate() error {
 	switch p {
-	case Managed, Unmanaged:
+	case ProcessManagedStatusStarting, ProcessManagedStatusStopping, ProcessManagedStatusManaged,
+		ProcessManagedStatusUnmanaged, ProcessManagedStatusPartlyManaged:
 		return nil
 	default:
-		return errors.New("invalid managed status")
+		return errors.New("invalid process managed status")
 	}
 }
