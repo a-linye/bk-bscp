@@ -71,24 +71,11 @@ func (s *Service) GetTaskBatchDetail(
 		return nil, fmt.Errorf("task storage not initialized")
 	}
 
-	// 设置分页参数
-	limit := req.Limit
-	if limit == 0 {
-		limit = 10 // 默认分页大小
-	}
-	if limit > 1000 {
-		limit = 1000 // 最大限制
-	}
-
 	listOpt := &istore.ListOption{
-		TaskIndex: fmt.Sprintf("%d", req.BatchId),
-		Offset:    int64(req.Start),
-		Limit:     int64(limit),
-	}
-
-	// 如果指定了状态过滤
-	if req.Status != "" {
-		listOpt.Status = req.Status
+		TaskIndex: fmt.Sprintf("%d", req.GetBatchId()),
+		Offset:    int64(req.GetStart()),
+		Limit:     int64(req.GetLimit()),
+		Status:    req.GetStatus(),
 	}
 
 	pagination, err := taskStorage.ListTask(ctx, listOpt)
@@ -105,7 +92,6 @@ func (s *Service) GetTaskBatchDetail(
 			logs.Errorf("convert task to detail failed, taskID: %s, err: %v", task.TaskID, err)
 			return nil, fmt.Errorf("convert task to detail failed: %v", err)
 		}
-		// 如果转换后 detail 为 nil，说明被过滤掉了
 		if detail != nil {
 			taskDetails = append(taskDetails, detail)
 		}
