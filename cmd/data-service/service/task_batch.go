@@ -84,27 +84,25 @@ func (s *Service) GetTaskBatchDetail(
 		return nil, fmt.Errorf("list tasks failed: %v", err)
 	}
 
-	// 解析每个 task 的 CommonPayload，构建 TaskDetail 并应用过滤
+	// 解析每个 task 的 CommonPayload，构建 TaskDetail
 	taskDetails := make([]*pbtb.TaskDetail, 0, len(pagination.Items))
 	for _, task := range pagination.Items {
-		detail, err := convertTaskToDetail(task, req)
+		detail, err := convertTaskToDetail(task)
 		if err != nil {
 			logs.Errorf("convert task to detail failed, taskID: %s, err: %v", task.TaskID, err)
 			return nil, fmt.Errorf("convert task to detail failed: %v", err)
 		}
-		if detail != nil {
-			taskDetails = append(taskDetails, detail)
-		}
+		taskDetails = append(taskDetails, detail)
 	}
 
 	return &pbds.GetTaskBatchDetailResp{
 		Tasks: taskDetails,
-		Count: uint32(len(taskDetails)),
+		Count: uint32(pagination.Count),
 	}, nil
 }
 
-// convertTaskToDetail 将 task 转换为 pb 数据结构 TaskDetail，并根据请求参数进行过滤
-func convertTaskToDetail(task *taskTypes.Task, req *pbds.GetTaskBatchDetailReq) (*pbtb.TaskDetail, error) {
+// convertTaskToDetail 将 task 转换为 pb 数据结构 TaskDetail
+func convertTaskToDetail(task *taskTypes.Task) (*pbtb.TaskDetail, error) {
 	if task == nil {
 		return nil, fmt.Errorf("task is nil")
 	}
@@ -114,26 +112,6 @@ func convertTaskToDetail(task *taskTypes.Task, req *pbds.GetTaskBatchDetailReq) 
 	err := task.GetCommonPayload(&processPayload)
 	if err != nil {
 		return nil, fmt.Errorf("get common payload failed: %v", err)
-	}
-
-	// 应用 ProcessPayload 字段过滤
-	if req.SetName != "" && processPayload.SetName != req.SetName {
-		return nil, nil
-	}
-	if req.ModuleName != "" && processPayload.ModuleName != req.ModuleName {
-		return nil, nil
-	}
-	if req.ServiceName != "" && processPayload.ServiceName != req.ServiceName {
-		return nil, nil
-	}
-	if req.Alias != "" && processPayload.Alias != req.Alias {
-		return nil, nil
-	}
-	if req.CcProcessId != "" && processPayload.CcProcessID != req.CcProcessId {
-		return nil, nil
-	}
-	if req.InnerIp != "" && processPayload.InnerIP != req.InnerIp {
-		return nil, nil
 	}
 
 	// 构建返回的 TaskDetail
