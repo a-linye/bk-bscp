@@ -59,7 +59,10 @@ func (s *Service) ListTaskBatch(ctx context.Context, req *pbds.ListTaskBatchReq)
 }
 
 // GetTaskBatchDetail implements pbds.DataServer.
-func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbds.GetTaskBatchDetailReq) (*pbds.GetTaskBatchDetailResp, error) {
+func (s *Service) GetTaskBatchDetail(
+	ctx context.Context,
+	req *pbds.GetTaskBatchDetailReq,
+) (*pbds.GetTaskBatchDetailResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 
 	// 从 task store 查询所有相关任务（通过 taskIndex = batchID）

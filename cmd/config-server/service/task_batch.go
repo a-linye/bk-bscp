@@ -52,7 +52,10 @@ func (s *Service) ListTaskBatch(ctx context.Context, req *pbcs.ListTaskBatchReq)
 }
 
 // GetTaskBatchDetail implements pbcs.ConfigServer.
-func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbcs.GetTaskBatchDetailReq) (*pbcs.GetTaskBatchDetailResp, error) {
+func (s *Service) GetTaskBatchDetail(
+	ctx context.Context,
+	req *pbcs.GetTaskBatchDetailReq,
+) (*pbcs.GetTaskBatchDetailResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
 	res := []*meta.ResourceAttribute{
