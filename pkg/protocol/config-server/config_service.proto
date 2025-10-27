@@ -4506,12 +4506,6 @@ message GetTaskBatchDetailReq {
   string status = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE, TIMEOUT, REVOKED, NOTSTARTED 等"
   }];
-  string set_name = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "集群名" }];
-  string module_name = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模块名" }];
-  string service_name = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务实例" }];
-  string alias = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程别名" }];
-  string cc_process_id = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "CC进程ID" }];
-  string inner_ip = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "内网IP" }];
 }
 
 message GetTaskBatchDetailResp {
