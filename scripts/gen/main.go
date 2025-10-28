@@ -64,6 +64,9 @@ func main() {
 		table.ClientEvent{},
 		table.ClientQuery{},
 		table.Config{},
+		table.Process{},
+		table.ProcessInstance{},
+		table.TaskBatch{},
 		table.BizHost{},
 	)
 

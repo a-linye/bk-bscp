@@ -29,6 +29,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/repository"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/vault"
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
+	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/internal/tmplprocess"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
@@ -41,20 +42,22 @@ import (
 
 // Service do all the data service's work
 type Service struct {
-	dao      dao.Set
-	cs       pbcs.CacheClient
-	vault    vault.Set
-	gateway  *gateway
-	repo     repository.Provider
-	tmplProc tmplprocess.TmplProcessor
-	itsm     itsm.Service
-	cmdb     bkcmdb.Service
-	esbCli   client.Client
+	dao     dao.Set
+	cs      pbcs.CacheClient
+	vault   vault.Set
+	gateway *gateway
+	// esb esb api client.
+	esb         client.Client
+	repo        repository.Provider
+	tmplProc    tmplprocess.TmplProcessor
+	itsm        itsm.Service
+	cmdb        bkcmdb.Service
+	taskManager *task.TaskManager
 }
 
 // NewService create a service instance.
 func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Set, vaultSet vault.Set,
-	esbCli client.Client, repo repository.Provider, cmdb bkcmdb.Service) (*Service, error) {
+	esb client.Client, repo repository.Provider, cmdb bkcmdb.Service, taskManager *task.TaskManager) (*Service, error) {
 	state, ok := sd.(serviced.State)
 	if !ok {
 		return nil, errors.New("discover convert state failed")
@@ -94,15 +97,16 @@ func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Se
 	}
 
 	svc := &Service{
-		dao:      daoSet,
-		vault:    vaultSet,
-		gateway:  gateway,
-		cmdb:     cmdb,
-		esbCli:   esbCli,
-		repo:     repo,
-		tmplProc: tmplprocess.NewTmplProcessor(),
-		cs:       pbcs.NewCacheClient(csConn),
-		itsm:     itsm.NewITSMService(),
+		dao:         daoSet,
+		vault:       vaultSet,
+		gateway:     gateway,
+		esb:         esb,
+		repo:        repo,
+		tmplProc:    tmplprocess.NewTmplProcessor(),
+		cs:          pbcs.NewCacheClient(csConn),
+		itsm:        itsm.NewITSMService(),
+		cmdb:        cmdb,
+		taskManager: taskManager,
 	}
 
 	return svc, nil

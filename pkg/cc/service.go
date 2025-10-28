@@ -73,11 +73,19 @@ type Setting interface {
 
 // GlobalSettings 全局配置, 配置所有模块可访问
 type GlobalSettings struct {
+	BaseConf     BaseConf          `yaml:"baseConf"`
 	LoginAuth    LoginAuthSettings `yaml:"loginAuth"`
 	IAM          IAM               `yaml:"iam"`
-	Esb          Esb               `yaml:"esb"`
+	Esb          Esb               `yaml:"esb"` // esb 配置逐步废弃
 	FeatureFlags FeatureFlags      `yaml:"featureFlags"`
+	GSE          GSE               `yaml:"gse"`
 	CMDB         CMDBConfig        `yaml:"cmdb"`
+}
+
+// BaseConf 基础配置
+type BaseConf struct {
+	AppCode   string `yaml:"app_code"`
+	AppSecret string `yaml:"app_secret"`
 }
 
 // ApiServerSetting defines api server used setting options.
@@ -319,11 +327,11 @@ type DataServiceSetting struct {
 	Credential   Credential    `yaml:"credential"`
 	Sharding     Sharding      `yaml:"sharding"`
 	Esb          Esb           `yaml:"esb"`
-	CMDB         CMDBConfig    `yaml:"cmdb"`
 	Repo         Repository    `yaml:"repository"`
 	Vault        Vault         `yaml:"vault"`
 	FeatureFlags FeatureFlags  `yaml:"featureFlags"`
 	Gorm         Gorm          `yaml:"gorm"`
+	CMDB         CMDBConfig    `yaml:"cmdb"`
 	ITSM         ITSMConfig    `yaml:"itsm"`
 	Crontab      CrontabConfig `yaml:"crontab"`
 }

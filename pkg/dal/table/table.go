@@ -253,6 +253,10 @@ const (
 	ClientEventTable Name = "client_events"
 	// ConfigTable is configs table's name
 	ConfigTable Name = "configs"
+	// ProcessesTable is Processes table's name
+	ProcessesTable Name = "processes"
+	// ProcessInstancesTable is process_instances table's name
+	ProcessInstancesTable Name = "process_instances"
 	// BizHostTable is biz_host table's name
 	BizHostTable Name = "biz_hosts"
 )

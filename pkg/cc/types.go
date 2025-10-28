@@ -1680,6 +1680,7 @@ type CMDBConfig struct {
 	AppCode    string `yaml:"appCode"`
 	AppSecret  string `yaml:"appSecret"`
 	Host       string `yaml:"host"`
+	UseEsb     bool   `yaml:"useEsb"`
 	BkUserName string `yaml:"bkUserName"`
 }
 

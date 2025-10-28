@@ -34,6 +34,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/cmd/data-service/service"
 	"github.com/TencentBlueKing/bk-bscp/cmd/data-service/service/crontab"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
+	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/repository"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/vault"
@@ -42,6 +43,8 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/shutdown"
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/internal/space"
+	"github.com/TencentBlueKing/bk-bscp/internal/task"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/register"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
@@ -90,21 +93,22 @@ func Run(opt *options.Option) error {
 }
 
 type dataService struct {
-	serve    *grpc.Server
-	gwServe  *http.Server
-	service  *service.Service
-	sd       serviced.Service
-	daoSet   dao.Set
-	vault    vault.Set
-	cmdb     bkcmdb.Service
-	esb      client.Client
-	spaceMgr *space.Manager
-	repo     repository.Provider
-	ssd      serviced.ServiceDiscover
+	serve       *grpc.Server
+	gwServe     *http.Server
+	service     *service.Service
+	sd          serviced.Service
+	daoSet      dao.Set
+	vault       vault.Set
+	esb         client.Client
+	spaceMgr    *space.Manager
+	repo        repository.Provider
+	ssd         serviced.ServiceDiscover
+	taskManager *task.TaskManager
+	cmdb        bkcmdb.Service
 }
 
 // prepare do prepare jobs before run data service.
-// nolint:funlen
+// nolint: funlen
 func (ds *dataService) prepare(opt *options.Option) error {
 	// load settings from config file.
 	if err := cc.LoadSettings(opt.Sys); err != nil {
@@ -171,13 +175,13 @@ func (ds *dataService) prepare(opt *options.Option) error {
 	esbCfg := cc.DataService().Esb
 	cmdbCfg := cc.G().CMDB
 
-	esbClient, err := client.NewClient(&esbCfg, metrics.Register())
+	esbCli, err := client.NewClient(&esbCfg, metrics.Register())
 	if err != nil {
 		return fmt.Errorf("new esb client failed, err: %v", err)
 	}
-	ds.esb = esbClient
+	ds.esb = esbCli
 
-	cmdbCli, err := bkcmdb.New(&cmdbCfg, esbClient)
+	cmdbCli, err := bkcmdb.New(&cmdbCfg, esbCli)
 	if err != nil {
 		return fmt.Errorf("new cmdb client failed, err: %v", err)
 	}
@@ -204,6 +208,37 @@ func (ds *dataService) prepare(opt *options.Option) error {
 		repoSyncer.Run()
 	}
 
+	// 初始化并启动任务管理器
+	err = ds.initTaskManager()
+	if err != nil {
+		return fmt.Errorf("init task failed, err: %v", err)
+	}
+
+	return nil
+}
+
+func (ds *dataService) initTaskManager() error {
+	// 注册并启动任务（register要在NewTaskMgr之前）
+	gseService := gse.NewService(cc.G().BaseConf.AppCode, cc.G().BaseConf.AppSecret, cc.G().GSE.Host)
+	register.RegisterExecutor(gseService, ds.cmdb, ds.daoSet)
+
+	taskManager, err := task.NewTaskMgr(
+		context.Background(),
+		cc.DataService().Service.Etcd,
+		cc.DataService().Sharding.AdminDatabase,
+	)
+	if err != nil {
+		return fmt.Errorf("new task manager failed, err: %v", err)
+	}
+	ds.taskManager = taskManager
+
+	go func() {
+		err := ds.taskManager.Run()
+		if err != nil {
+			ds.taskManager.Stop()
+			logs.Errorf("task manager run failed, err: %v", err)
+		}
+	}()
 	return nil
 }
 
@@ -229,6 +264,7 @@ func initVault() (vault.Set, error) {
 }
 
 // listenAndServe listen the grpc serve and set up the shutdown gracefully job.
+// nolint: funlen
 func (ds *dataService) listenAndServe() error {
 	// generate standard grpc server grpcMetrics.
 	grpcMetrics := grpc_prometheus.NewServerMetrics()
@@ -262,14 +298,19 @@ func (ds *dataService) listenAndServe() error {
 	}
 
 	serve := grpc.NewServer(opts...)
-	svc, err := service.NewService(ds.sd, ds.ssd, ds.daoSet, ds.vault, ds.esb, ds.repo, ds.cmdb)
+	svc, err := service.NewService(ds.sd, ds.ssd, ds.daoSet, ds.vault, ds.esb, ds.repo, ds.cmdb, ds.taskManager)
 	if err != nil {
 		return err
 	}
 
-	// 同步itsm 单据状态：避免单据没回被正确回调感知
-	status := crontab.NewSyncTicketStatus(ds.daoSet, ds.sd, svc)
-	status.Run()
+	// // 定时同步cmdb数据
+	// syncCmdb := crontab.NewSycnCMDB(ds.daoSet, ds.sd, svc)
+	// syncCmdb.Run()
+
+	// 监听cmdb资源变化
+	// syncCmdb := crontab.NewCmdbResourceWatcher(ds.daoSet, ds.sd, ds.cmdb)
+	// syncCmdb.Run()
+
 	// 启动定时任务
 	ds.startCronTasks()
 
@@ -295,6 +336,8 @@ func (ds *dataService) listenAndServe() error {
 		logs.Infof("start shutdown grpc server gracefully...")
 
 		ds.serve.GracefulStop()
+		ds.taskManager.Stop()
+
 		notifier.Done()
 
 		logs.Infof("shutdown grpc server success...")
@@ -421,7 +464,7 @@ func (ds *dataService) register() error {
 // startCronTasks starts all cron tasks for data service
 // nolint:funlen
 func (ds *dataService) startCronTasks() {
-	// 同步客户端在线状态
+	// 同步itsm 单据状态：避免单据没回被正确回调感知
 	status := crontab.NewSyncTicketStatus(ds.daoSet, ds.sd, ds.service)
 	status.Run()
 
