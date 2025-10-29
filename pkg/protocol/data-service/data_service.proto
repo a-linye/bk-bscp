@@ -2300,7 +2300,7 @@ message OperateProcessReq {
   uint32 biz_id = 1;
   repeated uint32 process_ids = 2;
   uint32 inst_id = 3;
-  string operateType = 4;
+  string operate_type = 4;
 }
 
 message OperateProcessResp {

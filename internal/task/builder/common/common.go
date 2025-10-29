@@ -61,7 +61,7 @@ func (builder *Builder) CommonProcessFinalize(task *types.Task, bizID, processID
 		Environment: process.Spec.Environment,
 		Alias:       process.Spec.Alias,
 		InnerIP:     process.Spec.InnerIP,
-		AgentID:     fmt.Sprintf("%d:%s", process.Attachment.CloudID, process.Spec.InnerIP),
+		AgentID:     "020000000242010a00002f17521298676503", // todo: 后续需要从进程信息中获取agentid
 		CcProcessID: fmt.Sprintf("%d", process.Attachment.CcProcessID),
 		LocalInstID: inst.Spec.LocalInstID,
 		InstID:      inst.Spec.InstID,

@@ -14,17 +14,20 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Tencent/bk-bcs/bcs-common/common/task"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
+	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 // Executor common executor
 type Executor struct {
-	gseService *gse.Service
+	GseService *gse.Service
+	Dao        dao.Set
 }
 
 // ProcessPayload 公用的配置，作为任务快照，方便进行获取以及对比
@@ -44,22 +47,28 @@ type ProcessPayload struct {
 }
 
 // NewExecutor new executor
-func NewExecutor(gseService *gse.Service) *Executor {
-	return &Executor{gseService}
+func NewExecutor(gseService *gse.Service, dao dao.Set) *Executor {
+	return &Executor{
+		GseService: gseService,
+		Dao:        dao,
+	}
 }
 
 // WaitTaskFinish 等待任务执行结束
 func (e *Executor) WaitTaskFinish(
 	ctx context.Context,
 	gseTaskID string,
-	agentIDs []string) (*gse.GESResponse, error) {
+	bizID, processInstanceID uint32,
+	processName string,
+	agentID string,
+) (map[string]gse.ProcResult, error) {
 	var (
-		taskResult *gse.GESResponse
-		err        error
+		result map[string]gse.ProcResult
+		err    error
 	)
-
 	err = task.LoopDoFunc(ctx, func() error {
-		taskResult, err = e.gseService.GetProcOperateResultV2(ctx, &gse.QueryProcResultReq{
+		// 获取gse侧进程操作结果
+		taskResult, err := e.GseService.GetProcOperateResultV2(ctx, &gse.QueryProcResultReq{
 			TaskID: gseTaskID,
 		})
 		if err != nil {
@@ -67,17 +76,25 @@ func (e *Executor) WaitTaskFinish(
 			return nil
 		}
 
-		result := make(map[string]gse.ProcResult)
-		err = taskResult.Encode(&result)
+		err = taskResult.Decode(&result)
 		if err != nil {
 			return err
 		}
 
-		// 任务处理进行中需要继续
-		// if taskResult.Result.State == gse.ExecutingState || taskResult.Result.State == gse.PendingState {
-		// 	logs.Warnf("WaitTaskFinish task %s is in progress, state=%s", gseTaskID, taskResult.Result.State)
-		// 	return nil
-		// }
+		// key 为 bk_agent_id:namespace:name
+		key := fmt.Sprintf("%s:GSEKIT_BIZ_%d:%s_%d", agentID, bizID, processName, processInstanceID)
+		logs.Infof("get gse task result, key: %s", key)
+		// 该状态表示gse侧进程操作任务正在执行中，尚未完成
+		if result[key].ErrorCode == 115 {
+			logs.Infof("WaitTaskFinish task %s is in progress, state=%d", gseTaskID, result[key].ErrorCode)
+			return nil
+		}
+
+		if result[key].ErrorCode != 0 {
+			logs.Errorf("WaitTaskFinish task %s failed, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
+		} else {
+			logs.Infof("WaitTaskFinish task %s success, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
+		}
 
 		// 结束任务
 		return task.ErrEndLoop
@@ -86,5 +103,5 @@ func (e *Executor) WaitTaskFinish(
 		logs.Errorf("WaitTaskFinish error, gseTaskID %s, err=%+v", gseTaskID, err)
 		return nil, err
 	}
-	return taskResult, nil
+	return result, nil
 }

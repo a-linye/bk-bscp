@@ -116,10 +116,10 @@ func convertTaskToDetail(task *taskTypes.Task) (*pbtb.TaskDetail, error) {
 
 	// 构建返回的 TaskDetail
 	detail := &pbtb.TaskDetail{
-		Status:        task.Status,
+		Status:        convertTaskStatus(task.Status),
 		Message:       task.Message,
 		Creator:       task.Creator,
-		ExecutionTime: task.ExecutionTime,
+		ExecutionTime: float32(task.ExecutionTime) / 1000.0,
 		ProcessPayload: &pbtb.ProcessPayload{
 			SetName:     processPayload.SetName,
 			ModuleName:  processPayload.ModuleName,
@@ -136,4 +136,25 @@ func convertTaskToDetail(task *taskTypes.Task) (*pbtb.TaskDetail, error) {
 	}
 
 	return detail, nil
+}
+
+// convertTaskStatus 将任务状态转换为四类：INITIALIZING, RUNNING, SUCCESS, FAILURE
+func convertTaskStatus(status string) string {
+	switch status {
+	case taskTypes.TaskStatusInit:
+		return "INITIALIZING"
+	case taskTypes.TaskStatusRunning:
+		return "RUNNING"
+	case taskTypes.TaskStatusRevoked, taskTypes.TaskStatusNotStarted:
+		// revoke和notstarted认为是running
+		return "RUNNING"
+	case taskTypes.TaskStatusSuccess:
+		return "SUCCESS"
+	case taskTypes.TaskStatusFailure, taskTypes.TaskStatusTimeout:
+		// 超时认为是失败
+		return "FAILURE"
+	default:
+		// 未知状态默认为失败
+		return "FAILURE"
+	}
 }

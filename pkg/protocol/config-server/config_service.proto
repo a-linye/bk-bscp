@@ -4522,8 +4522,8 @@ message OperateProcessReq {
   repeated uint32 process_ids = 2
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程ID" }];
   uint32 inst_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "实例ID" }];
-  string operateType = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "操作类型：(register、unregister、start、stop、restart、reload、kill)"
+  string operate_type = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "操作类型：start、stop、query_status、register、unregister、restart、reload、kill"
   }];
 }
 
@@ -4550,7 +4550,7 @@ message ListTaskBatchReq {
     description: "任务动作: register, start, stop, restart, reload, kill 等"
   }];
   string status = 6 [
-    (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行状态: running, failed, succeed" }
+    (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行状态: running, failed, succeed, partly_failed" }
   ];
   string executor = 7
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行帐户（创建者）" }];
@@ -4568,7 +4568,7 @@ message GetTaskBatchDetailReq {
   uint32 start = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置" }];
   uint32 limit = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "限制数量" }];
   string status = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE, TIMEOUT, REVOKED, NOTSTARTED 等"
+    description: "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE"
   }];
 }
 

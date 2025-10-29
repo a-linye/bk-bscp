@@ -69,6 +69,13 @@ const (
 	OpTypeKill       = 9
 )
 
+const (
+	// 常驻进程
+	AutoTypePersistent = 1
+	// 单次执行进程
+	AutoTypeOneTime = 2
+)
+
 // nolint
 // ProcessOperate 单个进程操作对象
 type ProcessOperate struct {
@@ -81,9 +88,8 @@ type ProcessOperate struct {
 
 // ProcessMeta 进程管理元数据
 type ProcessMeta struct {
-	Namespace string            `json:"namespace"`        // 命名空间，用于进程分组管理
-	Name      string            `json:"name"`             // 进程名，用户自定义，与 namespace 共同用于进程标识
-	Labels    map[string]string `json:"labels,omitempty"` // 进程标签，key-value 键值对
+	Namespace string `json:"namespace"` // 命名空间，用于进程分组管理
+	Name      string `json:"name"`      // 进程名，用户自定义，与 namespace 共同用于进程标识
 }
 
 // HostInfo 主机信息
@@ -112,27 +118,27 @@ type ProcessIdentity struct {
 
 // ProcessControl 进程控制信息
 type ProcessControl struct {
-	StartCmd   string `json:"start_cmd,omitempty"`   // 启动命令
-	StopCmd    string `json:"stop_cmd,omitempty"`    // 停止命令
-	RestartCmd string `json:"restart_cmd,omitempty"` // 重启命令
-	ReloadCmd  string `json:"reload_cmd,omitempty"`  // reload 命令
-	KillCmd    string `json:"kill_cmd,omitempty"`    // kill 命令
-	VersionCmd string `json:"version_cmd,omitempty"` // 进程版本查询命令
-	HealthCmd  string `json:"health_cmd,omitempty"`  // 健康检查命令
+	StartCmd   string `json:"start_cmd,omitempty"`   // 启动命令（可选）
+	StopCmd    string `json:"stop_cmd,omitempty"`    // 停止命令（可选）
+	RestartCmd string `json:"restart_cmd,omitempty"` // 重启命令（可选）
+	ReloadCmd  string `json:"reload_cmd,omitempty"`  // reload 命令（可选）
+	KillCmd    string `json:"kill_cmd,omitempty"`    // kill 命令（可选）
+	VersionCmd string `json:"version_cmd,omitempty"` // 进程版本查询命令（可选）
+	HealthCmd  string `json:"health_cmd,omitempty"`  // 健康检查命令（可选）
 }
 
 // ProcessResource 进程资源信息
 type ProcessResource struct {
-	CPU float64 `json:"cpu"` // CPU 使用率上限百分比，例如 30.0 表示最多使用 30%
-	Mem float64 `json:"mem"` // 内存使用率上限百分比，例如 10.0 表示最多使用 10%
+	CPU float64 `json:"cpu"` // CPU 使用率上限百分比，例如 30.0 表示最多使用 30%（必填）
+	Mem float64 `json:"mem"` // 内存使用率上限百分比，例如 10.0 表示最多使用 10%（必填）
 }
 
 // ProcessMonitorPolicy 进程存活状态监控策略
 type ProcessMonitorPolicy struct {
-	AutoType       int `json:"auto_type"`                  // 托管参数类型：1=常驻进程，2=单次执行进程
-	StartCheckSecs int `json:"start_check_secs,omitempty"` // 启动后检查存活的时间（秒），默认 5
-	StopCheckSecs  int `json:"stop_check_secs,omitempty"`  // 停止后检查存活的时间（秒）
-	OpTimeout      int `json:"op_timeout,omitempty"`       // 命令执行超时时间（秒），默认 60
+	AutoType       int `json:"auto_type"`                  // 托管参数类型：1=常驻进程，2=单次执行进程（必填）
+	StartCheckSecs int `json:"start_check_secs,omitempty"` // 启动后检查存活的时间（秒），默认 5（可选）
+	StopCheckSecs  int `json:"stop_check_secs,omitempty"`  // 停止后检查存活的时间（秒）可选）
+	OpTimeout      int `json:"op_timeout,omitempty"`       // 命令执行超时时间（秒），默认 60（可选）
 }
 
 // FileTaskRequest 启动文件分发任务的请求参数
@@ -208,10 +214,10 @@ type TaskState string
 
 const (
 	PendingState   TaskState = "pending"
-	ExecutingState TaskState = "pending"
+	ExecutingState TaskState = "executing"
 	TimeoutState   TaskState = "timeout"
 	FailedState    TaskState = "failed"
-	SuccessedState TaskState = "TaskState"
+	SuccessedState TaskState = "successed"
 )
 
 // TaskOperateResult 表示任务操作的具体结果

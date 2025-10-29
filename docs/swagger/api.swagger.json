@@ -9496,7 +9496,7 @@
           },
           {
             "name": "status",
-            "description": "执行状态: running, failed, succeed",
+            "description": "执行状态: running, failed, succeed, partly_failed",
             "in": "query",
             "required": false,
             "type": "string"
@@ -9567,7 +9567,7 @@
           },
           {
             "name": "status",
-            "description": "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE, TIMEOUT, REVOKED, NOTSTARTED 等",
+            "description": "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE",
             "in": "query",
             "required": false,
             "type": "string"
@@ -17831,22 +17831,26 @@
         },
         "status": {
           "type": "string",
-          "description": "任务状态"
+          "description": "任务状态: running, failed, succeed, partly_failed"
         },
         "startAt": {
           "type": "string",
+          "format": "date-time",
           "description": "开始时间"
         },
         "endAt": {
           "type": "string",
+          "format": "date-time",
           "description": "结束时间"
         },
         "createdAt": {
           "type": "string",
+          "format": "date-time",
           "description": "创建时间"
         },
         "updatedAt": {
           "type": "string",
+          "format": "date-time",
           "description": "更新时间"
         }
       },
