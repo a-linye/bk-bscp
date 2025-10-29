@@ -29,7 +29,7 @@ message TaskBatch {
   string status = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "任务状态" }];
   string start_at = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "开始时间" }];
   string end_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "结束时间" }];
-  int64 execution_time = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行耗时(秒)" }];
+  uint32 execution_time = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行耗时(秒)" }];
 }
 
 // ProcessPayload 进程任务的配置快照

@@ -34,7 +34,7 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 	}
 
 	// 解析 TaskData 从 JSON 字符串到 ProcessTaskData 对象
-	if tb.Spec.TaskData != "" {
+	if tb.Spec != nil && tb.Spec.TaskData != "" {
 		var taskData table.ProcessTaskData
 		if err := json.Unmarshal([]byte(tb.Spec.TaskData), &taskData); err != nil {
 			logs.Errorf("unmarshal task data failed, err: %v, task_data: %s", err, tb.Spec.TaskData)
@@ -60,7 +60,7 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 
 	// 计算执行耗时（秒）
 	if tb.Spec.StartAt != nil && tb.Spec.EndAt != nil {
-		result.ExecutionTime = int64(tb.Spec.EndAt.Sub(*tb.Spec.StartAt).Seconds())
+		result.ExecutionTime = uint32(tb.Spec.EndAt.Sub(*tb.Spec.StartAt).Seconds())
 	}
 
 	return result
