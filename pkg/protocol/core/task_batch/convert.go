@@ -14,7 +14,10 @@
 package pbtb
 
 import (
+	"encoding/json"
+
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 // PbTaskBatch convert table TaskBatch to pb TaskBatch
@@ -27,8 +30,25 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 		Id:         tb.ID,
 		TaskObject: string(tb.Spec.TaskObject),
 		TaskAction: string(tb.Spec.TaskAction),
-		TaskData:   tb.Spec.TaskData,
 		Status:     string(tb.Spec.Status),
+	}
+
+	// 解析 TaskData 从 JSON 字符串到 ProcessTaskData 对象
+	if tb.Spec.TaskData != "" {
+		var taskData table.ProcessTaskData
+		if err := json.Unmarshal([]byte(tb.Spec.TaskData), &taskData); err != nil {
+			logs.Errorf("unmarshal task data failed, err: %v, task_data: %s", err, tb.Spec.TaskData)
+		} else {
+			result.TaskData = &ProcessTaskData{
+				Environment: taskData.Environment,
+				OperateRange: &OperateRange{
+					SetIds:       taskData.OperateRange.SetIDs,
+					ModuleIds:    taskData.OperateRange.ModuleIDs,
+					ServiceIds:   taskData.OperateRange.ServiceIDs,
+					CcProcessIds: taskData.OperateRange.CCProcessIDs,
+				},
+			}
+		}
 	}
 
 	if tb.Spec.StartAt != nil {
