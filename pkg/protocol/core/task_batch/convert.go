@@ -57,9 +57,10 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 	if tb.Spec.EndAt != nil {
 		result.EndAt = tb.Spec.EndAt.Format("2006-01-02 15:04:05")
 	}
-	if tb.Revision != nil {
-		result.CreatedAt = tb.Revision.CreatedAt.Format("2006-01-02 15:04:05")
-		result.UpdatedAt = tb.Revision.UpdatedAt.Format("2006-01-02 15:04:05")
+
+	// 计算执行耗时（秒）
+	if tb.Spec.StartAt != nil && tb.Spec.EndAt != nil {
+		result.ExecutionTime = int64(tb.Spec.EndAt.Sub(*tb.Spec.StartAt).Seconds())
 	}
 
 	return result
