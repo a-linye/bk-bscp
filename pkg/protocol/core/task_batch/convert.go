@@ -14,7 +14,10 @@
 package pbtb
 
 import (
+	"encoding/json"
+
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 // PbTaskBatch convert table TaskBatch to pb TaskBatch
@@ -27,8 +30,25 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 		Id:         tb.ID,
 		TaskObject: string(tb.Spec.TaskObject),
 		TaskAction: string(tb.Spec.TaskAction),
-		TaskData:   tb.Spec.TaskData,
 		Status:     string(tb.Spec.Status),
+	}
+
+	// 解析 TaskData 从 JSON 字符串到 ProcessTaskData 对象
+	if tb.Spec != nil && tb.Spec.TaskData != "" {
+		var taskData table.ProcessTaskData
+		if err := json.Unmarshal([]byte(tb.Spec.TaskData), &taskData); err != nil {
+			logs.Errorf("unmarshal task data failed, err: %v, task_data: %s", err, tb.Spec.TaskData)
+		} else {
+			result.TaskData = &ProcessTaskData{
+				Environment: taskData.Environment,
+				OperateRange: &OperateRange{
+					SetIds:       taskData.OperateRange.SetIDs,
+					ModuleIds:    taskData.OperateRange.ModuleIDs,
+					ServiceIds:   taskData.OperateRange.ServiceIDs,
+					CcProcessIds: taskData.OperateRange.CCProcessIDs,
+				},
+			}
+		}
 	}
 
 	if tb.Spec.StartAt != nil {
@@ -37,9 +57,10 @@ func PbTaskBatch(tb *table.TaskBatch) *TaskBatch {
 	if tb.Spec.EndAt != nil {
 		result.EndAt = tb.Spec.EndAt.Format("2006-01-02 15:04:05")
 	}
-	if tb.Revision != nil {
-		result.CreatedAt = tb.Revision.CreatedAt.Format("2006-01-02 15:04:05")
-		result.UpdatedAt = tb.Revision.UpdatedAt.Format("2006-01-02 15:04:05")
+
+	// 计算执行耗时（秒）
+	if tb.Spec.StartAt != nil && tb.Spec.EndAt != nil {
+		result.ExecutionTime = uint32(tb.Spec.EndAt.Sub(*tb.Spec.StartAt).Seconds())
 	}
 
 	return result
