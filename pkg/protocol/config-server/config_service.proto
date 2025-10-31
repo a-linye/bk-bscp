@@ -4562,7 +4562,7 @@ message ListTaskBatchReq {
   uint32 start = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置" }];
   uint32 limit = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "限制数量" }];
   string task_action = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务动作: register, start, stop, restart, reload, kill 等"
+    description: "任务动作: register,unregister, start, stop, restart, reload, kill"
   }];
   string status = 6 [
     (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行状态: running, failed, succeed, partly_failed" }

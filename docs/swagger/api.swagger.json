@@ -9489,7 +9489,7 @@
           },
           {
             "name": "taskAction",
-            "description": "任务动作: register, start, stop, restart, reload, kill 等",
+            "description": "任务动作: register,unregister, start, stop, restart, reload, kill",
             "in": "query",
             "required": false,
             "type": "string"
