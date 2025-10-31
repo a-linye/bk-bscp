@@ -117,11 +117,11 @@ func (t *TaskBatch) ValidateCreate() error {
 
 // OperateRange 操作范围
 type OperateRange struct {
-	SetNames     []string `json:"set_names"`        // 集群ID列表
-	ModuleNames  []string `json:"module_names"`     // 模块ID列表
-	ServiceNames []string `json:"service_names"`    // 服务实例ID列表
-	ProcessAlias []string `json:"process_alias"`    // 进程别名列表
-	CCProcessID  []uint32 `json:"cc_process_names"` // cc进程ID列表
+	SetNames     []string `json:"set_names"`      // 集群名称列表
+	ModuleNames  []string `json:"module_names"`   // 模块名称列表
+	ServiceNames []string `json:"service_names"`  // 服务实例名称列表
+	ProcessAlias []string `json:"process_alias"`  // 进程别名列表
+	CCProcessID  []uint32 `json:"cc_process_ids"` // cc进程ID列表
 }
 
 // TaskData 任务数据接口
