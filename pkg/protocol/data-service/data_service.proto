@@ -320,6 +320,8 @@ service Data {
   rpc ListTaskBatch(ListTaskBatchReq) returns (ListTaskBatchResp) {}
   // 任务批次详情
   rpc GetTaskBatchDetail(GetTaskBatchDetailReq) returns (GetTaskBatchDetailResp) {}
+  // 任务状态统计
+  rpc GetTaskStatusStatistics(GetTaskStatusStatisticsReq) returns (GetTaskStatusStatisticsResp) {}
   // 获取同步cc状态
   rpc SyncCMDBStatus(SyncCMDBStatusReq) returns (SyncCMDBStatusResp) {}
 }
@@ -2335,12 +2337,21 @@ message GetTaskBatchDetailReq {
   uint32 batch_id = 2;
   uint32 start = 3;   // 起始位置
   uint32 limit = 4;   // 限制数量
-  string status = 5;  // 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE, TIMEOUT, REVOKED, NOTSTARTED 等
+  string status = 5;  // 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE
 }
 
 message GetTaskBatchDetailResp {
   repeated pbtb.TaskDetail tasks = 1;  // 任务详情列表
   uint32 count = 2;                    // 任务总数
+}
+
+message GetTaskStatusStatisticsReq {
+  uint32 biz_id = 1;
+  uint32 batch_id = 2;  // 批次ID
+}
+
+message GetTaskStatusStatisticsResp {
+  repeated pbtb.TaskStatusStatItem statistics = 1;  // 状态统计列表
 }
 
 message SyncCMDBStatusReq {

@@ -213,6 +213,7 @@ const (
 	Config_SyncCMDB_FullMethodName                           = "/pbcs.Config/SyncCMDB"
 	Config_ListTaskBatch_FullMethodName                      = "/pbcs.Config/ListTaskBatch"
 	Config_GetTaskBatchDetail_FullMethodName                 = "/pbcs.Config/GetTaskBatchDetail"
+	Config_GetTaskStatusStatistics_FullMethodName            = "/pbcs.Config/GetTaskStatusStatistics"
 	Config_SyncCMDBStatus_FullMethodName                     = "/pbcs.Config/SyncCMDBStatus"
 )
 
@@ -587,6 +588,8 @@ type ConfigClient interface {
 	ListTaskBatch(ctx context.Context, in *ListTaskBatchReq, opts ...grpc.CallOption) (*ListTaskBatchResp, error)
 	// 任务批次详情
 	GetTaskBatchDetail(ctx context.Context, in *GetTaskBatchDetailReq, opts ...grpc.CallOption) (*GetTaskBatchDetailResp, error)
+	// 任务状态统计
+	GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq, opts ...grpc.CallOption) (*SyncCMDBStatusResp, error)
 }
@@ -2273,6 +2276,15 @@ func (c *configClient) GetTaskBatchDetail(ctx context.Context, in *GetTaskBatchD
 	return out, nil
 }
 
+func (c *configClient) GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error) {
+	out := new(GetTaskStatusStatisticsResp)
+	err := c.cc.Invoke(ctx, Config_GetTaskStatusStatistics_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configClient) SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq, opts ...grpc.CallOption) (*SyncCMDBStatusResp, error) {
 	out := new(SyncCMDBStatusResp)
 	err := c.cc.Invoke(ctx, Config_SyncCMDBStatus_FullMethodName, in, out, opts...)
@@ -2653,6 +2665,8 @@ type ConfigServer interface {
 	ListTaskBatch(context.Context, *ListTaskBatchReq) (*ListTaskBatchResp, error)
 	// 任务批次详情
 	GetTaskBatchDetail(context.Context, *GetTaskBatchDetailReq) (*GetTaskBatchDetailResp, error)
+	// 任务状态统计
+	GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error)
 }
@@ -3218,6 +3232,9 @@ func (UnimplementedConfigServer) ListTaskBatch(context.Context, *ListTaskBatchRe
 }
 func (UnimplementedConfigServer) GetTaskBatchDetail(context.Context, *GetTaskBatchDetailReq) (*GetTaskBatchDetailResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTaskBatchDetail not implemented")
+}
+func (UnimplementedConfigServer) GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTaskStatusStatistics not implemented")
 }
 func (UnimplementedConfigServer) SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncCMDBStatus not implemented")
@@ -6582,6 +6599,24 @@ func _Config_GetTaskBatchDetail_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_GetTaskStatusStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTaskStatusStatisticsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetTaskStatusStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetTaskStatusStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetTaskStatusStatistics(ctx, req.(*GetTaskStatusStatisticsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Config_SyncCMDBStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SyncCMDBStatusReq)
 	if err := dec(in); err != nil {
@@ -7350,6 +7385,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTaskBatchDetail",
 			Handler:    _Config_GetTaskBatchDetail_Handler,
+		},
+		{
+			MethodName: "GetTaskStatusStatistics",
+			Handler:    _Config_GetTaskStatusStatistics_Handler,
 		},
 		{
 			MethodName: "SyncCMDBStatus",

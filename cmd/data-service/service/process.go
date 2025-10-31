@@ -125,6 +125,7 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 
 // validateOperateRequest 校验操作请求参数
 func validateOperateRequest(req *pbds.OperateProcessReq) error {
+	// 指定实例时，只能指定一个进程ID
 	if len(req.ProcessIds) > 1 && req.InstId != 0 {
 		return fmt.Errorf("invalid request: when InstId is specified, only one processId is allowed")
 	}
@@ -136,6 +137,7 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 // getProcessesAndInstances 获取进程和进程实例
 func getProcessesAndInstances(kt *kit.Kit, dao dao.Set, req *pbds.OperateProcessReq) (
 	[]*table.Process, []*table.ProcessInstance, error) {
+	// 指定实例
 	if req.InstId != 0 {
 		return getByInstanceID(kt, dao, req.BizId, req.InstId)
 	}

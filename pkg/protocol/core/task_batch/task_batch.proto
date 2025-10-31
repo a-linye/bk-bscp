@@ -62,3 +62,10 @@ message TaskDetail {
   ProcessPayload process_payload = 5
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程配置快照" }];
 }
+
+// TaskStatusStatItem 任务状态统计项
+message TaskStatusStatItem {
+  string status = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "任务状态" }];
+  uint32 count = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "数量" }];
+  string message = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "状态描述" }];
+}
