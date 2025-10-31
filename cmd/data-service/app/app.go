@@ -311,9 +311,6 @@ func (ds *dataService) listenAndServe() error {
 	watchCmdb := crontab.NewCmdbResourceWatcher(ds.daoSet, ds.sd, ds.cmdb, svc)
 	watchCmdb.Run()
 
-	// 启动定时任务
-	ds.startCronTasks()
-
 	// 初始化ITSM模板[只有v4版本才需要]
 	if cc.DataService().ITSM.EnableV4 {
 		registerItsmV4Templates := crontab.RegisterItsmV4Templates(ds.daoSet, ds.sd)
