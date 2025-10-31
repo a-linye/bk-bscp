@@ -215,6 +215,7 @@ const (
 	Config_GetTaskBatchDetail_FullMethodName                 = "/pbcs.Config/GetTaskBatchDetail"
 	Config_GetTaskStatusStatistics_FullMethodName            = "/pbcs.Config/GetTaskStatusStatistics"
 	Config_SyncCMDBStatus_FullMethodName                     = "/pbcs.Config/SyncCMDBStatus"
+	Config_RetryTasks_FullMethodName                         = "/pbcs.Config/RetryTasks"
 )
 
 // ConfigClient is the client API for Config service.
@@ -592,6 +593,8 @@ type ConfigClient interface {
 	GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq, opts ...grpc.CallOption) (*SyncCMDBStatusResp, error)
+	// 重试失败的任务
+	RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error)
 }
 
 type configClient struct {
@@ -2294,6 +2297,15 @@ func (c *configClient) SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq
 	return out, nil
 }
 
+func (c *configClient) RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error) {
+	out := new(RetryTasksResp)
+	err := c.cc.Invoke(ctx, Config_RetryTasks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServer is the server API for Config service.
 // All implementations should embed UnimplementedConfigServer
 // for forward compatibility
@@ -2669,6 +2681,8 @@ type ConfigServer interface {
 	GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error)
+	// 重试失败的任务
+	RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error)
 }
 
 // UnimplementedConfigServer should be embedded to have forward compatible implementations.
@@ -3238,6 +3252,9 @@ func (UnimplementedConfigServer) GetTaskStatusStatistics(context.Context, *GetTa
 }
 func (UnimplementedConfigServer) SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncCMDBStatus not implemented")
+}
+func (UnimplementedConfigServer) RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetryTasks not implemented")
 }
 
 // UnsafeConfigServer may be embedded to opt out of forward compatibility for this service.
@@ -6635,6 +6652,24 @@ func _Config_SyncCMDBStatus_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_RetryTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryTasksReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).RetryTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_RetryTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).RetryTasks(ctx, req.(*RetryTasksReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Config_ServiceDesc is the grpc.ServiceDesc for Config service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -7393,6 +7428,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncCMDBStatus",
 			Handler:    _Config_SyncCMDBStatus_Handler,
+		},
+		{
+			MethodName: "RetryTasks",
+			Handler:    _Config_RetryTasks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

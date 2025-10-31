@@ -76,6 +76,10 @@ func (e *Executor) WaitTaskFinish(
 			logs.Warnf("WaitTaskFinish get gse task state error, gseTaskID %s, err=%+v ", gseTaskID, err)
 			return nil
 		}
+		if gseResp.Code != 0 {
+			logs.Errorf("WaitTaskFinish get gse task result failed, gseTaskID %s, code=%d, message=%s", gseTaskID, gseResp.Code, gseResp.Message)
+			return fmt.Errorf("get gse task result failed, code=%d, message=%s", gseResp.Code, gseResp.Message)
+		}
 
 		err = gseResp.Decode(&result)
 		if err != nil {

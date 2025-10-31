@@ -324,6 +324,8 @@ service Data {
   rpc GetTaskStatusStatistics(GetTaskStatusStatisticsReq) returns (GetTaskStatusStatisticsResp) {}
   // 获取同步cc状态
   rpc SyncCMDBStatus(SyncCMDBStatusReq) returns (SyncCMDBStatusResp) {}
+  // 重试失败的任务
+  rpc RetryTasks(RetryTasksReq) returns (RetryTasksResp) {}
 }
 message UpdateCredentialScopesReq {
   uint32 biz_id = 1;
@@ -2373,4 +2375,13 @@ message ProcessFilterOptionsResp {
   repeated pbproc.ProcessFilterOption service_instances = 3;
   repeated pbproc.ProcessFilterOption process_aliases = 4;
   repeated pbproc.ProcessFilterOption cc_process_ids = 5;
+}
+
+message RetryTasksReq {
+  uint32 biz_id = 1;       // 业务ID
+  uint32 batch_id = 2;     // 任务批次ID
+}
+
+message RetryTasksResp {
+  uint32 retry_count = 1;  // 重试的任务数量
 }

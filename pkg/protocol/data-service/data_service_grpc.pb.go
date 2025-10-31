@@ -228,6 +228,7 @@ const (
 	Data_GetTaskBatchDetail_FullMethodName                = "/pbds.Data/GetTaskBatchDetail"
 	Data_GetTaskStatusStatistics_FullMethodName           = "/pbds.Data/GetTaskStatusStatistics"
 	Data_SyncCMDBStatus_FullMethodName                    = "/pbds.Data/SyncCMDBStatus"
+	Data_RetryTasks_FullMethodName                        = "/pbds.Data/RetryTasks"
 )
 
 // DataClient is the client API for Data service.
@@ -472,6 +473,8 @@ type DataClient interface {
 	GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq, opts ...grpc.CallOption) (*SyncCMDBStatusResp, error)
+	// 重试失败的任务
+	RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error)
 }
 
 type dataClient struct {
@@ -2246,6 +2249,15 @@ func (c *dataClient) SyncCMDBStatus(ctx context.Context, in *SyncCMDBStatusReq, 
 	return out, nil
 }
 
+func (c *dataClient) RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error) {
+	out := new(RetryTasksResp)
+	err := c.cc.Invoke(ctx, Data_RetryTasks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataServer is the server API for Data service.
 // All implementations should embed UnimplementedDataServer
 // for forward compatibility
@@ -2488,6 +2500,8 @@ type DataServer interface {
 	GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error)
 	// 获取同步cc状态
 	SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error)
+	// 重试失败的任务
+	RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3081,6 +3095,9 @@ func (UnimplementedDataServer) GetTaskStatusStatistics(context.Context, *GetTask
 }
 func (UnimplementedDataServer) SyncCMDBStatus(context.Context, *SyncCMDBStatusReq) (*SyncCMDBStatusResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncCMDBStatus not implemented")
+}
+func (UnimplementedDataServer) RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetryTasks not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -6622,6 +6639,24 @@ func _Data_SyncCMDBStatus_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_RetryTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryTasksReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).RetryTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_RetryTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).RetryTasks(ctx, req.(*RetryTasksReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Data_ServiceDesc is the grpc.ServiceDesc for Data service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -7412,6 +7447,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncCMDBStatus",
 			Handler:    _Data_SyncCMDBStatus_Handler,
+		},
+		{
+			MethodName: "RetryTasks",
+			Handler:    _Data_RetryTasks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

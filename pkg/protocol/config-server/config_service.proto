@@ -1596,6 +1596,14 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       get: "/api/v1/config/biz_id/{biz_id}/sync/cc/status"
     };
   }
+  // 重试失败的任务
+  rpc RetryTasks(RetryTasksReq) returns (RetryTasksResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.http) = {
+      post: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/retry"
+      body: "*"
+    };
+  }
 }
 
 message UpdateCredentialScopeReq {
@@ -4593,6 +4601,16 @@ message GetTaskStatusStatisticsReq {
 message GetTaskStatusStatisticsResp {
   repeated pbtb.TaskStatusStatItem statistics = 1
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "状态统计列表" }];
+}
+
+message RetryTasksReq {
+  uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  uint32 batch_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "任务批次ID" }];
+}
+
+message RetryTasksResp {
+  uint32 retry_count = 1
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "重试的任务数量" }];
 }
 
 message SyncCMDBStatusReq {
