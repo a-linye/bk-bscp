@@ -18,11 +18,10 @@ import (
 	"strconv"
 	"time"
 
-	"gorm.io/gen/field"
-
 	taskpkg "github.com/Tencent/bk-bcs/bcs-common/common/task"
 	istore "github.com/Tencent/bk-bcs/bcs-common/common/task/stores/iface"
 	taskTypes "github.com/Tencent/bk-bcs/bcs-common/common/task/types"
+	"gorm.io/gen/field"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
