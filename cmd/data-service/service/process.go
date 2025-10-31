@@ -183,7 +183,7 @@ func getByProcessIDs(kt *kit.Kit, dao dao.Set, bizID uint32, processIDs []uint32
 		return nil, nil, fmt.Errorf("no processes found for biz %d with provided process IDs", bizID)
 	}
 
-	// 查询进程实例列表（直接使用输入的 processIDs）
+	// 查询进程实例列表
 	processInstances, err := dao.ProcessInstance().GetByProcessIDs(kt, bizID, processIDs)
 	if err != nil {
 		logs.Errorf("get process instances failed, err: %v, rid: %s", err, kt.Rid)
@@ -281,7 +281,7 @@ func updateProcessInstances(kt *kit.Kit, dao dao.Set, operateType table.ProcessO
 	return nil
 }
 
-// dispatchProcessTasks 创建并分发进程操作任务
+// dispatchProcessTasks 下发进程操作任务
 func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManager,
 	req *pbds.OperateProcessReq, batchID uint32, operateType table.ProcessOperateType,
 	processInstances []*table.ProcessInstance) error {
@@ -301,7 +301,7 @@ func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManage
 			logs.Errorf("create process operate task failed, err: %v, rid: %s", err, kt.Rid)
 			return err
 		}
-		// 分发任务
+		// 下发任务
 		logs.Infof("dispatch process operate task, taskObj: %+v", taskObj)
 		taskManager.Dispatch(taskObj)
 	}
@@ -428,17 +428,14 @@ func monitorTaskBatchStatus(
 		select {
 		case <-timeout:
 			logs.Warnf("monitor task batch %d timeout after 1 hour, rid: %s", batchID, kt.Rid)
-			// 超时时也尝试更新一次状态
-			// task_batch 增加超时状态，当任务超时则处理为超时状态
+			// todo：task_batch 增加超时状态，当任务超时则处理为超时状态
 			return
 
 		case <-ticker.C:
-			// 分页查询该批次下所有任务的状态
-			const pageSize = 100 // 每页查询数量
+			// 查询该批次下所有任务的状态
+			const pageSize = 100
 			var allTasks []*taskTypes.Task
 			offset := int64(0)
-
-			// 循环分页查询，直到查询完所有任务
 			for {
 				listOpt := &istore.ListOption{
 					TaskIndex: fmt.Sprintf("%d", batchID),
@@ -452,21 +449,16 @@ func monitorTaskBatchStatus(
 						batchID, offset, err, kt.Rid)
 					break
 				}
-
 				// 没有更多数据，退出循环
 				if len(pagination.Items) == 0 {
 					break
 				}
-
-				// 收集任务
 				allTasks = append(allTasks, pagination.Items...)
 
 				// 如果返回的数量少于 pageSize，说明已经是最后一页
 				if len(pagination.Items) < int(pageSize) {
 					break
 				}
-
-				// 准备查询下一页
 				offset += pageSize
 			}
 

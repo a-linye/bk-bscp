@@ -152,7 +152,7 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		return fmt.Errorf("failed to convert operate type: %w", err)
 	}
 
-	// 使用统一的 BuildProcessOperate 函数构建 ProcessOperate 对象
+	// 构建进程操作接口请求参数
 	processOperate := gesprocessor.BuildProcessOperate(gesprocessor.BuildProcessOperateParams{
 		BizID:             payload.BizID,
 		Alias:             commonPayload.Alias,
