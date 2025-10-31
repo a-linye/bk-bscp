@@ -249,7 +249,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 
 	// 解析 content 获取进程状态
 	var statusContent GSEProcessStatusContent
-	if err := json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
+	if err = json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
 		return fmt.Errorf("failed to unmarshal process status content: %w", err)
 	}
 

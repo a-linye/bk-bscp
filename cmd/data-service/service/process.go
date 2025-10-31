@@ -99,7 +99,7 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	environment := processes[0].Spec.Environment
 
 	// 创建任务批次
-	batchID, err := createTaskBatch(kt, s.dao, string(req.OperateType), environment, operateRange)
+	batchID, err := createTaskBatch(kt, s.dao, req.OperateType, environment, operateRange)
 	if err != nil {
 		return nil, err
 	}
@@ -421,9 +421,8 @@ func monitorTaskBatchStatus(
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	// 设置超时时间为一小时
-	// timeout := time.After(1 * time.Hour)
-	timeout := time.After(1 * time.Minute)
+	// 设置超时时间为10分钟
+	timeout := time.After(10 * time.Minute)
 
 	for {
 		select {

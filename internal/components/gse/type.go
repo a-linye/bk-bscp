@@ -137,7 +137,7 @@ type ProcessResource struct {
 type ProcessMonitorPolicy struct {
 	AutoType       int `json:"auto_type"`                  // 托管参数类型：1=常驻进程，2=单次执行进程（必填）
 	StartCheckSecs int `json:"start_check_secs,omitempty"` // 启动后检查存活的时间（秒），默认 5（可选）
-	StopCheckSecs  int `json:"stop_check_secs,omitempty"`  // 停止后检查存活的时间（秒）可选）
+	StopCheckSecs  int `json:"stop_check_secs,omitempty"`  // 停止后检查存活的时间（秒）(可选)
 	OpTimeout      int `json:"op_timeout,omitempty"`       // 命令执行超时时间（秒），默认 60（可选）
 }
 

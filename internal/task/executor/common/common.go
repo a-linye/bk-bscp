@@ -63,12 +63,13 @@ func (e *Executor) WaitTaskFinish(
 	agentID string,
 ) (map[string]gse.ProcResult, error) {
 	var (
-		result map[string]gse.ProcResult
-		err    error
+		result  map[string]gse.ProcResult
+		err     error
+		gseResp *gse.GESResponse
 	)
 	err = task.LoopDoFunc(ctx, func() error {
 		// 获取gse侧进程操作结果
-		taskResult, err := e.GseService.GetProcOperateResultV2(ctx, &gse.QueryProcResultReq{
+		gseResp, err = e.GseService.GetProcOperateResultV2(ctx, &gse.QueryProcResultReq{
 			TaskID: gseTaskID,
 		})
 		if err != nil {
@@ -76,7 +77,7 @@ func (e *Executor) WaitTaskFinish(
 			return nil
 		}
 
-		err = taskResult.Decode(&result)
+		err = gseResp.Decode(&result)
 		if err != nil {
 			return err
 		}
