@@ -26,7 +26,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	processBuilder "github.com/TencentBlueKing/bk-bscp/internal/task/builder/process"
-	commonExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -641,52 +640,4 @@ func queryFailedTasks(ctx context.Context, taskStorage istore.Store, batchID uin
 	}
 
 	return failedTasks, nil
-}
-
-// retryProcessTask 重试单个进程任务
-func retryProcessTask(kt *kit.Kit, s *Service, bizID, batchID uint32,
-	operateType table.ProcessOperateType, processPayload *commonExecutor.ProcessPayload) error {
-	// 根据 InstID 查询进程实例
-	instID, err := parseUint32(processPayload.InstID)
-	if err != nil {
-		return fmt.Errorf("parse inst_id failed: %v", err)
-	}
-
-	processInstance, err := s.dao.ProcessInstance().GetByID(kt, bizID, instID)
-	if err != nil {
-		return fmt.Errorf("get process instance failed: %v", err)
-	}
-
-	// 创建并分发任务
-	return dispatchSingleProcessTask(kt, s, bizID, batchID,
-		processInstance.Attachment.ProcessID, processInstance.ID, operateType)
-}
-
-// parseUint32 将字符串转换为 uint32
-func parseUint32(s string) (uint32, error) {
-	var result uint64
-	_, err := fmt.Sscanf(s, "%d", &result)
-	if err != nil {
-		return 0, err
-	}
-	return uint32(result), nil
-}
-
-// dispatchSingleProcessTask 创建并分发单个进程操作任务
-func dispatchSingleProcessTask(kt *kit.Kit, s *Service, bizID, batchID uint32,
-	processID, processInstanceID uint32, operateType table.ProcessOperateType) error {
-	// 创建任务
-	taskObj, err := task.NewByTaskBuilder(
-		processBuilder.NewOperateTask(
-			s.dao, bizID, batchID, processID, processInstanceID, operateType, kt.User, true,
-		))
-	if err != nil {
-		return fmt.Errorf("create process operate task failed: %v", err)
-	}
-
-	// 分发任务
-	logs.Infof("dispatch retry process task, processInstanceID: %d, rid: %s", processInstanceID, kt.Rid)
-	s.taskManager.Dispatch(taskObj)
-
-	return nil
 }
