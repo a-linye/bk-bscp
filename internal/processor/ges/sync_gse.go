@@ -14,16 +14,11 @@
 package gse
 
 import (
-	"fmt"
-
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
 const (
-	// GSENamespacePrefix GSE 命名空间前缀
-	GSENamespacePrefix = "GSEKIT_BIZ_"
-
 	// DefaultCPULimit 默认 CPU 使用率上限百分比
 	DefaultCPULimit = 30.0
 
@@ -51,8 +46,8 @@ func BuildProcessOperate(params BuildProcessOperateParams) gse.ProcessOperate {
 	// 构建基础的 ProcessOperate 对象
 	processOperate := gse.ProcessOperate{
 		Meta: gse.ProcessMeta{
-			Namespace: fmt.Sprintf("%s%d", GSENamespacePrefix, params.BizID),
-			Name:      fmt.Sprintf("%s_%d", params.Alias, params.ProcessInstanceID),
+			Namespace: gse.BuildNamespace(params.BizID),
+			Name:      gse.BuildProcessName(params.Alias, params.ProcessInstanceID),
 		},
 		AgentIDList: params.AgentID,
 		OpType:      gse.OpType(params.GseOpType),

@@ -13,7 +13,10 @@
 // Package gse provides gse api client.
 package gse
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // GESResponse 通用响应结构
 type GESResponse struct {
@@ -75,6 +78,72 @@ const (
 	// 单次执行进程
 	AutoTypeOneTime = 2
 )
+
+// GSE 命名空间和格式常量
+const (
+	// NamespacePrefix GSE 命名空间前缀，用于进程分组管理
+	NamespacePrefix = "GSEKIT_BIZ_"
+
+	// ResultKeyWithInstanceFormat GSE 进程操作结果的 key 格式（带实例ID）
+	// 格式：{agentID}:{namespace}:{processName}_{processInstanceID}
+	// 示例：020000000242010a00002f17521298676503:GSEKIT_BIZ_3:http-server-test1_1
+	ResultKeyWithInstanceFormat = "%s:%s%d:%s_%d"
+
+	// ResultKeyWithoutInstanceFormat GSE 进程操作结果的 key 格式（不带实例ID）
+	// 格式：{agentID}:{namespace}:{processName}
+	// 示例：020000000242010a00002f17521298676503:GSEKIT_BIZ_3:http-server-test1
+	ResultKeyWithoutInstanceFormat = "%s:%s%d:%s"
+)
+
+// GSE 错误码常量
+const (
+	// ErrCodeSuccess 操作成功
+	ErrCodeSuccess = 0
+
+	// ErrCodeInProgress 任务正在执行中（GSE 侧任务尚未完成）
+	ErrCodeInProgress = 115
+)
+
+// BuildNamespace 构建 GSE 命名空间
+// 格式：GSEKIT_BIZ_{bizID}
+func BuildNamespace(bizID uint32) string {
+	return fmt.Sprintf("%s%d", NamespacePrefix, bizID)
+}
+
+// BuildProcessName 构建 GSE 进程名称
+// 支持可选的 processInstanceID 参数：
+//   - 如果提供 processInstanceID，格式为：{alias}_{processInstanceID}
+//     示例：http-server-test1_1
+//   - 如果不提供 processInstanceID，格式为：{alias}
+//     示例：http-server-test1
+func BuildProcessName(alias string, processInstanceID ...uint32) string {
+	if len(processInstanceID) > 0 && processInstanceID[0] > 0 {
+		return fmt.Sprintf("%s_%d", alias, processInstanceID[0])
+	}
+	return alias
+}
+
+// BuildResultKey 构建 GSE 进程操作结果的查询 key
+// 支持可选的 processInstanceID 参数：
+//   - 如果提供 processInstanceID，格式为：{agentID}:{namespace}:{alias}_{processInstanceID}
+//     示例：020000000242010a00002f17521298676503:GSEKIT_BIZ_3:http-server-test1_1
+//   - 如果不提供 processInstanceID，格式为：{agentID}:{namespace}:{alias}
+//     示例：020000000242010a00002f17521298676503:GSEKIT_BIZ_3:http-server-test1
+func BuildResultKey(agentID string, bizID uint32, alias string, processInstanceID ...uint32) string {
+	namespace := BuildNamespace(bizID)
+	processName := BuildProcessName(alias, processInstanceID...)
+	return fmt.Sprintf("%s:%s:%s", agentID, namespace, processName)
+}
+
+// IsSuccess 判断错误码是否表示成功
+func IsSuccess(errorCode int) bool {
+	return errorCode == ErrCodeSuccess
+}
+
+// IsInProgress 判断错误码是否表示任务正在执行中
+func IsInProgress(errorCode int) bool {
+	return errorCode == ErrCodeInProgress
+}
 
 // nolint
 // ProcessOperate 单个进程操作对象

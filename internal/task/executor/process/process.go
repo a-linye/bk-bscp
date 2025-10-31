@@ -226,14 +226,8 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 		return fmt.Errorf("failed to wait for query task finish: %w", err)
 	}
 
-	// 构建 GSE 返回结果的 key，格式为：{agentID}:{namespace}:{processName}_{processInstanceID}
-	// 例如：020000000242010a00002f17521298676503:GSEKIT_BIZ_3:http-server-test1_1
-	key := fmt.Sprintf("%s:%s%d:%s_%d",
-		commonPayload.AgentID,
-		gesprocessor.GSENamespacePrefix,
-		payload.BizID,
-		commonPayload.Alias,
-		payload.ProcessInstanceID)
+	// 构建 GSE 返回结果的 key
+	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, payload.ProcessInstanceID)
 	logs.Infof("Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
@@ -241,7 +235,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	}
 
 	// 检查查询操作是否成功
-	if procResult.ErrorCode != 0 {
+	if !gse.IsSuccess(procResult.ErrorCode) {
 		// TODO: 后续需要处理查询进程状态失败情况，比如查询不到进程状态，或者查询进程状态失败，需要回滚状态
 		return fmt.Errorf("failed to query process status, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)

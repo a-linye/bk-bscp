@@ -86,16 +86,17 @@ func (e *Executor) WaitTaskFinish(
 			return err
 		}
 
-		// key 为 bk_agent_id:namespace:name
-		key := fmt.Sprintf("%s:GSEKIT_BIZ_%d:%s_%d", agentID, bizID, processName, processInstanceID)
+		// 构建 GSE 结果查询 key
+		key := gse.BuildResultKey(agentID, bizID, processName, processInstanceID)
 		logs.Infof("get gse task result, key: %s", key)
+
 		// 该状态表示gse侧进程操作任务正在执行中，尚未完成
-		if result[key].ErrorCode == 115 {
-			logs.Infof("WaitTaskFinish task %s is in progress, state=%d", gseTaskID, result[key].ErrorCode)
+		if gse.IsInProgress(result[key].ErrorCode) {
+			logs.Infof("WaitTaskFinish task %s is in progress, errorCode=%d", gseTaskID, result[key].ErrorCode)
 			return nil
 		}
 
-		if result[key].ErrorCode != 0 {
+		if !gse.IsSuccess(result[key].ErrorCode) {
 			logs.Errorf("WaitTaskFinish task %s failed, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
 		} else {
 			logs.Infof("WaitTaskFinish task %s success, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
