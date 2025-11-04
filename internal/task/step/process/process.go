@@ -31,7 +31,14 @@ const (
 )
 
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
-func CompareWithCMDBProcessInfo(bizID uint32, processID uint32, processInstanceID uint32, needCompareCMDB bool) *types.Step {
+func CompareWithCMDBProcessInfo(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	needCompareCMDB bool,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
 	logs.V(3).Infof("compare with cmdb process info: bizID: %d, processID: %d, processInstanceID: %d, needCompareCMDB: %t",
 		bizID, processID, processInstanceID, needCompareCMDB)
 
@@ -41,11 +48,26 @@ func CompareWithCMDBProcessInfo(bizID uint32, processID uint32, processInstanceI
 		SetMaxExecution(MaxExecutionTime).
 		SetMaxTries(MaxTries)
 
+	lo.Must0(compare.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		NeedCompareCMDB:           needCompareCMDB,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+
 	return compare
 }
 
 // CompareWithGSEProcessStatus 对比GSE进程状态
-func CompareWithGSEProcessStatus(bizID uint32, processID uint32, processInstanceID uint32) *types.Step {
+func CompareWithGSEProcessStatus(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
 	logs.V(3).Infof("compare with gse process status: bizID: %d, processID: %d, processInstanceID: %d",
 		bizID, processID, processInstanceID)
 
@@ -54,11 +76,26 @@ func CompareWithGSEProcessStatus(bizID uint32, processID uint32, processInstance
 		SetAlias("compare_with_gse_process_status").
 		SetMaxExecution(MaxExecutionTime).
 		SetMaxTries(MaxTries)
+
+	lo.Must0(compare.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+
 	return compare
 }
 
 // CompareWithGSEProcessConfig 对比GSE进程配置
-func CompareWithGSEProcessConfig(bizID uint32, processID uint32, processInstanceID uint32) *types.Step {
+func CompareWithGSEProcessConfig(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
 	logs.V(3).Infof("compare with gse process config: bizID: %d, processID: %d, processInstanceID: %d",
 		bizID, processID, processInstanceID)
 
@@ -67,11 +104,27 @@ func CompareWithGSEProcessConfig(bizID uint32, processID uint32, processInstance
 		SetAlias("compare_with_gse_process_config").
 		SetMaxExecution(MaxExecutionTime).
 		SetMaxTries(MaxTries)
+
+	lo.Must0(compare.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+
 	return compare
 }
 
 // OperateProcess 进程操作
-func OperateProcess(bizID uint32, processID uint32, processInstanceID uint32, operateType table.ProcessOperateType) *types.Step {
+func OperateProcess(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	operateType table.ProcessOperateType,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
 	logs.V(3).Infof("operate process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
 		bizID, processID, processInstanceID, operateType)
 
@@ -81,16 +134,25 @@ func OperateProcess(bizID uint32, processID uint32, processInstanceID uint32, op
 		SetMaxTries(MaxTries)
 
 	lo.Must0(operate.SetPayload(process.OperatePayload{
-		BizID:             bizID,
-		ProcessID:         processID,
-		ProcessInstanceID: processInstanceID,
-		OperateType:       operateType,
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OperateType:               operateType,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
 	}))
 	return operate
 }
 
 // FinalizeOperateProcess 进程操作完成
-func FinalizeOperateProcess(bizID uint32, processID uint32, processInstanceID uint32, operateType table.ProcessOperateType) *types.Step {
+func FinalizeOperateProcess(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	operateType table.ProcessOperateType,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
 	logs.V(3).Infof("finalize process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
 		bizID, processID, processInstanceID, operateType)
 
@@ -100,10 +162,12 @@ func FinalizeOperateProcess(bizID uint32, processID uint32, processInstanceID ui
 		SetMaxTries(MaxTries)
 
 	lo.Must0(finalize.SetPayload(process.OperatePayload{
-		BizID:             bizID,
-		ProcessID:         processID,
-		ProcessInstanceID: processInstanceID,
-		OperateType:       operateType,
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OperateType:               operateType,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
 	}))
 	return finalize
 }

@@ -48,8 +48,7 @@ type BuildProcessOperateParams struct {
 }
 
 // BuildProcessOperate 构建 GSE ProcessOperate 对象
-// 查询操作（OpTypeQuery）只需要构建基本的 Meta 和 OpType 信息，不需要 Spec
-// 其他操作需要完整的 Spec 信息（包括 Identity、Control、Resource、MonitorPolicy）
+// 所有操作类型都建议传入全量参数
 func BuildProcessOperate(params BuildProcessOperateParams) gse.ProcessOperate {
 	// 构建基础的 ProcessOperate 对象
 	processOperate := gse.ProcessOperate{
@@ -59,39 +58,31 @@ func BuildProcessOperate(params BuildProcessOperateParams) gse.ProcessOperate {
 		},
 		AgentIDList: params.AgentID,
 		OpType:      gse.OpType(params.GseOpType),
-	}
-
-	// 查询操作不需要 Spec
-	if params.GseOpType == int(gse.OpTypeQuery) {
-		return processOperate
-	}
-
-	// 非查询操作需要添加完整的 Spec 信息
-	processOperate.Spec = gse.ProcessSpec{
-		Identity: gse.ProcessIdentity{
-			ProcName:  params.Alias,
-			SetupPath: params.ProcessInfo.WorkPath,
-			PidPath:   params.ProcessInfo.PidFile,
-			User:      params.ProcessInfo.User,
-		},
-		Control: gse.ProcessControl{
-			StartCmd:   params.ProcessInfo.StartCmd,
-			StopCmd:    params.ProcessInfo.StopCmd,
-			RestartCmd: params.ProcessInfo.RestartCmd,
-			ReloadCmd:  params.ProcessInfo.ReloadCmd,
-			KillCmd:    params.ProcessInfo.FaceStopCmd,
-		},
-		Resource: gse.ProcessResource{
-			CPU: DefaultCPULimit,
-			Mem: DefaultMemLimit,
-		},
-		MonitorPolicy: gse.ProcessMonitorPolicy{
-			AutoType:       gse.AutoTypePersistent,
-			StartCheckSecs: DefaultStartCheckSecs,
-			OpTimeout:      params.ProcessInfo.Timeout,
+		Spec: gse.ProcessSpec{
+			Identity: gse.ProcessIdentity{
+				ProcName:  params.Alias,
+				SetupPath: params.ProcessInfo.WorkPath,
+				PidPath:   params.ProcessInfo.PidFile,
+				User:      params.ProcessInfo.User,
+			},
+			Control: gse.ProcessControl{
+				StartCmd:   params.ProcessInfo.StartCmd,
+				StopCmd:    params.ProcessInfo.StopCmd,
+				RestartCmd: params.ProcessInfo.RestartCmd,
+				ReloadCmd:  params.ProcessInfo.ReloadCmd,
+				KillCmd:    params.ProcessInfo.FaceStopCmd,
+			},
+			Resource: gse.ProcessResource{
+				CPU: DefaultCPULimit,
+				Mem: DefaultMemLimit,
+			},
+			MonitorPolicy: gse.ProcessMonitorPolicy{
+				AutoType:       gse.AutoTypePersistent,
+				StartCheckSecs: DefaultStartCheckSecs,
+				OpTimeout:      params.ProcessInfo.Timeout,
+			},
 		},
 	}
-
 	return processOperate
 }
 

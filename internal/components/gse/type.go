@@ -578,3 +578,43 @@ type ProcOperationData struct {
 	// TaskID 进程操作实例 ID。
 	TaskID string `json:"task_id"`
 }
+
+// GSEProcessStatusContent GSE 进程查询接口返回的进程状态 content 内容结构
+type GSEProcessStatusContent struct {
+	IP        string             `json:"ip"`
+	BkAgentID string             `json:"bk_agent_id"`
+	UTCTime   string             `json:"utctime"`
+	UTCTime2  string             `json:"utctime2"`
+	Timezone  int                `json:"timezone"`
+	Process   []GSEProcessDetail `json:"process"`
+}
+
+// GSEProcessDetail GSE 进程查询接口返回的进程详情
+type GSEProcessDetail struct {
+	ProcName string               `json:"procname"`
+	Instance []GSEProcessInstance `json:"instance"`
+}
+
+// GSEProcessInstance GSE 进程查询接口返回的进程实例详情
+type GSEProcessInstance struct {
+	Cmdline       string  `json:"cmdline"`
+	ProcessName   string  `json:"processName"`
+	Version       string  `json:"version"`
+	Health        string  `json:"health"`
+	IsAuto        bool    `json:"isAuto"`          // 是否托管
+	CPUUsage      float64 `json:"cpuUsage"`        // CPU 使用率
+	CPUUsageAve   float64 `json:"cpuUsageAve"`     // CPU 平均使用率
+	PhyMemUsage   float64 `json:"phyMemUsage"`     // 物理内存使用率
+	UsePhyMem     int64   `json:"usePhyMem"`       // 使用的物理内存
+	DiskSize      int64   `json:"diskSize"`        // 磁盘大小
+	PID           int     `json:"pid"`             // 进程ID，小于0表示进程未运行
+	StartTime     string  `json:"startTime"`       // 启动时间
+	Stat          string  `json:"stat"`            // 状态
+	UTime         string  `json:"utime"`           // 用户态时间
+	STime         string  `json:"stime"`           // 内核态时间
+	ThreadCount   int     `json:"threadCount"`     // 线程数
+	ElapsedTime   int64   `json:"elapsedTime"`     // 运行时长
+	RegisterTime  int64   `json:"register_time"`   // 注册时间
+	LastStartTime int64   `json:"last_start_time"` // 最后启动时间
+	ReportTime    int64   `json:"report_time"`     // 上报时间
+}

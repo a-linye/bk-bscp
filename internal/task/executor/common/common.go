@@ -19,6 +19,7 @@ import (
 
 	"github.com/Tencent/bk-bcs/bcs-common/common/task"
 
+	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -26,8 +27,9 @@ import (
 
 // Executor common executor
 type Executor struct {
-	GseService *gse.Service
-	Dao        dao.Set
+	GseService  *gse.Service
+	CMDBService bkcmdb.Service
+	Dao         dao.Set
 }
 
 // ProcessPayload 公用的配置，作为任务快照，方便进行获取以及对比
@@ -94,12 +96,6 @@ func (e *Executor) WaitTaskFinish(
 		if gse.IsInProgress(result[key].ErrorCode) {
 			logs.Infof("WaitTaskFinish task %s is in progress, errorCode=%d", gseTaskID, result[key].ErrorCode)
 			return nil
-		}
-
-		if !gse.IsSuccess(result[key].ErrorCode) {
-			logs.Errorf("WaitTaskFinish task %s failed, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
-		} else {
-			logs.Infof("WaitTaskFinish task %s success, errorCode=%d, errorMsg=%s", gseTaskID, result[key].ErrorCode, result[key].ErrorMsg)
 		}
 
 		// 结束任务

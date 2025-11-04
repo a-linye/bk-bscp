@@ -92,6 +92,9 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	if err != nil {
 		return nil, err
 	}
+	// 获取进程原始状态
+	originalProcManagedStatus := processInstances[0].Spec.ManagedStatus
+	originalProcStatus := processInstances[0].Spec.Status
 
 	// 构建操作范围
 	operateRange := buildOperateRange(processes)
@@ -105,7 +108,6 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	logs.Infof("create task batch success, batchID: %d, rid: %s", batchID, kt.Rid)
 
 	// 更新进程实例状态
-	// TODO：异步任务失败要回滚进程实例状态
 	operateType := table.ProcessOperateType(req.OperateType)
 	if err := updateProcessInstances(kt, s.dao, operateType, processInstances); err != nil {
 		return nil, err
@@ -113,7 +115,8 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 
 	// 创建并分发任务
 	if err := dispatchProcessTasks(kt, s.dao, s.taskManager,
-		req, batchID, operateType, processInstances); err != nil {
+		originalProcManagedStatus, originalProcStatus, kt.BizID,
+		batchID, operateType, processInstances); err != nil {
 		return nil, err
 	}
 
@@ -261,7 +264,6 @@ func updateProcessInstances(kt *kit.Kit, dao dao.Set, operateType table.ProcessO
 
 	managedStatus := getProcessManagedStatus(operateType)
 	processStatus := getProcessStatus(operateType)
-
 	// 设置状态字段
 	for _, inst := range processInstances {
 		if managedStatus != "" {
@@ -282,20 +284,31 @@ func updateProcessInstances(kt *kit.Kit, dao dao.Set, operateType table.ProcessO
 }
 
 // dispatchProcessTasks 下发进程操作任务
-func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManager,
-	req *pbds.OperateProcessReq, batchID uint32, operateType table.ProcessOperateType,
-	processInstances []*table.ProcessInstance) error {
+func dispatchProcessTasks(
+	kt *kit.Kit,
+	dao dao.Set,
+	taskManager *task.TaskManager,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+	bizID uint32,
+	batchID uint32,
+	operateType table.ProcessOperateType,
+	processInstances []*table.ProcessInstance,
+) error {
 	for _, inst := range processInstances {
-		// 确定进程ID
 		procID := inst.Attachment.ProcessID
-		if len(req.ProcessIds) == 1 {
-			procID = req.ProcessIds[0]
-		}
-
 		// 创建任务
 		taskObj, err := task.NewByTaskBuilder(
 			processBuilder.NewOperateTask(
-				dao, req.GetBizId(), batchID, procID, inst.ID, operateType, kt.User, true,
+				dao,
+				bizID,
+				batchID,
+				procID,
+				inst.ID,
+				operateType, kt.User,
+				true, // 是否需要对比cmdb配置
+				originalProcManagedStatus,
+				originalProcStatus,
 			))
 		if err != nil {
 			logs.Errorf("create process operate task failed, err: %v, rid: %s", err, kt.Rid)
@@ -312,8 +325,16 @@ func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManage
 func getProcessManagedStatus(operateType table.ProcessOperateType) table.ProcessManagedStatus {
 	switch operateType {
 	case table.RegisterProcessOperate:
+		// 托管操作：只修改托管状态，不修改进程状态
 		return table.ProcessManagedStatusStarting
 	case table.UnregisterProcessOperate:
+		// 取消托管操作：只修改托管状态，不修改进程状态
+		return table.ProcessManagedStatusStopping
+	case table.StartProcessOperate:
+		// 进程启动操作：修改托管状态为托管中
+		return table.ProcessManagedStatusStarting
+	case table.StopProcessOperate:
+		// 进程停止操作：修改托管状态为正在取消托管中
 		return table.ProcessManagedStatusStopping
 	default:
 		return ""
@@ -332,6 +353,9 @@ func getProcessStatus(operateType table.ProcessOperateType) table.ProcessStatus 
 		return table.ProcessStatusReloading
 	case table.KillProcessOperate:
 		return table.ProcessStatusStopping
+	case table.RegisterProcessOperate, table.UnregisterProcessOperate:
+		// 托管/取消托管操作：保留原始进程状态，不修改
+		return ""
 	default:
 		return ""
 	}

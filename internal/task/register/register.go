@@ -26,7 +26,7 @@ import (
 // nolint: revive
 func RegisterExecutor(gseService *gse.Service, bkcmdbService bkcmdb.Service, dao dao.Set) {
 	// 注册 process 执行器
-	processExecutor := process.NewProcessExecutor(gseService, dao)
+	processExecutor := process.NewProcessExecutor(gseService, bkcmdbService, dao)
 	process.RegisterExecutor(processExecutor)
 
 	// 注册 同步cmdb和gse 执行器
