@@ -1574,6 +1574,14 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       get: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/detail"
     };
   }
+  // 同步cc和gse状态
+  rpc SyncCmdbGseStatus(SyncCmdbGseStatusReq) returns (SyncCmdbGseStatusResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.http) = {
+      post: "/api/v1/config/biz_id/{biz_id}/sync/cmdb_gse_status"
+      body: "*"
+    };
+  }
   // 获取同步的状态
   rpc CmdbGseStatus(CmdbGseStatusReq) returns (CmdbGseStatusResp) {
     option (google.api.method_visibility).restriction = "INTERNAL";
