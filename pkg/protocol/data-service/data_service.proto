@@ -320,10 +320,6 @@ service Data {
   rpc ListTaskBatch(ListTaskBatchReq) returns (ListTaskBatchResp) {}
   // 任务批次详情
   rpc GetTaskBatchDetail(GetTaskBatchDetailReq) returns (GetTaskBatchDetailResp) {}
-  // 任务状态统计
-  rpc GetTaskStatusStatistics(GetTaskStatusStatisticsReq) returns (GetTaskStatusStatisticsResp) {}
-  // 获取同步cc状态
-  rpc SyncCMDBStatus(SyncCMDBStatusReq) returns (SyncCMDBStatusResp) {}
   // 重试失败的任务
   rpc RetryTasks(RetryTasksReq) returns (RetryTasksResp) {}
   // 获取同步的状态
