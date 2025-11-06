@@ -579,24 +579,24 @@ type ProcOperationData struct {
 	TaskID string `json:"task_id"`
 }
 
-// GSEProcessStatusContent GSE 进程查询接口返回的进程状态 content 内容结构
-type GSEProcessStatusContent struct {
-	IP        string             `json:"ip"`
-	BkAgentID string             `json:"bk_agent_id"`
-	UTCTime   string             `json:"utctime"`
-	UTCTime2  string             `json:"utctime2"`
-	Timezone  int                `json:"timezone"`
-	Process   []GSEProcessDetail `json:"process"`
+// ProcessStatusContent GSE 进程查询接口返回的进程状态 content 内容结构
+type ProcessStatusContent struct {
+	IP        string          `json:"ip"`
+	BkAgentID string          `json:"bk_agent_id"`
+	UTCTime   string          `json:"utctime"`
+	UTCTime2  string          `json:"utctime2"`
+	Timezone  int             `json:"timezone"`
+	Process   []ProcessDetail `json:"process"`
 }
 
-// GSEProcessDetail GSE 进程查询接口返回的进程详情
-type GSEProcessDetail struct {
-	ProcName string               `json:"procname"`
-	Instance []GSEProcessInstance `json:"instance"`
+// ProcessDetail GSE 进程查询接口返回的进程详情
+type ProcessDetail struct {
+	ProcName string            `json:"procname"`
+	Instance []ProcessInstance `json:"instance"`
 }
 
-// GSEProcessInstance GSE 进程查询接口返回的进程实例详情
-type GSEProcessInstance struct {
+// ProcessInstance GSE 进程查询接口返回的进程实例详情
+type ProcessInstance struct {
 	Cmdline       string  `json:"cmdline"`
 	ProcessName   string  `json:"processName"`
 	Version       string  `json:"version"`

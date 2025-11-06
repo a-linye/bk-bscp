@@ -264,7 +264,7 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	}
 
 	// 解析 content 获取进程状态
-	var statusContent gse.GSEProcessStatusContent
+	var statusContent gse.ProcessStatusContent
 	if err = json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
 		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to unmarshal process status content: %w", err)
 	}
@@ -279,7 +279,7 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 
 // shouldSkipOperation 判断是否应该跳过操作
 // 返回值：(是否跳过, 跳过原因)
-func shouldSkipOperation(operateType table.ProcessOperateType, statusContent *gse.GSEProcessStatusContent) (bool, string) {
+func shouldSkipOperation(operateType table.ProcessOperateType, statusContent *gse.ProcessStatusContent) (bool, string) {
 	// 如果没有进程信息，不跳过（可能是首次注册）
 	if len(statusContent.Process) == 0 {
 		return false, ""
@@ -472,15 +472,14 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	}
 
 	// 解析 content 获取进程状态
-	var statusContent gse.GSEProcessStatusContent
+	var statusContent gse.ProcessStatusContent
 	if err = json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
 		return fmt.Errorf("【Finalize STEP】: failed to unmarshal process status content: %w", err)
 	}
 
 	// 默认状态为停止和未托管
-	processStatus := payload.OriginalProcStatus
-	managedStatus := payload.OriginalProcManagedStatus
-
+	processStatus := table.ProcessStatusStopped
+	managedStatus := table.ProcessManagedStatusUnmanaged
 	// 从 process 数组中提取进程实例信息
 	if len(statusContent.Process) > 0 && len(statusContent.Process[0].Instance) > 0 {
 		instance := statusContent.Process[0].Instance[0]
@@ -555,12 +554,8 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	}
 
 	// 回滚状态
-	if originalStatus != "" {
-		processInstance.Spec.Status = originalStatus
-	}
-	if originalManagedStatus != "" {
-		processInstance.Spec.ManagedStatus = originalManagedStatus
-	}
+	processInstance.Spec.Status = originalStatus
+	processInstance.Spec.ManagedStatus = originalManagedStatus
 	processInstance.Spec.StatusUpdatedAt = time.Now()
 
 	// 更新进程实例状态

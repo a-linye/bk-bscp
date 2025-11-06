@@ -257,7 +257,6 @@ func updateProcessInstanceStatus(
 	kt *kit.Kit,
 	dao dao.Set,
 	operateType table.ProcessOperateType,
-	processInstanceID uint32,
 	processInstances *table.ProcessInstance,
 ) error {
 
@@ -295,7 +294,7 @@ func dispatchProcessTasks(
 		procID := inst.Attachment.ProcessID
 
 		// 更新进程实例状态
-		if err := updateProcessInstanceStatus(kt, dao, operateType, inst.ID, inst); err != nil {
+		if err := updateProcessInstanceStatus(kt, dao, operateType, inst); err != nil {
 			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
 			return err
 		}
