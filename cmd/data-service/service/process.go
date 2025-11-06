@@ -92,9 +92,6 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	if err != nil {
 		return nil, err
 	}
-	// 获取进程原始状态
-	originalProcManagedStatus := processInstances[0].Spec.ManagedStatus
-	originalProcStatus := processInstances[0].Spec.Status
 
 	// 构建操作范围
 	operateRange := buildOperateRange(processes)
@@ -107,16 +104,16 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	}
 	logs.Infof("create task batch success, batchID: %d, rid: %s", batchID, kt.Rid)
 
-	// 更新进程实例状态
-	operateType := table.ProcessOperateType(req.OperateType)
-	if err := updateProcessInstances(kt, s.dao, operateType, processInstances); err != nil {
-		return nil, err
-	}
-
 	// 创建并分发任务
-	if err := dispatchProcessTasks(kt, s.dao, s.taskManager,
-		originalProcManagedStatus, originalProcStatus, kt.BizID,
-		batchID, operateType, processInstances); err != nil {
+	if err := dispatchProcessTasks(
+		kt,
+		s.dao,
+		s.taskManager,
+		kt.BizID,
+		batchID,
+		table.ProcessOperateType(req.OperateType),
+		processInstances,
+	); err != nil {
 		return nil, err
 	}
 
@@ -255,28 +252,27 @@ func createTaskBatch(kt *kit.Kit, dao dao.Set, operateType string, environment s
 	return batchID, nil
 }
 
-// updateProcessInstances 批量更新进程实例
-func updateProcessInstances(kt *kit.Kit, dao dao.Set, operateType table.ProcessOperateType,
-	processInstances []*table.ProcessInstance) error {
-	if len(processInstances) == 0 {
-		return nil
-	}
+// updateProcessInstanceStatus 更新进程实例状态
+func updateProcessInstanceStatus(
+	kt *kit.Kit,
+	dao dao.Set,
+	operateType table.ProcessOperateType,
+	processInstanceID uint32,
+	processInstances *table.ProcessInstance,
+) error {
 
 	managedStatus := getProcessManagedStatus(operateType)
 	processStatus := getProcessStatus(operateType)
 	// 设置状态字段
-	for _, inst := range processInstances {
-		if managedStatus != "" {
-			inst.Spec.ManagedStatus = managedStatus
-		}
-		if processStatus != "" {
-			inst.Spec.Status = processStatus
-		}
+	if managedStatus != "" {
+		processInstances.Spec.ManagedStatus = managedStatus
+	}
+	if processStatus != "" {
+		processInstances.Spec.Status = processStatus
 	}
 
-	if err := dao.ProcessInstance().BatchUpdate(kt, processInstances); err != nil {
-		logs.Errorf("batch update process instances failed, count: %d, err: %v, rid: %s",
-			len(processInstances), err, kt.Rid)
+	if err := dao.ProcessInstance().Update(kt, processInstances); err != nil {
+		logs.Errorf("update process instance failed, err: %v, rid: %s", err, kt.Rid)
 		return err
 	}
 
@@ -288,15 +284,21 @@ func dispatchProcessTasks(
 	kt *kit.Kit,
 	dao dao.Set,
 	taskManager *task.TaskManager,
-	originalProcManagedStatus table.ProcessManagedStatus,
-	originalProcStatus table.ProcessStatus,
 	bizID uint32,
 	batchID uint32,
 	operateType table.ProcessOperateType,
 	processInstances []*table.ProcessInstance,
 ) error {
 	for _, inst := range processInstances {
+		originalProcManagedStatus := inst.Spec.ManagedStatus
+		originalProcStatus := inst.Spec.Status
 		procID := inst.Attachment.ProcessID
+
+		// 更新进程实例状态
+		if err := updateProcessInstanceStatus(kt, dao, operateType, inst.ID, inst); err != nil {
+			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
+			return err
+		}
 		// 创建任务
 		taskObj, err := task.NewByTaskBuilder(
 			processBuilder.NewOperateTask(
