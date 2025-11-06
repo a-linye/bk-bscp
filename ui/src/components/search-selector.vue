@@ -41,8 +41,8 @@
   }
 
   const props = defineProps<{
-    searchFiled: ISearchField[];
-    userFiled: string[];
+    searchField: ISearchField[];
+    userField: string[];
     placeholder: string;
   }>();
   const emits = defineEmits(['search']);
@@ -51,8 +51,8 @@
   const searchValue = ref<ISearchItem[]>([]);
 
   onBeforeMount(() => {
-    data.value = props.searchFiled.map((item) => {
-      if (props.userFiled.includes(item.field)) {
+    data.value = props.searchField.map((item) => {
+      if (props.userField.includes(item.field)) {
         return {
           name: item.label,
           id: item.field,
@@ -73,7 +73,8 @@
   });
 
   const getMenuList = async (item: ISearchMenuItem, keyword: string) => {
-    if (!item) return data.value;
+    // 处理searchSelect唯一选择失效
+    if (!item) return data.value.filter((item) => !searchValue.value.find((value) => value.id === item.id));
     if (item.async && keyword && spaceFeatureFlags.value.ENABLE_MULTI_TENANT_MODE) {
       const res = await getUserList(keyword);
       return res.map((user: ITenantUser) => {
