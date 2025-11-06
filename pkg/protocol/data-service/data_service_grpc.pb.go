@@ -226,7 +226,6 @@ const (
 	Data_SyncCmdbGseStatus_FullMethodName                 = "/pbds.Data/SyncCmdbGseStatus"
 	Data_ListTaskBatch_FullMethodName                     = "/pbds.Data/ListTaskBatch"
 	Data_GetTaskBatchDetail_FullMethodName                = "/pbds.Data/GetTaskBatchDetail"
-	Data_GetTaskStatusStatistics_FullMethodName           = "/pbds.Data/GetTaskStatusStatistics"
 	Data_RetryTasks_FullMethodName                        = "/pbds.Data/RetryTasks"
 	Data_CmdbGseStatus_FullMethodName                     = "/pbds.Data/CmdbGseStatus"
 )
@@ -469,8 +468,6 @@ type DataClient interface {
 	ListTaskBatch(ctx context.Context, in *ListTaskBatchReq, opts ...grpc.CallOption) (*ListTaskBatchResp, error)
 	// 任务批次详情
 	GetTaskBatchDetail(ctx context.Context, in *GetTaskBatchDetailReq, opts ...grpc.CallOption) (*GetTaskBatchDetailResp, error)
-	// 任务状态统计
-	GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error)
 	// 重试失败的任务
 	RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error)
 	// 获取同步的状态
@@ -2231,15 +2228,6 @@ func (c *dataClient) GetTaskBatchDetail(ctx context.Context, in *GetTaskBatchDet
 	return out, nil
 }
 
-func (c *dataClient) GetTaskStatusStatistics(ctx context.Context, in *GetTaskStatusStatisticsReq, opts ...grpc.CallOption) (*GetTaskStatusStatisticsResp, error) {
-	out := new(GetTaskStatusStatisticsResp)
-	err := c.cc.Invoke(ctx, Data_GetTaskStatusStatistics_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *dataClient) RetryTasks(ctx context.Context, in *RetryTasksReq, opts ...grpc.CallOption) (*RetryTasksResp, error) {
 	out := new(RetryTasksResp)
 	err := c.cc.Invoke(ctx, Data_RetryTasks_FullMethodName, in, out, opts...)
@@ -2496,8 +2484,6 @@ type DataServer interface {
 	ListTaskBatch(context.Context, *ListTaskBatchReq) (*ListTaskBatchResp, error)
 	// 任务批次详情
 	GetTaskBatchDetail(context.Context, *GetTaskBatchDetailReq) (*GetTaskBatchDetailResp, error)
-	// 任务状态统计
-	GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error)
 	// 重试失败的任务
 	RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error)
 	// 获取同步的状态
@@ -3089,9 +3075,6 @@ func (UnimplementedDataServer) ListTaskBatch(context.Context, *ListTaskBatchReq)
 }
 func (UnimplementedDataServer) GetTaskBatchDetail(context.Context, *GetTaskBatchDetailReq) (*GetTaskBatchDetailResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTaskBatchDetail not implemented")
-}
-func (UnimplementedDataServer) GetTaskStatusStatistics(context.Context, *GetTaskStatusStatisticsReq) (*GetTaskStatusStatisticsResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTaskStatusStatistics not implemented")
 }
 func (UnimplementedDataServer) RetryTasks(context.Context, *RetryTasksReq) (*RetryTasksResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetryTasks not implemented")
@@ -6603,24 +6586,6 @@ func _Data_GetTaskBatchDetail_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Data_GetTaskStatusStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetTaskStatusStatisticsReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataServer).GetTaskStatusStatistics(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Data_GetTaskStatusStatistics_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataServer).GetTaskStatusStatistics(ctx, req.(*GetTaskStatusStatisticsReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Data_RetryTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RetryTasksReq)
 	if err := dec(in); err != nil {
@@ -7439,10 +7404,6 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTaskBatchDetail",
 			Handler:    _Data_GetTaskBatchDetail_Handler,
-		},
-		{
-			MethodName: "GetTaskStatusStatistics",
-			Handler:    _Data_GetTaskStatusStatistics_Handler,
 		},
 		{
 			MethodName: "RetryTasks",
