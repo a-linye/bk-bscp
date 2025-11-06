@@ -89,7 +89,8 @@ func (t *OperateTask) FinalizeTask(task *types.Task) error {
 func (t *OperateTask) Steps() ([]*types.Step, error) {
 	// 构建任务的步骤
 	return []*types.Step{
-		// 1、TODO:从 cmdb 获取最新的信息与DB主动对比是否一致，不一致则拒绝，TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
+		// TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
+		// 1、对比CMDB进程配置
 		processStep.CompareWithCMDBProcessInfo(
 			t.bizID,
 			t.processID,
@@ -99,7 +100,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.originalProcStatus,
 		),
 
-		// 2、TODO:获取gse管理的进程状态，判断是否跟db中存储一致
+		// 2、对比GSE进程状态
 		processStep.CompareWithGSEProcessStatus(
 			t.bizID,
 			t.processID,
@@ -108,7 +109,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.originalProcStatus,
 		),
 
-		// 3、TODO:通过GSE脚本执行获取gse托管的配置是否一致
+		// 3、对比GSE进程配置
 		processStep.CompareWithGSEProcessConfig(
 			t.bizID,
 			t.processID,
