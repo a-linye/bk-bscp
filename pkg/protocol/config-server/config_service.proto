@@ -4559,19 +4559,19 @@ message SortRule {
 
 message ListTaskBatchReq {
   uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
-  string task_object = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务对象类型: process, config_file 等"
+  repeated string task_objects = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "任务对象类型列表: process, config_file 等"
   }];
   uint32 start = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置" }];
   uint32 limit = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "限制数量" }];
-  string task_action = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务动作: register,unregister, start, stop, restart, reload, kill"
+  repeated string task_actions = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "任务动作列表: register,unregister, start, stop, restart, reload, kill"
   }];
-  string status = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "执行状态: running, failed, succeed, partly_failed"
+  repeated string statuses = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "执行状态列表: running, failed, succeed, partly_failed"
   }];
-  string executor = 7
-      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行帐户（创建者）" }];
+  repeated string executors = 7
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "执行帐户列表（创建者）" }];
   SortRule sort = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { 
     description: "排序规则" 
   }];
