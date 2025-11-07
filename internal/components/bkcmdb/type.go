@@ -739,7 +739,7 @@ type Event[T any] struct {
 	BkCursor    string `json:"bk_cursor"`     // 游标
 	BkResource  string `json:"bk_resource"`   // 资源类型
 	BkEventType string `json:"bk_event_type"` // 事件类型
-	BkDetail    *T     `json:"bk_detail"`     // 事件详情，未监听到事件时未nil
+	BkDetail    *T     `json:"bk_detail"`     // 事件详情，未监听到事件时为nil
 }
 
 // HostRelationDetail 主机关系事件详情

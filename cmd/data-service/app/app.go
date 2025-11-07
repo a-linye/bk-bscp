@@ -486,30 +486,19 @@ func (ds *dataService) startCronTasks() {
 		}
 	}
 
-	// 启动监听业务主机关系任务
+	// 监听业务主机关系变更事件
 	if crontabConfig.WatchBizHostRelation.Enabled {
-		watchBizHostInterval, err := time.ParseDuration(crontabConfig.WatchBizHostRelation.Interval)
-		if err != nil {
-			logs.Errorf("parse watchBizHostRelation interval failed, using default: %v", err)
-			watchBizHostInterval = 10 * time.Second // 10 seconds
-		}
-
 		watchBizHostRelation := crontab.NewWatchBizHostRelation(
-			ds.daoSet, ds.sd, ds.cmdb, crontabConfig.WatchBizHostRelation.QpsLimit,
-			watchBizHostInterval)
-		watchBizHostRelation.Run()
+			ds.daoSet, ds.sd, ds.cmdb, crontabConfig.WatchBizHostRelation.QpsLimit)
+		watchBizHostRelation.StartWatch()
+		logs.Infof("watch biz host relation started")
 	}
 
-	// 启动监听主机更新任务
+	// 监听主机更新事件
 	if crontabConfig.WatchHostUpdates.Enabled {
-		watchHostInterval, err := time.ParseDuration(crontabConfig.WatchHostUpdates.Interval)
-		if err != nil {
-			logs.Errorf("parse watchHostUpdates interval failed, using default: %v", err)
-			watchHostInterval = 5 * time.Second // 5 seconds
-		}
-
-		watchHostUpdates := crontab.NewWatchHostUpdates(ds.daoSet, ds.sd, ds.cmdb, watchHostInterval)
-		watchHostUpdates.Run()
+		watchHostUpdates := crontab.NewWatchHostUpdates(ds.daoSet, ds.sd, ds.cmdb)
+		watchHostUpdates.StartWatch()
+		logs.Infof("watch host updates started")
 	}
 
 	// 启动清理业务主机关系任务

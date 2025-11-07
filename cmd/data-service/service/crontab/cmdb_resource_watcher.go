@@ -130,6 +130,8 @@ func (c *cmdbResourceWatcher) watchCMDBResources(kt *kit.Kit, resource bkcmdb.Re
 			return fmt.Errorf("request CMDB watch for %s failed: %w", resource, err)
 		}
 
+		// todo： 可能还是有风险的，线上是会等待20s的，如果20s内还是有事件发生，则会导致下一个定时任务也启动导致消费了一样的消息？
+
 		// 处理事件
 		for _, event := range resp.BkEvents {
 			logs.Infof("[CMDB Watch] resource=%s event=%s cursor=%s", event.BkResource, event.BkEventType, event.BkCursor)

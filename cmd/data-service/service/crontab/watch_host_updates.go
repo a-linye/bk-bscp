@@ -16,7 +16,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -44,7 +43,6 @@ func NewWatchHostUpdates(
 	set dao.Set,
 	sd serviced.Service,
 	cmdbService bkcmdb.Service,
-	interval time.Duration,
 ) WatchHostUpdates {
 	// when the cursor is lost, listen from 3 minutes ago
 	timeAgo := time.Now().Add(-3 * time.Minute).Unix()
@@ -53,7 +51,6 @@ func NewWatchHostUpdates(
 		state:       sd,
 		cmdbService: cmdbService,
 		timeAgo:     timeAgo,
-		interval:    interval,
 	}
 }
 
@@ -63,50 +60,55 @@ type WatchHostUpdates struct {
 	state       serviced.Service
 	cmdbService bkcmdb.Service
 	timeAgo     int64
-	interval    time.Duration
-	mutex       sync.Mutex
 }
 
-// Run starts the watch task for host updates
-func (w *WatchHostUpdates) Run() {
-	logs.Infof("start watch host updates task")
+// StartWatch starts the continuous watch loop for host updates
+// This method should be called once during service startup
+func (w *WatchHostUpdates) StartWatch() {
+	logs.Infof("start watch host updates")
 	notifier := shutdown.AddNotifier()
 
 	go func() {
-		ticker := time.NewTicker(w.interval)
-		defer ticker.Stop()
+		defer func() {
+			logs.Infof("watch host updates stopped")
+		}()
+
 		for {
+			// Check for shutdown signal
+			select {
+			case <-notifier.Signal:
+				logs.Infof("received shutdown signal, stopping host update watch")
+				return
+			default:
+			}
+
+			// Check if current instance is master
+			if !w.state.IsMaster() {
+				logs.Infof("current service instance is slave, skip host update watch")
+				time.Sleep(10 * time.Second)
+				continue
+			}
+
 			kt := kit.New()
 			ctx, cancel := context.WithCancel(kt.Ctx)
 			kt.Ctx = ctx
-
-			select {
-			case <-notifier.Signal:
-				logs.Infof("stop host update watch success")
-				cancel()
-				return
-			case <-ticker.C:
-				if !w.state.IsMaster() {
-					logs.Infof("current service instance is slave, skip host update watch")
-					continue
-				}
-				logs.Infof("host update watch triggered")
-				w.watchHostUpdates(kt)
-			}
+			// Watch and process events
+			w.watchHostUpdates(kt)
+			// Clean up context
+			cancel()
 		}
 	}()
 }
 
 // watchHostUpdates watch host update events
 func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
 	// Listen to host update events
 	req := &bkcmdb.WatchResourceRequest{
 		BkResource:   host,
 		BkEventTypes: []string{hostUpdateEvent},
 		BkFields:     []string{"bk_host_id", "bk_agent_id"},
 	}
+
 	config, err := w.set.Config().GetConfig(kt, hostDetailCursorKey)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -124,29 +126,42 @@ func (w *WatchHostUpdates) watchHostUpdates(kt *kit.Kit) {
 	watchResult, err := w.cmdbService.WatchHostResource(kt.Ctx, req)
 	if err != nil {
 		logs.Errorf("watch host resource failed, err: %v", err)
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
 		return
+	}
+
+	if len(watchResult.BkEvents) == 0 {
+		// 监听成功情况下，若无事件预期会返回一个不含详情但是含有cursor的事件
+		logs.Warnf("watch host resource success, no events found")
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
+		return
+	}
+	// update cursor to config table
+	lastEvent := watchResult.BkEvents[len(watchResult.BkEvents)-1]
+	err = w.set.Config().UpsertConfig(kt, []*table.Config{{
+		Key:   hostDetailCursorKey,
+		Value: lastEvent.BkCursor,
+	}})
+	if err != nil {
+		logs.Errorf("update host detail cursor to config failed, err: %v", err)
 	}
 
 	if !watchResult.BkWatched {
-		// No events found, skip
+		// 已处理到最新事件，延迟10s后继续下一轮监听
+		logs.Infof("watch host resource success, no events found, update cursor to: %s", lastEvent.BkCursor)
+		// 预期只会有一个事件，且为空事件
+		logs.Infof("watch host resource success, events: %d", len(watchResult.BkEvents))
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
 		return
 	}
+
 	logs.Infof("watch host resource success, events: %d", len(watchResult.BkEvents))
 
 	// Process host update events
-	if len(watchResult.BkEvents) > 0 {
-		w.processHostEvents(kt, watchResult.BkEvents)
-		// update cursor to config table
-		lastEvent := watchResult.BkEvents[len(watchResult.BkEvents)-1]
-		config := &table.Config{
-			Key:   hostDetailCursorKey,
-			Value: lastEvent.BkCursor,
-		}
-		err := w.set.Config().UpsertConfig(kt, []*table.Config{config})
-		if err != nil {
-			logs.Errorf("update host detail cursor to config failed, err: %v", err)
-		}
-	}
+	w.processHostEvents(kt, watchResult.BkEvents)
 }
 
 // processHostEvents process host event list

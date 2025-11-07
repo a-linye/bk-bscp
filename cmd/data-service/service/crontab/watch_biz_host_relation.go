@@ -16,7 +16,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -50,7 +49,6 @@ func NewWatchBizHostRelation(
 	sd serviced.Service,
 	cmdbService bkcmdb.Service,
 	qpsLimit float64,
-	interval time.Duration,
 ) WatchBizHostRelation {
 	// when the cursor is lost, listen from 3 minutes ago
 	timeAgo := time.Now().Add(-3 * time.Minute).Unix()
@@ -66,7 +64,6 @@ func NewWatchBizHostRelation(
 		cmdbService: cmdbService,
 		timeAgo:     timeAgo,
 		rateLimiter: rateLimiter,
-		interval:    interval,
 	}
 }
 
@@ -76,47 +73,50 @@ type WatchBizHostRelation struct {
 	state       serviced.Service
 	cmdbService bkcmdb.Service
 	timeAgo     int64
-	interval    time.Duration
-	mutex       sync.Mutex
 	rateLimiter *rate.Limiter // Rate limiter for CMDB API calls
 }
 
-// Run starts the watch task for host relations
-func (w *WatchBizHostRelation) Run() {
-	logs.Infof("start watch biz host relation task")
+// StartWatch starts the continuous watch loop for host relations
+// This method should be called once during service startup
+func (w *WatchBizHostRelation) StartWatch() {
+	logs.Infof("start watch biz host relation")
 	notifier := shutdown.AddNotifier()
 
 	go func() {
-		ticker := time.NewTicker(w.interval)
-		defer ticker.Stop()
+		defer func() {
+			logs.Infof("watch biz host relation stopped")
+		}()
+
 		for {
+			// Check for shutdown signal
+			select {
+			case <-notifier.Signal:
+				logs.Infof("received shutdown signal, stopping host relation watch")
+				return
+			default:
+			}
+
+			// Check if current instance is master
+			if !w.state.IsMaster() {
+				logs.Infof("current service instance is slave, skip host relation watch")
+				time.Sleep(10 * time.Second)
+				continue
+			}
+
 			kt := kit.New()
 			ctx, cancel := context.WithCancel(kt.Ctx)
 			kt.Ctx = ctx
+			// Watch and process events
+			w.watchBizHost(kt)
 
-			select {
-			case <-notifier.Signal:
-				logs.Infof("stop host relation watch success")
-				cancel()
-				return
-			case <-ticker.C:
-				if !w.state.IsMaster() {
-					logs.Infof("current service instance is slave, skip host relation watch")
-					continue
-				}
-				logs.Infof("host relation watch triggered")
-				w.watchBizHost(kt)
-			}
+			// Clean up context
+			cancel()
 		}
 	}()
 }
 
 // watchBizHost watch business host relationship changes
 func (w *WatchBizHostRelation) watchBizHost(kt *kit.Kit) {
-	w.mutex.Lock()
-	defer func() {
-		w.mutex.Unlock()
-	}()
 	// Listen to host relationship change events
 	req := &bkcmdb.WatchResourceRequest{
 		BkResource: hostRelation, // Listen to host relationships
@@ -124,6 +124,7 @@ func (w *WatchBizHostRelation) watchBizHost(kt *kit.Kit) {
 		BkEventTypes: []string{bizHostRelationCreateEvent, bizHostRelationDeleteEvent},
 		BkFields:     []string{"bk_biz_id", "bk_host_id"},
 	}
+
 	// get cursor from config table, if not exist, use timestamp to get events
 	config, err := w.set.Config().GetConfig(kt, bizHostCursorKey)
 	if err != nil {
@@ -142,28 +143,47 @@ func (w *WatchBizHostRelation) watchBizHost(kt *kit.Kit) {
 	watchResult, err := w.cmdbService.WatchHostRelationResource(kt.Ctx, req)
 	if err != nil {
 		logs.Errorf("watch host relation resource failed, err: %v", err)
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
+		return
+	}
+
+	if len(watchResult.BkEvents) == 0 {
+		// 监听成功情况下，若无事件预期会返回一个不含详情但是含有cursor的事件
+		logs.Warnf("watch host relation resource success, no events found")
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
+		return
+	}
+
+	// update cursor to config table
+	lastEvent := watchResult.BkEvents[len(watchResult.BkEvents)-1]
+	logs.Infof("update biz host cursor to: %s", lastEvent.BkCursor)
+	err = w.set.Config().UpsertConfig(kt, []*table.Config{{
+		Key:   bizHostCursorKey,
+		Value: lastEvent.BkCursor,
+	}})
+	if err != nil {
+		logs.Errorf("update biz host cursor to config failed, err: %v", err)
 		return
 	}
 
 	if !watchResult.BkWatched {
-		// No events found, skip
+		// 已处理到最新事件，延迟10s后继续下一轮监听
+		logs.Infof("watch host relation resource success, no events found, update cursor to: %s",
+			watchResult.BkEvents[len(watchResult.BkEvents)-1].BkCursor)
+		// 预期只会有一个事件，且为空事件
+		logs.Infof("watch host relation resource success, events: %d", len(watchResult.BkEvents))
+
+		// 延迟10s后继续下一轮监听
+		time.Sleep(10 * time.Second)
 		return
 	}
+
 	logs.Infof("watch host relation resource success, events: %d", len(watchResult.BkEvents))
 
-	if len(watchResult.BkEvents) > 0 {
-		w.processEvents(kt, watchResult.BkEvents)
-		// update cursor to config table
-		lastEvent := watchResult.BkEvents[len(watchResult.BkEvents)-1]
-		config := &table.Config{
-			Key:   bizHostCursorKey,
-			Value: lastEvent.BkCursor,
-		}
-		err := w.set.Config().UpsertConfig(kt, []*table.Config{config})
-		if err != nil {
-			logs.Errorf("update biz host cursor to config failed, err: %v", err)
-		}
-	}
+	// 处理事件
+	w.processEvents(kt, watchResult.BkEvents)
 }
 
 // processEvents process event list
@@ -212,6 +232,7 @@ func (w *WatchBizHostRelation) handleHostRelationCreateEvent(
 		return nil
 	}
 	if _, ok := invaluedBiz[*detail.BkBizID]; ok {
+		logs.Infof("biz %d is not bscp biz, skipping", *detail.BkBizID)
 		return nil
 	}
 	belongsToBSCP, err := w.set.App().CheckBizExists(kt, uint32(*detail.BkBizID))
@@ -229,7 +250,7 @@ func (w *WatchBizHostRelation) handleHostRelationCreateEvent(
 		BizID:  uint(*detail.BkBizID),
 		HostID: uint(*detail.BkHostID),
 	}
-	// query host detail
+	// query host detail from cmdb to get agent id and inner ip
 	hostResult, err := w.cmdbService.ListBizHosts(kt.Ctx, &bkcmdb.ListBizHostsRequest{
 		BkBizID: *detail.BkBizID,
 		Page: bkcmdb.PageParam{
