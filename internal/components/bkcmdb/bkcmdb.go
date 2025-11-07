@@ -309,20 +309,14 @@ func (bkcmdb *CMDBService) ListSetTemplate(ctx context.Context, req ListSetTempl
 
 // ListProcessDetailByIds 查询某业务下进程ID对应的进程详情
 func (bkcmdb *CMDBService) ListProcessDetailByIds(ctx context.Context, req ProcessReq) (
-	*CMDBResponse, error) {
+	[]*ProcessInfo, error) {
 	url := fmt.Sprintf(listProcessDetailByIds, bkcmdb.Host, req.BkBizID)
 
-	resp := new(CMDBResponse)
-	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
+	resp := new([]*ProcessInfo)
+	if err := bkcmdb.doRequest(ctx, POST, url, req, &resp); err != nil {
 		return nil, err
 	}
-
-	var processInfo []ProcessInfo
-	if err := resp.Decode(&processInfo); err != nil {
-		return nil, fmt.Errorf("unmarshal parses the JSON-encoded data failed: %v", err)
-	}
-
-	return resp, nil
+	return *resp, nil
 }
 
 // ListServiceInstanceBySetTemplate 通过集群模版查询关联的服务实例列表
