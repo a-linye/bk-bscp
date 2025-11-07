@@ -19,6 +19,7 @@ import (
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/common"
+	processExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/process"
 	processStep "github.com/TencentBlueKing/bk-bscp/internal/task/step/process"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
@@ -33,13 +34,15 @@ const (
 // OperateTask task operate
 type OperateTask struct {
 	*common.Builder
-	bizID             uint32
-	batchID           uint32
-	processID         uint32
-	processInstanceID uint32
-	operateType       table.ProcessOperateType
-	operatorUser      string
-	needCompareCMDB   bool // 是否需要对比cmdb配置，适配页面强制更新的场景
+	bizID                     uint32
+	batchID                   uint32
+	processID                 uint32
+	processInstanceID         uint32
+	operateType               table.ProcessOperateType
+	operatorUser              string
+	originalProcManagedStatus table.ProcessManagedStatus // 原进程托管状态，用于后续状态回滚
+	originalProcStatus        table.ProcessStatus        // 原进程状态，用于后续状态回滚
+	needCompareCMDB           bool                       // 是否需要对比cmdb配置，适配页面强制更新的场景
 }
 
 // NewoperateTask 创建一个 operate 任务
@@ -51,42 +54,89 @@ func NewOperateTask(
 	processInstanceID uint32,
 	operateType table.ProcessOperateType,
 	operatorUser string,
-	needCompareCMDB bool) types.TaskBuilder {
+	needCompareCMDB bool, // 是否需要对比cmdb配置，适配页面强制更新的场景
+	originalProcManagedStatus table.ProcessManagedStatus, // 原进程托管状态，用于后续状态回滚
+	originalProcStatus table.ProcessStatus, // 原进程状态，用于后续状态回滚
+) types.TaskBuilder {
 	return &OperateTask{
-		Builder:           common.NewBuilder(dao),
-		bizID:             bizID,
-		batchID:           batchID,
-		processID:         processID,
-		processInstanceID: processInstanceID,
-		operateType:       operateType,
-		operatorUser:      operatorUser,
-		needCompareCMDB:   needCompareCMDB,
+		Builder:                   common.NewBuilder(dao),
+		bizID:                     bizID,
+		batchID:                   batchID,
+		processID:                 processID,
+		processInstanceID:         processInstanceID,
+		operateType:               operateType,
+		operatorUser:              operatorUser,
+		originalProcManagedStatus: originalProcManagedStatus,
+		originalProcStatus:        originalProcStatus,
+		needCompareCMDB:           needCompareCMDB,
 	}
 }
 
 // FinalizeTask implements types.TaskBuilder.
 func (t *OperateTask) FinalizeTask(task *types.Task) error {
-	return t.CommonProcessFinalize(task, t.bizID, t.processID, t.processInstanceID)
+	// 设置通用进程信息（包括原始状态）
+	if err := t.CommonProcessFinalize(task, t.bizID, t.processID, t.processInstanceID); err != nil {
+		return err
+	}
+
+	// 设置回调用于失败回滚
+	task.SetCallback(string(processExecutor.ProcessOperateCallbackName))
+
+	return nil
 }
 
 // Steps implements types.TaskBuilder.
 func (t *OperateTask) Steps() ([]*types.Step, error) {
 	// 构建任务的步骤
 	return []*types.Step{
-		// 1、TODO:从 cmdb 获取最新的信息与DB主动对比是否一致，不一致则拒绝，TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
-		processStep.CompareWithCMDBProcessInfo(t.bizID, t.processID, t.processInstanceID, t.needCompareCMDB),
+		// TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
+		// 1、对比CMDB进程配置
+		processStep.CompareWithCMDBProcessInfo(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.needCompareCMDB,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
 
-		// 2、TODO:获取gse管理的进程状态，判断是否跟db中存储一致
-		processStep.CompareWithGSEProcessStatus(t.bizID, t.processID, t.processInstanceID),
+		// 2、对比GSE进程状态
+		processStep.CompareWithGSEProcessStatus(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
 
-		// 3、TODO:通过GSE脚本执行获取gse托管的配置是否一致
-		processStep.CompareWithGSEProcessConfig(t.bizID, t.processID, t.processInstanceID),
+		// 3、对比GSE进程配置
+		processStep.CompareWithGSEProcessConfig(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
 
 		// 4、执行进程操作
-		processStep.OperateProcess(t.bizID, t.processID, t.processInstanceID, t.operateType),
+		processStep.OperateProcess(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.operateType,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
 
 		// 5、进程操作完成，更新进程实例状态
-		processStep.FinalizeOperateProcess(t.bizID, t.processID, t.processInstanceID, t.operateType),
+		processStep.FinalizeOperateProcess(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.operateType,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
 	}, nil
 }
 
