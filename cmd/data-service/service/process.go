@@ -137,7 +137,7 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 		return fmt.Errorf("invalid request: operate type is not supported: %w", err)
 	}
 	// query_status 操作仅用于服务端查询，不作为客户端操作类型
-	if gseOpType == 2 {
+	if gseOpType == table.GSEOpTypeQuery {
 		return fmt.Errorf("query_status operation is not supported")
 	}
 	return nil

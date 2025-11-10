@@ -362,7 +362,7 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		Alias:             commonPayload.Alias,
 		ProcessInstanceID: payload.ProcessInstanceID,
 		AgentID:           []string{commonPayload.AgentID},
-		GseOpType:         gseOpType,
+		GseOpType:         int(gseOpType),
 		ProcessInfo:       processInfo,
 	})
 
