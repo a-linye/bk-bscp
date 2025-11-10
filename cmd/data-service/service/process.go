@@ -132,9 +132,12 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 	}
 
 	// 验证操作类型是否有效，目前只支持 start、stop、query_status、register、unregister、restart、reload、kill
-	_, err := table.ProcessOperateType(req.OperateType).ToGSEOpType()
+	gseOpType, err := table.ProcessOperateType(req.OperateType).ToGSEOpType()
 	if err != nil {
 		return fmt.Errorf("invalid request: operate type is not supported: %w", err)
+	}
+	if gseOpType == 2 {
+		return fmt.Errorf("query_status operation is not supported")
 	}
 	return nil
 }
@@ -330,17 +333,11 @@ func dispatchProcessTasks(
 
 func getProcessManagedStatus(operateType table.ProcessOperateType) table.ProcessManagedStatus {
 	switch operateType {
-	case table.RegisterProcessOperate:
+	case table.RegisterProcessOperate, table.StartProcessOperate:
 		// 托管操作：只修改托管状态，不修改进程状态
 		return table.ProcessManagedStatusStarting
-	case table.UnregisterProcessOperate:
+	case table.UnregisterProcessOperate, table.StopProcessOperate:
 		// 取消托管操作：只修改托管状态，不修改进程状态
-		return table.ProcessManagedStatusStopping
-	case table.StartProcessOperate:
-		// 进程启动操作：修改托管状态为托管中
-		return table.ProcessManagedStatusStarting
-	case table.StopProcessOperate:
-		// 进程停止操作：修改托管状态为正在取消托管中
 		return table.ProcessManagedStatusStopping
 	default:
 		return ""
