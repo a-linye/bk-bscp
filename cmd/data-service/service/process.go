@@ -26,6 +26,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	processBuilder "github.com/TencentBlueKing/bk-bscp/internal/task/builder/process"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/process"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -594,6 +595,24 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		return nil, fmt.Errorf("task storage not initialized, rid: %s", kt.Rid)
 	}
 
+	// 查询任务批次信息
+	taskBatch, err := s.dao.TaskBatch().GetByID(kt, req.BatchId)
+	if err != nil {
+		logs.Errorf("get task batch failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
+		return nil, fmt.Errorf("get task batch failed: %v", err)
+	}
+
+	// 如果任务批次状态为成功，则拒绝重试
+	if taskBatch.Spec.Status == table.TaskBatchStatusSucceed {
+		logs.Infof("task batch %d is already succeed, skip retry, rid: %s", req.BatchId, kt.Rid)
+		return &pbds.RetryTasksResp{RetryCount: 0}, nil
+	}
+	// 更新任务批次状态为执行中
+	if err := s.dao.TaskBatch().UpdateStatus(kt, req.BatchId, table.TaskBatchStatusRunning); err != nil {
+		logs.Errorf("update task batch status failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
+		return nil, fmt.Errorf("update task batch status failed: %v", err)
+	}
+
 	// 查询该批次所有失败的任务
 	failedTasks, err := queryFailedTasks(ctx, taskStorage, req.BatchId)
 	if err != nil {
@@ -605,15 +624,44 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		logs.Infof("no failed tasks to retry, batchID: %d, rid: %s", req.BatchId, kt.Rid)
 		return &pbds.RetryTasksResp{RetryCount: 0}, nil
 	}
+
 	// 重试每个失败的任务
 	for _, failedTask := range failedTasks {
-		err := s.taskManager.RetryAll(failedTask)
+		// 从进程操作完成步骤中获取进程操作负载，用于获取进程实例id
+		finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
+		if !ok {
+			logs.Errorf("operate step not found, taskID: %s, rid: %s", failedTask.TaskID, kt.Rid)
+			return nil, fmt.Errorf("operate step not found")
+		}
+		var processPayload process.OperatePayload
+		if err := finalizeStep.GetPayload(&processPayload); err != nil {
+			logs.Errorf("get payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
+			return nil, fmt.Errorf("get payload failed: %v", err)
+		}
+		// 获取进程实例
+		processInstance, err := s.dao.ProcessInstance().GetByID(kt, req.BizId, processPayload.ProcessInstanceID)
+		if err != nil {
+			logs.Errorf("get process instance failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
+			return nil, fmt.Errorf("get process instance failed: %v", err)
+		}
+		if processInstance == nil {
+			logs.Errorf("process instance not found, processInstanceID: %d, rid: %s", processPayload.ProcessInstanceID, kt.Rid)
+			return nil, fmt.Errorf("process instance not found")
+		}
+		// 更新进程实例状态
+		if err := updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance); err != nil {
+			logs.Errorf("update process instance status failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
+			return nil, fmt.Errorf("update process instance status failed: %v", err)
+		}
+		err = s.taskManager.RetryAll(failedTask)
 		if err != nil {
 			logs.Errorf("retry failed task failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
 			return nil, fmt.Errorf("retry failed task failed: %v", err)
 		}
 	}
 	logs.Infof("retry tasks completed, batchID: %d, rid: %s", req.BatchId, kt.Rid)
+	// 重新监控任务批次状态
+	go monitorTaskBatchStatus(s.dao, taskStorage, req.BatchId)
 	return &pbds.RetryTasksResp{RetryCount: uint32(len(failedTasks))}, nil
 }
 
@@ -636,6 +684,9 @@ func queryFailedTasks(ctx context.Context, taskStorage istore.Store, batchID uin
 		if err != nil {
 			return nil, fmt.Errorf("list tasks failed: %v", err)
 		}
+
+		// 将查询到的任务添加到结果集
+		failedTasks = append(failedTasks, pagination.Items...)
 
 		// 如果没有更多任务，退出循环
 		if len(pagination.Items) < int(limit) {
