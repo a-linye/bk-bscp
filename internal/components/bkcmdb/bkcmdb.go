@@ -20,7 +20,6 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/components"
-	"github.com/TencentBlueKing/bk-bscp/internal/components/bkuser"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/cmdb"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/types"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
@@ -74,13 +73,13 @@ func (bkcmdb *CMDBService) doRequest(ctx context.Context, method HTTPMethod, url
 	withBkUsername := components.WithBkUsername(bkcmdb.BkUserName)
 
 	// 多租户模式，带上租户ID
-	if cc.G().FeatureFlags.EnableMultiTenantMode {
-		admin, err := bkuser.GetTenantBKAdmin(ctx)
-		if err != nil {
-			return fmt.Errorf("get tenant admin failed: %w", err)
-		}
-		withBkUsername = components.WithBkUsername(admin.BkUsername)
-	}
+	// if cc.G().FeatureFlags.EnableMultiTenantMode {
+	// 	admin, err := bkuser.GetTenantBKAdmin(ctx)
+	// 	if err != nil {
+	// 		return fmt.Errorf("get tenant admin failed: %w", err)
+	// 	}
+	// 	withBkUsername = components.WithBkUsername(admin.BkUsername)
+	// }
 	gwAuthOptions = append(gwAuthOptions, withBkUsername)
 
 	authHeader := components.MakeBKAPIGWAuthHeader(
@@ -313,7 +312,7 @@ func (bkcmdb *CMDBService) ListProcessDetailByIds(ctx context.Context, req Proce
 	url := fmt.Sprintf(listProcessDetailByIds, bkcmdb.Host, req.BkBizID)
 
 	resp := new([]*ProcessInfo)
-	if err := bkcmdb.doRequest(ctx, POST, url, req, &resp); err != nil {
+	if err := bkcmdb.doRequest(ctx, POST, url, req, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
