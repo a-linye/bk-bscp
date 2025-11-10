@@ -608,7 +608,7 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		return &pbds.RetryTasksResp{RetryCount: 0}, nil
 	}
 	// 更新任务批次状态为执行中
-	if err := s.dao.TaskBatch().UpdateStatus(kt, req.BatchId, table.TaskBatchStatusRunning); err != nil {
+	if err = s.dao.TaskBatch().UpdateStatus(kt, req.BatchId, table.TaskBatchStatusRunning); err != nil {
 		logs.Errorf("update task batch status failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
 		return nil, fmt.Errorf("update task batch status failed: %v", err)
 	}
@@ -649,7 +649,7 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 			return nil, fmt.Errorf("process instance not found")
 		}
 		// 更新进程实例状态
-		if err := updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance); err != nil {
+		if err = updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance); err != nil {
 			logs.Errorf("update process instance status failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
 			return nil, fmt.Errorf("update process instance status failed: %v", err)
 		}
