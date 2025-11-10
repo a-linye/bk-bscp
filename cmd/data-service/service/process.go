@@ -131,11 +131,12 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 		return fmt.Errorf("invalid request: when InstId is specified, only one processId is allowed")
 	}
 
-	// 验证操作类型是否有效，目前只支持 start、stop、query_status、register、unregister、restart、reload、kill
+	// 验证操作类型是否有效，目前只支持 start、stop、register、unregister、restart、reload、kill
 	gseOpType, err := table.ProcessOperateType(req.OperateType).ToGSEOpType()
 	if err != nil {
 		return fmt.Errorf("invalid request: operate type is not supported: %w", err)
 	}
+	// query_status 操作仅用于服务端查询，不作为客户端操作类型
 	if gseOpType == 2 {
 		return fmt.Errorf("query_status operation is not supported")
 	}
