@@ -130,7 +130,11 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 		return fmt.Errorf("invalid request: when InstId is specified, only one processId is allowed")
 	}
 
-	// todo：验证操作类型是否有效，目前只支持 start、stop、query_status、register、unregister、restart、reload、kill
+	// 验证操作类型是否有效，目前只支持 start、stop、query_status、register、unregister、restart、reload、kill
+	_, err := table.ProcessOperateType(req.OperateType).ToGSEOpType()
+	if err != nil {
+		return fmt.Errorf("invalid request: operate type is not supported: %w", err)
+	}
 	return nil
 }
 
@@ -590,13 +594,6 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		return nil, fmt.Errorf("task storage not initialized, rid: %s", kt.Rid)
 	}
 
-	// 查询任务批次信息，获取操作类型和任务数据
-	taskBatch, err := s.dao.TaskBatch().GetByID(kt, req.BatchId)
-	if err != nil {
-		logs.Errorf("get task batch failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
-		return nil, fmt.Errorf("get task batch failed: %v", err)
-	}
-
 	// 查询该批次所有失败的任务
 	failedTasks, err := queryFailedTasks(ctx, taskStorage, req.BatchId)
 	if err != nil {
@@ -608,24 +605,16 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		logs.Infof("no failed tasks to retry, batchID: %d, rid: %s", req.BatchId, kt.Rid)
 		return &pbds.RetryTasksResp{RetryCount: 0}, nil
 	}
-
 	// 重试每个失败的任务
-	retryCount := uint32(0)
-	operateType := table.ProcessOperateType(taskBatch.Spec.TaskAction)
-	logs.Infof("operate type: %s, rid: %s", operateType, kt.Rid)
 	for _, failedTask := range failedTasks {
-		logs.Infof("retry failed task, taskID: %s, rid: %s", failedTask.TaskID, kt.Rid)
-
-		retryCount++
+		err := s.taskManager.RetryAll(failedTask)
+		if err != nil {
+			logs.Errorf("retry failed task failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
+			return nil, fmt.Errorf("retry failed task failed: %v", err)
+		}
 	}
-
-	// todo：重试失败的任务
-	// 可行的方案之一：删除失败任务，创建新的任务执行
-	// 异步监控任务批次状态
-	// go monitorTaskBatchStatus(s.dao, taskStorage, req.BatchId)
-
-	logs.Infof("retry tasks completed, batchID: %d, retry count: %d, rid: %s", req.BatchId, retryCount, kt.Rid)
-	return &pbds.RetryTasksResp{RetryCount: retryCount}, nil
+	logs.Infof("retry tasks completed, batchID: %d, rid: %s", req.BatchId, kt.Rid)
+	return &pbds.RetryTasksResp{RetryCount: uint32(len(failedTasks))}, nil
 }
 
 // queryFailedTasks 查询批次中所有失败的任务
