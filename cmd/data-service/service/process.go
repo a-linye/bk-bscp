@@ -456,7 +456,11 @@ func monitorTaskBatchStatus(
 		select {
 		case <-timeout:
 			logs.Warnf("monitor task batch %d timeout after 1 hour, rid: %s", batchID, kt.Rid)
-			// todo：task_batch 增加超时状态，当任务超时则处理为超时状态
+			// 任务超时，更新任务批次状态为失败
+			err := dao.TaskBatch().UpdateStatus(kt, batchID, table.TaskBatchStatusFailed)
+			if err != nil {
+				logs.Errorf("update task batch %d status failed, err: %v, rid: %s", batchID, err, kt.Rid)
+			}
 			return
 
 		case <-ticker.C:
