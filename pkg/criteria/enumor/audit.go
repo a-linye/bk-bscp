@@ -43,6 +43,12 @@ const (
 	Process AuditResourceType = "process"
 	// Task 任务管理
 	Task AuditResourceType = "task"
+	// ConfigTemplate 配置模版
+	ConfigTemplate AuditResourceType = "config_template"
+	// ConfigTemplateVersion 配置模版版本
+	ConfigTemplateVersion AuditResourceType = "config_template_version"
+	// ConfigInstance 配置实例
+	ConfigInstance AuditResourceType = "config_instance"
 )
 
 // AuditAction audit action type.
