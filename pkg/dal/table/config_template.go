@@ -36,8 +36,10 @@ type ConfigTemplateAttachment struct {
 	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
 	// TemplateID 关联 BSCP templates 表
 	TemplateID uint32 `json:"template_id" gorm:"column:template_id"`
-	// ProcessIDs stores a list of related process IDs.
-	ProcessIDs types.Uint32Slice `json:"process_ids" gorm:"column:process_ids;type:json;default:'[]'"`
+	// ProcessIDs 关联cc服务模版下的模板进程，模版进程的实例数量等于所有使用了服务模版的模块的主机数量
+	TemplateProcessIDs types.Uint32Slice `json:"template_process_ids" gorm:"column:template_process_ids;type:json;default:'[]'"`
+	// ProcessInstanceIDs 关联cc中未通过服务模板创建的进程实例
+	ProcessInstanceIDs types.Uint32Slice `json:"process_instance_ids" gorm:"column:process_instance_ids;type:json;default:'[]'"`
 }
 
 // TableName is the config template's database table name.
