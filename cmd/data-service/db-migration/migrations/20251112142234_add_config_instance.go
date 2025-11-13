@@ -43,8 +43,8 @@ func mig20251112142234Up(tx *gorm.DB) error {
 		BizID            uint   `gorm:"column:biz_id;type:bigint unsigned;not null;comment:业务ID"`
 		ConfigTemplateID uint   `gorm:"column:config_template_id;type:bigint unsigned;not null;comment:配置模板ID"`
 		ConfigVersionID  uint   `gorm:"column:config_version_id;type:bigint unsigned;comment:配置模板版本ID"`
-		ProcessID        uint   `gorm:"column:process_id;type:bigint unsigned;not null;comment:进程实例ID"`
-		ProcessInstID    string `gorm:"column:process_inst_id;type:varchar(255);not null;comment:进程实例ID"`
+		ProcessID        uint   `gorm:"column:process_id;type:bigint unsigned;not null;comment:cc进程ID"`
+		InstID           string `gorm:"column:inst_id;type:varchar(255);not null;comment:模块下的进程实例唯一标识"`
 		TenantID         string `gorm:"column:tenant_id;type:varchar(255);not null;default:default;comment:租户ID"`
 		AppID            uint   `gorm:"column:app_id;type:bigint unsigned;not null;comment:应用ID"`
 		ReleaseID        uint   `gorm:"column:release_id;type:bigint unsigned;not null;comment:发布版本ID"`

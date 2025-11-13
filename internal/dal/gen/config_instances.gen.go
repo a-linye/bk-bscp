@@ -33,7 +33,7 @@ func newConfigInstance(db *gorm.DB, opts ...gen.DOOption) configInstance {
 	_configInstance.ConfigTemplateID = field.NewUint32(tableName, "config_template_id")
 	_configInstance.ConfigVersionID = field.NewUint32(tableName, "config_version_id")
 	_configInstance.ProcessID = field.NewUint32(tableName, "process_id")
-	_configInstance.ProcessInstID = field.NewString(tableName, "process_inst_id")
+	_configInstance.InstID = field.NewString(tableName, "inst_id")
 	_configInstance.TenantID = field.NewString(tableName, "tenant_id")
 	_configInstance.AppID = field.NewUint32(tableName, "app_id")
 	_configInstance.ReleaseID = field.NewUint32(tableName, "release_id")
@@ -57,7 +57,7 @@ type configInstance struct {
 	ConfigTemplateID field.Uint32
 	ConfigVersionID  field.Uint32
 	ProcessID        field.Uint32
-	ProcessInstID    field.String
+	InstID           field.String
 	TenantID         field.String
 	AppID            field.Uint32
 	ReleaseID        field.Uint32
@@ -87,7 +87,7 @@ func (c *configInstance) updateTableName(table string) *configInstance {
 	c.ConfigTemplateID = field.NewUint32(table, "config_template_id")
 	c.ConfigVersionID = field.NewUint32(table, "config_version_id")
 	c.ProcessID = field.NewUint32(table, "process_id")
-	c.ProcessInstID = field.NewString(table, "process_inst_id")
+	c.InstID = field.NewString(table, "inst_id")
 	c.TenantID = field.NewString(table, "tenant_id")
 	c.AppID = field.NewUint32(table, "app_id")
 	c.ReleaseID = field.NewUint32(table, "release_id")
@@ -130,7 +130,7 @@ func (c *configInstance) fillFieldMap() {
 	c.fieldMap["config_template_id"] = c.ConfigTemplateID
 	c.fieldMap["config_version_id"] = c.ConfigVersionID
 	c.fieldMap["process_id"] = c.ProcessID
-	c.fieldMap["process_inst_id"] = c.ProcessInstID
+	c.fieldMap["inst_id"] = c.InstID
 	c.fieldMap["tenant_id"] = c.TenantID
 	c.fieldMap["app_id"] = c.AppID
 	c.fieldMap["release_id"] = c.ReleaseID

@@ -31,7 +31,8 @@ func newConfigTemplate(db *gorm.DB, opts ...gen.DOOption) configTemplate {
 	_configTemplate.BizID = field.NewUint32(tableName, "biz_id")
 	_configTemplate.TenantID = field.NewString(tableName, "tenant_id")
 	_configTemplate.TemplateID = field.NewUint32(tableName, "template_id")
-	_configTemplate.ProcessIDs = field.NewField(tableName, "process_ids")
+	_configTemplate.TemplateProcessIDs = field.NewField(tableName, "template_process_ids")
+	_configTemplate.ProcessInstanceIDs = field.NewField(tableName, "process_instance_ids")
 	_configTemplate.Creator = field.NewString(tableName, "creator")
 	_configTemplate.Reviser = field.NewString(tableName, "reviser")
 	_configTemplate.CreatedAt = field.NewTime(tableName, "created_at")
@@ -45,16 +46,17 @@ func newConfigTemplate(db *gorm.DB, opts ...gen.DOOption) configTemplate {
 type configTemplate struct {
 	configTemplateDo configTemplateDo
 
-	ALL        field.Asterisk
-	ID         field.Uint32
-	BizID      field.Uint32
-	TenantID   field.String
-	TemplateID field.Uint32
-	ProcessIDs field.Field
-	Creator    field.String
-	Reviser    field.String
-	CreatedAt  field.Time
-	UpdatedAt  field.Time
+	ALL                field.Asterisk
+	ID                 field.Uint32
+	BizID              field.Uint32
+	TenantID           field.String
+	TemplateID         field.Uint32
+	TemplateProcessIDs field.Field
+	ProcessInstanceIDs field.Field
+	Creator            field.String
+	Reviser            field.String
+	CreatedAt          field.Time
+	UpdatedAt          field.Time
 
 	fieldMap map[string]field.Expr
 }
@@ -75,7 +77,8 @@ func (c *configTemplate) updateTableName(table string) *configTemplate {
 	c.BizID = field.NewUint32(table, "biz_id")
 	c.TenantID = field.NewString(table, "tenant_id")
 	c.TemplateID = field.NewUint32(table, "template_id")
-	c.ProcessIDs = field.NewField(table, "process_ids")
+	c.TemplateProcessIDs = field.NewField(table, "template_process_ids")
+	c.ProcessInstanceIDs = field.NewField(table, "process_instance_ids")
 	c.Creator = field.NewString(table, "creator")
 	c.Reviser = field.NewString(table, "reviser")
 	c.CreatedAt = field.NewTime(table, "created_at")
@@ -108,12 +111,13 @@ func (c *configTemplate) GetFieldByName(fieldName string) (field.OrderExpr, bool
 }
 
 func (c *configTemplate) fillFieldMap() {
-	c.fieldMap = make(map[string]field.Expr, 9)
+	c.fieldMap = make(map[string]field.Expr, 10)
 	c.fieldMap["id"] = c.ID
 	c.fieldMap["biz_id"] = c.BizID
 	c.fieldMap["tenant_id"] = c.TenantID
 	c.fieldMap["template_id"] = c.TemplateID
-	c.fieldMap["process_ids"] = c.ProcessIDs
+	c.fieldMap["template_process_ids"] = c.TemplateProcessIDs
+	c.fieldMap["process_instance_ids"] = c.ProcessInstanceIDs
 	c.fieldMap["creator"] = c.Creator
 	c.fieldMap["reviser"] = c.Reviser
 	c.fieldMap["created_at"] = c.CreatedAt

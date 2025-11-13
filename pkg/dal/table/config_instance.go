@@ -36,10 +36,10 @@ type ConfigInstanceAttachment struct {
 	ConfigTemplateID uint32 `json:"config_template_id" gorm:"column:config_template_id"`
 	// ConfigVersionID is the config template version ID.
 	ConfigVersionID uint32 `json:"config_version_id" gorm:"column:config_version_id"`
-	// ProcessID is the process instance ID.
+	// ProcessID cc进程id
 	ProcessID uint32 `json:"process_id" gorm:"column:process_id"`
-	// 进程实例ID，用于关联进程实例表
-	ProcessInstID string `json:"process_inst_id" gorm:"column:process_inst_id"`
+	// InstID 模块下的进程实例唯一标识
+	InstID string `json:"inst_id" gorm:"column:inst_id"`
 	// TenantID is the tenant ID.
 	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
 	// AppID 每个配置实例关联一个应用
