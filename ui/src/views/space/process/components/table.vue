@@ -20,6 +20,7 @@
       :row-class-name="getRowClassName"
       :loading="tableLoading"
       :max-height="tableMaxHeight"
+      expand-on-row-click
       @select-change="handleSelectChange">
       <TableColumn col-key="row-select" type="multiple" width="32"></TableColumn>
       <TableColumn :title="t('集群')" col-key="spec.set_name" width="183">
@@ -146,9 +147,12 @@
             <TableColumn col-key="spec.managed_status" :title="t('托管状态')">
               <template #default="{ row: rowData }: { row: IProcInst }">
                 <bk-tag v-if="rowData.spec.managed_status" :theme="getManagedStatusTheme(rowData.spec.managed_status)">
-                  {{
-                    PROCESS_MANAGED_STATUS_MAP[rowData.spec.managed_status as keyof typeof PROCESS_MANAGED_STATUS_MAP]
-                  }}
+                  <span class="process-status">
+                    <Spinner v-if="['starting', 'stopping'].includes(row.spec.managed_status)" class="spinner-icon" />
+                    {{
+                      PROCESS_MANAGED_STATUS_MAP[rowData.spec.managed_status as keyof typeof PROCESS_MANAGED_STATUS_MAP]
+                    }}
+                  </span>
                 </bk-tag>
                 <span v-else>--</span>
               </template>
@@ -539,7 +543,8 @@
         border: 3px solid #daf6e5;
         background: #3fc06d;
       }
-      &.stopped {
+      &.stopped,
+      .stopping {
         border: 3px solid #ffebeb;
         background: #ea3636;
       }
