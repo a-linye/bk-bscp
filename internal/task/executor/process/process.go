@@ -31,6 +31,10 @@ import (
 )
 
 const (
+	// ValidateOperateProcessStepName validate operate process step name
+	ValidateOperateProcessStepName istep.StepName = "ValidateOperateProcess"
+	// UpdateProcessInstanceStatusStepName update process instance status step name
+	UpdateProcessInstanceStatusStepName istep.StepName = "UpdateProcessInstanceStatus"
 	// CompareWithCMDBProcessInfoStepName compare with cmdb process info step name
 	CompareWithCMDBProcessInfoStepName istep.StepName = "CompareWithCMDBProcessInfo"
 	// CompareWithGSEProcessStatusStepName compare with gse process status step name
@@ -67,12 +71,87 @@ func NewProcessExecutor(gseService *gse.Service, cmdbService bkcmdb.Service, dao
 // OperatePayload 进程操作负载
 type OperatePayload struct {
 	BizID                     uint32
+	LocalInstID               uint32
 	OperateType               table.ProcessOperateType
 	ProcessID                 uint32
 	ProcessInstanceID         uint32
 	NeedCompareCMDB           bool                       // 是否需要对比CMDB配置，适配页面强制更新的场景
 	OriginalProcManagedStatus table.ProcessManagedStatus // 原进程托管状态，用于后续状态回滚
 	OriginalProcStatus        table.ProcessStatus        // 原进程状态，用于后续状态回滚
+}
+
+// ValidateOperate 校验操作是否合法
+func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
+	logs.Infof("【ValidateOperate STEP】: starting validation")
+	payload := &OperatePayload{}
+	if err := c.GetPayload(payload); err != nil {
+		return fmt.Errorf("get payload failed: %w", err)
+	}
+	// 获取原进程状态和托管状态
+	originalProcStatus := payload.OriginalProcStatus
+	originalProcManagedStatus := payload.OriginalProcManagedStatus
+	// 如果原进程状态或托管状态为空，则任务失败
+	if originalProcStatus == "" || originalProcManagedStatus == "" {
+		return fmt.Errorf("original process status or managed status is empty, cannot operate")
+	}
+	// 获取操作类型
+	operateType := payload.OperateType
+
+	// 处于中间状态的进程（停止中、启动中、重启中、重载中，正在托管中，正在取消托管中）拒绝操作
+	if originalProcStatus == table.ProcessStatusStarting ||
+		originalProcStatus == table.ProcessStatusStopping ||
+		originalProcStatus == table.ProcessStatusRestarting ||
+		originalProcStatus == table.ProcessStatusReloading ||
+		originalProcManagedStatus == table.ProcessManagedStatusStarting ||
+		originalProcManagedStatus == table.ProcessManagedStatusStopping {
+		return fmt.Errorf("process is in intermediate state, cannot operate")
+	}
+	// 执行启动进程操作，如果进程已经启动则任务失败
+	if operateType == table.StartProcessOperate && originalProcStatus == table.ProcessStatusRunning {
+		return fmt.Errorf("process already running, cannot start")
+	}
+	// 执行停止进程操作，如果进程已经停止则任务失败
+	if operateType == table.StopProcessOperate && originalProcStatus == table.ProcessStatusStopped {
+		return fmt.Errorf("process already stopped, cannot stop")
+	}
+	// 托管进程操作，如果进程已经托管则任务失败
+	if operateType == table.RegisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusManaged {
+		return fmt.Errorf("process already managed, cannot register")
+	}
+	// 取消托管进程操作，如果进程已经取消托管则任务失败
+	if operateType == table.UnregisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusUnmanaged {
+		return fmt.Errorf("process already unmanaged, cannot unregister")
+	}
+	return nil
+}
+
+// UpdateProcessInstanceStatus 修改进程实例状态
+func (e *ProcessExecutor) UpdateProcessInstanceStatus(c *istep.Context) error {
+	logs.Infof("【UpdateProcessInstanceStatus STEP】: starting update process instance status")
+	payload := &OperatePayload{}
+	if err := c.GetPayload(payload); err != nil {
+		return fmt.Errorf("get payload failed: %w", err)
+	}
+	managedStatus := table.GetProcessManagedStatusByOpType(payload.OperateType)
+	processStatus := table.GetProcessStatusByOpType(payload.OperateType)
+	// 获取进程实例
+	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
+	if err != nil {
+		return fmt.Errorf("get process instance failed: %w", err)
+	}
+	// 设置状态字段
+	if managedStatus != "" {
+		processInstance.Spec.ManagedStatus = managedStatus
+	}
+	if processStatus != "" {
+		processInstance.Spec.Status = processStatus
+	}
+
+	if err := e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+		logs.Errorf("update process instance failed, err: %v", err)
+		return err
+	}
+	return nil
 }
 
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
@@ -376,6 +455,7 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		BizID:             payload.BizID,
 		Alias:             commonPayload.Alias,
 		ProcessInstanceID: payload.ProcessInstanceID,
+		LocalInstID:       payload.LocalInstID,
 		AgentID:           []string{commonPayload.AgentID},
 		GseOpType:         gseOpType,
 		LocalInstID:       commonPayload.LocalInstID,
@@ -610,7 +690,10 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 // RegisterExecutor register executor
 func RegisterExecutor(e *ProcessExecutor) {
-	// 注册前置检查步骤
+	// 校验操作是否合法
+	istep.Register(ValidateOperateProcessStepName, istep.StepExecutorFunc(e.ValidateOperate))
+	// 修改进程实例状态
+	istep.Register(UpdateProcessInstanceStatusStepName, istep.StepExecutorFunc(e.UpdateProcessInstanceStatus))
 	istep.Register(CompareWithCMDBProcessInfoStepName, istep.StepExecutorFunc(e.CompareWithCMDBProcessInfo))
 	istep.Register(CompareWithGSEProcessStatusStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessStatus))
 	istep.Register(CompareWithGSEProcessConfigStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessConfig))

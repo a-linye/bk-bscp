@@ -30,6 +30,61 @@ const (
 	MaxTries = 3
 )
 
+// ValidateOperateProcess 校验操作是否合法
+func ValidateOperateProcess(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	operateType table.ProcessOperateType,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
+	logs.V(3).Infof("validate operate process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
+		bizID, processID, processInstanceID, operateType)
+	validate := types.NewStep(process.ValidateOperateProcessStepName.String(),
+		process.ValidateOperateProcessStepName.String()).
+		SetAlias("validate_operate_process").
+		SetMaxExecution(MaxExecutionTime).
+		SetMaxTries(0) // 校验操作是否合法，不需要重试
+	lo.Must0(validate.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OperateType:               operateType,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+	return validate
+}
+
+// UpdateProcessInstanceStatus 更新进程实例状态
+func UpdateProcessInstanceStatus(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	operateType table.ProcessOperateType,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
+	logs.V(3).Infof("update process instance status: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
+		bizID, processID, processInstanceID, operateType)
+
+	update := types.NewStep(process.UpdateProcessInstanceStatusStepName.String(),
+		process.UpdateProcessInstanceStatusStepName.String()).
+		SetAlias("update_process_instance_status").
+		SetMaxExecution(MaxExecutionTime).
+		SetMaxTries(MaxTries)
+	lo.Must0(update.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OperateType:               operateType,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+	return update
+}
+
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 func CompareWithCMDBProcessInfo(
 	bizID uint32,
@@ -65,6 +120,7 @@ func CompareWithGSEProcessStatus(
 	bizID uint32,
 	processID uint32,
 	processInstanceID uint32,
+	localInstID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
 ) *types.Step {
@@ -81,6 +137,7 @@ func CompareWithGSEProcessStatus(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
+		LocalInstID:               localInstID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,
 	}))
@@ -95,6 +152,7 @@ func CompareWithGSEProcessConfig(
 	processInstanceID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
+	localInstID uint32,
 ) *types.Step {
 	logs.V(3).Infof("compare with gse process config: bizID: %d, processID: %d, processInstanceID: %d",
 		bizID, processID, processInstanceID)
@@ -109,6 +167,7 @@ func CompareWithGSEProcessConfig(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
+		LocalInstID:               localInstID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,
 	}))
@@ -124,6 +183,7 @@ func OperateProcess(
 	operateType table.ProcessOperateType,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
+	localInstID uint32,
 ) *types.Step {
 	logs.V(3).Infof("operate process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
 		bizID, processID, processInstanceID, operateType)
@@ -137,6 +197,7 @@ func OperateProcess(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
+		LocalInstID:               localInstID,
 		OperateType:               operateType,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,

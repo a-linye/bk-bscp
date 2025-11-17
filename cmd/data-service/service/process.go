@@ -26,7 +26,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	processBuilder "github.com/TencentBlueKing/bk-bscp/internal/task/builder/process"
-	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/process"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -333,32 +332,6 @@ func createTaskBatch(kt *kit.Kit, dao dao.Set, operateType string, environment s
 	return batchID, nil
 }
 
-// updateProcessInstanceStatus 更新进程实例状态
-func updateProcessInstanceStatus(
-	kt *kit.Kit,
-	dao dao.Set,
-	operateType table.ProcessOperateType,
-	processInstances *table.ProcessInstance,
-) error {
-
-	managedStatus := getProcessManagedStatus(operateType)
-	processStatus := getProcessStatus(operateType)
-	// 设置状态字段
-	if managedStatus != "" {
-		processInstances.Spec.ManagedStatus = managedStatus
-	}
-	if processStatus != "" {
-		processInstances.Spec.Status = processStatus
-	}
-
-	if err := dao.ProcessInstance().Update(kt, processInstances); err != nil {
-		logs.Errorf("update process instance failed, err: %v, rid: %s", err, kt.Rid)
-		return err
-	}
-
-	return nil
-}
-
 // dispatchProcessTasks 下发进程操作任务
 func dispatchProcessTasks(
 	kt *kit.Kit,
@@ -374,11 +347,6 @@ func dispatchProcessTasks(
 		originalProcStatus := inst.Spec.Status
 		procID := inst.Attachment.ProcessID
 
-		// 更新进程实例状态
-		if err := updateProcessInstanceStatus(kt, dao, operateType, inst); err != nil {
-			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
-			return err
-		}
 		// 创建任务
 		taskObj, err := task.NewByTaskBuilder(
 			processBuilder.NewOperateTask(
@@ -387,6 +355,7 @@ func dispatchProcessTasks(
 				batchID,
 				procID,
 				inst.ID,
+				inst.Spec.LocalInstID,
 				operateType, kt.User,
 				true, // 是否需要对比cmdb配置
 				originalProcManagedStatus,
@@ -402,39 +371,6 @@ func dispatchProcessTasks(
 	}
 
 	return nil
-}
-
-func getProcessManagedStatus(operateType table.ProcessOperateType) table.ProcessManagedStatus {
-	switch operateType {
-	case table.RegisterProcessOperate, table.StartProcessOperate:
-		// 托管操作：只修改托管状态，不修改进程状态
-		return table.ProcessManagedStatusStarting
-	case table.UnregisterProcessOperate, table.StopProcessOperate:
-		// 取消托管操作：只修改托管状态，不修改进程状态
-		return table.ProcessManagedStatusStopping
-	default:
-		return ""
-	}
-}
-
-func getProcessStatus(operateType table.ProcessOperateType) table.ProcessStatus {
-	switch operateType {
-	case table.StartProcessOperate:
-		return table.ProcessStatusStarting
-	case table.StopProcessOperate:
-		return table.ProcessStatusStopped
-	case table.RestartProcessOperate:
-		return table.ProcessStatusRestarting
-	case table.ReloadProcessOperate:
-		return table.ProcessStatusReloading
-	case table.KillProcessOperate:
-		return table.ProcessStatusStopping
-	case table.RegisterProcessOperate, table.UnregisterProcessOperate:
-		// 托管/取消托管操作：保留原始进程状态，不修改
-		return ""
-	default:
-		return ""
-	}
 }
 
 // ProcessFilterOptions implements pbds.DataServer.
@@ -701,32 +637,6 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 
 	// 重试每个失败的任务
 	for _, failedTask := range failedTasks {
-		// 从进程操作完成步骤中获取进程操作负载，用于获取进程实例id
-		finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
-		if !ok {
-			logs.Errorf("operate step not found, taskID: %s, rid: %s", failedTask.TaskID, kt.Rid)
-			return nil, fmt.Errorf("operate step not found")
-		}
-		var processPayload process.OperatePayload
-		if err := finalizeStep.GetPayload(&processPayload); err != nil {
-			logs.Errorf("get payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
-			return nil, fmt.Errorf("get payload failed: %v", err)
-		}
-		// 获取进程实例
-		processInstance, err := s.dao.ProcessInstance().GetByID(kt, req.BizId, processPayload.ProcessInstanceID)
-		if err != nil {
-			logs.Errorf("get process instance failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
-			return nil, fmt.Errorf("get process instance failed: %v", err)
-		}
-		if processInstance == nil {
-			logs.Errorf("process instance not found, processInstanceID: %d, rid: %s", processPayload.ProcessInstanceID, kt.Rid)
-			return nil, fmt.Errorf("process instance not found")
-		}
-		// 更新进程实例状态
-		if err = updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance); err != nil {
-			logs.Errorf("update process instance status failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
-			return nil, fmt.Errorf("update process instance status failed: %v", err)
-		}
 		err = s.taskManager.RetryAll(failedTask)
 		if err != nil {
 			logs.Errorf("retry failed task failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)

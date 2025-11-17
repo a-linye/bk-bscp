@@ -38,6 +38,7 @@ type OperateTask struct {
 	batchID                   uint32
 	processID                 uint32
 	processInstanceID         uint32
+	localInstID               uint32
 	operateType               table.ProcessOperateType
 	operatorUser              string
 	originalProcManagedStatus table.ProcessManagedStatus // 原进程托管状态，用于后续状态回滚
@@ -52,6 +53,7 @@ func NewOperateTask(
 	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
+	localInstID uint32,
 	operateType table.ProcessOperateType,
 	operatorUser string,
 	needCompareCMDB bool, // 是否需要对比cmdb配置，适配页面强制更新的场景
@@ -64,6 +66,7 @@ func NewOperateTask(
 		batchID:                   batchID,
 		processID:                 processID,
 		processInstanceID:         processInstanceID,
+		localInstID:               localInstID,
 		operateType:               operateType,
 		operatorUser:              operatorUser,
 		originalProcManagedStatus: originalProcManagedStatus,
@@ -90,7 +93,26 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 	// 构建任务的步骤
 	return []*types.Step{
 		// TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
-		// 1、对比CMDB进程配置
+		// 校验操作是否合法
+		processStep.ValidateOperateProcess(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.operateType,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
+
+		// 更新进程实例状态
+		processStep.UpdateProcessInstanceStatus(
+			t.bizID,
+			t.processID,
+			t.processInstanceID,
+			t.operateType,
+			t.originalProcManagedStatus,
+			t.originalProcStatus,
+		),
+		// 对比CMDB进程配置
 		processStep.CompareWithCMDBProcessInfo(
 			t.bizID,
 			t.processID,
@@ -100,25 +122,27 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.originalProcStatus,
 		),
 
-		// 2、对比GSE进程状态
+		// 对比GSE进程状态
 		processStep.CompareWithGSEProcessStatus(
 			t.bizID,
 			t.processID,
 			t.processInstanceID,
+			t.localInstID,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
 		),
 
-		// 3、对比GSE进程配置
+		// 对比GSE进程配置
 		processStep.CompareWithGSEProcessConfig(
 			t.bizID,
 			t.processID,
 			t.processInstanceID,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
+			t.localInstID,
 		),
 
-		// 4、执行进程操作
+		// 执行进程操作
 		processStep.OperateProcess(
 			t.bizID,
 			t.processID,
@@ -126,9 +150,10 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.operateType,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
+			t.localInstID,
 		),
 
-		// 5、进程操作完成，更新进程实例状态
+		// 进程操作完成，更新进程实例状态
 		processStep.FinalizeOperateProcess(
 			t.bizID,
 			t.processID,
