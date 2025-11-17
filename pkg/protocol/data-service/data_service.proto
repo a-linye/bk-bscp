@@ -2326,10 +2326,10 @@ message SortRule {
 
 message ListTaskBatchReq {
   uint32 biz_id = 1;
-  repeated string task_objects = 2;  // 任务对象类型列表: process, config_file 等
+  repeated string task_objects = 2;  // 任务对象类型列表: process, config_file
   uint32 start = 3;
   uint32 limit = 4;
-  repeated string task_actions = 5;  // 任务动作列表: register, start, stop, restart, reload, kill 等
+  repeated string task_actions = 5;  // 任务动作列表: register, unregister, start, stop, restart, reload, kill
   repeated string statuses = 6;      // 执行状态列表: running, failed, succeed
   repeated string executors = 7;     // 执行帐户列表（创建者）
   SortRule sort = 8;                 // 排序规则

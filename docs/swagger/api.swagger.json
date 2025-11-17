@@ -9397,7 +9397,7 @@
       }
     },
     "/api/v1/config/biz_id/{bizId}/task_batch/list": {
-      "get": {
+      "post": {
         "summary": "任务历史列表",
         "operationId": "Config_ListTaskBatch",
         "responses": {
@@ -9424,92 +9424,12 @@
             "format": "int64"
           },
           {
-            "name": "taskObjects",
-            "description": "任务对象类型列表: process, config_file 等",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "start",
-            "description": "起始位置",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "limit",
-            "description": "限制数量",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "taskActions",
-            "description": "任务动作列表: register,unregister, start, stop, restart, reload, kill",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "statuses",
-            "description": "执行状态列表: running, failed, succeed, partly_failed",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "executors",
-            "description": "执行帐户列表（创建者）",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "sort.field",
-            "description": "排序字段: id, start_at, end_at",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "sort.order",
-            "description": "排序方向: ASC, DESC",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "timeRangeStart",
-            "description": "时间范围起点（如：2024-01-01T00:00:00Z）",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "timeRangeEnd",
-            "description": "时间范围终点（如：2024-01-31T23:59:59Z）",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigListTaskBatchBody"
+            }
           }
         ],
         "tags": [
@@ -11510,6 +11430,61 @@
         },
         "order": {
           "type": "string"
+        }
+      }
+    },
+    "ConfigListTaskBatchBody": {
+      "type": "object",
+      "properties": {
+        "taskObjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "任务对象类型列表: process, config_file"
+        },
+        "start": {
+          "type": "integer",
+          "format": "int64",
+          "description": "起始位置"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int64",
+          "description": "限制数量"
+        },
+        "taskActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "任务动作列表: register,unregister, start, stop, restart, reload, kill"
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "执行状态列表: running, failed, succeed, partly_failed"
+        },
+        "executors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "执行帐户列表（创建者）"
+        },
+        "sort": {
+          "$ref": "#/definitions/pbcsSortRule",
+          "description": "排序规则"
+        },
+        "timeRangeStart": {
+          "type": "string",
+          "description": "时间范围起点（如：2024-01-01T00:00:00Z）"
+        },
+        "timeRangeEnd": {
+          "type": "string",
+          "description": "时间范围终点（如：2024-01-31T23:59:59Z）"
         }
       }
     },
@@ -16146,6 +16121,9 @@
             "$ref": "#/definitions/pbprocProcess"
           },
           "description": "进程列表"
+        },
+        "filterOptions": {
+          "$ref": "#/definitions/pbprocFilterOptions"
         }
       }
     },
@@ -17161,11 +17139,13 @@
       "type": "object",
       "properties": {
         "localInstId": {
-          "type": "string",
+          "type": "integer",
+          "format": "int64",
           "description": "LocalInstID"
         },
         "instId": {
-          "type": "string",
+          "type": "integer",
+          "format": "int64",
           "description": "InstID"
         },
         "status": {
@@ -17183,6 +17163,44 @@
         }
       },
       "title": "ProcessSpec source resource reference: pkg/dal/table/process_instance.go"
+    },
+    "pbprocFilterOptions": {
+      "type": "object",
+      "properties": {
+        "innerIps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/pbtbChoice"
+          },
+          "description": "内网IP"
+        },
+        "processStatuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/pbtbChoice"
+          },
+          "description": "进程状态"
+        },
+        "managedStatuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/pbtbChoice"
+          },
+          "description": "托管状态"
+        },
+        "ccSyncStatuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/pbtbChoice"
+          },
+          "description": "cc同步状态"
+        }
+      },
+      "title": "FilterOptions 查询过滤选项"
     },
     "pbprocProcess": {
       "type": "object",
@@ -17276,21 +17294,21 @@
     "pbprocProcessSearchCondition": {
       "type": "object",
       "properties": {
-        "setNames": {
+        "sets": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "集群名称"
         },
-        "moduleNames": {
+        "modules": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "模块名称"
         },
-        "serviceInstanceNames": {
+        "serviceInstances": {
           "type": "array",
           "items": {
             "type": "string"
@@ -18034,11 +18052,13 @@
           "description": "CC进程ID"
         },
         "localInstId": {
-          "type": "string",
+          "type": "integer",
+          "format": "int64",
           "description": "本地实例ID"
         },
         "instId": {
-          "type": "string",
+          "type": "integer",
+          "format": "int64",
           "description": "实例ID"
         },
         "configData": {
