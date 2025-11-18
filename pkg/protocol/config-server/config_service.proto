@@ -1564,7 +1564,8 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc ListTaskBatch(ListTaskBatchReq) returns (ListTaskBatchResp) {
     option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
-      get: "/api/v1/config/biz_id/{biz_id}/task_batch/list"
+      post: "/api/v1/config/biz_id/{biz_id}/task_batch/list"
+      body: "*"
     };
   }
   // 任务批次详情
@@ -4559,7 +4560,7 @@ message SortRule {
 message ListTaskBatchReq {
   uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
   repeated string task_objects = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务对象类型列表: process, config_file 等"
+    description: "任务对象类型列表: process, config_file"
   }];
   uint32 start = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置" }];
   uint32 limit = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "限制数量" }];

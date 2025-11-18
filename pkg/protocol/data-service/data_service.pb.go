@@ -18279,10 +18279,10 @@ type ListTaskBatchReq struct {
 	unknownFields protoimpl.UnknownFields
 
 	BizId          uint32    `protobuf:"varint,1,opt,name=biz_id,json=bizId,proto3" json:"biz_id,omitempty"`
-	TaskObjects    []string  `protobuf:"bytes,2,rep,name=task_objects,json=taskObjects,proto3" json:"task_objects,omitempty"` // 任务对象类型列表: process, config_file 等
+	TaskObjects    []string  `protobuf:"bytes,2,rep,name=task_objects,json=taskObjects,proto3" json:"task_objects,omitempty"` // 任务对象类型列表: process, config_file
 	Start          uint32    `protobuf:"varint,3,opt,name=start,proto3" json:"start,omitempty"`
 	Limit          uint32    `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
-	TaskActions    []string  `protobuf:"bytes,5,rep,name=task_actions,json=taskActions,proto3" json:"task_actions,omitempty"`            // 任务动作列表: register, start, stop, restart, reload, kill 等
+	TaskActions    []string  `protobuf:"bytes,5,rep,name=task_actions,json=taskActions,proto3" json:"task_actions,omitempty"`            // 任务动作列表: register, unregister, start, stop, restart, reload, kill
 	Statuses       []string  `protobuf:"bytes,6,rep,name=statuses,proto3" json:"statuses,omitempty"`                                     // 执行状态列表: running, failed, succeed
 	Executors      []string  `protobuf:"bytes,7,rep,name=executors,proto3" json:"executors,omitempty"`                                   // 执行帐户列表（创建者）
 	Sort           *SortRule `protobuf:"bytes,8,opt,name=sort,proto3" json:"sort,omitempty"`                                             // 排序规则
