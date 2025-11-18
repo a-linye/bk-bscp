@@ -355,7 +355,6 @@ func dispatchProcessTasks(
 				batchID,
 				procID,
 				inst.ID,
-				inst.Spec.LocalInstID,
 				operateType, kt.User,
 				true, // 是否需要对比cmdb配置
 				originalProcManagedStatus,
