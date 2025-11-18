@@ -205,12 +205,11 @@ func validateOperateRequest(req *pbds.OperateProcessReq) error {
 	}
 
 	// 验证操作类型是否有效，目前只支持 start、stop、register、unregister、restart、reload、kill
-	gseOpType, err := table.ProcessOperateType(req.OperateType).ToGSEOpType()
-	if err != nil {
+	if err := table.ValidateOperateType(table.ProcessOperateType(req.OperateType)); err != nil {
 		return fmt.Errorf("invalid request: operate type is not supported: %w", err)
 	}
 	// query_status 操作仅用于服务端查询，不作为客户端操作类型
-	if gseOpType == table.GSEOpTypeQuery {
+	if req.OperateType == string(table.QueryStatusProcessOperate) {
 		return fmt.Errorf("query_status operation is not supported")
 	}
 	return nil
