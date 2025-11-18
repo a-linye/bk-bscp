@@ -99,16 +99,6 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
 		),
-
-		// 更新进程实例状态
-		processStep.UpdateProcessInstanceStatus(
-			t.bizID,
-			t.processID,
-			t.processInstanceID,
-			t.operateType,
-			t.originalProcManagedStatus,
-			t.originalProcStatus,
-		),
 		// 对比CMDB进程配置
 		processStep.CompareWithCMDBProcessInfo(
 			t.bizID,

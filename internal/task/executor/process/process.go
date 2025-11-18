@@ -33,8 +33,6 @@ import (
 const (
 	// ValidateOperateProcessStepName validate operate process step name
 	ValidateOperateProcessStepName istep.StepName = "ValidateOperateProcess"
-	// UpdateProcessInstanceStatusStepName update process instance status step name
-	UpdateProcessInstanceStatusStepName istep.StepName = "UpdateProcessInstanceStatus"
 	// CompareWithCMDBProcessInfoStepName compare with cmdb process info step name
 	CompareWithCMDBProcessInfoStepName istep.StepName = "CompareWithCMDBProcessInfo"
 	// CompareWithGSEProcessStatusStepName compare with gse process status step name
@@ -120,35 +118,6 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 	// 取消托管进程操作，如果进程已经取消托管则任务失败
 	if operateType == table.UnregisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusUnmanaged {
 		return fmt.Errorf("process already unmanaged, cannot unregister")
-	}
-	return nil
-}
-
-// UpdateProcessInstanceStatus 修改进程实例状态
-func (e *ProcessExecutor) UpdateProcessInstanceStatus(c *istep.Context) error {
-	logs.Infof("【UpdateProcessInstanceStatus STEP】: starting update process instance status")
-	payload := &OperatePayload{}
-	if err := c.GetPayload(payload); err != nil {
-		return fmt.Errorf("get payload failed: %w", err)
-	}
-	managedStatus := table.GetProcessManagedStatusByOpType(payload.OperateType, payload.OriginalProcManagedStatus)
-	processStatus := table.GetProcessStatusByOpType(payload.OperateType)
-	// 获取进程实例
-	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
-	if err != nil {
-		return fmt.Errorf("get process instance failed: %w", err)
-	}
-	// 设置状态字段
-	if managedStatus != "" {
-		processInstance.Spec.ManagedStatus = managedStatus
-	}
-	if processStatus != "" {
-		processInstance.Spec.Status = processStatus
-	}
-
-	if err := e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
-		logs.Errorf("update process instance failed, err: %v", err)
-		return err
 	}
 	return nil
 }
@@ -690,8 +659,6 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 func RegisterExecutor(e *ProcessExecutor) {
 	// 校验操作是否合法
 	istep.Register(ValidateOperateProcessStepName, istep.StepExecutorFunc(e.ValidateOperate))
-	// 修改进程实例状态
-	istep.Register(UpdateProcessInstanceStatusStepName, istep.StepExecutorFunc(e.UpdateProcessInstanceStatus))
 	istep.Register(CompareWithCMDBProcessInfoStepName, istep.StepExecutorFunc(e.CompareWithCMDBProcessInfo))
 	istep.Register(CompareWithGSEProcessStatusStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessStatus))
 	istep.Register(CompareWithGSEProcessConfigStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessConfig))

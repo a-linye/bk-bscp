@@ -57,34 +57,6 @@ func ValidateOperateProcess(
 	return validate
 }
 
-// UpdateProcessInstanceStatus 更新进程实例状态
-func UpdateProcessInstanceStatus(
-	bizID uint32,
-	processID uint32,
-	processInstanceID uint32,
-	operateType table.ProcessOperateType,
-	originalProcManagedStatus table.ProcessManagedStatus,
-	originalProcStatus table.ProcessStatus,
-) *types.Step {
-	logs.V(3).Infof("update process instance status: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
-		bizID, processID, processInstanceID, operateType)
-
-	update := types.NewStep(process.UpdateProcessInstanceStatusStepName.String(),
-		process.UpdateProcessInstanceStatusStepName.String()).
-		SetAlias("update_process_instance_status").
-		SetMaxExecution(MaxExecutionTime).
-		SetMaxTries(MaxTries)
-	lo.Must0(update.SetPayload(process.OperatePayload{
-		BizID:                     bizID,
-		ProcessID:                 processID,
-		ProcessInstanceID:         processInstanceID,
-		OperateType:               operateType,
-		OriginalProcManagedStatus: originalProcManagedStatus,
-		OriginalProcStatus:        originalProcStatus,
-	}))
-	return update
-}
-
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 func CompareWithCMDBProcessInfo(
 	bizID uint32,
