@@ -38,7 +38,6 @@ type OperateTask struct {
 	batchID                   uint32
 	processID                 uint32
 	processInstanceID         uint32
-	localInstID               uint32
 	operateType               table.ProcessOperateType
 	operatorUser              string
 	originalProcManagedStatus table.ProcessManagedStatus // 原进程托管状态，用于后续状态回滚
@@ -53,7 +52,6 @@ func NewOperateTask(
 	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
-	localInstID uint32,
 	operateType table.ProcessOperateType,
 	operatorUser string,
 	needCompareCMDB bool, // 是否需要对比cmdb配置，适配页面强制更新的场景
@@ -66,7 +64,6 @@ func NewOperateTask(
 		batchID:                   batchID,
 		processID:                 processID,
 		processInstanceID:         processInstanceID,
-		localInstID:               localInstID,
 		operateType:               operateType,
 		operatorUser:              operatorUser,
 		originalProcManagedStatus: originalProcManagedStatus,
@@ -138,7 +135,6 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.processInstanceID,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
-			t.localInstID,
 		),
 
 		// 执行进程操作

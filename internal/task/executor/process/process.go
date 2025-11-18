@@ -71,7 +71,6 @@ func NewProcessExecutor(gseService *gse.Service, cmdbService bkcmdb.Service, dao
 // OperatePayload 进程操作负载
 type OperatePayload struct {
 	BizID                     uint32
-	LocalInstID               uint32
 	OperateType               table.ProcessOperateType
 	ProcessID                 uint32
 	ProcessInstanceID         uint32

@@ -150,7 +150,6 @@ func CompareWithGSEProcessConfig(
 	processInstanceID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
-	localInstID uint32,
 ) *types.Step {
 	logs.V(3).Infof("compare with gse process config: bizID: %d, processID: %d, processInstanceID: %d",
 		bizID, processID, processInstanceID)
@@ -165,7 +164,6 @@ func CompareWithGSEProcessConfig(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
-		LocalInstID:               localInstID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,
 	}))
