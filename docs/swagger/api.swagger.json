@@ -9438,7 +9438,7 @@
       }
     },
     "/api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail": {
-      "get": {
+      "post": {
         "summary": "任务批次详情",
         "operationId": "Config_GetTaskBatchDetail",
         "responses": {
@@ -9473,27 +9473,12 @@
             "format": "int64"
           },
           {
-            "name": "start",
-            "description": "起始位置",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "limit",
-            "description": "限制数量",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "status",
-            "description": "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigGetTaskBatchDetailBody"
+            }
           }
         ],
         "tags": [
@@ -11001,6 +10986,72 @@
         "groupName": {
           "type": "string",
           "description": "在 gray_publish_mode 为 publish_by_labels 时生效，用于根据 labels 生成一个分组时对其命名，如果有服务有可用的（绑定了服务）同 labels 的分组存在，则复用旧的分组，不会新创建分组"
+        }
+      }
+    },
+    "ConfigGetTaskBatchDetailBody": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "format": "int64",
+          "description": "起始位置"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int64",
+          "description": "限制数量"
+        },
+        "setNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "集群名称列表"
+        },
+        "moduleNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "模块名称列表"
+        },
+        "serviceNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "服务名称列表"
+        },
+        "processAliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "进程别名列表"
+        },
+        "ccProcessIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "CC进程ID列表"
+        },
+        "instIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "实例ID列表"
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "任务状态列表: INITIALIZING, RUNNING, SUCCESS, FAILURE"
         }
       }
     },
@@ -17160,6 +17211,9 @@
           "type": "string",
           "format": "date-time",
           "description": "状态更新时间"
+        },
+        "name": {
+          "type": "string"
         }
       },
       "title": "ProcessSpec source resource reference: pkg/dal/table/process_instance.go"

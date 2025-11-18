@@ -1572,7 +1572,8 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc GetTaskBatchDetail(GetTaskBatchDetailReq) returns (GetTaskBatchDetailResp) {
     option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
-      get: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/detail"
+      post: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/detail"
+      body: "*"
     };
   }
   // 同步cc和gse状态
@@ -4594,8 +4595,14 @@ message GetTaskBatchDetailReq {
   uint32 batch_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "批任务ID" }];
   uint32 start = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置" }];
   uint32 limit = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "限制数量" }];
-  string status = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
-    description: "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE"
+  repeated string set_names = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "集群名称列表" }];
+  repeated string module_names = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模块名称列表" }];
+  repeated string service_names = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名称列表" }];
+  repeated string process_aliases = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程别名列表" }];
+  repeated uint32 cc_process_ids = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "CC进程ID列表" }];
+  repeated uint32 inst_ids = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "实例ID列表" }];
+  repeated string statuses = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "任务状态列表: INITIALIZING, RUNNING, SUCCESS, FAILURE"
   }];
 }
 
