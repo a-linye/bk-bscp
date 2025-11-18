@@ -455,7 +455,6 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		BizID:             payload.BizID,
 		Alias:             commonPayload.Alias,
 		ProcessInstanceID: payload.ProcessInstanceID,
-		LocalInstID:       payload.LocalInstID,
 		AgentID:           []string{commonPayload.AgentID},
 		GseOpType:         gseOpType,
 		LocalInstID:       commonPayload.LocalInstID,

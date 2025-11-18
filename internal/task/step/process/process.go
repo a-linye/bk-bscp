@@ -120,7 +120,6 @@ func CompareWithGSEProcessStatus(
 	bizID uint32,
 	processID uint32,
 	processInstanceID uint32,
-	localInstID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
 ) *types.Step {
@@ -137,7 +136,6 @@ func CompareWithGSEProcessStatus(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
-		LocalInstID:               localInstID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,
 	}))
@@ -183,7 +181,6 @@ func OperateProcess(
 	operateType table.ProcessOperateType,
 	originalProcManagedStatus table.ProcessManagedStatus,
 	originalProcStatus table.ProcessStatus,
-	localInstID uint32,
 ) *types.Step {
 	logs.V(3).Infof("operate process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
 		bizID, processID, processInstanceID, operateType)
@@ -197,7 +194,6 @@ func OperateProcess(
 		BizID:                     bizID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
-		LocalInstID:               localInstID,
 		OperateType:               operateType,
 		OriginalProcManagedStatus: originalProcManagedStatus,
 		OriginalProcStatus:        originalProcStatus,

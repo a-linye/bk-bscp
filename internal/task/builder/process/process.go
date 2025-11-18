@@ -127,7 +127,6 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.bizID,
 			t.processID,
 			t.processInstanceID,
-			t.localInstID,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
 		),
@@ -150,7 +149,6 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.operateType,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
-			t.localInstID,
 		),
 
 		// 进程操作完成，更新进程实例状态
