@@ -131,7 +131,7 @@ func (e *ProcessExecutor) UpdateProcessInstanceStatus(c *istep.Context) error {
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("get payload failed: %w", err)
 	}
-	managedStatus := table.GetProcessManagedStatusByOpType(payload.OperateType)
+	managedStatus := table.GetProcessManagedStatusByOpType(payload.OperateType, payload.OriginalProcManagedStatus)
 	processStatus := table.GetProcessStatusByOpType(payload.OperateType)
 	// 获取进程实例
 	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
@@ -186,7 +186,7 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: get process from database failed: %w", err)
 	}
 
-	// 如果是已删除且是停止、强制停止、取消托管
+	// 如果进程从cmdb侧删除，且本次操作是停止、强制停止、取消托管，则不进行对比
 	if process.Spec.CcSyncStatus == table.Deleted &&
 		(payload.OperateType == table.KillProcessOperate || payload.OperateType == table.StopProcessOperate ||
 			payload.OperateType == table.UnregisterProcessOperate) {

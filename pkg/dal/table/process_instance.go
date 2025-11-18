@@ -128,9 +128,16 @@ func (p ProcessManagedStatus) Validate() error {
 }
 
 // GetProcessManagedStatusByOpType 根据操作类型获取进程托管状态
-func GetProcessManagedStatusByOpType(operateType ProcessOperateType) ProcessManagedStatus {
+func GetProcessManagedStatusByOpType(
+	operateType ProcessOperateType,
+	originalManagedStatus ProcessManagedStatus,
+) ProcessManagedStatus {
 	switch operateType {
 	case RegisterProcessOperate, StartProcessOperate, RestartProcessOperate, ReloadProcessOperate:
+		// 如果进程已经托管，则不进行修改
+		if originalManagedStatus == ProcessManagedStatusManaged {
+			return ProcessManagedStatusManaged
+		}
 		// 托管操作/启动操作/重启操作/重载操作 修改进程托管状态为托管中
 		return ProcessManagedStatusStarting
 	case UnregisterProcessOperate, StopProcessOperate, KillProcessOperate:
