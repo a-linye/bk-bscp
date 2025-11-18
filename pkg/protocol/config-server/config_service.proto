@@ -4600,7 +4600,7 @@ message GetTaskBatchDetailReq {
   repeated string service_names = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名称列表" }];
   repeated string process_aliases = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程别名列表" }];
   repeated uint32 cc_process_ids = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "CC进程ID列表" }];
-  repeated uint32 inst_ids = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模块下的自增ID序号列表" }];
+  repeated uint32 inst_ids = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模块下的递增ID序号列表" }];
   repeated string statuses = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "任务状态列表: INITIALIZING, RUNNING, SUCCESS, FAILURE"
   }];
