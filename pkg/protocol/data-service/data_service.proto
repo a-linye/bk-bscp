@@ -2353,7 +2353,7 @@ message GetTaskBatchDetailReq {
   repeated string service_names = 7;  // 服务名称列表
   repeated string process_aliases = 8;  // 进程别名列表
   repeated uint32 cc_process_ids = 9;  // CC进程ID列表
-  repeated uint32 inst_ids = 10;  // 实例ID列表
+  repeated uint32 inst_ids = 10;  // 模块下的自增ID序号列表
   repeated string statuses = 11;  // 任务状态列表: INITIALIZING, RUNNING, SUCCESS, FAILURE
 }
 

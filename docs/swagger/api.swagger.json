@@ -11044,7 +11044,7 @@
             "type": "integer",
             "format": "int64"
           },
-          "description": "实例ID列表"
+          "description": "模块下的自增ID序号列表"
         },
         "statuses": {
           "type": "array",

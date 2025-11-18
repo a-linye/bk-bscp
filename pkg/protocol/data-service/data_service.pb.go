@@ -18465,7 +18465,7 @@ type GetTaskBatchDetailReq struct {
 	ServiceNames   []string `protobuf:"bytes,7,rep,name=service_names,json=serviceNames,proto3" json:"service_names,omitempty"`           // 服务名称列表
 	ProcessAliases []string `protobuf:"bytes,8,rep,name=process_aliases,json=processAliases,proto3" json:"process_aliases,omitempty"`     // 进程别名列表
 	CcProcessIds   []uint32 `protobuf:"varint,9,rep,packed,name=cc_process_ids,json=ccProcessIds,proto3" json:"cc_process_ids,omitempty"` // CC进程ID列表
-	InstIds        []uint32 `protobuf:"varint,10,rep,packed,name=inst_ids,json=instIds,proto3" json:"inst_ids,omitempty"`                 // 实例ID列表
+	InstIds        []uint32 `protobuf:"varint,10,rep,packed,name=inst_ids,json=instIds,proto3" json:"inst_ids,omitempty"`                 // 模块下的自增ID序号列表
 	Statuses       []string `protobuf:"bytes,11,rep,name=statuses,proto3" json:"statuses,omitempty"`                                      // 任务状态列表: INITIALIZING, RUNNING, SUCCESS, FAILURE
 }
 
