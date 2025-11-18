@@ -180,9 +180,21 @@ func (s *Service) GetTaskBatchDetail(
 		Limit:     limit,
 		Offset:    int64(req.GetStart()),
 	}
-	if req.GetStatus() != "" {
-		listOpt.StatusList = expandTaskStatusForQuery(req.GetStatus())
+
+	// 构建过滤条件
+	if len(req.GetStatuses()) > 0 {
+		// 支持状态过滤
+		statusList := expandTaskStatusesForQuery(req.GetStatuses())
+		listOpt.StatusList = statusList
 	}
+	// TODO: 支持其他过滤条件
+	// - SetNames: 集群名称列表过滤
+	// - ModuleNames: 模块名称列表过滤
+	// - ServiceNames: 服务名称列表过滤
+	// - ProcessAliases: 进程别名列表过滤
+	// - CcProcessIds: CC进程ID列表过滤
+	// - InstIds: 实例ID列表过滤
+	// 这些过滤条件需要从 CommonPayload 中查询，等表设计支持后再实现
 
 	pagination, err := taskStorage.ListTask(ctx, listOpt)
 	if err != nil {
@@ -340,6 +352,30 @@ func expandTaskStatusForQuery(status string) []string {
 		// 未知状态默认返回原状态
 		return []string{status}
 	}
+}
+
+// expandTaskStatusesForQuery 将用户查询的状态列表扩展为实际要查询的状态列表
+// 例如：查询 RUNNING 状态时，实际要查询 RUNNING、REVOKED、NOT_STARTED 三种状态
+func expandTaskStatusesForQuery(statuses []string) []string {
+	if len(statuses) == 0 {
+		return nil
+	}
+
+	// 收集所有扩展后的状态，使用 map 去重
+	statusMap := make(map[string]bool)
+	for _, status := range statuses {
+		expanded := expandTaskStatusForQuery(status)
+		for _, s := range expanded {
+			statusMap[s] = true
+		}
+	}
+
+	// 转换为列表，返回所有扩展后的状态
+	result := make([]string, 0, len(statusMap))
+	for status := range statusMap {
+		result = append(result, status)
+	}
+	return result
 }
 
 // convertTaskStatus 将任务状态转换为四类：INIT, RUNNING, SUCCESS, FAILURE
