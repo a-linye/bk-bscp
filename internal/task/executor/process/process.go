@@ -31,6 +31,8 @@ import (
 )
 
 const (
+	// ValidateOperateProcessStepName validate operate process step name
+	ValidateOperateProcessStepName istep.StepName = "ValidateOperateProcess"
 	// CompareWithCMDBProcessInfoStepName compare with cmdb process info step name
 	CompareWithCMDBProcessInfoStepName istep.StepName = "CompareWithCMDBProcessInfo"
 	// CompareWithGSEProcessStatusStepName compare with gse process status step name
@@ -75,6 +77,51 @@ type OperatePayload struct {
 	OriginalProcStatus        table.ProcessStatus        // 原进程状态，用于后续状态回滚
 }
 
+// ValidateOperate 校验操作是否合法
+func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
+	logs.Infof("【ValidateOperate STEP】: starting validation")
+	payload := &OperatePayload{}
+	if err := c.GetPayload(payload); err != nil {
+		return fmt.Errorf("get payload failed: %w", err)
+	}
+	// 获取原进程状态和托管状态
+	originalProcStatus := payload.OriginalProcStatus
+	originalProcManagedStatus := payload.OriginalProcManagedStatus
+	// 如果原进程状态或托管状态为空，则任务失败
+	if originalProcStatus == "" || originalProcManagedStatus == "" {
+		return fmt.Errorf("original process status or managed status is empty, cannot operate")
+	}
+	// 获取操作类型
+	operateType := payload.OperateType
+
+	// 处于中间状态的进程（停止中、启动中、重启中、重载中，正在托管中，正在取消托管中）拒绝操作
+	if originalProcStatus == table.ProcessStatusStarting ||
+		originalProcStatus == table.ProcessStatusStopping ||
+		originalProcStatus == table.ProcessStatusRestarting ||
+		originalProcStatus == table.ProcessStatusReloading ||
+		originalProcManagedStatus == table.ProcessManagedStatusStarting ||
+		originalProcManagedStatus == table.ProcessManagedStatusStopping {
+		return fmt.Errorf("process is in intermediate state, cannot operate")
+	}
+	// 执行启动进程操作，如果进程已经启动则任务失败
+	if operateType == table.StartProcessOperate && originalProcStatus == table.ProcessStatusRunning {
+		return fmt.Errorf("process already running, cannot start")
+	}
+	// 执行停止进程操作，如果进程已经停止则任务失败
+	if operateType == table.StopProcessOperate && originalProcStatus == table.ProcessStatusStopped {
+		return fmt.Errorf("process already stopped, cannot stop")
+	}
+	// 托管进程操作，如果进程已经托管则任务失败
+	if operateType == table.RegisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusManaged {
+		return fmt.Errorf("process already managed, cannot register")
+	}
+	// 取消托管进程操作，如果进程已经取消托管则任务失败
+	if operateType == table.UnregisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusUnmanaged {
+		return fmt.Errorf("process already unmanaged, cannot unregister")
+	}
+	return nil
+}
+
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 // 在进程操作前，对比数据库中存储的进程配置和 CMDB 最新的进程配置是否一致
 func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
@@ -108,7 +155,7 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: get process from database failed: %w", err)
 	}
 
-	// 如果是已删除且是停止、强制停止、取消托管
+	// 如果进程从cmdb侧删除，且本次操作是停止、强制停止、取消托管，则不进行对比
 	if process.Spec.CcSyncStatus == table.Deleted &&
 		(payload.OperateType == table.KillProcessOperate || payload.OperateType == table.StopProcessOperate ||
 			payload.OperateType == table.UnregisterProcessOperate) {
@@ -610,7 +657,8 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 // RegisterExecutor register executor
 func RegisterExecutor(e *ProcessExecutor) {
-	// 注册前置检查步骤
+	// 校验操作是否合法
+	istep.Register(ValidateOperateProcessStepName, istep.StepExecutorFunc(e.ValidateOperate))
 	istep.Register(CompareWithCMDBProcessInfoStepName, istep.StepExecutorFunc(e.CompareWithCMDBProcessInfo))
 	istep.Register(CompareWithGSEProcessStatusStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessStatus))
 	istep.Register(CompareWithGSEProcessConfigStepName, istep.StepExecutorFunc(e.CompareWithGSEProcessConfig))

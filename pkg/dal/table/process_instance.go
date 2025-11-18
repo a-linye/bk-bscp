@@ -126,3 +126,45 @@ func (p ProcessManagedStatus) Validate() error {
 		return errors.New("invalid process managed status")
 	}
 }
+
+// GetProcessManagedStatusByOpType 根据操作类型获取进程托管状态
+func GetProcessManagedStatusByOpType(
+	operateType ProcessOperateType,
+	originalManagedStatus ProcessManagedStatus,
+) ProcessManagedStatus {
+	switch operateType {
+	case RegisterProcessOperate, StartProcessOperate, RestartProcessOperate, ReloadProcessOperate:
+		// 如果进程已经托管，则不进行修改
+		if originalManagedStatus == ProcessManagedStatusManaged {
+			return ProcessManagedStatusManaged
+		}
+		// 托管操作/启动操作/重启操作/重载操作 修改进程托管状态为托管中
+		return ProcessManagedStatusStarting
+	case UnregisterProcessOperate, StopProcessOperate, KillProcessOperate:
+		// 取消托管操作/杀死进程操作 修改进程托管状态为取消托管中
+		return ProcessManagedStatusStopping
+	default:
+		return ""
+	}
+}
+
+// GetProcessStatusByOpType 根据操作类型获取进程状态
+func GetProcessStatusByOpType(operateType ProcessOperateType) ProcessStatus {
+	switch operateType {
+	case StartProcessOperate:
+		return ProcessStatusStarting
+	case StopProcessOperate:
+		return ProcessStatusStopping
+	case RestartProcessOperate:
+		return ProcessStatusRestarting
+	case ReloadProcessOperate:
+		return ProcessStatusReloading
+	case KillProcessOperate:
+		return ProcessStatusStopping
+	case RegisterProcessOperate, UnregisterProcessOperate:
+		// 托管/取消托管操作：保留原始进程状态，不修改
+		return ""
+	default:
+		return ""
+	}
+}

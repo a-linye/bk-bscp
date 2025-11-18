@@ -341,8 +341,8 @@ func updateProcessInstanceStatus(
 	processInstances *table.ProcessInstance,
 ) error {
 
-	managedStatus := getProcessManagedStatus(operateType)
-	processStatus := getProcessStatus(operateType)
+	managedStatus := table.GetProcessManagedStatusByOpType(operateType, processInstances.Spec.ManagedStatus)
+	processStatus := table.GetProcessStatusByOpType(operateType)
 	// 设置状态字段
 	if managedStatus != "" {
 		processInstances.Spec.ManagedStatus = managedStatus
@@ -379,6 +379,7 @@ func dispatchProcessTasks(
 			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
 			return err
 		}
+
 		// 创建任务
 		taskObj, err := task.NewByTaskBuilder(
 			processBuilder.NewOperateTask(
@@ -402,39 +403,6 @@ func dispatchProcessTasks(
 	}
 
 	return nil
-}
-
-func getProcessManagedStatus(operateType table.ProcessOperateType) table.ProcessManagedStatus {
-	switch operateType {
-	case table.RegisterProcessOperate, table.StartProcessOperate:
-		// 托管操作：只修改托管状态，不修改进程状态
-		return table.ProcessManagedStatusStarting
-	case table.UnregisterProcessOperate, table.StopProcessOperate:
-		// 取消托管操作：只修改托管状态，不修改进程状态
-		return table.ProcessManagedStatusStopping
-	default:
-		return ""
-	}
-}
-
-func getProcessStatus(operateType table.ProcessOperateType) table.ProcessStatus {
-	switch operateType {
-	case table.StartProcessOperate:
-		return table.ProcessStatusStarting
-	case table.StopProcessOperate:
-		return table.ProcessStatusStopped
-	case table.RestartProcessOperate:
-		return table.ProcessStatusRestarting
-	case table.ReloadProcessOperate:
-		return table.ProcessStatusReloading
-	case table.KillProcessOperate:
-		return table.ProcessStatusStopping
-	case table.RegisterProcessOperate, table.UnregisterProcessOperate:
-		// 托管/取消托管操作：保留原始进程状态，不修改
-		return ""
-	default:
-		return ""
-	}
 }
 
 // ProcessFilterOptions implements pbds.DataServer.

@@ -115,7 +115,7 @@ func BuildProcessOperate(params BuildProcessOperateParams) (*gse.ProcessOperate,
 	processOperate := &gse.ProcessOperate{
 		Meta: gse.ProcessMeta{
 			Namespace: gse.BuildNamespace(params.BizID),
-			Name:      gse.BuildProcessName(params.Alias, params.ProcessInstanceID),
+			Name:      gse.BuildProcessName(params.Alias, params.LocalInstID),
 		},
 		AgentIDList: params.AgentID,
 		OpType:      params.GseOpType,

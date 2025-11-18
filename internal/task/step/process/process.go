@@ -30,6 +30,33 @@ const (
 	MaxTries = 3
 )
 
+// ValidateOperateProcess 校验操作是否合法
+func ValidateOperateProcess(
+	bizID uint32,
+	processID uint32,
+	processInstanceID uint32,
+	operateType table.ProcessOperateType,
+	originalProcManagedStatus table.ProcessManagedStatus,
+	originalProcStatus table.ProcessStatus,
+) *types.Step {
+	logs.V(3).Infof("validate operate process: bizID: %d, processID: %d, processInstanceID: %d, opType: %s",
+		bizID, processID, processInstanceID, operateType)
+	validate := types.NewStep(process.ValidateOperateProcessStepName.String(),
+		process.ValidateOperateProcessStepName.String()).
+		SetAlias("validate_operate_process").
+		SetMaxExecution(MaxExecutionTime).
+		SetMaxTries(0) // 校验操作是否合法，不需要重试
+	lo.Must0(validate.SetPayload(process.OperatePayload{
+		BizID:                     bizID,
+		ProcessID:                 processID,
+		ProcessInstanceID:         processInstanceID,
+		OperateType:               operateType,
+		OriginalProcManagedStatus: originalProcManagedStatus,
+		OriginalProcStatus:        originalProcStatus,
+	}))
+	return validate
+}
+
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 func CompareWithCMDBProcessInfo(
 	bizID uint32,
