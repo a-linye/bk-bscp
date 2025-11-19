@@ -28,6 +28,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
+	pbproc "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/process"
 )
 
 const (
@@ -79,7 +80,7 @@ type OperatePayload struct {
 
 // ValidateOperate 校验操作是否合法
 func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
-	logs.Infof("【ValidateOperate STEP】: starting validation")
+	logs.Infof("[ValidateOperate STEP]: starting validation")
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("get payload failed: %w", err)
@@ -91,33 +92,20 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 	if originalProcStatus == "" || originalProcManagedStatus == "" {
 		return fmt.Errorf("original process status or managed status is empty, cannot operate")
 	}
-	// 获取操作类型
-	operateType := payload.OperateType
-
-	// 处于中间状态的进程（停止中、启动中、重启中、重载中，正在托管中，正在取消托管中）拒绝操作
-	if originalProcStatus == table.ProcessStatusStarting ||
-		originalProcStatus == table.ProcessStatusStopping ||
-		originalProcStatus == table.ProcessStatusRestarting ||
-		originalProcStatus == table.ProcessStatusReloading ||
-		originalProcManagedStatus == table.ProcessManagedStatusStarting ||
-		originalProcManagedStatus == table.ProcessManagedStatusStopping {
-		return fmt.Errorf("process is in intermediate state, cannot operate")
+	// 获取进程信息
+	process, err := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
+	if err != nil {
+		return fmt.Errorf("failed to get process: %w", err)
 	}
-	// 执行启动进程操作，如果进程已经启动则任务失败
-	if operateType == table.StartProcessOperate && originalProcStatus == table.ProcessStatusRunning {
-		return fmt.Errorf("process already running, cannot start")
-	}
-	// 执行停止进程操作，如果进程已经停止则任务失败
-	if operateType == table.StopProcessOperate && originalProcStatus == table.ProcessStatusStopped {
-		return fmt.Errorf("process already stopped, cannot stop")
-	}
-	// 托管进程操作，如果进程已经托管则任务失败
-	if operateType == table.RegisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusManaged {
-		return fmt.Errorf("process already managed, cannot register")
-	}
-	// 取消托管进程操作，如果进程已经取消托管则任务失败
-	if operateType == table.UnregisterProcessOperate && originalProcManagedStatus == table.ProcessManagedStatusUnmanaged {
-		return fmt.Errorf("process already unmanaged, cannot unregister")
+	canOperate, message := pbproc.CanProcessOperate(
+		payload.OperateType,
+		originalProcStatus.String(),
+		originalProcManagedStatus.String(),
+		process.Spec.CcSyncStatus.String(),
+	)
+	if !canOperate {
+		return fmt.Errorf("process cannot operate, operate type: %s, process status: %s, managed status: %s, cc sync status: %s, message: %s",
+			payload.OperateType, originalProcStatus, originalProcManagedStatus, process.Spec.CcSyncStatus, message)
 	}
 	return nil
 }
@@ -125,7 +113,7 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 // 在进程操作前，对比数据库中存储的进程配置和 CMDB 最新的进程配置是否一致
 func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
-	logs.Infof("【CompareWithCMDBProcessInfo STEP】: starting comparison")
+	logs.Infof("[CompareWithCMDBProcessInfo STEP]: starting comparison")
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("get payload failed: %w", err)
@@ -133,7 +121,7 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 
 	// 判断是否需要对比CMDB，不需要则直接跳过
 	if !payload.NeedCompareCMDB {
-		logs.Infof("【CompareWithCMDBProcessInfo STEP】: skip comparison as needCompareCMDB=false, bizID: %d, "+
+		logs.Infof("[CompareWithCMDBProcessInfo STEP]: skip comparison as needCompareCMDB=false, bizID: %d, "+
 			"processID: %d, processInstanceID: %d", payload.BizID, payload.ProcessID, payload.ProcessInstanceID)
 		return nil
 	}
@@ -141,18 +129,18 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 	// 获取bscp侧存储的进程配置
 	commonPayload := &common.ProcessPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
-		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: get common payload failed: %w", err)
+		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: get common payload failed: %w", err)
 	}
 	var dbProcessInfo table.ProcessInfo
 	if err := json.Unmarshal([]byte(commonPayload.ConfigData), &dbProcessInfo); err != nil {
-		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: unmarshal database config data failed: %w", err)
+		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: unmarshal database config data failed: %w", err)
 	}
 
 	// 调用 CMDB API 获取最新的进程配置
 	// 查询进程记录获取 ServiceInstanceID 和 CcProcessID
 	process, err := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
 	if err != nil {
-		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: get process from database failed: %w", err)
+		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: get process from database failed: %w", err)
 	}
 
 	// 如果进程从cmdb侧删除，且本次操作是停止、强制停止、取消托管，则不进行对比
@@ -168,7 +156,7 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 		BkProcessIDs: []int{int(process.Attachment.CcProcessID)},
 	})
 	if err != nil {
-		return fmt.Errorf("【CompareWithCMDBProcessInfo STEP】: failed to get process from CMDB, bizID: %d, "+
+		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: failed to get process from CMDB, bizID: %d, "+
 			"ccProcessID: %d, err: %v", payload.BizID, process.Attachment.CcProcessID, err)
 	}
 	if len(processInfo) == 0 {
@@ -256,15 +244,27 @@ func buildProcessInfoDiff(dbInfo, cmdbInfo *table.ProcessInfo) []string {
 
 // CompareWithGSEProcessStatus 对比GSE进程状态
 func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
-	logs.Infof("【CompareWithGSEProcessStatus STEP】: starting comparison")
+	logs.Infof("[CompareWithGSEProcessStatus STEP]: starting comparison")
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: get payload failed: %w", err)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: get payload failed: %w", err)
 	}
 
 	commonPayload := &common.ProcessPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return err
+	}
+
+	// 查询进程信息
+	process, err := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
+	if err != nil {
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to get process: %w", err)
+	}
+	// 获取进程配置信息
+	var processInfo table.ProcessInfo
+	err = json.Unmarshal([]byte(process.Spec.SourceData), &processInfo)
+	if err != nil {
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to marshal process info: %w", err)
 	}
 
 	// 使用 OperateProcMulti 接口查询进程状态，操作码为 2（OpTypeQuery）
@@ -278,10 +278,11 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 		SetName:       commonPayload.SetName,
 		ModuleName:    commonPayload.ModuleName,
 		GseOpType:     gse.OpTypeQuery,
+		ProcessInfo:   processInfo,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to build process operate: %w", err)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to build process operate: %w", err)
 	}
 	req := &gse.MultiProcOperateReq{
 		ProcOperateReq: []gse.ProcessOperate{*processOperate},
@@ -290,132 +291,145 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	resp, err := e.GseService.OperateProcMulti(c.Context(), req)
 	if err != nil {
 		// nolint: goerr113
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to query process status via gseService.OperateProcMulti: %w", err)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to query process status via gseService.OperateProcMulti: %w", err)
 	}
 	// 等待查询任务完成
 	result, err := e.WaitTaskFinish(c.Context(),
 		resp.TaskID, payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
 	if err != nil {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to wait for query task finish: %w", err)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to wait for query task finish: %w", err)
 	}
 
 	// 构建 GSE 接口响应的 key
 	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
-	logs.Infof("【CompareWithGSEProcessStatus STEP】: Finalize key: %s", key)
+	logs.Infof("[CompareWithGSEProcessStatus STEP]: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: process result not found for key: %s", key)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: process result not found for key: %s", key)
 	}
 
 	// 检查查询操作是否成功
 	if !gse.IsSuccess(procResult.ErrorCode) {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to query process status, errorCode=%d, errorMsg=%s",
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to query process status, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)
 	}
 
 	// 解析 content 获取进程状态
 	var statusContent gse.ProcessStatusContent
 	if err = json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to unmarshal process status content: %w", err)
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to unmarshal process status content: %w", err)
 	}
 
 	// 根据操作类型判断是否需要继续操作进程
-	shouldSkip, reason := shouldSkipOperation(payload.OperateType, &statusContent)
-	if shouldSkip {
-		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: process already in desired state: %s", reason)
+	isValid, message := isOperationValid(
+		payload.OperateType, &statusContent, payload.OriginalProcStatus, payload.OriginalProcManagedStatus)
+	if !isValid {
+		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: operation is not valid: %s", message)
 	}
 	return nil
 }
 
-// shouldSkipOperation 判断是否应该跳过操作
-// 返回值：(是否跳过, 跳过原因)
-func shouldSkipOperation(operateType table.ProcessOperateType, statusContent *gse.ProcessStatusContent) (bool, string) {
-	// 如果没有进程信息，不跳过（可能是首次注册）
+// shouldSkipOperation 判断操作是否合法
+// false表示操作不合法，true表示操作合法
+// message表示操作不合法的原因
+func isOperationValid(
+	operateType table.ProcessOperateType,
+	statusContent *gse.ProcessStatusContent,
+	originalProcStatus table.ProcessStatus,
+	originalProcManagedStatus table.ProcessManagedStatus,
+) (bool, string) {
+	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程的信息
 	if len(statusContent.Process) == 0 {
-		return false, ""
+		return false, "process not found in gse"
 	}
-
 	procDetail := statusContent.Process[0]
-
-	// 如果没有实例，不跳过
+	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程实例的信息
 	if len(procDetail.Instance) == 0 {
-		return false, ""
+		return false, "process instance not found in gse"
+	}
+	// 获取gse侧存储的进程实例信息
+	instance := procDetail.Instance[0]
+
+	gseStatus := table.ProcessStatusStopped
+	if instance.PID > 0 {
+		gseStatus = table.ProcessStatusRunning
+	}
+	gseManagedStatus := table.ProcessManagedStatusUnmanaged
+	if instance.IsAuto {
+		gseManagedStatus = table.ProcessManagedStatusManaged
 	}
 
-	instance := procDetail.Instance[0]
-	isRunning := instance.PID > 0
-	isManagedByGSE := instance.IsAuto
+	if originalProcStatus != gseStatus {
+		return false, fmt.Sprintf("process status is %s in bscp, but %s in gse", originalProcStatus, gseStatus)
+	}
+	if originalProcManagedStatus != gseManagedStatus {
+		return false, fmt.Sprintf("process managed status is %s in bscp, but %s in gse", originalProcManagedStatus, gseManagedStatus)
+	}
 
 	switch operateType {
 	case table.StartProcessOperate:
 		// 启动操作：如果进程已经在运行，跳过
-		if isRunning {
-			return true, fmt.Sprintf("process already running (PID=%d)", instance.PID)
+		if gseStatus == table.ProcessStatusRunning {
+			return false, "process status is running in gse"
 		}
 
 	case table.StopProcessOperate, table.KillProcessOperate:
 		// 停止/杀死操作：如果进程已经停止，跳过
-		if !isRunning {
-			return true, "process already stopped"
+		if gseStatus == table.ProcessStatusStopped {
+			return false, "process already stopped in gse"
 		}
 
 	case table.RegisterProcessOperate:
-		// 托管操作：如果进程已经被托管且正在运行，跳过
-		if isManagedByGSE {
-			return true, "process already managed"
+		// 托管操作：如果进程已经被托管
+		if gseManagedStatus == table.ProcessManagedStatusManaged {
+			return false, "process already managed in gse"
 		}
 
 	case table.UnregisterProcessOperate:
 		// 取消托管操作：如果进程已经取消托管，跳过
-		if !isManagedByGSE {
-			return true, "process already unmanaged"
+		if gseManagedStatus == table.ProcessManagedStatusUnmanaged {
+			return false, "process already unmanaged in gse"
 		}
 
-	case table.RestartProcessOperate:
-		// 重启操作：总是执行，不跳过
-		return false, ""
-
-	case table.ReloadProcessOperate:
-		// 重载操作：只有进程运行才执行重载
-		if !isRunning {
-			return true, "process not running, cannot reload"
-		}
+	case table.RestartProcessOperate, table.ReloadProcessOperate:
+		// 重启操作/重载操作：总是执行，不跳过
+		return true, ""
 	}
 
-	return false, ""
+	return true, ""
 }
 
 // CompareWithGSEProcessConfig 对比GSE进程配置（TODO: 待实现）
 func (e *ProcessExecutor) CompareWithGSEProcessConfig(c *istep.Context) error {
 	// TODO: 通过gse进程配置文件获取接口获取gse托管的进程配置，与db中存储的配置进行对比
-	logs.Infof("【CompareWithGSEProcessConfig STEP】: skip for now (TODO)")
+	logs.Infof("[CompareWithGSEProcessConfig STEP]: skip for now (TODO)")
 	return nil
 }
 
 // Operate 进程操作
 func (e *ProcessExecutor) Operate(c *istep.Context) error {
-	logs.Infof("【Operate STEP】: starting operation")
+	logs.Infof("[Operate STEP]: starting operation")
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
-		return fmt.Errorf("【Operate STEP】: get payload failed: %w", err)
+		return fmt.Errorf("[Operate STEP]: get payload failed: %w", err)
 	}
 
 	commonPayload := &common.ProcessPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
-		return fmt.Errorf("【Operate STEP】: get common payload failed: %w", err)
+		return fmt.Errorf("[Operate STEP]: get common payload failed: %w", err)
 	}
 
 	// 解析进程配置信息
 	var processInfo table.ProcessInfo
 	err := json.Unmarshal([]byte(commonPayload.ConfigData), &processInfo)
 	if err != nil {
-		return fmt.Errorf("【Operate STEP】: unmarshal process info failed: %w", err)
+		return fmt.Errorf("[Operate STEP]: unmarshal process info failed: %w", err)
 	}
 
 	// 转换操作类型
 	gseOpType, err := gse.ConvertProcessOperateTypeToOpType(payload.OperateType)
 	if err != nil {
-		return fmt.Errorf("【Operate STEP】: failed to convert operate type: %w", err)
+		return fmt.Errorf("[Operate STEP]: failed to convert operate type: %w", err)
 	}
 
 	// 构建进程操作接口请求参数
@@ -433,7 +447,7 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
-		return fmt.Errorf("【Operate STEP】: failed to build process operate: %w", err)
+		return fmt.Errorf("[Operate STEP]: failed to build process operate: %w", err)
 	}
 
 	items := []gse.ProcessOperate{*processOperate}
@@ -444,28 +458,27 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 
 	resp, err := e.GseService.OperateProcMulti(c.Context(), req)
 	if err != nil {
-		return fmt.Errorf("【Operate STEP】: failed to operate process via gseService.OperateProcMulti: %w", err)
+		return fmt.Errorf("[Operate STEP]: failed to operate process via gseService.OperateProcMulti: %w", err)
 	}
 
 	result, err := e.WaitTaskFinish(c.Context(), resp.TaskID,
-		payload.BizID, payload.ProcessInstanceID, commonPayload.Alias, commonPayload.AgentID)
+		payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
 	if err != nil {
-		return fmt.Errorf("【Operate STEP】: failed to wait for task finish: %w", err)
+		return fmt.Errorf("[Operate STEP]: failed to wait for task finish: %w", err)
 	}
 	// 构建 GSE 返回结果的 key
 	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
-	logs.Infof("【Operate STEP】: Finalize key: %s", key)
+	logs.Infof("[Operate STEP]: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
-		return fmt.Errorf("【Operate STEP】: process result not found for key: %s", key)
+		return fmt.Errorf("[Operate STEP]: process result not found for key: %s", key)
 	}
 
-	// 查询进程操作执行结果，无论是否成功都进入Finalize步骤，由Finalize步骤更新进程实例状态
+	// 检查进程操作是否成功，若操作成功则进入Finalize步骤，由Finalize步骤更新进程实例状态，否则在回调中回滚
 	if !gse.IsSuccess(procResult.ErrorCode) {
-		logs.Warnf("【Operate STEP】: process operate failed, errorCode=%d, errorMsg=%s",
+		return fmt.Errorf("[Operate STEP]: process operate failed, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)
 	}
-
 	return nil
 }
 
@@ -473,27 +486,154 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 // nolint: funlen
 func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	logs.Infof("Finalize: starting finalize")
-	// 进程操作完成，无论进程操作执行成功与否，都获取进程状态，更新进程实例状态
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
-		return fmt.Errorf("【Finalize STEP】: get payload failed: %w", err)
+		return fmt.Errorf("[Finalize STEP]: get payload failed: %w", err)
 	}
 
 	commonPayload := &common.ProcessPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
-		return fmt.Errorf("【Finalize STEP】: get common payload failed: %w", err)
+		return fmt.Errorf("[Finalize STEP]: get common payload failed: %w", err)
 	}
 
 	// 解析进程配置信息
 	var processInfo table.ProcessInfo
 	err := json.Unmarshal([]byte(commonPayload.ConfigData), &processInfo)
 	if err != nil {
-		return fmt.Errorf("【Finalize STEP】: unmarshal process info failed: %w", err)
+		return fmt.Errorf("[Finalize STEP]: unmarshal process info failed: %w", err)
 	}
 
-	// 使用 OperateProcMulti 接口查询进程状态，操作码为 2（OpTypeQuery）
+	// 获取gse侧进程状态
+	processStatus, managedStatus, err := e.getGSEProcessStatus(c, payload.BizID)
+	if err != nil {
+		return fmt.Errorf("[Finalize STEP]: failed to get gse process status: %w", err)
+	}
+
+	if payload.OperateType == table.UnregisterProcessOperate {
+		// 判断是否存在缩容
+		process, errP := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
+		if errP != nil {
+			return fmt.Errorf("[Finalize STEP]: failed to get process: %w", errP)
+		}
+
+		procInst, errI := e.Dao.ProcessInstance().GetByProcessIDs(kit.New(), payload.BizID, []uint32{payload.ProcessID})
+		if errI != nil {
+			return fmt.Errorf("[Finalize STEP]: failed to get process instance: %w", errI)
+		}
+		// 若进程数量被缩容，则删除对应的实例
+		if process.Spec.ProcNum < uint(len(procInst)) {
+			if errD := e.Dao.ProcessInstance().Delete(kit.New(), payload.BizID, payload.ProcessInstanceID); errD != nil {
+				return fmt.Errorf("[Finalize STEP]: failed to delete process instance: %w", errD)
+			}
+			return nil // 删除后直接返回，无需执行后续更新逻辑
+		}
+	}
+
+	// 获取并更新进程实例
+	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
+	if err != nil {
+		return fmt.Errorf("[Finalize STEP]: failed to get process instance: %w", err)
+	}
+
+	// 更新状态字段
+	processInstance.Spec.Status = processStatus
+	processInstance.Spec.ManagedStatus = managedStatus
+	processInstance.Spec.StatusUpdatedAt = time.Now()
+
+	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+		return fmt.Errorf("[Finalize STEP]: failed to update process instance: %w", err)
+	}
+
+	return nil
+}
+
+// Callback 进程操作回调方法，在任务完成时被调用
+// cbErr: 如果为 nil 表示任务成功，否则表示任务失败
+func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
+	// 如果任务成功，不需要回滚
+	if cbErr == nil {
+		logs.Infof("[ProcessOperateCallback CALLBACK]: task %s completed successfully, no rollback needed",
+			c.GetTaskID())
+		return nil
+	}
+
+	// 任务失败，执行回滚逻辑
+	logs.Infof("[ProcessOperateCallback CALLBACK]: task %s failed with error: %v, starting rollback",
+		c.GetTaskID(), cbErr)
+
+	var payload OperatePayload
+	if err := c.GetPayload(&payload); err != nil {
+		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get step payload: %v", err)
+		return fmt.Errorf("failed to get step payload: %w", err)
+	}
+
+	// 获取进程实例
+	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
+	if err != nil {
+		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get process instance: %v", err)
+		return fmt.Errorf("failed to get process instance: %w", err)
+	}
+
+	// 进程操作失败，但是进程的部分状态可能在gse侧已经生效（如启动进程失败，但是进程实际上也会托管）
+	// 优先使用gse侧进程状态，如果获取失败则回滚到原始状态
+	processStatus, managedStatus, err := e.getGSEProcessStatus(c, payload.BizID)
+	if err != nil {
+		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get gse process status: %v, "+
+			"falling back to original status", err)
+		// PASS
+		processStatus = payload.OriginalProcStatus
+		managedStatus = payload.OriginalProcManagedStatus
+		logs.Infof("[ProcessOperateCallback CALLBACK]: rolling back to original status, bizID: %d, "+
+			"processInstanceID: %d, status: %s, managedStatus: %s",
+			payload.BizID, payload.ProcessInstanceID, processStatus, managedStatus)
+	} else {
+		logs.Infof("[ProcessOperateCallback CALLBACK]: using gse process status, bizID: %d, "+
+			"processInstanceID: %d, status: %s, managedStatus: %s",
+			payload.BizID, payload.ProcessInstanceID, processStatus, managedStatus)
+	}
+
+	// 更新进程实例状态
+	processInstance.Spec.Status = processStatus
+	processInstance.Spec.ManagedStatus = managedStatus
+	processInstance.Spec.StatusUpdatedAt = time.Now()
+
+	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to update process instance: %v", err)
+		return fmt.Errorf("failed to update process instance during rollback: %w", err)
+	}
+
+	logs.Infof("[ProcessOperateCallback CALLBACK]: successfully rolled back process instance status, "+
+		"bizID: %d, processInstanceID: %d", payload.BizID, payload.ProcessInstanceID)
+	return nil
+}
+
+// 获取gse侧进程状态
+func (e *ProcessExecutor) getGSEProcessStatus(
+	c *istep.Context,
+	bizID uint32,
+) (table.ProcessStatus, table.ProcessManagedStatus, error) {
+	payload := &OperatePayload{}
+	if err := c.GetPayload(payload); err != nil {
+		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: get payload failed: %w", err)
+	}
+
+	commonPayload := &common.ProcessPayload{}
+	if err := c.GetCommonPayload(commonPayload); err != nil {
+		return "", "", fmt.Errorf("get common payload failed: %w", err)
+	}
+	// 查询进程信息
+	process, err := e.Dao.Process().GetByID(kit.New(), bizID, payload.ProcessID)
+	if err != nil {
+		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: failed to get process: %w", err)
+	}
+	// 获取进程配置信息
+	var processInfo table.ProcessInfo
+	err = json.Unmarshal([]byte(process.Spec.SourceData), &processInfo)
+	if err != nil {
+		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: failed to marshal process info: %w", err)
+	}
 	params := gesprocessor.BuildProcessOperateParams{
-		BizID:         payload.BizID,
+		BizID:         bizID,
 		Alias:         commonPayload.Alias,
 		FuncName:      commonPayload.FuncName,
 		HostInstSeq:   commonPayload.HostInstSeq,
@@ -506,153 +646,45 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to build process operate: %w", err)
+		return "", "", fmt.Errorf("failed to build process operate: %w", err)
 	}
 	req := &gse.MultiProcOperateReq{
 		ProcOperateReq: []gse.ProcessOperate{*processOperate},
 	}
-
 	resp, err := e.GseService.OperateProcMulti(c.Context(), req)
 	if err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to query process status via gseService.OperateProcMulti: %w", err)
+		return "", "", fmt.Errorf("failed to query process status via gseService.OperateProcMulti: %w", err)
 	}
-	// 等待查询任务完成
-	result, err := e.WaitTaskFinish(c.Context(),
-		resp.TaskID, payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
+	result, err := e.WaitTaskFinish(c.Context(), resp.TaskID, bizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
 	if err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to wait for query task finish: %w", err)
+		return "", "", fmt.Errorf("failed to wait for query task finish: %w", err)
 	}
-
-	// 构建 GSE 返回结果的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
-	logs.Infof("【Finalize STEP】: Finalize key: %s", key)
+	key := gse.BuildResultKey(commonPayload.AgentID, bizID, commonPayload.Alias, commonPayload.HostInstSeq)
 	procResult, ok := result[key]
 	if !ok {
-		return fmt.Errorf("【Finalize STEP】: process result not found for key: %s", key)
+		return "", "", fmt.Errorf("process result not found for key: %s", key)
 	}
-
-	// 检查查询操作是否成功
 	if !gse.IsSuccess(procResult.ErrorCode) {
-		return fmt.Errorf("【Finalize STEP】: failed to query process status, errorCode=%d, errorMsg=%s",
+		return "", "", fmt.Errorf("failed to query process status, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)
 	}
-
-	// 解析 content 获取进程状态
 	var statusContent gse.ProcessStatusContent
 	if err = json.Unmarshal([]byte(procResult.Content), &statusContent); err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to unmarshal process status content: %w", err)
+		return "", "", fmt.Errorf("failed to unmarshal process status content: %w", err)
 	}
-
-	// 默认状态为停止和未托管
+	if len(statusContent.Process) == 0 || len(statusContent.Process[0].Instance) == 0 {
+		return "", "", fmt.Errorf("process not found in gse")
+	}
+	instance := statusContent.Process[0].Instance[0]
 	processStatus := table.ProcessStatusStopped
 	managedStatus := table.ProcessManagedStatusUnmanaged
-	// 从 process 数组中提取进程实例信息
-	if len(statusContent.Process) > 0 && len(statusContent.Process[0].Instance) > 0 {
-		instance := statusContent.Process[0].Instance[0]
-
-		// 根据 PID 判断进程运行状态：PID < 0 表示进程未运行
-		if instance.PID > 0 {
-			processStatus = table.ProcessStatusRunning
-		} else {
-			processStatus = table.ProcessStatusStopped
-		}
-
-		// 根据 isAuto 判断托管状态
-		if instance.IsAuto {
-			managedStatus = table.ProcessManagedStatusManaged
-		} else {
-			managedStatus = table.ProcessManagedStatusUnmanaged
-		}
+	if instance.IsAuto {
+		managedStatus = table.ProcessManagedStatusManaged
 	}
-
-	if payload.OperateType == table.UnregisterProcessOperate {
-		// 判断是否存在缩容
-		process, errP := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
-		if errP != nil {
-			return fmt.Errorf("【Finalize STEP】: failed to get process: %w", errP)
-		}
-
-		procInst, errI := e.Dao.ProcessInstance().GetByProcessIDs(kit.New(), payload.BizID, []uint32{payload.ProcessID})
-		if errI != nil {
-			return fmt.Errorf("【Finalize STEP】: failed to get process instance: %w", errI)
-		}
-		// 若进程数量被缩容，则删除对应的实例
-		if process.Spec.ProcNum < uint(len(procInst)) {
-			if errD := e.Dao.ProcessInstance().Delete(kit.New(), payload.BizID, payload.ProcessInstanceID); errD != nil {
-				return fmt.Errorf("【Finalize STEP】: failed to delete process instance: %w", errD)
-			}
-			return nil // 删除后直接返回，无需执行后续更新逻辑
-		}
+	if instance.PID > 0 {
+		processStatus = table.ProcessStatusRunning
 	}
-
-	// 获取并更新进程实例
-	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
-	if err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to get process instance: %w", err)
-	}
-
-	// 更新状态字段
-	processInstance.Spec.Status = processStatus
-	processInstance.Spec.ManagedStatus = managedStatus
-	processInstance.Spec.StatusUpdatedAt = time.Now()
-
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
-		return fmt.Errorf("【Finalize STEP】: failed to update process instance: %w", err)
-	}
-
-	return nil
-}
-
-// Callback 进程操作回调方法，在任务完成时被调用
-// cbErr: 如果为 nil 表示任务成功，否则表示任务失败
-func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
-	// 如果任务成功，不需要回滚
-	if cbErr == nil {
-		logs.Infof("【ProcessOperateCallback CALLBACK】: task %s completed successfully, no rollback needed",
-			c.GetTaskID())
-		return nil
-	}
-
-	// 任务失败，执行回滚逻辑
-	logs.Infof("【ProcessOperateCallback CALLBACK】: task %s failed with error: %v, starting rollback",
-		c.GetTaskID(), cbErr)
-
-	var payload OperatePayload
-	if err := c.GetPayload(&payload); err != nil {
-		logs.Errorf("【ProcessOperateCallback CALLBACK】: failed to get step payload: %v", err)
-		return fmt.Errorf("failed to get step payload: %w", err)
-	}
-
-	bizID := payload.BizID
-	processInstanceID := payload.ProcessInstanceID
-	originalStatus := payload.OriginalProcStatus
-	originalManagedStatus := payload.OriginalProcManagedStatus
-
-	logs.Infof("【ProcessOperateCallback CALLBACK】: rolling back process instance, bizID: %d, "+
-		"processInstanceID: %d, originalStatus: %s, originalManagedStatus: %s",
-		bizID, processInstanceID, originalStatus, originalManagedStatus)
-
-	// 获取进程实例
-	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), bizID, processInstanceID)
-	if err != nil {
-		logs.Errorf("【ProcessOperateCallback CALLBACK】: failed to get process instance: %v", err)
-		return fmt.Errorf("failed to get process instance: %w", err)
-	}
-
-	// 回滚状态
-	processInstance.Spec.Status = originalStatus
-	processInstance.Spec.ManagedStatus = originalManagedStatus
-	processInstance.Spec.StatusUpdatedAt = time.Now()
-
-	// 更新进程实例状态
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
-		logs.Errorf("【ProcessOperateCallback CALLBACK】: failed to update process instance: %v", err)
-		return fmt.Errorf("failed to update process instance during rollback: %w", err)
-	}
-
-	logs.Infof("【ProcessOperateCallback CALLBACK】: successfully rolled back process instance status, "+
-		"bizID: %d, processInstanceID: %d", bizID, processInstanceID)
-	return nil
+	return processStatus, managedStatus, nil
 }
 
 // RegisterExecutor register executor

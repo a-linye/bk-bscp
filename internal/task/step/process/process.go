@@ -158,7 +158,7 @@ func OperateProcess(
 	operate := types.NewStep(process.OperateProcessStepName.String(), process.OperateProcessStepName.String()).
 		SetAlias("operate_process").
 		SetMaxExecution(MaxExecutionTime).
-		SetMaxTries(MaxTries)
+		SetMaxTries(0) // 进程操作只操作一次，避免重复操作
 
 	lo.Must0(operate.SetPayload(process.OperatePayload{
 		BizID:                     bizID,

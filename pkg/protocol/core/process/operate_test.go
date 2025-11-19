@@ -177,7 +177,7 @@ func TestCanProcessOperate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CanProcessOperate(tt.op, tt.status, tt.managedStatus, tt.syncStatus)
+			got, _ := CanProcessOperate(tt.op, tt.status, tt.managedStatus, tt.syncStatus)
 			if got != tt.want {
 				t.Errorf("canProcessOperate() = %v, want %v", got, tt.want)
 			}
