@@ -56,10 +56,11 @@
         </TableColumn>
         <TableColumn col-key="status" :title="t('执行结果')">
           <template #default="{ row }: { row: ITaskHistoryItem }">
-            <div class="status">
+            <div v-if="row.status" class="status">
               <span :class="['dot', row.status]"></span>
               <span>{{ TASK_STATUS_MAP[row.status as keyof typeof TASK_STATUS_MAP] }}</span>
             </div>
+            <span v-else>--</span>
           </template>
         </TableColumn>
         <TableColumn :title="t('操作')" :width="200" fixed="right" col-key="operation">
@@ -122,7 +123,7 @@
   const tableList = ref<ITaskHistoryItem[]>([]);
   const loading = ref(false);
   const tableRef = ref();
-  const searchValue = ref<{ [key: string]: string }>();
+  const searchValue = ref<{ [key: string]: string | string[] }>();
 
   const tableMaxHeight = computed(() => {
     return tableRef.value && tableRef.value.clientHeight - 60;
@@ -162,9 +163,16 @@
     }
   };
 
-  const handleSearch = (list: { [key: string]: string }) => {
-    searchValue.value = list;
+  const handleSearch = (list: { [key: string]: string | string[] }) => {
+    searchValue.value = {
+      taskActions: list.task_action || [],
+      taskObjects: list.task_object || [],
+      executors: list.executor || [],
+      statuses: list.status || [],
+    };
     isSearchEmpty.value = Object.keys(list).length > 0;
+    pagination.value.current = 1;
+    updatePagination('limit', 10);
     loadTaskList();
   };
 
@@ -267,7 +275,7 @@
       background: #f0f1f5;
       border: 1px solid #c4c6cc;
       border-radius: 50%;
-      &.success {
+      &.succeed {
         background: #cbf0da;
         border-color: #2caf5e;
       }

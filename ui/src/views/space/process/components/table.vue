@@ -20,12 +20,12 @@
       :row-class-name="getRowClassName"
       :loading="tableLoading"
       :max-height="tableMaxHeight"
-      expand-on-row-click
+      :expanded-row-keys="expandedRowKeys"
       @select-change="handleSelectChange">
       <TableColumn col-key="row-select" type="multiple" width="32"></TableColumn>
       <TableColumn :title="t('集群')" col-key="spec.set_name" width="183">
         <template #default="{ row }: { row: IProcessItem }">
-          <bk-button text theme="primary">{{ row.spec.set_name }}</bk-button>
+          <bk-button text theme="primary" @click="handleExpandRow(row)">{{ row.spec.set_name }}</bk-button>
         </template>
       </TableColumn>
       <TableColumn col-key="spec.module_name" :title="t('模块')" width="172" ellipsis />
@@ -42,9 +42,7 @@
       <TableColumn col-key="spec.status" :title="t('进程状态')">
         <template #default="{ row }: { row: IProcessItem }">
           <div v-if="row.spec.status" class="process-status">
-            <Spinner
-              v-if="['running', 'starting', 'restarting', 'reloading'].includes(row.spec.status)"
-              class="spinner-icon" />
+            <Spinner v-if="['starting', 'restarting', 'reloading'].includes(row.spec.status)" class="spinner-icon" />
             <span v-else :class="['dot', row.spec.status]"></span>
             {{ PROCESS_STATUS_MAP[row.spec.status as keyof typeof PROCESS_STATUS_MAP] }}
           </div>
@@ -108,7 +106,7 @@
             <TableColumn col-key="spec.inst_id" :title="t('实例')">
               <template #default="{ row: rowData, rowIndex }: { row: IProcInst; rowIndex: number }">
                 <div class="instance">
-                  <span>{{ row.spec.service_name }}</span>
+                  <span>{{ rowData.spec.name }}</span>
                   <span
                     v-if="rowIndex + 1 > rowData.num!"
                     class="error-icon"
@@ -136,7 +134,7 @@
               <template #default="{ row: rowData }: { row: IProcInst }">
                 <div v-if="rowData.spec.status" class="process-status">
                   <Spinner
-                    v-if="['running', 'starting', 'restarting', 'reloading'].includes(rowData.spec.status)"
+                    v-if="['starting', 'restarting', 'reloading'].includes(rowData.spec.status)"
                     class="spinner-icon" />
                   <span v-else :class="['dot', rowData.spec.status]"></span>
                   {{ PROCESS_STATUS_MAP[rowData.spec.status as keyof typeof PROCESS_STATUS_MAP] }}
@@ -177,8 +175,8 @@
           </PrimaryTable>
         </div>
       </template>
-      <template #expand-icon="{ expanded }">
-        <angle-up-fill :class="['expand-icon', { expanded }]" />
+      <template #expand-icon="{ expanded, row }">
+        <angle-up-fill :class="['expand-icon', { expanded }]" @click="handleExpandRow(row)" />
       </template>
       <template #empty>
         <TableEmpty :is-search-empty="isSearchEmpty" @clear="handleClearFilter"></TableEmpty>
@@ -291,6 +289,7 @@
   const selectedIds = ref<number[]>([]);
   const tableLoading = ref(false);
   const tableRef = ref();
+  const expandedRowKeys = ref<number[]>([]);
 
   const tableMaxHeight = computed(() => {
     return tableRef.value && tableRef.value.clientHeight - 60;
@@ -303,6 +302,7 @@
   const loadProcessList = async () => {
     try {
       tableLoading.value = true;
+      expandedRowKeys.value = [];
       const params = {
         search: { ...filterConditions.value, ...searchValue.value },
         start: (pagination.value.current - 1) * pagination.value.limit,
@@ -396,7 +396,7 @@
 
   const handleFilter = (filters: Record<string, any>) => {
     isSearchEmpty.value = Object.keys(filters).some((filter) => {
-      return filter !== 'env' && filters[filter].length > 0;
+      return filter !== 'environment' && filters[filter].length > 0;
     });
     filterConditions.value = filters;
     loadProcessList();
@@ -465,6 +465,16 @@
   // 清空筛选条件
   const handleClearFilter = () => {
     filterRef.value.clear();
+  };
+
+  // 表格下拉展开收起
+  const handleExpandRow = (row: IProcessItem) => {
+    const index = expandedRowKeys.value.indexOf(row.id);
+    if (index > -1) {
+      expandedRowKeys.value.splice(index, 1);
+    } else {
+      expandedRowKeys.value.push(row.id);
+    }
   };
 </script>
 
@@ -544,7 +554,7 @@
         background: #3fc06d;
       }
       &.stopped,
-      .stopping {
+      &.stopping {
         border: 3px solid #ffebeb;
         background: #ea3636;
       }
