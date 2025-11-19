@@ -140,8 +140,14 @@ func GetProcessManagedStatusByOpType(
 		}
 		// 托管操作/启动操作/重启操作/重载操作 修改进程托管状态为托管中
 		return ProcessManagedStatusStarting
-	case UnregisterProcessOperate, StopProcessOperate, KillProcessOperate:
-		// 取消托管操作/杀死进程操作 修改进程托管状态为取消托管中
+	case UnregisterProcessOperate:
+		// 取消托管操作 修改进程托管状态为取消托管中
+		return ProcessManagedStatusStopping
+	case StopProcessOperate, KillProcessOperate:
+		// 停止/杀死进程操作，如果进程已经处于取消托管中，则不进行修改
+		if originalManagedStatus == ProcessManagedStatusStopping {
+			return ProcessManagedStatusManaged
+		}
 		return ProcessManagedStatusStopping
 	default:
 		return ""
