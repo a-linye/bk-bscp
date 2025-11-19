@@ -269,15 +269,14 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 
 	// 使用 OperateProcMulti 接口查询进程状态，操作码为 2（OpTypeQuery）
 	params := gesprocessor.BuildProcessOperateParams{
-		BizID:             payload.BizID,
-		Alias:             commonPayload.Alias,
-		ProcessInstanceID: payload.ProcessInstanceID,
-		AgentID:           []string{commonPayload.AgentID},
-		LocalInstID:       commonPayload.LocalInstID,
-		InstID:            commonPayload.InstID,
-		SetName:           commonPayload.SetName,
-		ModuleName:        commonPayload.ModuleName,
-		GseOpType:         gse.OpTypeQuery,
+		BizID:         payload.BizID,
+		Alias:         commonPayload.Alias,
+		AgentID:       []string{commonPayload.AgentID},
+		HostInstSeq:   commonPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ModuleInstSeq,
+		SetName:       commonPayload.SetName,
+		ModuleName:    commonPayload.ModuleName,
+		GseOpType:     gse.OpTypeQuery,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
@@ -294,13 +293,13 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	}
 	// 等待查询任务完成
 	result, err := e.WaitTaskFinish(c.Context(),
-		resp.TaskID, payload.BizID, payload.ProcessInstanceID, commonPayload.Alias, commonPayload.AgentID)
+		resp.TaskID, payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
 	if err != nil {
 		return fmt.Errorf("【CompareWithGSEProcessStatus STEP】: failed to wait for query task finish: %w", err)
 	}
 
 	// 构建 GSE 接口响应的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, payload.ProcessInstanceID)
+	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
 	logs.Infof("【CompareWithGSEProcessStatus STEP】: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
@@ -420,16 +419,15 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 
 	// 构建进程操作接口请求参数
 	params := gesprocessor.BuildProcessOperateParams{
-		BizID:             payload.BizID,
-		Alias:             commonPayload.Alias,
-		ProcessInstanceID: payload.ProcessInstanceID,
-		AgentID:           []string{commonPayload.AgentID},
-		GseOpType:         gseOpType,
-		LocalInstID:       commonPayload.LocalInstID,
-		InstID:            commonPayload.InstID,
-		SetName:           commonPayload.SetName,
-		ModuleName:        commonPayload.ModuleName,
-		ProcessInfo:       processInfo,
+		BizID:         payload.BizID,
+		Alias:         commonPayload.Alias,
+		AgentID:       []string{commonPayload.AgentID},
+		GseOpType:     gseOpType,
+		HostInstSeq:   commonPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ModuleInstSeq,
+		SetName:       commonPayload.SetName,
+		ModuleName:    commonPayload.ModuleName,
+		ProcessInfo:   processInfo,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
@@ -453,7 +451,7 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		return fmt.Errorf("【Operate STEP】: failed to wait for task finish: %w", err)
 	}
 	// 构建 GSE 返回结果的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, payload.ProcessInstanceID)
+	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
 	logs.Infof("【Operate STEP】: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
@@ -493,16 +491,15 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 
 	// 使用 OperateProcMulti 接口查询进程状态，操作码为 2（OpTypeQuery）
 	params := gesprocessor.BuildProcessOperateParams{
-		BizID:             payload.BizID,
-		Alias:             commonPayload.Alias,
-		ProcessInstanceID: payload.ProcessInstanceID,
-		LocalInstID:       commonPayload.LocalInstID,
-		InstID:            commonPayload.InstID,
-		SetName:           commonPayload.SetName,
-		ModuleName:        commonPayload.ModuleName,
-		AgentID:           []string{commonPayload.AgentID},
-		GseOpType:         gse.OpTypeQuery,
-		ProcessInfo:       processInfo,
+		BizID:         payload.BizID,
+		Alias:         commonPayload.Alias,
+		HostInstSeq:   commonPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ModuleInstSeq,
+		SetName:       commonPayload.SetName,
+		ModuleName:    commonPayload.ModuleName,
+		AgentID:       []string{commonPayload.AgentID},
+		GseOpType:     gse.OpTypeQuery,
+		ProcessInfo:   processInfo,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
 	if err != nil {
@@ -518,13 +515,13 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	}
 	// 等待查询任务完成
 	result, err := e.WaitTaskFinish(c.Context(),
-		resp.TaskID, payload.BizID, payload.ProcessInstanceID, commonPayload.Alias, commonPayload.AgentID)
+		resp.TaskID, payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
 	if err != nil {
 		return fmt.Errorf("【Finalize STEP】: failed to wait for query task finish: %w", err)
 	}
 
 	// 构建 GSE 返回结果的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, payload.ProcessInstanceID)
+	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
 	logs.Infof("【Finalize STEP】: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
