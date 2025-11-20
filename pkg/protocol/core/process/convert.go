@@ -275,14 +275,14 @@ func CanProcessOperate(op table.ProcessOperateType, processState, managedState, 
 		switch op {
 		case table.StopProcessOperate:
 			if isRunning {
-				return true, "process is running, can stop"
+				return true, ""
 			}
-			return false, "process is not running, cannot stop"
+			return false, "process is already stopped, no need to stop"
 		case table.UnregisterProcessOperate:
 			if isManaged {
-				return true, "process is managed, can unregister"
+				return true, ""
 			}
-			return false, "process is not managed, cannot unregister"
+			return false, "process is already unregistered, no need to unregister"
 		default:
 			return false, "process cannot operate"
 		}
@@ -292,32 +292,29 @@ func CanProcessOperate(op table.ProcessOperateType, processState, managedState, 
 	switch op {
 	case table.RegisterProcessOperate: // 未托管：可托管
 		if isUnmanaged {
-			return true, "process is unmanaged, can register"
+			return true, ""
 		}
-		return false, "process is not unmanaged, cannot register"
+		return false, "process is already unmanaged, no need to register"
 	case table.UnregisterProcessOperate: // 已托管：可取消托管
 		if isManaged {
-			return true, "process is managed, can unregister"
+			return true, ""
 		}
-		return false, "process is not managed, cannot unregister"
+		return false, "process is already managed, no need to unregister"
 	case table.StartProcessOperate: // 进程已停止：可启动
 		if isStopped {
-			return true, "process is stopped, can start"
+			return true, ""
 		}
-		return false, "process is not stopped, cannot start"
-	case table.RestartProcessOperate, table.ReloadProcessOperate: // 进程已停止或已启动：可重启、重载
-		if isStopped || isRunning {
-			return true, "process is stopped or running, can restart or reload"
-		}
-		return false, "process is not stopped or running, cannot restart or reload"
+		return false, "process is already started, no need to start"
+	case table.RestartProcessOperate, table.ReloadProcessOperate: // 进程启动或停止均可执行重启、重载操作
+		return true, ""
 	case table.StopProcessOperate, table.KillProcessOperate: // 进程已启动：可停止、强制停止
 		if isRunning {
-			return true, "process is running, can stop or kill"
+			return true, ""
 		}
-		return false, "process is not running, cannot stop or kill"
+		return false, "process is already stopped, no need to stop or kill"
 	case table.PullProcessOperate: // 下发： 只要求未被删除
 		if !isDeleted {
-			return true, "process is not deleted, can pull"
+			return true, ""
 		}
 		return false, "process is deleted, cannot pull"
 	default:
