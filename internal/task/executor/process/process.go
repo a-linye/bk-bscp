@@ -104,8 +104,7 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 		process.Spec.CcSyncStatus.String(),
 	)
 	if !canOperate {
-		return fmt.Errorf("process cannot operate, operate type: %s, process status: %s, managed status: %s, cc sync status: %s, message: %s",
-			payload.OperateType, originalProcStatus, originalProcManagedStatus, process.Spec.CcSyncStatus, message)
+		return fmt.Errorf("process cannot operate, reason: %s", message)
 	}
 	return nil
 }
