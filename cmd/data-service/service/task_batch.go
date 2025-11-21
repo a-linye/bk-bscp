@@ -182,9 +182,9 @@ func (s *Service) GetTaskBatchDetail(
 	}
 
 	// 构建过滤条件
-	if len(req.GetStatuses()) > 0 {
+	if req.GetStatus() != "" {
 		// 支持状态过滤
-		statusList := expandTaskStatusesForQuery(req.GetStatuses())
+		statusList := expandTaskStatusForQuery(req.GetStatus())
 		listOpt.StatusList = statusList
 	}
 	// TODO: 支持其他过滤条件
@@ -224,12 +224,36 @@ func (s *Service) GetTaskBatchDetail(
 	// 获取任务详情过滤选项
 	filterOptions := getTaskDetailFilterOptions()
 
-	return &pbds.GetTaskBatchDetailResp{
+	// 查询 TaskBatch 信息
+	taskBatch, err := s.dao.TaskBatch().GetByID(kt, req.GetBatchId())
+	if err != nil {
+		logs.Errorf("get task batch failed, batchID: %d, err: %v, rid: %s", req.GetBatchId(), err, kt.Rid)
+		return nil, fmt.Errorf("get task batch failed: %v", err)
+	}
+
+	// 转换为 proto TaskBatch 以获取字段
+	pbTaskBatch := pbtb.PbTaskBatch(taskBatch)
+
+	// 构建响应
+	resp := &pbds.GetTaskBatchDetailResp{
 		Tasks:         taskDetails,
 		Count:         uint32(pagination.Count),
 		Statistics:    statistics,
 		FilterOptions: filterOptions,
-	}, nil
+	}
+
+	// 填充 TaskBatch 相关字段
+	if pbTaskBatch != nil {
+		resp.TaskObject = pbTaskBatch.TaskObject
+		resp.TaskAction = pbTaskBatch.TaskAction
+		resp.TaskData = pbTaskBatch.TaskData
+		resp.ExecutionTime = pbTaskBatch.ExecutionTime
+		resp.StartAt = pbTaskBatch.StartAt
+		resp.EndAt = pbTaskBatch.EndAt
+		resp.Creator = pbTaskBatch.Creator
+	}
+
+	return resp, nil
 }
 
 // convertTaskToDetail 将 task 转换为 pb 数据结构 TaskDetail
@@ -355,30 +379,6 @@ func expandTaskStatusForQuery(status string) []string {
 	}
 }
 
-// expandTaskStatusesForQuery 将用户查询的状态列表扩展为实际要查询的状态列表
-// 例如：查询 RUNNING 状态时，实际要查询 RUNNING、REVOKED、NOT_STARTED 三种状态
-func expandTaskStatusesForQuery(statuses []string) []string {
-	if len(statuses) == 0 {
-		return nil
-	}
-
-	// 收集所有扩展后的状态，使用 map 去重
-	statusMap := make(map[string]bool)
-	for _, status := range statuses {
-		expanded := expandTaskStatusForQuery(status)
-		for _, s := range expanded {
-			statusMap[s] = true
-		}
-	}
-
-	// 转换为列表，返回所有扩展后的状态
-	result := make([]string, 0, len(statusMap))
-	for status := range statusMap {
-		result = append(result, status)
-	}
-	return result
-}
-
 // convertTaskStatus 将任务状态转换为四类：INIT, RUNNING, SUCCESS, FAILURE
 func convertTaskStatus(status string) string {
 	switch status {
@@ -417,14 +417,6 @@ func parseTimeIfNotEmpty(timeStr, fieldName string) (*time.Time, error) {
 
 // getTaskDetailFilterOptions 获取任务详情过滤选项
 func getTaskDetailFilterOptions() *pbtb.TaskDetailFilterOptions {
-	// 任务状态选项（四种归类后的状态）
-	statusChoices := []*pbtb.Choice{
-		{Id: taskTypes.TaskStatusInit, Name: "任务初始化"},
-		{Id: taskTypes.TaskStatusRunning, Name: "任务运行中"},
-		{Id: taskTypes.TaskStatusSuccess, Name: "任务成功"},
-		{Id: taskTypes.TaskStatusFailure, Name: "任务失败"},
-	}
-
 	// todo: 等表设计支持从 CommonPayload 查询后再填充
 	return &pbtb.TaskDetailFilterOptions{
 		SetNameChoices:     []*pbtb.Choice{},
@@ -433,6 +425,5 @@ func getTaskDetailFilterOptions() *pbtb.TaskDetailFilterOptions {
 		AliasChoices:       []*pbtb.Choice{},
 		CcProcessIdChoices: []*pbtb.Choice{},
 		InstIdChoices:      []*pbtb.Choice{},
-		StatusChoices:      statusChoices,
 	}
 }
