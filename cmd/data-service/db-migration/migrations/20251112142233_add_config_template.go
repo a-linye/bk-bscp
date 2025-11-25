@@ -43,10 +43,10 @@ func mig20251112142233Up(tx *gorm.DB) error {
 
 		// Attachment is attachment info of the resource
 		BizID                uint   `gorm:"column:biz_id;type:bigint unsigned;not null;comment:业务ID"`
-		TenantID             string `gorm:"column:tenant_id;type:varchar(255);not null;default:default"`
 		TemplateID           uint   `gorm:"column:template_id;type:bigint unsigned;not null;comment:关联的BSCP templates表的ID"`
 		CcTemplateProcessIDs string `gorm:"column:cc_template_process_ids;type:json not null;comment:关联的cc服务模版下的模板进程ID列表"`
 		CcProcessInstanceIDs string `gorm:"column:cc_process_instance_ids;type:json not null;comment:关联的cc中未通过服务模板创建的进程实例ID列表"`
+		TenantID             string `gorm:"column:tenant_id;type:varchar(255);not null;default:default"`
 
 		// Revision is revision info of the resource
 		Creator   string    `gorm:"type:varchar(64) not null" json:"creator"`

@@ -43,10 +43,10 @@ func mig20251112142234Up(tx *gorm.DB) error {
 		ConfigVersionID     uint   `gorm:"column:config_version_id;type:bigint unsigned;comment:配置模板版本ID"`
 		CcProcessID         uint   `gorm:"column:cc_process_id;type:bigint unsigned;not null;comment:cc进程ID"`
 		ModuleInstSeq       uint   `gorm:"column:module_inst_seq;type:bigint unsigned;not null;comment:模块下的进程实例序列号"`
-		TenantID            string `gorm:"column:tenant_id;type:varchar(255);not null;default:default;comment:租户ID"`
 		AppID               uint   `gorm:"column:app_id;type:bigint unsigned;not null;comment:应用ID"`
 		ReleaseID           uint   `gorm:"column:release_id;type:bigint unsigned;not null;comment:发布版本ID"`
 		ReleaseConfigItemID uint   `gorm:"column:release_config_item_id;type:bigint unsigned;not null;comment:发布配置项ID"`
+		TenantID            string `gorm:"column:tenant_id;type:varchar(255);not null;default:default;comment:租户ID"`
 
 		// Revision is revision info of the resource
 		Creator   string    `gorm:"type:varchar(64) not null" json:"creator"`
