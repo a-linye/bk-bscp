@@ -211,6 +211,12 @@ type TaskBatchSpec struct {
 	Status     TaskBatchStatus `json:"status" gorm:"column:status"`
 	StartAt    *time.Time      `json:"start_at" gorm:"column:start_at"`
 	EndAt      *time.Time      `json:"end_at" gorm:"column:end_at"`
+
+	// 任务计数字段，用于 Callback 机制更新批次状态
+	TotalCount     uint32 `json:"total_count" gorm:"column:total_count"`         // 总任务数
+	CompletedCount uint32 `json:"completed_count" gorm:"column:completed_count"` // 已完成任务数
+	SuccessCount   uint32 `json:"success_count" gorm:"column:success_count"`     // 成功任务数
+	FailedCount    uint32 `json:"failed_count" gorm:"column:failed_count"`       // 失败任务数
 }
 
 // 辅助方法：设置任务数据

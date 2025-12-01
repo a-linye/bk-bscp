@@ -93,6 +93,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 校验操作是否合法
 		processStep.ValidateOperateProcess(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.operateType,
@@ -102,6 +103,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 对比CMDB进程配置
 		processStep.CompareWithCMDBProcessInfo(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.needCompareCMDB,
@@ -112,6 +114,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 对比GSE进程状态
 		processStep.CompareWithGSEProcessStatus(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.originalProcManagedStatus,
@@ -121,6 +124,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 对比GSE进程配置
 		processStep.CompareWithGSEProcessConfig(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.originalProcManagedStatus,
@@ -130,6 +134,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 执行进程操作
 		processStep.OperateProcess(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.operateType,
@@ -140,6 +145,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// 进程操作完成，更新进程实例状态
 		processStep.FinalizeOperateProcess(
 			t.bizID,
+			t.batchID,
 			t.processID,
 			t.processInstanceID,
 			t.operateType,

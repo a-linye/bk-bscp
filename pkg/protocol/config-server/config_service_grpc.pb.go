@@ -219,7 +219,10 @@ const (
 	Config_ServiceTemplate_FullMethodName                    = "/pbcs.Config/ServiceTemplate"
 	Config_ProcessTemplate_FullMethodName                    = "/pbcs.Config/ProcessTemplate"
 	Config_ListConfigInstances_FullMethodName                = "/pbcs.Config/ListConfigInstances"
+	Config_ConfigGenerateStatus_FullMethodName               = "/pbcs.Config/ConfigGenerateStatus"
+	Config_PreviewConfig_FullMethodName                      = "/pbcs.Config/PreviewConfig"
 	Config_CompareConfig_FullMethodName                      = "/pbcs.Config/CompareConfig"
+	Config_GenerateConfig_FullMethodName                     = "/pbcs.Config/GenerateConfig"
 	Config_PushConfig_FullMethodName                         = "/pbcs.Config/PushConfig"
 	Config_GetConfigRenderResult_FullMethodName              = "/pbcs.Config/GetConfigRenderResult"
 	Config_ListConfigTemplate_FullMethodName                 = "/pbcs.Config/ListConfigTemplate"
@@ -608,11 +611,17 @@ type ConfigClient interface {
 	ProcessTemplate(ctx context.Context, in *ProcessTemplateReq, opts ...grpc.CallOption) (*ProcessTemplateResp, error)
 	// 配置实例列表
 	ListConfigInstances(ctx context.Context, in *ListConfigInstancesReq, opts ...grpc.CallOption) (*ListConfigInstancesResp, error)
+	// 配置生成状态
+	ConfigGenerateStatus(ctx context.Context, in *ConfigGenerateStatusReq, opts ...grpc.CallOption) (*ConfigGenerateStatusResp, error)
+	// 配置预览
+	PreviewConfig(ctx context.Context, in *PreviewConfigReq, opts ...grpc.CallOption) (*PreviewConfigResp, error)
 	// 配置对比
 	CompareConfig(ctx context.Context, in *CompareConfigReq, opts ...grpc.CallOption) (*CompareConfigResp, error)
-	// 配置生成/下发
+	// 配置生成
+	GenerateConfig(ctx context.Context, in *GenerateConfigReq, opts ...grpc.CallOption) (*GenerateConfigResp, error)
+	// 配置下发
 	PushConfig(ctx context.Context, in *PushConfigReq, opts ...grpc.CallOption) (*PushConfigResp, error)
-	// 获取异步任务的配置渲染结果
+	// 查看配置生成结果
 	GetConfigRenderResult(ctx context.Context, in *GetConfigRenderResultReq, opts ...grpc.CallOption) (*GetConfigRenderResultResp, error)
 	// 配置模板列表
 	ListConfigTemplate(ctx context.Context, in *ListConfigTemplateReq, opts ...grpc.CallOption) (*ListConfigTemplateResp, error)
@@ -2354,9 +2363,36 @@ func (c *configClient) ListConfigInstances(ctx context.Context, in *ListConfigIn
 	return out, nil
 }
 
+func (c *configClient) ConfigGenerateStatus(ctx context.Context, in *ConfigGenerateStatusReq, opts ...grpc.CallOption) (*ConfigGenerateStatusResp, error) {
+	out := new(ConfigGenerateStatusResp)
+	err := c.cc.Invoke(ctx, Config_ConfigGenerateStatus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) PreviewConfig(ctx context.Context, in *PreviewConfigReq, opts ...grpc.CallOption) (*PreviewConfigResp, error) {
+	out := new(PreviewConfigResp)
+	err := c.cc.Invoke(ctx, Config_PreviewConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configClient) CompareConfig(ctx context.Context, in *CompareConfigReq, opts ...grpc.CallOption) (*CompareConfigResp, error) {
 	out := new(CompareConfigResp)
 	err := c.cc.Invoke(ctx, Config_CompareConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GenerateConfig(ctx context.Context, in *GenerateConfigReq, opts ...grpc.CallOption) (*GenerateConfigResp, error) {
+	out := new(GenerateConfigResp)
+	err := c.cc.Invoke(ctx, Config_GenerateConfig_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2773,11 +2809,17 @@ type ConfigServer interface {
 	ProcessTemplate(context.Context, *ProcessTemplateReq) (*ProcessTemplateResp, error)
 	// 配置实例列表
 	ListConfigInstances(context.Context, *ListConfigInstancesReq) (*ListConfigInstancesResp, error)
+	// 配置生成状态
+	ConfigGenerateStatus(context.Context, *ConfigGenerateStatusReq) (*ConfigGenerateStatusResp, error)
+	// 配置预览
+	PreviewConfig(context.Context, *PreviewConfigReq) (*PreviewConfigResp, error)
 	// 配置对比
 	CompareConfig(context.Context, *CompareConfigReq) (*CompareConfigResp, error)
-	// 配置生成/下发
+	// 配置生成
+	GenerateConfig(context.Context, *GenerateConfigReq) (*GenerateConfigResp, error)
+	// 配置下发
 	PushConfig(context.Context, *PushConfigReq) (*PushConfigResp, error)
-	// 获取异步任务的配置渲染结果
+	// 查看配置生成结果
 	GetConfigRenderResult(context.Context, *GetConfigRenderResultReq) (*GetConfigRenderResultResp, error)
 	// 配置模板列表
 	ListConfigTemplate(context.Context, *ListConfigTemplateReq) (*ListConfigTemplateResp, error)
@@ -3363,8 +3405,17 @@ func (UnimplementedConfigServer) ProcessTemplate(context.Context, *ProcessTempla
 func (UnimplementedConfigServer) ListConfigInstances(context.Context, *ListConfigInstancesReq) (*ListConfigInstancesResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListConfigInstances not implemented")
 }
+func (UnimplementedConfigServer) ConfigGenerateStatus(context.Context, *ConfigGenerateStatusReq) (*ConfigGenerateStatusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfigGenerateStatus not implemented")
+}
+func (UnimplementedConfigServer) PreviewConfig(context.Context, *PreviewConfigReq) (*PreviewConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PreviewConfig not implemented")
+}
 func (UnimplementedConfigServer) CompareConfig(context.Context, *CompareConfigReq) (*CompareConfigResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CompareConfig not implemented")
+}
+func (UnimplementedConfigServer) GenerateConfig(context.Context, *GenerateConfigReq) (*GenerateConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateConfig not implemented")
 }
 func (UnimplementedConfigServer) PushConfig(context.Context, *PushConfigReq) (*PushConfigResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushConfig not implemented")
@@ -6843,6 +6894,42 @@ func _Config_ListConfigInstances_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_ConfigGenerateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigGenerateStatusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).ConfigGenerateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_ConfigGenerateStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).ConfigGenerateStatus(ctx, req.(*ConfigGenerateStatusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_PreviewConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).PreviewConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_PreviewConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).PreviewConfig(ctx, req.(*PreviewConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Config_CompareConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CompareConfigReq)
 	if err := dec(in); err != nil {
@@ -6857,6 +6944,24 @@ func _Config_CompareConfig_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).CompareConfig(ctx, req.(*CompareConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GenerateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GenerateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GenerateConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GenerateConfig(ctx, req.(*GenerateConfigReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -7691,8 +7796,20 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Config_ListConfigInstances_Handler,
 		},
 		{
+			MethodName: "ConfigGenerateStatus",
+			Handler:    _Config_ConfigGenerateStatus_Handler,
+		},
+		{
+			MethodName: "PreviewConfig",
+			Handler:    _Config_PreviewConfig_Handler,
+		},
+		{
 			MethodName: "CompareConfig",
 			Handler:    _Config_CompareConfig_Handler,
+		},
+		{
+			MethodName: "GenerateConfig",
+			Handler:    _Config_GenerateConfig_Handler,
 		},
 		{
 			MethodName: "PushConfig",

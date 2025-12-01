@@ -348,3 +348,7 @@ func (s *Service) fetchAllServiceTemplate(ctx context.Context, bizID int) ([]*bk
 		return resp.Info, resp.Count, nil
 	})
 }
+
+func (s *Service) PreviewConfig(ctx context.Context, req *pbds.PreviewConfigReq) (*pbds.PreviewConfigResp, error) {
+	return nil, nil
+}
