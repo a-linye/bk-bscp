@@ -82,29 +82,11 @@ type Data struct {
 	Info  []FindHostByTopo `json:"info"`  // 主机实际数据
 }
 
-// CMDBResponse 通用响应结构
-type CMDBResponseData[T any] struct {
-	Result     bool   `json:"result"`     // 请求成功与否
-	Code       int    `json:"code"`       // 错误编码
-	Message    string `json:"message"`    // 错误信息
-	Data       T      `json:"data"`       // 泛型，具体数据结构
-	Permission any    `json:"permission"` // 权限信息（可以根据需要定义 struct）
-}
-
-// HostRelationWatchResponse 主机关系监听响应
-type HostRelationWatchResponse = CMDBResponseData[HostRelationWatchData]
-
-// HostWatchData 主机监听数据
-type HostWatchData = WatchResourceData[HostDetail]
-
 // HostDetail 主机事件详情
 type HostDetail struct {
 	BkHostID  *int    `json:"bk_host_id"`  // 主机ID
 	BkAgentID *string `json:"bk_agent_id"` // Agent ID
 }
-
-// HostWatchResponse 主机监听响应
-type HostWatchResponse = CMDBResponseData[HostWatchData]
 
 // HostEvent 主机事件
 type HostEvent = Event[HostDetail]
@@ -765,9 +747,6 @@ type HostBizRelation struct {
 	BkSetID           int    `json:"bk_set_id"`           // 集群ID
 	BkSupplierAccount string `json:"bk_supplier_account"` // 开发商账号
 }
-
-// FindHostBizRelationsResponse 查询主机业务关系响应
-type FindHostBizRelationsResponse = CMDBResponseData[[]HostBizRelation]
 
 // WatchData 定义了监听到的事件数据详情
 type WatchData struct {

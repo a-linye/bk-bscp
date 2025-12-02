@@ -111,8 +111,18 @@ func (s *Service) PushConfig(ctx context.Context, req *pbcs.PushConfigReq) (*pbc
 	if err := s.authorizer.Authorize(grpcKit, res...); err != nil {
 		return nil, err
 	}
+	dsResp, err := s.client.DS.PushConfig(grpcKit.RpcCtx(), &pbds.PushConfigReq{
+		BizId:   req.GetBizId(),
+		BatchId: req.GetBatchId(),
+	})
+	if err != nil {
+		logs.Errorf("push config failed, err: %v, rid: %s", err, grpcKit.Rid)
+		return nil, err
+	}
 
-	return &pbcs.PushConfigResp{}, nil
+	return &pbcs.PushConfigResp{
+		BatchId: dsResp.GetBatchId(),
+	}, nil
 }
 
 // GetConfigRenderResult implements pbcs.ConfigServer.

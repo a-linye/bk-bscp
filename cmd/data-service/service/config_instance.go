@@ -820,3 +820,13 @@ func (s *Service) GetConfigGenerateResult(ctx context.Context, req *pbds.GetConf
 		Content:              taskPayload.ConfigPayload.ConfigContent,
 	}, nil
 }
+
+// PushConfig 配置下发
+func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbds.PushConfigResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+	// tood: 实现配置下发逻辑
+	logs.Infof("push config, bizID: %d, batchID: %d, rid: %s", req.GetBizId(), req.GetBatchId(), kt.Rid)
+	return &pbds.PushConfigResp{
+		BatchId: req.GetBatchId(),
+	}, nil
+}
