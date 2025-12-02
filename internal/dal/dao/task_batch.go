@@ -166,47 +166,57 @@ func (dao *taskBatchDao) ListExecutors(kit *kit.Kit, bizID uint32) ([]string, er
 // IncrementCompletedCount 增加完成任务计数，当所有任务完成时自动更新批次状态
 func (dao *taskBatchDao) IncrementCompletedCount(kit *kit.Kit, batchID uint32, isSuccess bool) error {
 	m := dao.genQ.TaskBatch
-	q := dao.genQ.TaskBatch.WithContext(kit.Ctx)
 
-	updates := map[string]interface{}{
-		"completed_count": gorm.Expr("completed_count + 1"),
-	}
-	if isSuccess {
-		updates["success_count"] = gorm.Expr("success_count + 1")
-	} else {
-		updates["failed_count"] = gorm.Expr("failed_count + 1")
-	}
+	txFunc := func(tx *gen.Query) error {
+		q := tx.TaskBatch.WithContext(kit.Ctx)
 
-	_, err := q.Where(m.ID.Eq(batchID)).Updates(updates)
-	if err != nil {
-		return fmt.Errorf("increment completed count failed: %w", err)
-	}
-
-	// 2. 查询更新后的批次信息，判断是否所有任务都已完成
-	batch, err := q.Where(m.ID.Eq(batchID)).Take()
-	if err != nil {
-		return fmt.Errorf("get task batch failed: %w", err)
-	}
-
-	// 3. 如果所有任务都已完成，更新批次状态
-	if batch.Spec.CompletedCount >= batch.Spec.TotalCount && batch.Spec.TotalCount > 0 {
-		var newStatus table.TaskBatchStatus
-		if batch.Spec.FailedCount == 0 {
-			newStatus = table.TaskBatchStatusSucceed
-		} else if batch.Spec.SuccessCount == 0 {
-			newStatus = table.TaskBatchStatusFailed
+		// 更新完成任务计数
+		updates := map[string]interface{}{
+			"completed_count": gorm.Expr("completed_count + 1"),
+		}
+		if isSuccess {
+			updates["success_count"] = gorm.Expr("success_count + 1")
 		} else {
-			newStatus = table.TaskBatchStatusPartlyFailed
+			updates["failed_count"] = gorm.Expr("failed_count + 1")
 		}
 
-		now := time.Now()
-		_, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
-			"status": newStatus,
-			"end_at": &now,
-		})
+		_, err := q.Where(m.ID.Eq(batchID)).Updates(updates)
 		if err != nil {
-			return fmt.Errorf("update batch status failed: %w", err)
+			return fmt.Errorf("increment completed count failed: %w", err)
 		}
+
+		// 查询更新后的批次信息，判断是否所有任务都已完成
+		batch, err := q.Where(m.ID.Eq(batchID)).Take()
+		if err != nil {
+			return fmt.Errorf("get task batch failed: %w", err)
+		}
+
+		// 如果所有任务都已完成，更新批次状态
+		if batch.Spec.CompletedCount >= batch.Spec.TotalCount && batch.Spec.TotalCount > 0 {
+			var newStatus table.TaskBatchStatus
+			if batch.Spec.FailedCount == 0 {
+				newStatus = table.TaskBatchStatusSucceed
+			} else if batch.Spec.SuccessCount == 0 {
+				newStatus = table.TaskBatchStatusFailed
+			} else {
+				newStatus = table.TaskBatchStatusPartlyFailed
+			}
+
+			now := time.Now()
+			_, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+				"status": newStatus,
+				"end_at": &now,
+			})
+			if err != nil {
+				return fmt.Errorf("update batch status failed: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	if err := dao.genQ.Transaction(txFunc); err != nil {
+		return err
 	}
 
 	return nil
@@ -233,42 +243,51 @@ func (dao *taskBatchDao) ResetCountsForRetry(kit *kit.Kit, batchID uint32, retry
 // AddFailedCount 增加失败计数（用于任务创建失败的场景），同时增加 CompletedCount 和 FailedCount
 func (dao *taskBatchDao) AddFailedCount(kit *kit.Kit, batchID uint32, count uint32) error {
 	m := dao.genQ.TaskBatch
-	q := dao.genQ.TaskBatch.WithContext(kit.Ctx)
 
-	// 原子增加 completed_count 和 failed_count
-	_, err := q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
-		"completed_count": gorm.Expr("completed_count + ?", count),
-		"failed_count":    gorm.Expr("failed_count + ?", count),
-	})
-	if err != nil {
-		return fmt.Errorf("add failed count failed: %w", err)
-	}
+	txFunc := func(tx *gen.Query) error {
+		q := tx.TaskBatch.WithContext(kit.Ctx)
 
-	// 查询更新后的批次，判断是否所有任务都已完成
-	batch, err := q.Where(m.ID.Eq(batchID)).Take()
-	if err != nil {
-		return fmt.Errorf("get task batch failed: %w", err)
-	}
-
-	// 如果所有任务都已完成，更新批次状态
-	if batch.Spec.CompletedCount >= batch.Spec.TotalCount && batch.Spec.TotalCount > 0 {
-		var newStatus table.TaskBatchStatus
-		if batch.Spec.FailedCount == 0 {
-			newStatus = table.TaskBatchStatusSucceed
-		} else if batch.Spec.SuccessCount == 0 {
-			newStatus = table.TaskBatchStatusFailed
-		} else {
-			newStatus = table.TaskBatchStatusPartlyFailed
-		}
-
-		now := time.Now()
-		_, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
-			"status": newStatus,
-			"end_at": &now,
+		// 增加 completed_count 和 failed_count
+		_, err := q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+			"completed_count": gorm.Expr("completed_count + ?", count),
+			"failed_count":    gorm.Expr("failed_count + ?", count),
 		})
 		if err != nil {
-			return fmt.Errorf("update batch status failed: %w", err)
+			return fmt.Errorf("add failed count failed: %w", err)
 		}
+
+		// 查询更新后的批次，判断是否所有任务都已完成
+		batch, err := q.Where(m.ID.Eq(batchID)).Take()
+		if err != nil {
+			return fmt.Errorf("get task batch failed: %w", err)
+		}
+
+		// 如果所有任务都已完成，更新批次状态
+		if batch.Spec.CompletedCount >= batch.Spec.TotalCount && batch.Spec.TotalCount > 0 {
+			var newStatus table.TaskBatchStatus
+			if batch.Spec.FailedCount == 0 {
+				newStatus = table.TaskBatchStatusSucceed
+			} else if batch.Spec.SuccessCount == 0 {
+				newStatus = table.TaskBatchStatusFailed
+			} else {
+				newStatus = table.TaskBatchStatusPartlyFailed
+			}
+
+			now := time.Now()
+			_, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+				"status": newStatus,
+				"end_at": &now,
+			})
+			if err != nil {
+				return fmt.Errorf("update batch status failed: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	if err := dao.genQ.Transaction(txFunc); err != nil {
+		return err
 	}
 
 	return nil
