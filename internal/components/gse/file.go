@@ -110,8 +110,8 @@ type TransferFileResultDataResultContent struct {
 	Size              int64  `json:"size"`
 }
 
-// AsyncTransferFile 文件传输
-func (gse *Service) AsyncTransferFile(ctx context.Context, req *TransferFileReq) (*CommonTaskRespData, error) {
+// AsyncExtensionsTransferFile 启动文件分发任务, 可支持扩展型目标, 包括容器和主机
+func (gse *Service) AsyncExtensionsTransferFile(ctx context.Context, req *TransferFileReq) (*CommonTaskRespData, error) {
 	// 1. if sourceContainerID is set, means source is container, else is node
 	// 2. if targetContainerID is set, means target is container, else is node
 	url := fmt.Sprintf(asyncExtensionsTransferFile, gse.host)
@@ -124,7 +124,7 @@ func (gse *Service) AsyncTransferFile(ctx context.Context, req *TransferFileReq)
 	return resp, nil
 }
 
-// AsyncTerminateTransferFile 终止文件任务执行
+// AsyncTerminateTransferFile 终止文件分发任务, 可支持扩展型目标, 包括容器和主机
 func (gse *Service) AsyncTerminateTransferFile(ctx context.Context, req *TerminateTransferFileTaskReq) (*CommonTaskRespData, error) {
 	url := fmt.Sprintf(asyncTerminateTransferFile, gse.host)
 
@@ -136,7 +136,7 @@ func (gse *Service) AsyncTerminateTransferFile(ctx context.Context, req *Termina
 	return resp, nil
 }
 
-// GetExtensionsTransferFileResult 启动文件分发任务, 可支持扩展型目标, 包括容器和主机
+// GetExtensionsTransferFileResult 查询文件传输结果, 可支持扩展型目标, 包括容器和主机
 func (gse *Service) GetExtensionsTransferFileResult(ctx context.Context, req *GetTransferFileResultReq) (*TransferFileResultData, error) {
 	url := fmt.Sprintf(getExtensionsTransferFileResult, gse.host)
 

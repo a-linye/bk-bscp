@@ -250,7 +250,7 @@ func (a *Scheduler) handleDownload(job *types.AsyncDownloadJob) error {
 			},
 		},
 	}
-	resp, err := a.gseService.AsyncTransferFile(a.ctx, transferFileReq)
+	resp, err := a.gseService.AsyncExtensionsTransferFile(a.ctx, transferFileReq)
 	if err != nil {
 		return fmt.Errorf("create gse transfer file task failed, %s", err.Error())
 	}
