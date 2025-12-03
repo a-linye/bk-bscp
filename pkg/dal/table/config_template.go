@@ -39,7 +39,9 @@ type ConfigTemplateAttachment struct {
 	CcTemplateProcessIDs types.Uint32Slice `json:"cc_template_process_ids" gorm:"column:cc_template_process_ids;type:json;default:'[]'"`
 	// CcProcessIDs 关联cc中未通过服务模板创建的进程
 	CcProcessIDs types.Uint32Slice `json:"cc_process_ids" gorm:"column:cc_process_ids;type:json;default:'[]'"`
-	TenantID     string            `json:"tenant_id" gorm:"column:tenant_id"`
+	// AppID 关联应用
+	AppID    uint32 `json:"app_id" gorm:"column:app_id"`
+	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
 // TableName is the config template's database table name.
@@ -54,7 +56,7 @@ func (c *ConfigTemplate) ResType() string {
 
 // AppID AuditRes interface
 func (c *ConfigTemplate) AppID() uint32 {
-	return 0
+	return c.Attachment.AppID
 }
 
 // ResID AuditRes interface
