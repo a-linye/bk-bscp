@@ -15,16 +15,24 @@
 | POST | /api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approval_callback | [Config_ApprovalCallback](#config-approval-callback) | itsm v4 回调接口 |
 | POST | /api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approve | [Config_Approve](#config-approve) | 审批同步，其中v2版本中itsm也是复用这个接口进行回调 |
 | PUT | /api/v1/config/biz/{bizId}/apps/{appId}/config_items | [Config_BatchUpsertConfigItems](#config-batch-upsert-config-items) | 批量创建或更新文件配置项 |
-| GET | /api/v1/config/biz_id/{bizId}/topo | [Config_BizTopo](#config-biz-topo) | 按业务拓扑 |
+| POST | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/bind_process_instance | [Config_BindProcessInstance](#config-bind-process-instance) | 绑定配置模板与进程实例 |
+| GET | /api/v1/config/biz_id/{bizId}/topo | [Config_BizTopo](#config-biz-topo) | 根据业务查询拓扑 |
+| GET | /api/v1/config/biz_id/{bizId}/config_template/variable | [Config_ConfigTemplateVariable](#config-config-template-variable) | 配置模板变量 |
+| POST | /api/v1/config/biz_id/{bizId}/config_template | [Config_CreateConfigTemplate](#config-create-config-template) | 创建配置模板 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs | [Config_CreateKv](#config-create-kv) | 创建键值配置项 |
 | POST | /api/v1/config/create/release/release/app_id/{appId}/biz_id/{bizId} | [Config_CreateRelease](#config-create-release) | 生成版本 |
 | DELETE | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{id} | [Config_DeleteKv](#config-delete-kv) | 删除键值配置项 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/publish | [Config_GenerateReleaseAndPublish](#config-generate-release-and-publish) | 生成版本并发布 |
+| GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_GetConfigTemplate](#config-get-config-template) | 获取配置模板 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate](#config-list-config-template) | 配置模板列表 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs](#config-list-kvs) | 获取键值配置项列表 |
-| GET | /api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId} | [Config_ProcessTemplate](#config-process-template) | 进程模板列表 |
+| GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/preview_bind_process_instance | [Config_PreviewBindProcessInstance](#config-preview-bind-process-instance) | 预览绑定配置模板与进程实例 |
+| GET | /api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId} | [Config_ProcessInstance](#config-process-instance) | 根据服务实例查询实例进程列表 |
+| GET | /api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId} | [Config_ProcessTemplate](#config-process-template) | 根据服务模板查询模板进程列表 |
 | POST | /api/v1/config/update/strategy/publish/publish/release_id/{releaseId}/app_id/{appId}/biz_id/{bizId} | [Config_Publish](#config-publish) | 发布指定版本 |
-| GET | /api/v1/config/biz_id/{bizId}/service_template | [Config_ServiceTemplate](#config-service-template) | 按服务模板 |
+| GET | /api/v1/config/biz_id/{bizId}/service_instance/{moduleId} | [Config_ServiceInstance](#config-service-instance) | 根据模块获取服务实例列表 |
+| GET | /api/v1/config/biz_id/{bizId}/service_template | [Config_ServiceTemplate](#config-service-template) | 根据业务查询服务模板列表 |
+| PUT | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_UpdateConfigTemplate](#config-update-config-template) | 编辑配置模板 |
 | PUT | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key} | [Config_UpdateKv](#config-update-kv) | 更新键值配置项 |
 
 ### healthz
@@ -228,7 +236,49 @@ Content-Type: application/json
 {}
 ```
 
-### <span id="config-biz-topo"></span> 按业务拓扑 (*Config_BizTopo*)
+### <span id="config-bind-process-instance"></span> 绑定配置模板与进程实例 (*Config_BindProcessInstance*)
+
+```
+POST /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/bind_process_instance
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateId | int64 (formatted integer) | ✓ | 配置模版ID |
+| ccProcessIds | []int64 (formatted integer) |  | 配置模版关联的CC进程实例ID列表 |
+| ccTemplateProcessIds | []int64 (formatted integer) |  | 配置模版关联的CC模板进程ID列表 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/bind_process_instance HTTP/1.1
+Content-Type: application/json
+
+{
+  "ccProcessIds": [
+    {}
+  ],
+  "ccTemplateProcessIds": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-biz-topo"></span> 根据业务查询拓扑 (*Config_BizTopo*)
 
 ```
 GET /api/v1/config/biz_id/{bizId}/topo
@@ -252,6 +302,101 @@ GET /api/v1/config/biz_id/{bizId}/topo HTTP/1.1
 Content-Type: application/json
 
 
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-config-template-variable"></span> 配置模板变量 (*Config_ConfigTemplateVariable*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/config_template/variable
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/config_template/variable HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-create-config-template"></span> 创建配置模板 (*Config_CreateConfigTemplate*)
+
+```
+POST /api/v1/config/biz_id/{bizId}/config_template
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| byteSize | uint64 (formatted string) |  | 文件大小 |
+| charset | string |  | 文件编码 |
+| fileMode | string |  | 文件模式 |
+| fileName | string |  | 文件名 |
+| filePath | string |  | 文件路径 |
+| highlightStyle | string |  | 高亮风格 |
+| md5 | string |  | 文件md5 |
+| memo | string |  | 配置模版描述 |
+| name | string |  | 配置模版名称 |
+| privilege | string |  | 文件权限 |
+| revisionName | string |  | 模板文件版本号 |
+| sign | string |  | 文件sha256 |
+| templateSpaceId | int64 (formatted integer) |  | 模板空间ID |
+| user | string |  | 用户权限名 |
+| userGroup | string |  | 用户组权限名 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz_id/{bizId}/config_template HTTP/1.1
+Content-Type: application/json
+
+{
+  "byteSize": "",
+  "charset": "",
+  "fileMode": "",
+  "fileName": "",
+  "filePath": "",
+  "highlightStyle": "",
+  "md5": "",
+  "memo": "",
+  "name": "",
+  "privilege": "",
+  "revisionName": "",
+  "sign": "",
+  "templateSpaceId": 0,
+  "user": "",
+  "userGroup": ""
+}
 ```
 
 #### 输出示例
@@ -450,6 +595,39 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-get-config-template"></span> 获取配置模板 (*Config_GetConfigTemplate*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateId | int64 (formatted integer) | ✓ | 配置模版ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-list-config-template"></span> 配置模板列表 (*Config_ListConfigTemplate*)
 
 ```
@@ -559,7 +737,73 @@ Content-Type: application/json
 {}
 ```
 
-### <span id="config-process-template"></span> 进程模板列表 (*Config_ProcessTemplate*)
+### <span id="config-preview-bind-process-instance"></span> 预览绑定配置模板与进程实例 (*Config_PreviewBindProcessInstance*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/preview_bind_process_instance
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateId | int64 (formatted integer) | ✓ | 配置模版ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/preview_bind_process_instance HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-process-instance"></span> 根据服务实例查询实例进程列表 (*Config_ProcessInstance*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| serviceInstanceId | int64 (formatted integer) | ✓ | 服务实例ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-process-template"></span> 根据服务模板查询模板进程列表 (*Config_ProcessTemplate*)
 
 ```
 GET /api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId}
@@ -645,7 +889,40 @@ Content-Type: application/json
 {}
 ```
 
-### <span id="config-service-template"></span> 按服务模板 (*Config_ServiceTemplate*)
+### <span id="config-service-instance"></span> 根据模块获取服务实例列表 (*Config_ServiceInstance*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/service_instance/{moduleId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| moduleId | int64 (formatted integer) | ✓ | 模块ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/service_instance/{moduleId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-service-template"></span> 根据业务查询服务模板列表 (*Config_ServiceTemplate*)
 
 ```
 GET /api/v1/config/biz_id/{bizId}/service_template
@@ -669,6 +946,64 @@ GET /api/v1/config/biz_id/{bizId}/service_template HTTP/1.1
 Content-Type: application/json
 
 
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-config-template"></span> 编辑配置模板 (*Config_UpdateConfigTemplate*)
+
+```
+PUT /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateId | int64 (formatted integer) | ✓ | 配置模版ID |
+| byteSize | uint64 (formatted string) |  | 文件大小 |
+| charset | string |  | 文件编码 |
+| fileMode | string |  | 文件模式 |
+| highlightStyle | string |  | 高亮风格 |
+| md5 | string |  | 文件md5 |
+| memo | string |  | 配置模版描述 |
+| name | string |  | 配置模版名称 |
+| privilege | string |  | 文件权限 |
+| revisionName | string |  | 模板文件版本号 |
+| sign | string |  | 文件sha256 |
+| user | string |  | 用户权限名 |
+| userGroup | string |  | 用户组权限名 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} HTTP/1.1
+Content-Type: application/json
+
+{
+  "byteSize": "",
+  "charset": "",
+  "fileMode": "",
+  "highlightStyle": "",
+  "md5": "",
+  "memo": "",
+  "name": "",
+  "privilege": "",
+  "revisionName": "",
+  "sign": "",
+  "user": "",
+  "userGroup": ""
+}
 ```
 
 #### 输出示例
@@ -950,6 +1285,35 @@ Content-Type: application/json
 
 
 
+### <span id="config-create-config-template-body"></span> ConfigCreateConfigTemplateBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| byteSize | uint64 (formatted string)| `string` |  | | 文件大小 |  |
+| charset | string| `string` |  | | 文件编码 |  |
+| fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
+| fileName | string| `string` |  | | 文件名 |  |
+| filePath | string| `string` |  | | 文件路径 |  |
+| highlightStyle | string| `string` |  | | 高亮风格 |  |
+| md5 | string| `string` |  | | 文件md5 |  |
+| memo | string| `string` |  | | 配置模版描述 |  |
+| name | string| `string` |  | | 配置模版名称 |  |
+| privilege | string| `string` |  | | 文件权限 |  |
+| revisionName | string| `string` |  | | 模板文件版本号 |  |
+| sign | string| `string` |  | | 文件sha256 |  |
+| templateSpaceId | int64 (formatted integer)| `int64` |  | | 模板空间ID |  |
+| user | string| `string` |  | | 用户权限名 |  |
+| userGroup | string| `string` |  | | 用户组权限名 |  |
+
+
+
 ### <span id="config-create-kv-body"></span> ConfigCreateKvBody
 
 
@@ -1074,6 +1438,32 @@ Content-Type: application/json
 | groups | []int64 (formatted integer)| `[]int64` |  | | 分组上线：分组ID，如果有值那么all必须是false |  |
 | labels | \[\][interface{}](#interface)| `[]interface{}` |  | | 要发布的标签列表，仅在 gray_publish_mode 为 publish_by_labels 时生效 |  |
 | memo | string| `string` |  | | 上线说明 |  |
+
+
+
+### <span id="config-update-config-template-body"></span> ConfigUpdateConfigTemplateBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| byteSize | uint64 (formatted string)| `string` |  | | 文件大小 |  |
+| charset | string| `string` |  | | 文件编码 |  |
+| fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
+| highlightStyle | string| `string` |  | | 高亮风格 |  |
+| md5 | string| `string` |  | | 文件md5 |  |
+| memo | string| `string` |  | | 配置模版描述 |  |
+| name | string| `string` |  | | 配置模版名称 |  |
+| privilege | string| `string` |  | | 文件权限 |  |
+| revisionName | string| `string` |  | | 模板文件版本号 |  |
+| sign | string| `string` |  | | 文件sha256 |  |
+| user | string| `string` |  | | 用户权限名 |  |
+| userGroup | string| `string` |  | | 用户组权限名 |  |
 
 
 
@@ -1257,6 +1647,21 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-bind-process-instance-resp"></span> pbcsBindProcessInstanceResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | | 配置模版ID |  |
+
+
+
 ### <span id="pbcs-biz-topo-resp"></span> pbcsBizTopoResp
 
 
@@ -1269,6 +1674,52 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | bizTopoNodes | \[\][PbctBizTopoNode](#pbct-biz-topo-node)| `[]*PbctBizTopoNode` |  | |  |  |
+
+
+
+### <span id="pbcs-config-bind-process-instance-body"></span> pbcsConfigBindProcessInstanceBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| ccProcessIds | []int64 (formatted integer)| `[]int64` |  | | 配置模版关联的CC进程实例ID列表 |  |
+| ccTemplateProcessIds | []int64 (formatted integer)| `[]int64` |  | | 配置模版关联的CC模板进程ID列表 |  |
+
+
+
+### <span id="pbcs-config-template-variable-resp"></span> pbcsConfigTemplateVariableResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| configTemplateVariables | \[\][PbctConfigTemplateVariable](#pbct-config-template-variable)| `[]*PbctConfigTemplateVariable` |  | |  |  |
+
+
+
+### <span id="pbcs-create-config-template-resp"></span> pbcsCreateConfigTemplateResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | | 配置模版ID |  |
 
 
 
@@ -1309,6 +1760,21 @@ Content-Type: application/json
 
 [interface{}](#interface)
 
+### <span id="pbcs-get-config-template-resp"></span> pbcsGetConfigTemplateResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bindTemplate | [PbctBindTemplate](#pbct-bind-template)| `PbctBindTemplate` |  | |  |  |
+
+
+
 ### <span id="pbcs-list-config-template-resp"></span> pbcsListConfigTemplateResp
 
 
@@ -1322,6 +1788,24 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | count | int64 (formatted integer)| `int64` |  | | 总数 |  |
 | details | \[\][PbctConfigTemplate](#pbct-config-template)| `[]*PbctConfigTemplate` |  | |  |  |
+| templateSet | [PbcsListConfigTemplateRespItem](#pbcs-list-config-template-resp-item)| `PbcsListConfigTemplateRespItem` |  | |  |  |
+| templateSpace | [PbcsListConfigTemplateRespItem](#pbcs-list-config-template-resp-item)| `PbcsListConfigTemplateRespItem` |  | |  |  |
+
+
+
+### <span id="pbcs-list-config-template-resp-item"></span> pbcsListConfigTemplateRespItem
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | |  |  |
+| name | string| `string` |  | |  |  |
 
 
 
@@ -1340,6 +1824,37 @@ Content-Type: application/json
 | details | \[\][PbkvKv](#pbkv-kv)| `[]*PbkvKv` |  | |  |  |
 | exclusionCount | int64 (formatted integer)| `int64` |  | | 排除删除后的数量 |  |
 | isCertExpired | boolean| `bool` |  | | 是否有证书过期：是=true，否=false |  |
+
+
+
+### <span id="pbcs-preview-bind-process-instance-resp"></span> pbcsPreviewBindProcessInstanceResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| instanceProcesses | \[\][PbctBindProcessInstance](#pbct-bind-process-instance)| `[]*PbctBindProcessInstance` |  | |  |  |
+| templateProcesses | \[\][PbctBindProcessInstance](#pbct-bind-process-instance)| `[]*PbctBindProcessInstance` |  | |  |  |
+
+
+
+### <span id="pbcs-process-instance-resp"></span> pbcsProcessInstanceResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| processInstances | \[\][PbctListProcessInstance](#pbct-list-process-instance)| `[]*PbctListProcessInstance` |  | |  |  |
 
 
 
@@ -1375,6 +1890,21 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-service-instance-resp"></span> pbcsServiceInstanceResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| serviceInstances | \[\][PbctServiceInstanceInfo](#pbct-service-instance-info)| `[]*PbctServiceInstanceInfo` |  | |  |  |
+
+
+
 ### <span id="pbcs-service-template-resp"></span> pbcsServiceTemplateResp
 
 
@@ -1390,12 +1920,68 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-update-config-template-resp"></span> pbcsUpdateConfigTemplateResp
+
+
+  
+
+[interface{}](#interface)
+
 ### <span id="pbcs-update-kv-resp"></span> pbcsUpdateKvResp
 
 
   
 
 [interface{}](#interface)
+
+### <span id="pbct-bind-process-instance"></span> pbctBindProcessInstance
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | |  |  |
+| name | string| `string` |  | |  |  |
+| processName | string| `string` |  | |  |  |
+
+
+
+### <span id="pbct-bind-template"></span> pbctBindTemplate
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| byteSize | uint64 (formatted string)| `string` |  | | 文件大小 |  |
+| ccProcessIds | []int64 (formatted integer)| `[]int64` |  | | 关联cc中未通过服务模板创建的进程实例ID |  |
+| ccTemplateProcessIds | []int64 (formatted integer)| `[]int64` |  | | 关联cc服务模版下的模板进程ID |  |
+| charset | string| `string` |  | | 文件编码 |  |
+| fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
+| fileName | string| `string` |  | | 文件名 |  |
+| filePath | string| `string` |  | | 文件路径 |  |
+| highlightStyle | string| `string` |  | | 高亮风格 |  |
+| md5 | string| `string` |  | | 文件md5 |  |
+| memo | string| `string` |  | | 配置模版描述 |  |
+| name | string| `string` |  | | 配置模版名称 |  |
+| privilege | string| `string` |  | | 文件权限 |  |
+| revisionName | string| `string` |  | | 模板文件版本号 |  |
+| sign | string| `string` |  | | 文件sha256 |  |
+| templateSetName | string| `string` |  | | 模板套餐名称 |  |
+| templateSpaceName | string| `string` |  | | 模板空间名称 |  |
+| user | string| `string` |  | | 用户权限名 |  |
+| userGroup | string| `string` |  | | 用户组权限名 |  |
+
+
 
 ### <span id="pbct-biz-topo-node"></span> pbctBizTopoNode
 
@@ -1415,7 +2001,6 @@ Content-Type: application/json
 | bkObjName | string| `string` |  | |  |  |
 | child | \[\][PbctBizTopoNode](#pbct-biz-topo-node)| `[]*PbctBizTopoNode` |  | |  |  |
 | default | int64 (formatted integer)| `int64` |  | |  |  |
-| hostCount | int64 (formatted integer)| `int64` |  | |  |  |
 | processCount | int64 (formatted integer)| `int64` |  | |  |  |
 | serviceTemplateId | int64 (formatted integer)| `int64` |  | |  |  |
 
@@ -1470,7 +2055,41 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | fileName | string| `string` |  | | 文件名 |  |
+| highlightStyle | string| `string` |  | | 语法高亮 |  |
 | name | string| `string` |  | | 配置模版名称 |  |
+
+
+
+### <span id="pbct-config-template-variable"></span> pbctConfigTemplateVariable
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| key | string| `string` |  | | 变量键 |  |
+| memo | string| `string` |  | | 变量描述 |  |
+| type | string| `string` |  | | 变量类型 |  |
+
+
+
+### <span id="pbct-list-process-instance"></span> pbctListProcessInstance
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| property | [PbctProcessInfo](#pbct-process-info)| `PbctProcessInfo` |  | |  |  |
+| relation | [PbctRelation](#pbct-relation)| `PbctRelation` |  | |  |  |
 
 
 
@@ -1487,18 +2106,12 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | bkBizId | int64 (formatted integer)| `int64` |  | |  |  |
 | bkProcessName | string| `string` |  | |  |  |
-| bkSupplierAccount | string| `string` |  | |  |  |
-| createTime | string| `string` |  | |  |  |
-| creator | string| `string` |  | |  |  |
 | id | int64 (formatted integer)| `int64` |  | |  |  |
-| lastTime | string| `string` |  | |  |  |
-| modifier | string| `string` |  | |  |  |
-| property | map of [PbctPropertyField](#pbct-property-field)| `map[string]PbctPropertyField` |  | |  |  |
 | serviceTemplateId | int64 (formatted integer)| `int64` |  | |  |  |
 
 
 
-### <span id="pbct-property-field"></span> pbctPropertyField
+### <span id="pbct-process-info"></span> pbctProcessInfo
 
 
   
@@ -1509,8 +2122,46 @@ Content-Type: application/json
 
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
-| asDefaultValue | boolean| `bool` |  | |  |  |
-| value | string| `string` |  | |  |  |
+| bkFuncName | string| `string` |  | |  |  |
+| bkProcessId | int32 (formatted integer)| `int32` |  | |  |  |
+| bkProcessName | string| `string` |  | |  |  |
+
+
+
+### <span id="pbct-relation"></span> pbctRelation
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bkBizId | int32 (formatted integer)| `int32` |  | |  |  |
+| bkHostId | int32 (formatted integer)| `int32` |  | |  |  |
+| bkProcessId | int32 (formatted integer)| `int32` |  | |  |  |
+| bkSupplierAccount | string| `string` |  | |  |  |
+| processTemplateId | int32 (formatted integer)| `int32` |  | |  |  |
+| serviceInstanceId | int32 (formatted integer)| `int32` |  | |  |  |
+
+
+
+### <span id="pbct-service-instance-info"></span> pbctServiceInstanceInfo
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int32 (formatted integer)| `int32` |  | |  |  |
+| name | string| `string` |  | |  |  |
+| processCount | int64 (formatted integer)| `int64` |  | |  |  |
 
 
 
@@ -1525,16 +2176,8 @@ Content-Type: application/json
 
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
-| bkBizId | int64 (formatted integer)| `int64` |  | |  |  |
-| bkSupplierAccount | string| `string` |  | |  |  |
-| createTime | string| `string` |  | |  |  |
-| creator | string| `string` |  | |  |  |
-| hostApplyEnabled | boolean| `bool` |  | |  |  |
 | id | int64 (formatted integer)| `int64` |  | |  |  |
-| lastTime | string| `string` |  | |  |  |
-| modifier | string| `string` |  | |  |  |
 | name | string| `string` |  | |  |  |
-| serviceCategoryId | int64 (formatted integer)| `int64` |  | |  |  |
 
 
 
