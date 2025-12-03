@@ -33,6 +33,7 @@ const (
 // ValidateOperateProcess 校验操作是否合法
 func ValidateOperateProcess(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	operateType table.ProcessOperateType,
@@ -48,6 +49,7 @@ func ValidateOperateProcess(
 		SetMaxTries(0) // 校验操作是否合法，不需要重试
 	lo.Must0(validate.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		OperateType:               operateType,
@@ -60,6 +62,7 @@ func ValidateOperateProcess(
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 func CompareWithCMDBProcessInfo(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	needCompareCMDB bool,
@@ -77,6 +80,7 @@ func CompareWithCMDBProcessInfo(
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		NeedCompareCMDB:           needCompareCMDB,
@@ -90,6 +94,7 @@ func CompareWithCMDBProcessInfo(
 // CompareWithGSEProcessStatus 对比GSE进程状态
 func CompareWithGSEProcessStatus(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
@@ -106,6 +111,7 @@ func CompareWithGSEProcessStatus(
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
@@ -118,6 +124,7 @@ func CompareWithGSEProcessStatus(
 // CompareWithGSEProcessConfig 对比GSE进程配置
 func CompareWithGSEProcessConfig(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	originalProcManagedStatus table.ProcessManagedStatus,
@@ -134,6 +141,7 @@ func CompareWithGSEProcessConfig(
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		OriginalProcManagedStatus: originalProcManagedStatus,
@@ -146,6 +154,7 @@ func CompareWithGSEProcessConfig(
 // OperateProcess 进程操作
 func OperateProcess(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	operateType table.ProcessOperateType,
@@ -162,6 +171,7 @@ func OperateProcess(
 
 	lo.Must0(operate.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		OperateType:               operateType,
@@ -174,6 +184,7 @@ func OperateProcess(
 // FinalizeOperateProcess 进程操作完成
 func FinalizeOperateProcess(
 	bizID uint32,
+	batchID uint32,
 	processID uint32,
 	processInstanceID uint32,
 	operateType table.ProcessOperateType,
@@ -190,6 +201,7 @@ func FinalizeOperateProcess(
 
 	lo.Must0(finalize.SetPayload(process.OperatePayload{
 		BizID:                     bizID,
+		BatchID:                   batchID,
 		ProcessID:                 processID,
 		ProcessInstanceID:         processInstanceID,
 		OperateType:               operateType,

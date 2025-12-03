@@ -233,6 +233,10 @@ const (
 	Data_ProcessTemplate_FullMethodName                   = "/pbds.Data/ProcessTemplate"
 	Data_ListConfigTemplate_FullMethodName                = "/pbds.Data/ListConfigTemplate"
 	Data_ListConfigInstances_FullMethodName               = "/pbds.Data/ListConfigInstances"
+	Data_GenerateConfig_FullMethodName                    = "/pbds.Data/GenerateConfig"
+	Data_ConfigGenerateStatus_FullMethodName              = "/pbds.Data/ConfigGenerateStatus"
+	Data_GetConfigGenerateResult_FullMethodName           = "/pbds.Data/GetConfigGenerateResult"
+	Data_PreviewConfig_FullMethodName                     = "/pbds.Data/PreviewConfig"
 )
 
 // DataClient is the client API for Data service.
@@ -483,6 +487,14 @@ type DataClient interface {
 	ListConfigTemplate(ctx context.Context, in *ListConfigTemplateReq, opts ...grpc.CallOption) (*ListConfigTemplateResp, error)
 	// 配置实例列表
 	ListConfigInstances(ctx context.Context, in *ListConfigInstancesReq, opts ...grpc.CallOption) (*ListConfigInstancesResp, error)
+	// 配置生成
+	GenerateConfig(ctx context.Context, in *GenerateConfigReq, opts ...grpc.CallOption) (*GenerateConfigResp, error)
+	// 配置实例状态
+	ConfigGenerateStatus(ctx context.Context, in *ConfigGenerateStatusReq, opts ...grpc.CallOption) (*ConfigGenerateStatusResp, error)
+	// 查看配置生成结果
+	GetConfigGenerateResult(ctx context.Context, in *GetConfigGenerateResultReq, opts ...grpc.CallOption) (*GetConfigGenerateResultResp, error)
+	// 配置预览
+	PreviewConfig(ctx context.Context, in *PreviewConfigReq, opts ...grpc.CallOption) (*PreviewConfigResp, error)
 }
 
 type dataClient struct {
@@ -2302,6 +2314,42 @@ func (c *dataClient) ListConfigInstances(ctx context.Context, in *ListConfigInst
 	return out, nil
 }
 
+func (c *dataClient) GenerateConfig(ctx context.Context, in *GenerateConfigReq, opts ...grpc.CallOption) (*GenerateConfigResp, error) {
+	out := new(GenerateConfigResp)
+	err := c.cc.Invoke(ctx, Data_GenerateConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) ConfigGenerateStatus(ctx context.Context, in *ConfigGenerateStatusReq, opts ...grpc.CallOption) (*ConfigGenerateStatusResp, error) {
+	out := new(ConfigGenerateStatusResp)
+	err := c.cc.Invoke(ctx, Data_ConfigGenerateStatus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetConfigGenerateResult(ctx context.Context, in *GetConfigGenerateResultReq, opts ...grpc.CallOption) (*GetConfigGenerateResultResp, error) {
+	out := new(GetConfigGenerateResultResp)
+	err := c.cc.Invoke(ctx, Data_GetConfigGenerateResult_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) PreviewConfig(ctx context.Context, in *PreviewConfigReq, opts ...grpc.CallOption) (*PreviewConfigResp, error) {
+	out := new(PreviewConfigResp)
+	err := c.cc.Invoke(ctx, Data_PreviewConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataServer is the server API for Data service.
 // All implementations should embed UnimplementedDataServer
 // for forward compatibility
@@ -2550,6 +2598,14 @@ type DataServer interface {
 	ListConfigTemplate(context.Context, *ListConfigTemplateReq) (*ListConfigTemplateResp, error)
 	// 配置实例列表
 	ListConfigInstances(context.Context, *ListConfigInstancesReq) (*ListConfigInstancesResp, error)
+	// 配置生成
+	GenerateConfig(context.Context, *GenerateConfigReq) (*GenerateConfigResp, error)
+	// 配置实例状态
+	ConfigGenerateStatus(context.Context, *ConfigGenerateStatusReq) (*ConfigGenerateStatusResp, error)
+	// 查看配置生成结果
+	GetConfigGenerateResult(context.Context, *GetConfigGenerateResultReq) (*GetConfigGenerateResultResp, error)
+	// 配置预览
+	PreviewConfig(context.Context, *PreviewConfigReq) (*PreviewConfigResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3158,6 +3214,18 @@ func (UnimplementedDataServer) ListConfigTemplate(context.Context, *ListConfigTe
 }
 func (UnimplementedDataServer) ListConfigInstances(context.Context, *ListConfigInstancesReq) (*ListConfigInstancesResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListConfigInstances not implemented")
+}
+func (UnimplementedDataServer) GenerateConfig(context.Context, *GenerateConfigReq) (*GenerateConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateConfig not implemented")
+}
+func (UnimplementedDataServer) ConfigGenerateStatus(context.Context, *ConfigGenerateStatusReq) (*ConfigGenerateStatusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfigGenerateStatus not implemented")
+}
+func (UnimplementedDataServer) GetConfigGenerateResult(context.Context, *GetConfigGenerateResultReq) (*GetConfigGenerateResultResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfigGenerateResult not implemented")
+}
+func (UnimplementedDataServer) PreviewConfig(context.Context, *PreviewConfigReq) (*PreviewConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PreviewConfig not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -6789,6 +6857,78 @@ func _Data_ListConfigInstances_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_GenerateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GenerateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GenerateConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GenerateConfig(ctx, req.(*GenerateConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_ConfigGenerateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigGenerateStatusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).ConfigGenerateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_ConfigGenerateStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).ConfigGenerateStatus(ctx, req.(*ConfigGenerateStatusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetConfigGenerateResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigGenerateResultReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetConfigGenerateResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetConfigGenerateResult_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetConfigGenerateResult(ctx, req.(*GetConfigGenerateResultReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_PreviewConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).PreviewConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_PreviewConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).PreviewConfig(ctx, req.(*PreviewConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Data_ServiceDesc is the grpc.ServiceDesc for Data service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -7599,6 +7739,22 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListConfigInstances",
 			Handler:    _Data_ListConfigInstances_Handler,
+		},
+		{
+			MethodName: "GenerateConfig",
+			Handler:    _Data_GenerateConfig_Handler,
+		},
+		{
+			MethodName: "ConfigGenerateStatus",
+			Handler:    _Data_ConfigGenerateStatus_Handler,
+		},
+		{
+			MethodName: "GetConfigGenerateResult",
+			Handler:    _Data_GetConfigGenerateResult_Handler,
+		},
+		{
+			MethodName: "PreviewConfig",
+			Handler:    _Data_PreviewConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

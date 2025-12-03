@@ -32,7 +32,15 @@ type Executor struct {
 	Dao         dao.Set
 }
 
-// ProcessPayload 公用的配置，作为任务快照，方便进行获取以及对比
+// TaskPayload 公用的配置，作为任务快照，方便进行获取以及对比
+type TaskPayload struct {
+	// 进程相关
+	ProcessPayload *ProcessPayload
+	// 配置相关
+	ConfigPayload *ConfigPayload
+}
+
+// ProcessPayload 进程相关
 type ProcessPayload struct {
 	SetName       string // 集群名
 	ModuleName    string // 模块名
@@ -47,6 +55,19 @@ type ProcessPayload struct {
 	HostInstSeq   uint32 // HostInstSeq：主机级别的自增ID
 	ModuleInstSeq uint32 // ModuleInstSeq：模块级别的自增ID
 	ConfigData    string // 进程启动相关配置，比如启动脚本，优先级等
+}
+
+// ConfigPayload 配置相关
+type ConfigPayload struct {
+	ConfigTemplateID     uint32
+	ConfigTemplateName   string
+	ConfigFileName       string
+	ConfigFilePath       string
+	ConfigFileOwner      string
+	ConfigFileGroup      string
+	ConfigFilePermission string
+	ConfigInstanceKey    string // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
+	ConfigContent        string
 }
 
 // NewExecutor new executor

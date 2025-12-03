@@ -70,6 +70,7 @@ func NewProcessExecutor(gseService *gse.Service, cmdbService bkcmdb.Service, dao
 // OperatePayload 进程操作负载
 type OperatePayload struct {
 	BizID                     uint32
+	BatchID                   uint32 // 任务批次ID，用于 Callback 更新批次状态
 	OperateType               table.ProcessOperateType
 	ProcessID                 uint32
 	ProcessInstanceID         uint32
@@ -126,12 +127,12 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 	}
 
 	// 获取bscp侧存储的进程配置
-	commonPayload := &common.ProcessPayload{}
+	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: get common payload failed: %w", err)
 	}
 	var dbProcessInfo table.ProcessInfo
-	if err := json.Unmarshal([]byte(commonPayload.ConfigData), &dbProcessInfo); err != nil {
+	if err := json.Unmarshal([]byte(commonPayload.ProcessPayload.ConfigData), &dbProcessInfo); err != nil {
 		return fmt.Errorf("[CompareWithCMDBProcessInfo STEP]: unmarshal database config data failed: %w", err)
 	}
 
@@ -249,7 +250,7 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: get payload failed: %w", err)
 	}
 
-	commonPayload := &common.ProcessPayload{}
+	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return err
 	}
@@ -269,13 +270,13 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	// 使用 OperateProcMulti 接口查询进程状态，操作码为 2（OpTypeQuery）
 	params := gesprocessor.BuildProcessOperateParams{
 		BizID:         payload.BizID,
-		Alias:         commonPayload.Alias,
-		FuncName:      commonPayload.FuncName,
-		AgentID:       []string{commonPayload.AgentID},
-		HostInstSeq:   commonPayload.HostInstSeq,
-		ModuleInstSeq: commonPayload.ModuleInstSeq,
-		SetName:       commonPayload.SetName,
-		ModuleName:    commonPayload.ModuleName,
+		Alias:         commonPayload.ProcessPayload.Alias,
+		FuncName:      commonPayload.ProcessPayload.FuncName,
+		AgentID:       []string{commonPayload.ProcessPayload.AgentID},
+		HostInstSeq:   commonPayload.ProcessPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ProcessPayload.ModuleInstSeq,
+		SetName:       commonPayload.ProcessPayload.SetName,
+		ModuleName:    commonPayload.ProcessPayload.ModuleName,
 		GseOpType:     gse.OpTypeQuery,
 		ProcessInfo:   processInfo,
 	}
@@ -294,13 +295,19 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	}
 	// 等待查询任务完成
 	result, err := e.WaitTaskFinish(c.Context(),
-		resp.TaskID, payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
+		resp.TaskID, payload.BizID,
+		commonPayload.ProcessPayload.HostInstSeq,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.AgentID)
 	if err != nil {
 		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: failed to wait for query task finish: %w", err)
 	}
 
 	// 构建 GSE 接口响应的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
+	key := gse.BuildResultKey(commonPayload.ProcessPayload.AgentID,
+		payload.BizID,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.HostInstSeq)
 	logs.Infof("[CompareWithGSEProcessStatus STEP]: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
@@ -413,14 +420,14 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		return fmt.Errorf("[Operate STEP]: get payload failed: %w", err)
 	}
 
-	commonPayload := &common.ProcessPayload{}
+	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return fmt.Errorf("[Operate STEP]: get common payload failed: %w", err)
 	}
 
 	// 解析进程配置信息
 	var processInfo table.ProcessInfo
-	err := json.Unmarshal([]byte(commonPayload.ConfigData), &processInfo)
+	err := json.Unmarshal([]byte(commonPayload.ProcessPayload.ConfigData), &processInfo)
 	if err != nil {
 		return fmt.Errorf("[Operate STEP]: unmarshal process info failed: %w", err)
 	}
@@ -434,14 +441,14 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 	// 构建进程操作接口请求参数
 	params := gesprocessor.BuildProcessOperateParams{
 		BizID:         payload.BizID,
-		Alias:         commonPayload.Alias,
-		FuncName:      commonPayload.FuncName,
-		AgentID:       []string{commonPayload.AgentID},
+		Alias:         commonPayload.ProcessPayload.Alias,
+		FuncName:      commonPayload.ProcessPayload.FuncName,
+		AgentID:       []string{commonPayload.ProcessPayload.AgentID},
 		GseOpType:     gseOpType,
-		HostInstSeq:   commonPayload.HostInstSeq,
-		ModuleInstSeq: commonPayload.ModuleInstSeq,
-		SetName:       commonPayload.SetName,
-		ModuleName:    commonPayload.ModuleName,
+		HostInstSeq:   commonPayload.ProcessPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ProcessPayload.ModuleInstSeq,
+		SetName:       commonPayload.ProcessPayload.SetName,
+		ModuleName:    commonPayload.ProcessPayload.ModuleName,
 		ProcessInfo:   processInfo,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
@@ -461,12 +468,18 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 	}
 
 	result, err := e.WaitTaskFinish(c.Context(), resp.TaskID,
-		payload.BizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
+		payload.BizID,
+		commonPayload.ProcessPayload.HostInstSeq,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.AgentID)
 	if err != nil {
 		return fmt.Errorf("[Operate STEP]: failed to wait for task finish: %w", err)
 	}
 	// 构建 GSE 返回结果的 key
-	key := gse.BuildResultKey(commonPayload.AgentID, payload.BizID, commonPayload.Alias, commonPayload.HostInstSeq)
+	key := gse.BuildResultKey(commonPayload.ProcessPayload.AgentID,
+		payload.BizID,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.HostInstSeq)
 	logs.Infof("[Operate STEP]: Finalize key: %s", key)
 	procResult, ok := result[key]
 	if !ok {
@@ -490,14 +503,14 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 		return fmt.Errorf("[Finalize STEP]: get payload failed: %w", err)
 	}
 
-	commonPayload := &common.ProcessPayload{}
+	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return fmt.Errorf("[Finalize STEP]: get common payload failed: %w", err)
 	}
 
 	// 解析进程配置信息
 	var processInfo table.ProcessInfo
-	err := json.Unmarshal([]byte(commonPayload.ConfigData), &processInfo)
+	err := json.Unmarshal([]byte(commonPayload.ProcessPayload.ConfigData), &processInfo)
 	if err != nil {
 		return fmt.Errorf("[Finalize STEP]: unmarshal process info failed: %w", err)
 	}
@@ -549,8 +562,24 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 // Callback 进程操作回调方法，在任务完成时被调用
 // cbErr: 如果为 nil 表示任务成功，否则表示任务失败
 func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
+	var payload OperatePayload
+	if err := c.GetPayload(&payload); err != nil {
+		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get payload: %v", err)
+		return fmt.Errorf("failed to get payload: %w", err)
+	}
+
+	// 更新 TaskBatch 的完成计数
+	isSuccess := cbErr == nil
+	if payload.BatchID > 0 {
+		if err := e.Dao.TaskBatch().IncrementCompletedCount(kit.New(), payload.BatchID, isSuccess); err != nil {
+			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to increment completed count, "+
+				"batchID: %d, err: %v", payload.BatchID, err)
+			// PASS 继续执行，不影响回滚逻辑
+		}
+	}
+
 	// 如果任务成功，不需要回滚
-	if cbErr == nil {
+	if isSuccess {
 		logs.Infof("[ProcessOperateCallback CALLBACK]: task %s completed successfully, no rollback needed",
 			c.GetTaskID())
 		return nil
@@ -559,12 +588,6 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	// 任务失败，执行回滚逻辑
 	logs.Infof("[ProcessOperateCallback CALLBACK]: task %s failed with error: %v, starting rollback",
 		c.GetTaskID(), cbErr)
-
-	var payload OperatePayload
-	if err := c.GetPayload(&payload); err != nil {
-		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get step payload: %v", err)
-		return fmt.Errorf("failed to get step payload: %w", err)
-	}
 
 	// 获取进程实例
 	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
@@ -616,7 +639,7 @@ func (e *ProcessExecutor) getGSEProcessStatus(
 		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: get payload failed: %w", err)
 	}
 
-	commonPayload := &common.ProcessPayload{}
+	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return "", "", fmt.Errorf("get common payload failed: %w", err)
 	}
@@ -633,13 +656,13 @@ func (e *ProcessExecutor) getGSEProcessStatus(
 	}
 	params := gesprocessor.BuildProcessOperateParams{
 		BizID:         bizID,
-		Alias:         commonPayload.Alias,
-		FuncName:      commonPayload.FuncName,
-		HostInstSeq:   commonPayload.HostInstSeq,
-		ModuleInstSeq: commonPayload.ModuleInstSeq,
-		SetName:       commonPayload.SetName,
-		ModuleName:    commonPayload.ModuleName,
-		AgentID:       []string{commonPayload.AgentID},
+		Alias:         commonPayload.ProcessPayload.Alias,
+		FuncName:      commonPayload.ProcessPayload.FuncName,
+		HostInstSeq:   commonPayload.ProcessPayload.HostInstSeq,
+		ModuleInstSeq: commonPayload.ProcessPayload.ModuleInstSeq,
+		SetName:       commonPayload.ProcessPayload.SetName,
+		ModuleName:    commonPayload.ProcessPayload.ModuleName,
+		AgentID:       []string{commonPayload.ProcessPayload.AgentID},
 		GseOpType:     gse.OpTypeQuery,
 		ProcessInfo:   processInfo,
 	}
@@ -654,11 +677,23 @@ func (e *ProcessExecutor) getGSEProcessStatus(
 	if err != nil {
 		return "", "", fmt.Errorf("failed to query process status via gseService.OperateProcMulti: %w", err)
 	}
-	result, err := e.WaitTaskFinish(c.Context(), resp.TaskID, bizID, commonPayload.HostInstSeq, commonPayload.Alias, commonPayload.AgentID)
+	result, err := e.WaitTaskFinish(
+		c.Context(),
+		resp.TaskID,
+		bizID,
+		commonPayload.ProcessPayload.HostInstSeq,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.AgentID,
+	)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to wait for query task finish: %w", err)
 	}
-	key := gse.BuildResultKey(commonPayload.AgentID, bizID, commonPayload.Alias, commonPayload.HostInstSeq)
+	key := gse.BuildResultKey(
+		commonPayload.ProcessPayload.AgentID,
+		bizID,
+		commonPayload.ProcessPayload.Alias,
+		commonPayload.ProcessPayload.HostInstSeq,
+	)
 	procResult, ok := result[key]
 	if !ok {
 		return "", "", fmt.Errorf("process result not found for key: %s", key)

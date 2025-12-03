@@ -222,7 +222,7 @@ func (ds *dataService) initTaskManager() error {
 	// 注册并启动任务（register要在NewTaskMgr之前）
 	gseService := gse.NewService(cc.G().BaseConf.AppCode, cc.G().BaseConf.AppSecret, cc.G().GSE.Host)
 	ds.gseSvc = gseService
-	register.RegisterExecutor(gseService, ds.cmdb, ds.daoSet)
+	register.RegisterExecutor(gseService, ds.cmdb, ds.daoSet, ds.repo)
 
 	taskManager, err := task.NewTaskMgr(
 		context.Background(),

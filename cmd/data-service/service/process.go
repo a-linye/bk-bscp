@@ -154,17 +154,16 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 		return nil, err
 	}
 
-	// 获取 task storage
-	taskStorage := taskpkg.GetGlobalStorage()
-	if taskStorage == nil {
-		// 获取全局 task storage 失败则不下发任务
-		return nil, fmt.Errorf("task storage not initialized, rid: %s", kt.Rid)
-	}
-
 	// 获取进程和进程实例
 	processes, processInstances, err := getProcessesAndInstances(kt, s.dao, req)
 	if err != nil {
 		return nil, err
+	}
+
+	// 计算总任务数
+	totalCount := uint32(len(processInstances))
+	if totalCount == 0 {
+		return nil, fmt.Errorf("no process instances found for biz %d", kt.BizID)
 	}
 
 	// 构建操作范围
@@ -172,14 +171,35 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	environment := processes[0].Spec.Environment
 
 	// 创建任务批次
-	batchID, err := createTaskBatch(kt, s.dao, req.OperateType, environment, operateRange)
+	batchID, err := createTaskBatch(kt, s.dao, req.OperateType, environment, operateRange, totalCount)
 	if err != nil {
 		return nil, err
 	}
-	logs.Infof("create task batch success, batchID: %d, rid: %s", batchID, kt.Rid)
+	logs.Infof("create task batch success, batchID: %d, totalCount: %d, rid: %s", batchID, totalCount, kt.Rid)
+
+	// 记录实际下发的任务数
+	var dispatchedCount uint32
+
+	// 如果任务创建过程出错，需要处理部分创建的情况
+	defer func() {
+		if dispatchedCount == totalCount {
+			// 所有任务都已创建，由 Callback 机制处理状态更新
+			return
+		}
+
+		// 计算未创建的任务数
+		failedToCreate := totalCount - dispatchedCount
+		logs.Warnf("task batch %d partially created: %d/%d tasks dispatched, %d failed to create, rid: %s",
+			batchID, dispatchedCount, totalCount, failedToCreate, kt.Rid)
+
+		// 将未创建的任务直接计为失败
+		if updateErr := s.dao.TaskBatch().AddFailedCount(kt, batchID, failedToCreate); updateErr != nil {
+			logs.Errorf("add failed count for batch %d error, err: %v, rid: %s", batchID, updateErr, kt.Rid)
+		}
+	}()
 
 	// 创建并分发任务
-	if err := dispatchProcessTasks(
+	dispatchedCount, err = dispatchProcessTasks(
 		kt,
 		s.dao,
 		s.taskManager,
@@ -187,12 +207,10 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 		batchID,
 		table.ProcessOperateType(req.OperateType),
 		processInstances,
-	); err != nil {
+	)
+	if err != nil {
 		return nil, err
 	}
-
-	// 检查任务完成状态并更新TaskBatch
-	go monitorTaskBatchStatus(s.dao, taskStorage, batchID)
 
 	return &pbds.OperateProcessResp{BatchID: batchID}, nil
 }
@@ -300,13 +318,14 @@ func buildOperateRange(processes []*table.Process) table.OperateRange {
 
 // createTaskBatch 创建任务批次
 func createTaskBatch(kt *kit.Kit, dao dao.Set, operateType string, environment string,
-	operateRange table.OperateRange) (uint32, error) {
+	operateRange table.OperateRange, totalCount uint32) (uint32, error) {
 	now := time.Now()
 	taskBatchSpec := &table.TaskBatchSpec{
 		TaskObject: table.TaskObjectProcess,
 		TaskAction: table.TaskAction(operateType),
 		Status:     table.TaskBatchStatusRunning,
 		StartAt:    &now,
+		TotalCount: totalCount, // 设置总任务数，用于 Callback 机制判断批次完成
 	}
 	taskBatchSpec.SetTaskData(&table.ProcessTaskData{
 		Environment:  environment,
@@ -359,7 +378,7 @@ func updateProcessInstanceStatus(
 	return nil
 }
 
-// dispatchProcessTasks 下发进程操作任务
+// dispatchProcessTasks 下发进程操作任务，返回实际下发的任务数
 func dispatchProcessTasks(
 	kt *kit.Kit,
 	dao dao.Set,
@@ -368,7 +387,8 @@ func dispatchProcessTasks(
 	batchID uint32,
 	operateType table.ProcessOperateType,
 	processInstances []*table.ProcessInstance,
-) error {
+) (uint32, error) {
+	var dispatchedCount uint32
 	for _, inst := range processInstances {
 		originalProcManagedStatus := inst.Spec.ManagedStatus
 		originalProcStatus := inst.Spec.Status
@@ -377,7 +397,7 @@ func dispatchProcessTasks(
 		// 更新进程实例状态
 		if err := updateProcessInstanceStatus(kt, dao, operateType, inst); err != nil {
 			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
-			return err
+			return dispatchedCount, err
 		}
 
 		// 创建任务
@@ -395,14 +415,15 @@ func dispatchProcessTasks(
 			))
 		if err != nil {
 			logs.Errorf("create process operate task failed, err: %v, rid: %s", err, kt.Rid)
-			return err
+			return dispatchedCount, err
 		}
 		// 下发任务
 		logs.Infof("dispatch process operate task, taskObj: %+v", taskObj)
 		taskManager.Dispatch(taskObj)
+		dispatchedCount++
 	}
 
-	return nil
+	return dispatchedCount, nil
 }
 
 // ProcessFilterOptions implements pbds.DataServer.
@@ -481,152 +502,6 @@ func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFil
 	}, nil
 }
 
-// monitorTaskBatchStatus 异步监控任务批次状态并更新
-func monitorTaskBatchStatus(
-	dao dao.Set, taskStorage istore.Store, batchID uint32) {
-	kt := kit.New()
-	// 定时检查任务状态，直到所有任务完成
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	// 设置超时时间为10分钟
-	timeout := time.After(10 * time.Minute)
-
-	for {
-		select {
-		case <-timeout:
-			logs.Warnf("monitor task batch %d timeout after 1 hour, rid: %s", batchID, kt.Rid)
-			// 任务超时，更新任务批次状态为失败
-			err := dao.TaskBatch().UpdateStatus(kt, batchID, table.TaskBatchStatusFailed)
-			if err != nil {
-				logs.Errorf("update task batch %d status failed, err: %v, rid: %s", batchID, err, kt.Rid)
-			}
-			return
-
-		case <-ticker.C:
-			// 查询该批次下所有任务的状态
-			const pageSize = 100
-			var allTasks []*taskTypes.Task
-			offset := int64(0)
-			for {
-				listOpt := &istore.ListOption{
-					TaskIndex: fmt.Sprintf("%d", batchID),
-					Limit:     pageSize,
-					Offset:    offset,
-				}
-
-				pagination, err := taskStorage.ListTask(kt.Ctx, listOpt)
-				if err != nil {
-					logs.Errorf("list tasks for batch %d failed, offset: %d, err: %v, rid: %s",
-						batchID, offset, err, kt.Rid)
-					break
-				}
-				// 没有更多数据，退出循环
-				if len(pagination.Items) == 0 {
-					break
-				}
-				allTasks = append(allTasks, pagination.Items...)
-
-				// 如果返回的数量少于 pageSize，说明已经是最后一页
-				if len(pagination.Items) < int(pageSize) {
-					break
-				}
-				offset += pageSize
-			}
-
-			if len(allTasks) == 0 {
-				logs.Warnf("no tasks found for batch %d, rid: %s", batchID, kt.Rid)
-				continue
-			}
-
-			logs.Infof("found %d tasks for batch %d, rid: %s", len(allTasks), batchID, kt.Rid)
-
-			// 检查是否所有任务都已完成
-			if !allTasksCompleted(allTasks) {
-				logs.Infof("batch %d still has running tasks, continue monitoring, rid: %s", batchID, kt.Rid)
-				continue
-			}
-
-			// 所有任务已完成，更新TaskBatch状态
-			if err := updateTaskBatch(kt, batchID, dao, allTasks); err != nil {
-				logs.Errorf("update task batch %d status failed, err: %v, rid: %s", batchID, err, kt.Rid)
-				return
-			}
-
-			logs.Infof("successfully updated task batch %d status, monitoring completed, rid: %s",
-				batchID, kt.Rid)
-			return
-		}
-	}
-}
-
-// allTasksCompleted 检查是否所有任务都已完成
-func allTasksCompleted(tasks []*taskTypes.Task) bool {
-	if len(tasks) == 0 {
-		return false
-	}
-
-	for _, task := range tasks {
-		// 未完成的状态：init, running, not_started, revoked
-		if task.Status == taskTypes.TaskStatusInit ||
-			task.Status == taskTypes.TaskStatusRunning ||
-			task.Status == taskTypes.TaskStatusNotStarted ||
-			task.Status == taskTypes.TaskStatusRevoked {
-			return false
-		}
-	}
-
-	return true
-}
-
-// updateTaskBatchStatusByTasks 根据任务状态更新TaskBatch状态
-func updateTaskBatch(kt *kit.Kit, batchID uint32,
-	dao dao.Set, tasks []*taskTypes.Task) error {
-
-	if len(tasks) == 0 {
-		logs.Warnf("no tasks found for batch %d, rid: %s", batchID, kt.Rid)
-		return nil
-	}
-
-	// 统计任务状态
-	var successCount, failureCount int
-	totalCount := len(tasks)
-
-	for _, task := range tasks {
-		switch task.Status {
-		case taskTypes.TaskStatusSuccess:
-			successCount++
-		case taskTypes.TaskStatusFailure, taskTypes.TaskStatusTimeout:
-			failureCount++
-		}
-	}
-
-	// 所有任务都已完成，根据结果确定批次状态
-	var batchStatus table.TaskBatchStatus
-	switch {
-	case successCount == totalCount:
-		// 所有任务都成功
-		batchStatus = table.TaskBatchStatusSucceed
-	case successCount == 0:
-		// 所有任务都失败或超时
-		batchStatus = table.TaskBatchStatusFailed
-	default:
-		// 部分成功，部分失败
-		batchStatus = table.TaskBatchStatusPartlyFailed
-	}
-
-	// 更新TaskBatch状态
-	if err := dao.TaskBatch().UpdateStatus(kt, batchID, batchStatus); err != nil {
-		return fmt.Errorf("update task batch status failed: %w", err)
-	}
-
-	failedCount := totalCount - successCount
-	logs.Infof("updated task batch %d status to %s (success=%d, failed=%d, total=%d), rid: %s",
-		batchID, batchStatus, successCount, failedCount, totalCount, kt.Rid)
-
-	return nil
-}
-
 // RetryTasks implements pbds.DataServer.
 func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbds.RetryTasksResp, error) {
 	kt := kit.FromGrpcContext(ctx)
@@ -649,11 +524,6 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 		logs.Infof("task batch %d is already succeed, skip retry, rid: %s", req.BatchId, kt.Rid)
 		return &pbds.RetryTasksResp{RetryCount: 0}, nil
 	}
-	// 更新任务批次状态为执行中
-	if err = s.dao.TaskBatch().UpdateStatus(kt, req.BatchId, table.TaskBatchStatusRunning); err != nil {
-		logs.Errorf("update task batch status failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
-		return nil, fmt.Errorf("update task batch status failed: %v", err)
-	}
 
 	// 查询该批次所有失败的任务
 	failedTasks, err := queryFailedTasks(ctx, taskStorage, req.BatchId)
@@ -665,6 +535,13 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 	if len(failedTasks) == 0 {
 		logs.Infof("no failed tasks to retry, batchID: %d, rid: %s", req.BatchId, kt.Rid)
 		return &pbds.RetryTasksResp{RetryCount: 0}, nil
+	}
+
+	// 重置计数字段用于重试
+	retryCount := uint32(len(failedTasks))
+	if err = s.dao.TaskBatch().ResetCountsForRetry(kt, req.BatchId, retryCount); err != nil {
+		logs.Errorf("reset counts for retry failed, batchID: %d, err: %v, rid: %s", req.BatchId, err, kt.Rid)
+		return nil, fmt.Errorf("reset counts for retry failed: %v", err)
 	}
 
 	// 重试每个失败的任务
@@ -701,10 +578,8 @@ func (s *Service) RetryTasks(ctx context.Context, req *pbds.RetryTasksReq) (*pbd
 			return nil, fmt.Errorf("retry failed task failed: %v", err)
 		}
 	}
-	logs.Infof("retry tasks completed, batchID: %d, rid: %s", req.BatchId, kt.Rid)
-	// 重新监控任务批次状态
-	go monitorTaskBatchStatus(s.dao, taskStorage, req.BatchId)
-	return &pbds.RetryTasksResp{RetryCount: uint32(len(failedTasks))}, nil
+	logs.Infof("retry tasks completed, batchID: %d, retryCount: %d, rid: %s", req.BatchId, retryCount, kt.Rid)
+	return &pbds.RetryTasksResp{RetryCount: retryCount}, nil
 }
 
 // queryFailedTasks 查询批次中所有失败的任务

@@ -253,7 +253,7 @@ func convertTaskToDetail(task *taskTypes.Task) (*pbtb.TaskDetail, error) {
 	}
 
 	// 解析 CommonPayload 为 ProcessPayload
-	var processPayload commonExecutor.ProcessPayload
+	var processPayload commonExecutor.TaskPayload
 	err := task.GetCommonPayload(&processPayload)
 	if err != nil {
 		return nil, fmt.Errorf("get common payload failed: %v", err)
@@ -261,23 +261,24 @@ func convertTaskToDetail(task *taskTypes.Task) (*pbtb.TaskDetail, error) {
 
 	// 构建返回的 TaskDetail
 	detail := &pbtb.TaskDetail{
+		TaskId:        task.TaskID,
 		Status:        convertTaskStatus(task.Status),
 		Message:       task.Message,
 		Creator:       task.Creator,
 		ExecutionTime: float32(task.ExecutionTime) / 1000.0,
-		ProcessPayload: &pbtb.ProcessPayload{
-			SetName:       processPayload.SetName,
-			ModuleName:    processPayload.ModuleName,
-			ServiceName:   processPayload.ServiceName,
-			Environment:   processPayload.Environment,
-			Alias:         processPayload.Alias,
-			FuncName:      processPayload.FuncName,
-			InnerIp:       processPayload.InnerIP,
-			AgentId:       processPayload.AgentID,
-			CcProcessId:   processPayload.CcProcessID,
-			HostInstSeq:   processPayload.HostInstSeq,
-			ModuleInstSeq: processPayload.ModuleInstSeq,
-			ConfigData:    processPayload.ConfigData,
+		TaskPayload: &pbtb.TaskPayload{
+			SetName:       processPayload.ProcessPayload.SetName,
+			ModuleName:    processPayload.ProcessPayload.ModuleName,
+			ServiceName:   processPayload.ProcessPayload.ServiceName,
+			Environment:   processPayload.ProcessPayload.Environment,
+			Alias:         processPayload.ProcessPayload.Alias,
+			FuncName:      processPayload.ProcessPayload.FuncName,
+			InnerIp:       processPayload.ProcessPayload.InnerIP,
+			AgentId:       processPayload.ProcessPayload.AgentID,
+			CcProcessId:   processPayload.ProcessPayload.CcProcessID,
+			HostInstSeq:   processPayload.ProcessPayload.HostInstSeq,
+			ModuleInstSeq: processPayload.ProcessPayload.ModuleInstSeq,
+			ConfigData:    processPayload.ProcessPayload.ConfigData,
 		},
 	}
 

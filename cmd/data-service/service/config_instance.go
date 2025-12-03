@@ -15,10 +15,20 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
+	"time"
+
+	taskpkg "github.com/Tencent/bk-bcs/bcs-common/common/task"
+	istore "github.com/Tencent/bk-bcs/bcs-common/common/task/stores/iface"
+	taskTypes "github.com/Tencent/bk-bcs/bcs-common/common/task/types"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
+	"github.com/TencentBlueKing/bk-bscp/internal/task"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/config"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbcin "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/config-instance"
 	pbproc "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/process"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
@@ -100,6 +110,232 @@ func (s *Service) ListConfigInstances(ctx context.Context, req *pbds.ListConfigI
 	}, nil
 }
 
+func validateRequest(req *pbds.GenerateConfigReq) error {
+	if req.BizId == 0 {
+		return fmt.Errorf("biz id is required")
+	}
+	if len(req.ConfigTemplateGroups) == 0 {
+		return fmt.Errorf("at least one config template group is required")
+	}
+	for _, group := range req.ConfigTemplateGroups {
+		if group.ConfigTemplateId == 0 {
+			return fmt.Errorf("config template id is required")
+		}
+		if group.ConfigTemplateVersionId == 0 {
+			return fmt.Errorf("config template version id is required")
+		}
+		if len(group.CcProcessIds) == 0 {
+			return fmt.Errorf("process list is required")
+		}
+	}
+	return nil
+}
+
+// GenerateConfig implements pbds.DataServer.
+// nolint:funlen
+func (s *Service) GenerateConfig(
+	ctx context.Context,
+	req *pbds.GenerateConfigReq,
+) (*pbds.GenerateConfigResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+	// 校验
+	if err := validateRequest(req); err != nil {
+		return nil, err
+	}
+
+	// 预处理：收集所有任务信息并计算总任务数
+	type taskInfo struct {
+		configTemplateID uint32
+		configTemplate   *table.ConfigTemplate
+		template         *table.Template
+		latestRevision   *table.TemplateRevision
+		process          *table.Process
+		processInstance  *table.ProcessInstance
+	}
+	var taskInfos []taskInfo
+	// cc进程id去重集合
+	processIDSet := make(map[uint32]struct{})
+	// 环境信息，用于构建操作范围
+	environment := ""
+	for _, group := range req.ConfigTemplateGroups {
+		configTemplateID := group.ConfigTemplateId
+		configTemplate, err := s.dao.ConfigTemplate().GetByID(kt, req.BizId, configTemplateID)
+		if err != nil {
+			return nil, fmt.Errorf("get config template failed, err: %v", err)
+		}
+		// 查询配置模版关联的模版信息和最新版本
+		template, err := s.dao.Template().GetByID(kt, req.BizId, configTemplate.Attachment.TemplateID)
+		if err != nil {
+			return nil, fmt.Errorf("get template failed, err: %v", err)
+		}
+		latestRevision, err := s.dao.TemplateRevision().GetLatestTemplateRevision(kt, req.BizId, configTemplate.Attachment.TemplateID)
+		if err != nil {
+			return nil, fmt.Errorf("get latest template revision failed, err: %v", err)
+		}
+		// 仅最新版本的配置可以生成和下发
+		if group.ConfigTemplateVersionId != latestRevision.ID {
+			return nil, fmt.Errorf("config template version id is not latest")
+		}
+
+		// 查询进程信息
+		processes, _, err := s.dao.Process().List(kt, req.BizId, &pbproc.ProcessSearchCondition{
+			CcProcessIds: group.CcProcessIds,
+		}, &types.BasePage{
+			All: true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get process failed, err: %v", err)
+		}
+		// 查询到的进程数量不等于提供的进程ID数量，说明存在进程被删除的情况，需要刷新重新提交
+		if len(processes) != len(group.CcProcessIds) || len(processes) == 0 {
+			return nil, fmt.Errorf("some processes not found for biz %d with provided process IDs", req.BizId)
+		}
+
+		// 判断进程和配置模版的绑定关系
+		isBindRelation, err := isBindRelation(kt, s.dao, req.BizId, processes, configTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("check bind relation failed, err: %v", err)
+		}
+		if !isBindRelation {
+			return nil, fmt.Errorf("invalid binding relationship between process and config template")
+		}
+
+		// 收集进程ID用于构建操作范围（去重）
+		for _, id := range group.CcProcessIds {
+			processIDSet[id] = struct{}{}
+		}
+		// 获取环境信息（取第一个进程的环境）
+		if environment == "" && len(processes) > 0 {
+			environment = processes[0].Spec.Environment
+		}
+
+		for _, process := range processes {
+			processInstances, err := s.dao.ProcessInstance().GetByProcessIDs(kt, req.BizId, []uint32{process.ID})
+			if err != nil {
+				return nil, fmt.Errorf("get process instance failed, err: %v", err)
+			}
+			for _, processInstance := range processInstances {
+				taskInfos = append(taskInfos, taskInfo{
+					configTemplateID: configTemplateID,
+					configTemplate:   configTemplate,
+					template:         template,
+					latestRevision:   latestRevision,
+					process:          process,
+					processInstance:  processInstance,
+				})
+			}
+		}
+	}
+
+	// 计算总任务数
+	totalCount := uint32(len(taskInfos))
+	if totalCount == 0 {
+		return nil, fmt.Errorf("no tasks to create for biz %d", req.BizId)
+	}
+	if environment == "" {
+		return nil, fmt.Errorf("no environment found for biz %d with provided process IDs", req.BizId)
+	}
+
+	// 创建任务批次
+	now := time.Now()
+	taskBatch := &table.TaskBatch{
+		Attachment: &table.TaskBatchAttachment{
+			BizID: req.BizId,
+		},
+		Spec: &table.TaskBatchSpec{
+			TaskObject: table.TaskObjectConfigFile,
+			TaskAction: table.TaskActionConfigGenerate,
+			Status:     table.TaskBatchStatusRunning,
+			TaskData:   "{}",
+			StartAt:    &now,
+			TotalCount: totalCount, // 设置总任务数，用于 Callback 机制判断批次完成
+		},
+		Revision: &table.Revision{
+			Creator:   kt.User,
+			Reviser:   kt.User,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	// 将去重后的进程ID转为切片
+	processIDs := make([]uint32, 0, len(processIDSet))
+	for id := range processIDSet {
+		processIDs = append(processIDs, id)
+	}
+
+	// 构建操作范围
+	operateRange := table.OperateRange{
+		SetNames:     make([]string, 0, len(processIDs)),
+		ModuleNames:  make([]string, 0, len(processIDs)),
+		ServiceNames: make([]string, 0, len(processIDs)),
+		ProcessAlias: make([]string, 0, len(processIDs)),
+		CCProcessID:  processIDs,
+	}
+	taskBatch.Spec.SetTaskData(&table.ProcessTaskData{
+		Environment:  environment,
+		OperateRange: operateRange,
+	})
+	batchID, err := s.dao.TaskBatch().Create(kt, taskBatch)
+	if err != nil {
+		return nil, fmt.Errorf("create task batch failed, err: %v", err)
+	}
+
+	// 记录实际创建的任务数
+	var dispatchedCount uint32
+
+	// 如果任务创建过程出错，需要处理部分创建的情况
+	defer func() {
+		if dispatchedCount == totalCount {
+			// 所有任务都已创建，由 Callback 机制处理状态更新
+			return
+		}
+
+		// 计算未创建的任务数
+		failedToCreate := totalCount - dispatchedCount
+		logs.Warnf("task batch %d partially created: %d/%d tasks dispatched, %d failed to create, rid: %s",
+			batchID, dispatchedCount, totalCount, failedToCreate, kt.Rid)
+
+		// 将未创建的任务直接计为失败
+		if updateErr := s.dao.TaskBatch().AddFailedCount(kt, batchID, failedToCreate); updateErr != nil {
+			logs.Errorf("add failed count for batch %d error, err: %v, rid: %s", batchID, updateErr, kt.Rid)
+		}
+	}()
+
+	// 配置生成：创建并下发任务
+	for _, info := range taskInfos {
+		// 创建任务对象
+		taskObj, err := task.NewByTaskBuilder(
+			config.NewConfigGenerateTask(
+				s.dao,
+				req.BizId,
+				batchID,
+				table.ConfigGenerate,
+				kt.User,
+				info.configTemplateID,
+				info.configTemplate,
+				info.template,
+				info.latestRevision,
+				info.processInstance.ID,
+				info.processInstance,
+				info.process.Attachment.CcProcessID,
+				info.process,
+				info.configTemplate.Spec.Name,
+				info.process.Spec.Alias,
+				info.processInstance.Spec.ModuleInstSeq,
+			),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create config generate task failed, err: %v", err)
+		}
+		// 下发任务
+		s.taskManager.Dispatch(taskObj)
+		dispatchedCount++
+	}
+
+	return &pbds.GenerateConfigResp{BatchId: batchID}, nil
+}
+
 // getFilteredProcesses 获取过滤后的进程列表
 func getFilteredProcesses(
 	kt *kit.Kit,
@@ -116,7 +352,7 @@ func getFilteredProcesses(
 	templateProcessIDs := configTemplate.Attachment.CcTemplateProcessIDs
 	if len(templateProcessIDs) != 0 {
 		processes, _, err = dao.Process().List(kt, bizID, &pbproc.ProcessSearchCondition{
-			CcProcessIds: templateProcessIDs,
+			ProcessTemplateIds: templateProcessIDs,
 		}, &types.BasePage{
 			All: true,
 		})
@@ -178,7 +414,7 @@ func buildConfigInstancesList(
 ) ([]*table.ConfigInstance, error) {
 	// 构建预返回的配置实例列表
 	// 配置模版关联的进程在过滤后，查询出的进程实例数量等于需要下发的配置实例列表
-	// 使用key: CcProcessID_ConfigTemplateID_ModuleInstSeq 作为唯一标识
+	// 使用key: CcProcessID-ConfigTemplateID-ModuleInstSeq 作为唯一标识
 	preConfigInstancesMap := make(map[string]*table.ConfigInstance)
 	for _, processInstance := range processInstances {
 		key := buildConfigInstanceKey(processInstance.Attachment.CcProcessID, configTemplateID, processInstance.Spec.ModuleInstSeq)
@@ -357,7 +593,7 @@ func buildPbConfigInstances(configInstances []*table.ConfigInstance,
 
 // buildConfigInstanceKey 构建配置实例的唯一标识
 func buildConfigInstanceKey(ccProcessID, configTemplateID, moduleInstSeq uint32) string {
-	return fmt.Sprintf("%d_%d_%d", ccProcessID, configTemplateID, moduleInstSeq)
+	return fmt.Sprintf("%d-%d-%d", ccProcessID, configTemplateID, moduleInstSeq)
 }
 
 // filterConfigInstancesByVersion 根据配置模版版本过滤配置实例
@@ -431,5 +667,156 @@ func buildFilterOptions(
 
 	return &pbcin.ConfigInstanceFilterOptions{
 		TemplateVersionChoices: templateVersionChoices,
+	}, nil
+}
+
+// isBindRelation 判断进程和配置模版的绑定关系是否正常，避免配置生成过程中进程与配置模版解绑
+func isBindRelation(
+	kt *kit.Kit,
+	dao dao.Set,
+	bizID uint32,
+	processes []*table.Process,
+	configTemplate *table.ConfigTemplate,
+) (bool, error) {
+	var (
+		templateBoundProcesses []*table.Process
+		err                    error
+	)
+	// 获取CcProcessID，其中模版进程ID列表对应多个进程
+	templateProcessIDs := configTemplate.Attachment.CcTemplateProcessIDs
+	if len(templateProcessIDs) != 0 {
+		templateBoundProcesses, _, err = dao.Process().List(kt, bizID, &pbproc.ProcessSearchCondition{
+			ProcessTemplateIds: templateProcessIDs,
+		}, &types.BasePage{
+			All: true,
+		})
+		if err != nil {
+			return false, fmt.Errorf("list processes by template process ids failed, err: %v", err)
+		}
+	}
+	templateBoundProcessIDs := make([]uint32, 0, len(templateBoundProcesses)+len(configTemplate.Attachment.CcProcessIDs))
+	for _, process := range templateBoundProcesses {
+		templateBoundProcessIDs = append(templateBoundProcessIDs, process.Attachment.CcProcessID)
+	}
+	templateBoundProcessIDs = append(templateBoundProcessIDs, configTemplate.Attachment.CcProcessIDs...)
+
+	// 判断进程是否在配置模版关联的进程ID列表中
+	for _, process := range processes {
+		if !slices.Contains(templateBoundProcessIDs, process.Attachment.CcProcessID) {
+			return false, fmt.Errorf("process %d is not in the config template", process.Attachment.CcProcessID)
+		}
+	}
+	return true, nil
+}
+
+// ConfigGenerateStatus 获取配置生成状态
+func (s *Service) ConfigGenerateStatus(
+	ctx context.Context,
+	req *pbds.ConfigGenerateStatusReq,
+) (*pbds.ConfigGenerateStatusResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+	taskStorage := taskpkg.GetGlobalStorage()
+	if taskStorage == nil {
+		return nil, fmt.Errorf("task storage not initialized")
+	}
+
+	// 分页查询所有任务数据
+	const pageSize = 100
+	var allTasks []*taskTypes.Task
+	offset := int64(0)
+	for {
+		listOpt := &istore.ListOption{
+			TaskIndex: fmt.Sprintf("%d", req.GetBatchId()),
+			Limit:     pageSize,
+			Offset:    offset,
+		}
+
+		pagination, err := taskStorage.ListTask(kt.Ctx, listOpt)
+		if err != nil {
+			logs.Errorf("list tasks failed, offset: %d, err: %v, rid: %s", offset, err, kt.Rid)
+			return nil, fmt.Errorf("list tasks failed: %v", err)
+		}
+		// 没有更多数据，退出循环
+		if len(pagination.Items) == 0 {
+			break
+		}
+		allTasks = append(allTasks, pagination.Items...)
+
+		// 如果返回的数量少于 pageSize，说明已经是最后一页
+		if len(pagination.Items) < int(pageSize) {
+			break
+		}
+		offset += pageSize
+	}
+
+	// 解析每个 task 的 CommonPayload，构建 ConfigGenerateStatus
+	configGenerateStatuses := make([]*pbds.ConfigGenerateStatusResp_ConfigGenerateStatus, 0, len(allTasks))
+	for _, task := range allTasks {
+		// 解析 CommonPayload，构建 ConfigGenerateStatus
+		commonPayload := &common.TaskPayload{}
+		err := task.GetCommonPayload(commonPayload)
+		if err != nil {
+			logs.Errorf("get common payload failed, err: %v, rid: %s", err, kt.Rid)
+			return nil, fmt.Errorf("get common payload failed: %v", err)
+		}
+		configGenerateStatuses = append(configGenerateStatuses, &pbds.ConfigGenerateStatusResp_ConfigGenerateStatus{
+			ConfigInstanceKey: commonPayload.ConfigPayload.ConfigInstanceKey,
+			Status:            task.GetStatus(),
+			TaskId:            task.GetTaskID(),
+		})
+	}
+	return &pbds.ConfigGenerateStatusResp{
+		ConfigGenerateStatuses: configGenerateStatuses,
+	}, nil
+}
+
+// GetConfigGenerateResult implements pbds.DataServer.
+// GetConfigGenerateResult 从 task 的 payload 中获取配置生成结果
+func (s *Service) GetConfigGenerateResult(ctx context.Context, req *pbds.GetConfigGenerateResultReq) (*pbds.GetConfigGenerateResultResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+
+	// 获取 task storage
+	taskStorage := taskpkg.GetGlobalStorage()
+	if taskStorage == nil {
+		return nil, fmt.Errorf("task storage not initialized")
+	}
+
+	// 从 task storage 中获取任务
+	taskInfo, err := taskStorage.GetTask(ctx, req.TaskId)
+	if err != nil {
+		logs.Errorf("get task failed, taskID: %s, err: %v, rid: %s", req.TaskId, err, kt.Rid)
+		return nil, fmt.Errorf("get task failed: %v", err)
+	}
+
+	if taskInfo == nil {
+		logs.Errorf("task not found, taskID: %s, rid: %s", req.TaskId, kt.Rid)
+		return nil, fmt.Errorf("task not found: %s", req.TaskId)
+	}
+
+	// 从 CommonPayload 中提取配置生成结果
+	var taskPayload common.TaskPayload
+	err = taskInfo.GetCommonPayload(&taskPayload)
+	if err != nil {
+		logs.Errorf("get common payload failed, taskID: %s, err: %v, rid: %s", req.TaskId, err, kt.Rid)
+		return nil, fmt.Errorf("get common payload failed: %v", err)
+	}
+
+	// 检查 ConfigPayload 是否存在
+	if taskPayload.ConfigPayload == nil {
+		logs.Errorf("config payload is nil, taskID: %s, rid: %s", req.TaskId, kt.Rid)
+		return nil, fmt.Errorf("config payload not found in task")
+	}
+
+	// 返回配置内容
+	return &pbds.GetConfigGenerateResultResp{
+		ConfigTemplateId:     taskPayload.ConfigPayload.ConfigTemplateID,
+		ConfigTemplateName:   taskPayload.ConfigPayload.ConfigTemplateName,
+		ConfigFileName:       taskPayload.ConfigPayload.ConfigFileName,
+		ConfigFilePath:       taskPayload.ConfigPayload.ConfigFilePath,
+		ConfigFileOwner:      taskPayload.ConfigPayload.ConfigFileOwner,
+		ConfigFileGroup:      taskPayload.ConfigPayload.ConfigFileGroup,
+		ConfigFilePermission: taskPayload.ConfigPayload.ConfigFilePermission,
+		ConfigInstanceKey:    taskPayload.ConfigPayload.ConfigInstanceKey,
+		Content:              taskPayload.ConfigPayload.ConfigContent,
 	}, nil
 }
