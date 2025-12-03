@@ -150,6 +150,11 @@ func (gse *Service) GetExtensionsTransferFileResult(ctx context.Context, req *Ge
 
 // GetTransferFileResultReq defines get transfer file result request
 type GetTransferFileResultReq struct {
-	TaskID      string   `json:"task_id"`       // 启动任务时返回的任务 ID
-	AgentIDList []string `json:"agent_id_list"` // 目标节点 Agent ID 列表, 单 ID 最大长度不超过64个字符
+	TaskID string      `json:"task_id"` // 启动任务时返回的任务 ID
+	Agents []AgentList `json:"agents"`  // 目标节点 Agent ID 列表, 单 ID 最大长度不超过64个字符
+}
+
+type AgentList struct {
+	BkAgentID     string `json:"bk_agent_id"`     // 目标 Agent ID，最大长度不超过64个字符
+	BkContainerID string `json:"bk_container_id"` // 目标容器 ID, 空则为主机
 }
