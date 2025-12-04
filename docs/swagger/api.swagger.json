@@ -11736,6 +11736,11 @@
           "type": "integer",
           "format": "int64",
           "description": "每页条数"
+        },
+        "all": {
+          "type": "boolean",
+          "default": "false",
+          "description": "是否获取所有"
         }
       }
     },

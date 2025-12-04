@@ -2458,6 +2458,7 @@ message ListConfigInstancesReq {
   pbcin.ConfigInstanceSearchCondition search = 4;
   uint32 start = 5;
   uint32 limit = 6;
+  bool all = 7;
 }
 
 message ListConfigInstancesResp {
