@@ -158,8 +158,8 @@ func (e *GenerateConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 	return nil
 }
 
-// RegisterExecutor register executor
-func RegisterExecutor(e *GenerateConfigExecutor) {
+// RegisterStepExecutor register step executor
+func RegisterGenerateConfigExecutor(e *GenerateConfigExecutor) {
 	istep.Register(GenerateConfigStepName, istep.StepExecutorFunc(e.GenerateConfig))
 	istep.RegisterCallback(ConfigGenerateCallbackName, istep.CallbackExecutorFunc(e.Callback))
 }

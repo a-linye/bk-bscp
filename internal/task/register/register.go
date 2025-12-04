@@ -42,7 +42,11 @@ func RegisterExecutor(
 
 	// 注册 配置生成执行器
 	configGenerateExecutor := config.NewGenerateConfigExecutor(dao, repo)
-	config.RegisterExecutor(configGenerateExecutor)
+	config.RegisterGenerateConfigExecutor(configGenerateExecutor)
+
+	// 注册 配置下发执行器
+	configPushExecutor := config.NewPushConfigExecutor(dao, gseService, repo)
+	config.RegisterPushConfigExecutor(configPushExecutor)
 }
 
 // RegisterHello register

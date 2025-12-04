@@ -25,7 +25,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/config"
-	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
+	executorCommon "github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -753,7 +753,7 @@ func (s *Service) ConfigGenerateStatus(
 	configGenerateStatuses := make([]*pbds.ConfigGenerateStatusResp_ConfigGenerateStatus, 0, len(allTasks))
 	for _, task := range allTasks {
 		// 解析 CommonPayload，构建 ConfigGenerateStatus
-		commonPayload := &common.TaskPayload{}
+		commonPayload := &executorCommon.TaskPayload{}
 		err := task.GetCommonPayload(commonPayload)
 		if err != nil {
 			logs.Errorf("get common payload failed, err: %v, rid: %s", err, kt.Rid)
@@ -794,7 +794,7 @@ func (s *Service) GetConfigGenerateResult(ctx context.Context, req *pbds.GetConf
 	}
 
 	// 从 CommonPayload 中提取配置生成结果
-	var taskPayload common.TaskPayload
+	var taskPayload executorCommon.TaskPayload
 	err = taskInfo.GetCommonPayload(&taskPayload)
 	if err != nil {
 		logs.Errorf("get common payload failed, taskID: %s, err: %v, rid: %s", req.TaskId, err, kt.Rid)
@@ -818,5 +818,160 @@ func (s *Service) GetConfigGenerateResult(ctx context.Context, req *pbds.GetConf
 		ConfigFilePermission: taskPayload.ConfigPayload.ConfigFilePermission,
 		ConfigInstanceKey:    taskPayload.ConfigPayload.ConfigInstanceKey,
 		Content:              taskPayload.ConfigPayload.ConfigContent,
+	}, nil
+}
+
+// PushConfig implements pbds.DataServer.
+// PushConfig 配置下发
+// todo： 处理实例数量改变的情况
+// todo： 处理配置下发过程中配置版本变更情况
+// todo： 处理多个配置模版同时下发的情况
+func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbds.PushConfigResp, error) {
+
+	kt := kit.FromGrpcContext(ctx)
+
+	// 1. 获取配置生成批次信息
+	generateBatch, err := s.dao.TaskBatch().GetByID(kt, req.GetBatchId())
+	if err != nil {
+		return nil, fmt.Errorf("get generate batch failed, batch_id: %d, err: %v", req.GetBatchId(), err)
+	}
+
+	// 验证批次类型
+	if generateBatch.Spec.TaskAction != table.TaskActionConfigGenerate {
+		return nil, fmt.Errorf("batch %d is not a config generate batch", req.GetBatchId())
+	}
+
+	// 2. 获取 task storage
+	taskStorage := taskpkg.GetGlobalStorage()
+	if taskStorage == nil {
+		return nil, fmt.Errorf("task storage not initialized")
+	}
+
+	// 3. 分页查询配置生成的所有成功子任务（一个task对应一个配置实例）
+	const pageSize = 100
+	var successTasks []*taskTypes.Task
+	offset := int64(0)
+	for {
+		listOpt := &istore.ListOption{
+			TaskIndex: fmt.Sprintf("%d", req.GetBatchId()),
+			Limit:     pageSize,
+			Offset:    offset,
+		}
+
+		pagination, err := taskStorage.ListTask(kt.Ctx, listOpt)
+		if err != nil {
+			logs.Errorf("list tasks failed, offset: %d, err: %v, rid: %s", offset, err, kt.Rid)
+			return nil, fmt.Errorf("list tasks failed: %v", err)
+		}
+
+		// 没有更多数据，退出循环
+		if len(pagination.Items) == 0 {
+			break
+		}
+
+		// 只收集成功的任务
+		for _, task := range pagination.Items {
+			if task.GetStatus() == taskTypes.TaskStatusSuccess {
+				successTasks = append(successTasks, task)
+			}
+		}
+
+		// 如果返回的数量少于 pageSize，说明已经是最后一页
+		if len(pagination.Items) < int(pageSize) {
+			break
+		}
+		offset += pageSize
+	}
+
+	if len(successTasks) == 0 {
+		return nil, fmt.Errorf("no success tasks found for batch %d", req.GetBatchId())
+	}
+
+	logs.Infof("found %d success tasks for batch %d, rid: %s", len(successTasks), req.GetBatchId(), kt.Rid)
+
+	// 4. 创建配置下发批次
+	now := time.Now()
+	pushBatch := &table.TaskBatch{
+		Attachment: &table.TaskBatchAttachment{
+			BizID: req.GetBizId(),
+		},
+		Spec: &table.TaskBatchSpec{
+			TaskObject: table.TaskObjectConfigFile,
+			TaskAction: table.TaskActionConfigPublish,
+			Status:     table.TaskBatchStatusRunning,
+			TaskData:   generateBatch.Spec.TaskData, // 复用配置生成任务批次的 TaskData
+			StartAt:    &now,
+			TotalCount: uint32(len(successTasks)),
+		},
+		Revision: &table.Revision{
+			Creator:   kt.User,
+			Reviser:   kt.User,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	pushBatchID, err := s.dao.TaskBatch().Create(kt, pushBatch)
+	if err != nil {
+		return nil, fmt.Errorf("create push batch failed, err: %v", err)
+	}
+
+	// 记录实际创建的任务数
+	var dispatchedCount uint32
+
+	// 如果任务创建过程出错，需要处理部分创建的情况
+	defer func() {
+		if dispatchedCount == uint32(len(successTasks)) {
+			// 所有任务都已创建，由 Callback 机制处理状态更新
+			return
+		}
+
+		// 计算未创建的任务数
+		failedToCreate := uint32(len(successTasks)) - dispatchedCount
+		logs.Warnf("push batch %d partially created: %d/%d tasks dispatched, %d failed to create, rid: %s",
+			pushBatchID, dispatchedCount, len(successTasks), failedToCreate, kt.Rid)
+
+		// 将未创建的任务直接计为失败
+		if updateErr := s.dao.TaskBatch().AddFailedCount(kt, pushBatchID, failedToCreate); updateErr != nil {
+			logs.Errorf("add failed count for push batch %d error, err: %v, rid: %s", pushBatchID, updateErr, kt.Rid)
+		}
+	}()
+
+	// 5. 为每个成功的配置生成任务创建对应的配置下发任务
+	for _, generateTask := range successTasks {
+		// 获取配置生成任务的 CommonPayload
+		commonPayload := &executorCommon.TaskPayload{}
+		if err := generateTask.GetCommonPayload(commonPayload); err != nil {
+			logs.Warnf("skip task %s, get common payload failed: %v", generateTask.GetTaskID(), err)
+			continue
+		}
+
+		// 创建配置下发任务
+		pushTaskObj, err := task.NewByTaskBuilder(
+			config.NewPushConfigTask(
+				s.dao,
+				req.GetBizId(),
+				pushBatchID,
+				table.ConfigPush,
+				kt.User,
+				commonPayload, // 传入配置生成的结果
+			),
+		)
+		if err != nil {
+			logs.Errorf("create push config task failed, generate_task_id: %s, err: %v, rid: %s",
+				generateTask.GetTaskID(), err, kt.Rid)
+			continue
+		}
+
+		// 下发任务
+		s.taskManager.Dispatch(pushTaskObj)
+		dispatchedCount++
+	}
+
+	logs.Infof("push config batch created, push_batch_id: %d, generate_batch_id: %d, task_count: %d, rid: %s",
+		pushBatchID, req.GetBatchId(), dispatchedCount, kt.Rid)
+
+	return &pbds.PushConfigResp{
+		BatchId: pushBatchID,
 	}, nil
 }

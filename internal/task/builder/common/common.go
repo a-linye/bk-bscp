@@ -22,6 +22,28 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
 
+// 定义任务类型常量
+const (
+	// ConfigGenerateTaskType 配置生成任务类型
+	ConfigGenerateTaskType = "config_generate"
+	// ConfigPushTaskType 配置下发任务类型
+	ConfigPushTaskType = "config_push"
+
+	// ProcessOperateTaskType 进程操作任务类型
+	ProcessOperateTaskType = "process_operate"
+
+	// SyncCMDBGSETaskType 同步cmdb和gse任务类型
+	SyncCMDBGSETaskType = "sync_cmdb_gse"
+)
+
+// 定义任务索引类型常量
+const (
+	// TaskIndexType 任务批次索引类型
+	TaskIndexType = "task_batch"
+	// BizIDTaskIndexType 业务ID索引类型
+	BizIDTaskIndexType = "biz_id"
+)
+
 // Builder common builder
 type Builder struct {
 	dao dao.Set

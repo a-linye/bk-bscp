@@ -59,15 +59,16 @@ type ProcessPayload struct {
 
 // ConfigPayload 配置相关
 type ConfigPayload struct {
-	ConfigTemplateID     uint32
-	ConfigTemplateName   string
-	ConfigFileName       string
-	ConfigFilePath       string
-	ConfigFileOwner      string
-	ConfigFileGroup      string
-	ConfigFilePermission string
-	ConfigInstanceKey    string // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
-	ConfigContent        string
+	ConfigTemplateID       uint32
+	ConfigTemplateName     string
+	ConfigFileName         string
+	ConfigFilePath         string
+	ConfigFileOwner        string
+	ConfigFileGroup        string
+	ConfigFilePermission   string
+	ConfigInstanceKey      string // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
+	ConfigContent          string
+	ConfigContentSignature string // 配置内容的签名(sha256)
 }
 
 // NewExecutor new executor

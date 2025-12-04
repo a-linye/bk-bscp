@@ -25,13 +25,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
-const (
-	// TaskType 任务类型
-	TaskType = "config_generate"
-	// TaskIndexType 任务索引类型
-	TaskIndexType = "task_batch"
-)
-
 // GenerateConfigTask task generate config
 type GenerateConfigTask struct {
 	*common.Builder
@@ -164,8 +157,8 @@ func (t *GenerateConfigTask) TaskInfo() types.TaskInfo {
 	taskName := fmt.Sprintf("%s_%s_%s_%d", t.operateType, t.configTemplateName, t.processAlias, t.moduleInstSeq)
 	return types.TaskInfo{
 		TaskName:      taskName,
-		TaskType:      TaskType,
-		TaskIndexType: TaskIndexType,
+		TaskType:      common.ConfigGenerateTaskType,
+		TaskIndexType: common.TaskIndexType,
 		TaskIndex:     fmt.Sprintf("%d", t.batchID),
 		Creator:       t.operatorUser,
 	}
