@@ -42,6 +42,7 @@ func (s *Service) ListConfigInstances(ctx context.Context, req *pbcs.ListConfigI
 		Search:                   req.GetSearch(),
 		Start:                    req.GetStart(),
 		Limit:                    req.GetLimit(),
+		All:                      req.GetAll(),
 	})
 	if err != nil {
 		logs.Errorf("list config instances from data-service failed, err: %v, rid: %s", err, grpcKit.Rid)

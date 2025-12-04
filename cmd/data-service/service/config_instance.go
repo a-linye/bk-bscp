@@ -39,6 +39,12 @@ import (
 func (s *Service) ListConfigInstances(ctx context.Context, req *pbds.ListConfigInstancesReq) (*pbds.ListConfigInstancesResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 
+	// validate the page params
+	opt := &types.BasePage{Start: req.Start, Limit: uint(req.Limit), All: req.All}
+	if err := opt.Validate(types.DefaultPageOption); err != nil {
+		return nil, err
+	}
+
 	if req.ConfigTemplateId == 0 {
 		return &pbds.ListConfigInstancesResp{
 			Count:           0,
@@ -103,8 +109,25 @@ func (s *Service) ListConfigInstances(ctx context.Context, req *pbds.ListConfigI
 		return nil, err
 	}
 
+	// 应用分页
+	totalCount := uint32(len(pbConfigInstances))
+	if !req.All {
+		// 如果不是获取所有数据，则进行分页
+		start := int(req.Start)
+		limit := int(req.Limit)
+		if start >= len(pbConfigInstances) {
+			pbConfigInstances = make([]*pbcin.ConfigInstance, 0)
+		} else {
+			end := start + limit
+			if end > len(pbConfigInstances) {
+				end = len(pbConfigInstances)
+			}
+			pbConfigInstances = pbConfigInstances[start:end]
+		}
+	}
+
 	return &pbds.ListConfigInstancesResp{
-		Count:           uint32(len(pbConfigInstances)),
+		Count:           totalCount,
 		ConfigInstances: pbConfigInstances,
 		FilterOptions:   filterOptions,
 	}, nil

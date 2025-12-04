@@ -4784,6 +4784,8 @@ message ListConfigInstancesReq {
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程搜索过滤条件" }];
   uint32 start = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "起始位置，从0开始" }];
   uint32 limit = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "每页条数" }];
+  bool all = 7
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "是否获取所有", default: "false" }];
 }
 
 message ListConfigInstancesResp {
