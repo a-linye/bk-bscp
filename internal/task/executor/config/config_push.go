@@ -181,7 +181,7 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 					Agent: gse.TransferFileAgent{
 						BkAgentID:     srcAgentID,
 						BkContainerID: srcContainerID,
-						User:          cc.FeedServer().GSE.AgentUser,
+						User:          cc.G().GSE.AgentUser,
 					},
 				},
 				Target: gse.TransferFileTarget{
@@ -237,6 +237,7 @@ func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	kt := kit.New()
 	kt.BizID = payload.BizID
+	kt.User = payload.OperatorUser
 
 	isSuccess := cbErr == nil
 	// 更新批次状态
