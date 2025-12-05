@@ -1153,10 +1153,9 @@ func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbd
 	payloadCache := make(map[string]*executorCommon.TaskPayload)
 	templateVersionMap := make(map[uint32]uint32) // key: configTemplateID, value: versionID
 	validTasks := make([]*taskTypes.Task, 0, len(tasks))
-
 	for _, t := range tasks {
 		payload := &executorCommon.TaskPayload{}
-		if err := t.GetCommonPayload(payload); err != nil {
+		if err = t.GetCommonPayload(payload); err != nil {
 			logs.Warnf("skip task %s, get common payload failed: %v, rid: %s", t.GetTaskID(), err, kt.Rid)
 			continue
 		}
@@ -1174,11 +1173,10 @@ func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbd
 			return nil, fmt.Errorf("config template id is not valid for task %s", t.GetTaskID())
 		}
 
-		// 缓存 payload，后续复用
 		payloadCache[t.GetTaskID()] = payload
 		validTasks = append(validTasks, t)
 
-		// 收集配置模板ID和版本信息（一次遍历完成）
+		// 收集配置模板ID和版本信息
 		if _, exists := templateVersionMap[configTemplateID]; !exists {
 			templateVersionMap[configTemplateID] = payload.ConfigPayload.ConfigTemplateVersionID
 		}
@@ -1188,13 +1186,11 @@ func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbd
 		return nil, fmt.Errorf("no valid tasks found for batch %d", req.GetBatchId())
 	}
 
-	// 检查是否有运行中的配置下发任务
 	configTemplateIDs := make([]uint32, 0, len(templateVersionMap))
 	for id := range templateVersionMap {
 		configTemplateIDs = append(configTemplateIDs, id)
 	}
-
-	// 1. 检查配置模板是否有运行中的下发任务
+	// 1. 检查配置模板是否有运行中的配置下发任务
 	// 2. 检查下发的配置模板版本是否为最新版本
 	err = validateOperate(s.dao, kt, req.GetBizId(), configTemplateIDs, templateVersionMap)
 	if err != nil {

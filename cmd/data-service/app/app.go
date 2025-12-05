@@ -85,7 +85,7 @@ func Run(opt *options.Option) error {
 	}
 
 	// 触发定时任务
-	// go ds.startCronTasks()
+	go ds.startCronTasks()
 
 	shutdown.RegisterFirstShutdown(ds.finalizer)
 	shutdown.WaitShutdown(20)

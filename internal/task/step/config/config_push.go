@@ -14,11 +14,12 @@ package config
 
 import (
 	"github.com/Tencent/bk-bcs/bcs-common/common/task/types"
+	"github.com/samber/lo"
+
 	executorCommon "github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/config"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
-	"github.com/samber/lo"
 )
 
 // ValidatePushConfig 验证配置下发步骤
