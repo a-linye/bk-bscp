@@ -156,6 +156,7 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	kt.BizID = payload.BizID
 
 	// 构建源文件路径
+	// TODO: 配置文件路径需要从配置中获取
 	srcDir := path.Join("/tmp/bscp/config/push", strconv.Itoa(int(payload.BizID)))
 	fileName := cfg.ConfigContentSignature
 	srcPath := path.Join(srcDir, fileName)
