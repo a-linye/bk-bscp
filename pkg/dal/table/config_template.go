@@ -47,6 +47,11 @@ func (c *ConfigTemplate) TableName() Name {
 	return ConfigTemplatesTable
 }
 
+// AppID AuditRes interface
+func (c *ConfigTemplate) AppID() uint32 {
+	return 0
+}
+
 // ResType AuditRes interface
 func (c *ConfigTemplate) ResType() string {
 	return string(enumor.ConfigTemplate)

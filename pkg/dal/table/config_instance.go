@@ -43,7 +43,7 @@ type ConfigInstanceAttachment struct {
 	// InstID 模块下的进程实例序列号
 	ModuleInstSeq uint32 `json:"module_inst_seq" gorm:"column:module_inst_seq"`
 	// GenerateTaskID 配置生成任务ID，用于追溯配置生成任务
-	GenerateTaskID string `json:"generate_task_id" gorm:"column:generate_task_id"`
+	GenerateTaskID string `json:"generate_task_id" gorm:"column:task_id"`
 	// TenantID is the tenant ID.
 	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
 }
