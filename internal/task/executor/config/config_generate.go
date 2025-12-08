@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	istep "github.com/Tencent/bk-bcs/bcs-common/common/task/steps/iface"
 
@@ -165,7 +164,6 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 				payload.TemplateRevision.Attachment.TemplateID, err)
 		}
 	}
-	renderedContent = renderedContent + time.Now().Format("2006-01-02 15:04:05")
 
 	// 计算渲染后配置内容的 SHA256 签名
 	configContentSignature := tools.SHA256(renderedContent)
