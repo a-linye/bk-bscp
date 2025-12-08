@@ -112,8 +112,8 @@ func (e *PushConfigExecutor) DownloadConfig(c *istep.Context) error {
 	logs.Infof("download config for batch %d, biz_id: %d, config_key: %s",
 		payload.BatchID, payload.BizID, cfg.ConfigInstanceKey)
 
-	// TODO: 配置文件路径需要从配置中获取
-	dir := path.Join("/tmp/bscp/config/push", strconv.Itoa(int(payload.BizID)))
+	cacheDir := cc.G().GSE.CacheDir
+	dir := path.Join(cacheDir, strconv.Itoa(int(payload.BizID)))
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return fmt.Errorf("create directory failed: %w", err)
 	}
@@ -156,8 +156,8 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	kt.BizID = payload.BizID
 
 	// 构建源文件路径
-	// TODO: 配置文件路径需要从配置中获取
-	srcDir := path.Join("/tmp/bscp/config/push", strconv.Itoa(int(payload.BizID)))
+	cacheDir := cc.G().GSE.CacheDir
+	srcDir := path.Join(cacheDir, strconv.Itoa(int(payload.BizID)))
 	fileName := cfg.ConfigContentSignature
 	srcPath := path.Join(srcDir, fileName)
 
