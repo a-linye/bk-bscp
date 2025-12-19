@@ -3,10 +3,11 @@ export interface IProcessItem {
   attachment: {
     app_id: number;
     biz_id: number;
+    cc_process_id: number;
   };
   proc_inst: IProcInst[];
   spec: {
-    actions: IProcessTableAction;
+    actions:  Record<string, boolean>;
     alias: string;
     cc_sync_status: string;
     cc_sync_updated_at: string;
@@ -20,18 +21,8 @@ export interface IProcessItem {
     status: string;
     prev_data: string;
     proc_num: number;
+    bind_template_ids: number[];
   };
-}
-
-export interface IProcessTableAction {
-  kill: boolean;
-  push: boolean;
-  register: boolean;
-  reload: boolean;
-  restart: boolean;
-  start: boolean;
-  stop: boolean;
-  unregister: boolean;
 }
 
 export interface IProcInst {
@@ -60,5 +51,5 @@ export interface IProcInst {
 export interface IProcessFilterItem {
   label: string;
   value: string;
-  list: Array<{ name: string; id: string }>;
+  list: Array<{ name: string; id: number }>;
 }

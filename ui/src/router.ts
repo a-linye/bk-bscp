@@ -157,14 +157,6 @@ const routes = [
         },
         component: () => import('./views/space/client/example/index.vue'),
       },
-      // {
-      //   path: 'process',
-      //   name: 'process-management',
-      //   meta: {
-      //     navModule: 'process',
-      //   },
-      //   component: () => import('./views/space/process/index.vue'),
-      // },
       {
         path: 'task',
         name: 'task-history',
@@ -198,6 +190,40 @@ const routes = [
           navModule: 'process',
         },
         component: () => import('./views/space/process/index.vue'),
+      },
+      {
+        path: 'config-template',
+        name: 'config-template-management',
+        meta: {
+          navModule: 'config-template',
+        },
+        component: () => import('./views/space/config-template/index.vue'),
+        children: [
+          {
+            path: 'list',
+            name: 'config-template-list',
+            meta: {
+              navModule: 'config-template',
+            },
+            component: () => import('./views/space/config-template/list/config-template-list.vue'),
+          },
+          {
+            path: ':configTemplateId/version-manage/:templateSpaceId/:templateId',
+            name: 'config-template-version-manage',
+            meta: {
+              navModule: 'config-template',
+            },
+            component: () => import('./views/space/config-template/version-manage/index.vue'),
+          },
+          {
+            path: 'config-issued',
+            name: 'config-issued',
+            meta: {
+              navModule: 'config-template',
+            },
+            component: () => import('./views/space/config-template/config-issued/index.vue'),
+          },
+        ],
       },
       {
         path: 'records',

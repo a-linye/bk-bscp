@@ -14,16 +14,20 @@
         <bk-select
           v-model="filterValues[filter.value as keyof typeof filterValues]"
           v-for="filter in filterList"
-          class="bk-select"
+          :class="['bk-select', { issued: isIssued }]"
           :key="filter.value"
           :placeholder="filter.label"
           multiple
           @change="emits('search', { ...filterValues, environment: activeEnv })">
-          <bk-option v-for="item in filter.list" :key="item.id" :value="item.name" :name="item.name">
+          <bk-option
+            v-for="item in filter.list"
+            :key="item.id"
+            :value="filter.value === 'cc_process_ids' ? item.id : item.name"
+            :name="item.name">
             {{ item.name }}
           </bk-option>
         </bk-select>
-        <bk-button class="transfer-button" text theme="primary" @click="filterType = 'expression'">
+        <bk-button class="op-btn" text theme="primary" @click="filterType = 'expression'">
           <transfer class="icon" />{{ t('表达式') }}
         </bk-button>
       </template>
@@ -32,46 +36,81 @@
           :model-value="filterValues[filter.value as keyof typeof filterValues]"
           v-for="filter in filterList"
           :key="filter.value"
-          class="bk-input"
+          :class="['bk-input', { issued: isIssued }]"
           placeholder="*"
           show-overflow-tooltips
           @change="handleInputChange(filter.value, $event)" />
-        <bk-button class="transfer-button" text theme="primary" @click="filterType = 'filter'">
+        <bk-button class="op-btn" text theme="primary" @click="filterType = 'filter'">
           <transfer class="icon" />{{ t('筛选') }}
         </bk-button>
       </template>
+      <bk-button v-if="isIssued" class="op-btn" text theme="primary" @click="handleClearFilter">
+        <Del class="icon" />
+        {{ t('清空') }}
+      </bk-button>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { ref, onMounted } from 'vue';
-  import { Transfer } from 'bkui-vue/lib/icon';
+  import { ref, onMounted, computed, watch } from 'vue';
+  import { Transfer, Del } from 'bkui-vue/lib/icon';
   import { getProcessFilter } from '../../../../api/process';
   import type { IProcessFilterItem } from '../../../../../types/process';
   import { useI18n } from 'vue-i18n';
 
   const { t } = useI18n();
 
-  const props = defineProps<{
-    bizId: string;
-  }>();
+  const props = withDefaults(
+    defineProps<{
+      bkBizId: string;
+      isIssued?: boolean; // 是否是配置下发
+      processIds?: string[];
+    }>(),
+    {
+      isIssued: false,
+    },
+  );
   const emits = defineEmits(['search']);
 
-  const envList = [
-    {
-      label: t('正式'),
-      value: '3',
+  watch(
+    () => props.processIds,
+    () => {
+      if (props.processIds && props.processIds?.length > 0) {
+        filterValues.value.cc_process_ids = props.processIds.map((id) => Number(id));
+        emits('search', { ...filterValues.value, env: activeEnv.value });
+      }
     },
-    {
-      label: t('体验'),
-      value: '2',
-    },
-    {
-      label: t('测试'),
-      value: '1',
-    },
-  ];
+  );
+
+  const envList = computed(() => {
+    if (props.isIssued) {
+      return [
+        {
+          label: t('正式'),
+          value: '3',
+        },
+        {
+          label: t('体验'),
+          value: '2',
+        },
+      ];
+    }
+    return [
+      {
+        label: t('正式'),
+        value: '3',
+      },
+      {
+        label: t('体验'),
+        value: '2',
+      },
+      {
+        label: t('测试'),
+        value: '1',
+      },
+    ];
+  });
   const filterList = ref<IProcessFilterItem[]>([
     {
       label: t('全部集群 (*)'),
@@ -89,12 +128,12 @@
       list: [],
     },
     {
-      label: t('全部进程别名 (*)'),
+      label: t('全部进程 (*)'),
       value: 'process_aliases',
       list: [],
     },
     {
-      label: t('全部 CC 进程 ID (*)'),
+      label: t('全部 process_id (*)'),
       value: 'cc_process_ids',
       list: [],
     },
@@ -105,7 +144,7 @@
     modules: string[];
     service_instances: string[];
     process_aliases: string[];
-    cc_process_ids: string[];
+    cc_process_ids: number[];
   }>({
     sets: [],
     modules: [],
@@ -121,9 +160,9 @@
 
   const loadPerocessFilterList = async () => {
     try {
-      const res = await getProcessFilter(props.bizId);
+      const res = await getProcessFilter(props.bkBizId);
       filterList.value.map((filter: IProcessFilterItem) => {
-        filter.list = res[filter.value as keyof typeof res] as Array<{ name: string; id: string }>;
+        filter.list = res[filter.value as keyof typeof res] as Array<{ name: string; id: number }>;
         return filter;
       });
     } catch (error) {
@@ -148,6 +187,7 @@
   };
 
   const handleInputChange = (key: string, value: string) => {
+    // @ts-ignore
     filterValues.value[key as keyof typeof filterValues.value] = value.length > 0 ? value.split(',') : [];
     emits('search', { ...filterValues.value, environment: activeEnv.value });
   };
@@ -192,8 +232,11 @@
     .bk-select,
     .bk-input {
       width: 136px;
+      &.issued {
+        width: 162px;
+      }
     }
-    .transfer-button {
+    .op-btn {
       font-size: 14px;
       .icon {
         margin-right: 8px;

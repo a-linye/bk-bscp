@@ -1,7 +1,7 @@
 <template>
   <div class="status-and-screen">
     <SyncStatus :biz-id="spaceId" @refresh="handlePageChange(1)" />
-    <FilterProcess ref="filterRef" :biz-id="spaceId" @search="handleFilter" />
+    <FilterProcess ref="filterRef" :bk-biz-id="spaceId" @search="handleFilter" />
   </div>
   <div class="op-wrap">
     <BatchOpBtns :count="selectedIds.length" @click="handleBatchOpProcess" />
@@ -92,11 +92,13 @@
                 {{ t('停止') }}
               </bk-button>
             </template>
-            <bk-button text theme="primary" :disabled="!row.spec.actions.push">{{ t('配置下发') }}</bk-button>
+            <bk-button text theme="primary" :disabled="!row.spec.actions.push" @click="handleConfigIssued(row)">
+              {{ t('配置下发') }}
+            </bk-button>
             <TableMoreAction
-              :actions="row.spec.actions"
-              @kill="handleOpProcess(row, 'kill')"
-              @click="handleMoreActionClick(row, $event)" />
+              :enabled="row.spec.actions"
+              :operation-list="operationList"
+              @operation="handleMoreActionClick(row, $event)" />
           </div>
         </template>
       </TableColumn>
@@ -236,7 +238,7 @@
   import UpdateManagedInfo from './update-managed-info.vue';
   import OpProcessDialog from './op-process-dialog.vue';
   import BatchOpProcessDialog from './batch-op-process-dialog.vue';
-  import TableMoreAction from './table-more-action.vue';
+  import TableMoreAction from '../../../../components/table/table-more-actions.vue';
   import useGlobalStore from '../../../../store/global';
   import useTablePagination from '../../../../utils/hooks/use-table-pagination';
   import SyncStatus from './sync-status.vue';
@@ -244,9 +246,7 @@
   import SearchSelector from '../../../../components/search-selector.vue';
 
   const { spaceId } = storeToRefs(useGlobalStore());
-
   const { pagination, updatePagination } = useTablePagination('clientSearch');
-
   const { t } = useI18n();
   const router = useRouter();
   const searchField = ref([
@@ -271,6 +271,33 @@
       children: [],
     },
   ]);
+
+  const operationList = [
+    {
+      name: t('重启'),
+      id: 'restart',
+    },
+    {
+      name: t('重载'),
+      id: 'reload',
+    },
+    {
+      name: t('强制停止'),
+      id: 'kill',
+    },
+    {
+      name: t('托管'),
+      id: 'register',
+    },
+    {
+      name: t('取消托管'),
+      id: 'unregister',
+    },
+    {
+      name: t('查看进程配置'),
+      id: 'viewConfig',
+    },
+  ];
 
   const processList = ref<IProcessItem[]>([]);
   const isSearchEmpty = ref(false);
@@ -300,6 +327,7 @@
   const selectedIds = ref<number[]>([]);
   const tableLoading = ref(false);
   const tableRef = ref();
+  const isShowConfigIssued = ref(false);
   const expandedRowKeys = ref<number[]>([]);
 
   const tableMaxHeight = computed(() => {
@@ -442,6 +470,10 @@
   };
 
   const handleMoreActionClick = (data: IProcessItem, op: string) => {
+    if (op === 'kill') {
+      handleOpProcess(data, 'kill');
+      return;
+    }
     processIds.value = [data.id];
     handleConfirmOp(op);
   };
@@ -486,6 +518,17 @@
     filterRef.value.clear();
   };
 
+  // 配置下发
+  const handleConfigIssued = (process: IProcessItem) => {
+    router.push({
+      name: 'config-issued',
+      query: {
+        processIds: [process.attachment.cc_process_id],
+        templateIds: process.spec.bind_template_ids,
+      },
+    });
+    isShowConfigIssued.value = true;
+  };
   // 表格下拉展开收起
   const handleExpandRow = (row: IProcessItem) => {
     const index = expandedRowKeys.value.indexOf(row.id);
@@ -628,6 +671,7 @@
       }
     }
     .default-row {
+      background: #fafbfd !important;
       td {
         height: 32px;
         padding: 0 !important;
@@ -636,6 +680,9 @@
       &:last-child {
         border-bottom: none;
       }
+    }
+    .t-table__empty-row {
+      background: #fafbfd !important;
     }
   }
 </style>
