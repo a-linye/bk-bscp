@@ -402,15 +402,12 @@ func updateProcessInstanceStatus(
 
 	managedStatus := table.GetProcessManagedStatusByOpType(operateType, processInstances.Spec.ManagedStatus)
 	processStatus := table.GetProcessStatusByOpType(operateType)
-	// 设置状态字段
-	if managedStatus != "" {
-		processInstances.Spec.ManagedStatus = managedStatus
-	}
-	if processStatus != "" {
-		processInstances.Spec.Status = processStatus
-	}
-
-	if err := dao.ProcessInstance().Update(kt, processInstances); err != nil {
+	m := dao.GenQuery().ProcessInstance
+	if err := dao.ProcessInstance().UpdateSelectedFields(kt, processInstances.Attachment.BizID, map[string]any{
+		"managed_status":    managedStatus,
+		"status":            processStatus,
+		"status_updated_at": time.Now(),
+	}, m.ID.Eq(processInstances.ID)); err != nil {
 		logs.Errorf("update process instance failed, err: %v, rid: %s", err, kt.Rid)
 		return err
 	}

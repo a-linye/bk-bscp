@@ -541,18 +541,13 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 		}
 	}
 
-	// 获取并更新进程实例
-	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
-	if err != nil {
-		return fmt.Errorf("[Finalize STEP]: failed to get process instance: %w", err)
-	}
-
-	// 更新状态字段
-	processInstance.Spec.Status = processStatus
-	processInstance.Spec.ManagedStatus = managedStatus
-	processInstance.Spec.StatusUpdatedAt = time.Now()
-
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+	// 更新进程实例状态字段
+	m := e.Dao.GenQuery().ProcessInstance
+	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+		"status":            processStatus,
+		"managed_status":    managedStatus,
+		"status_updated_at": time.Now(),
+	}, m.ID.Eq(payload.ProcessInstanceID)); err != nil {
 		return fmt.Errorf("[Finalize STEP]: failed to update process instance: %w", err)
 	}
 
@@ -562,6 +557,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 // Callback 进程操作回调方法，在任务完成时被调用
 // cbErr: 如果为 nil 表示任务成功，否则表示任务失败
 func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
+	logs.Infof("[ProcessOperateCallback CALLBACK]: starting callback")
 	var payload OperatePayload
 	if err := c.GetPayload(&payload); err != nil {
 		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get payload: %v", err)
@@ -589,13 +585,6 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	logs.Infof("[ProcessOperateCallback CALLBACK]: task %s failed with error: %v, starting rollback",
 		c.GetTaskID(), cbErr)
 
-	// 获取进程实例
-	processInstance, err := e.Dao.ProcessInstance().GetByID(kit.New(), payload.BizID, payload.ProcessInstanceID)
-	if err != nil {
-		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get process instance: %v", err)
-		return fmt.Errorf("failed to get process instance: %w", err)
-	}
-
 	// 进程操作失败，但是进程的部分状态可能在gse侧已经生效（如启动进程失败，但是进程实际上也会托管）
 	// 优先使用gse侧进程状态，如果获取失败则回滚到原始状态
 	processStatus, managedStatus, err := e.getGSEProcessStatus(c, payload.BizID)
@@ -615,11 +604,12 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	}
 
 	// 更新进程实例状态
-	processInstance.Spec.Status = processStatus
-	processInstance.Spec.ManagedStatus = managedStatus
-	processInstance.Spec.StatusUpdatedAt = time.Now()
-
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+	m := e.Dao.GenQuery().ProcessInstance
+	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+		"status":            processStatus,
+		"managed_status":    managedStatus,
+		"status_updated_at": time.Now(),
+	}, m.ID.Eq(payload.ProcessInstanceID)); err != nil {
 		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to update process instance: %v", err)
 		return fmt.Errorf("failed to update process instance during rollback: %w", err)
 	}

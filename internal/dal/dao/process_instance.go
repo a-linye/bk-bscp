@@ -13,6 +13,8 @@
 package dao
 
 import (
+	rawgen "gorm.io/gen"
+
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -22,6 +24,8 @@ import (
 type ProcessInstance interface {
 	// Update updates a process instance.
 	Update(kit *kit.Kit, processInstance *table.ProcessInstance) error
+	// UpdateSelectedFields update selected fields
+	UpdateSelectedFields(kit *kit.Kit, bizID uint32, data map[string]any, conds ...rawgen.Condition) error
 	// BatchUpdate batch updates process instances.
 	BatchUpdate(kit *kit.Kit, instances []*table.ProcessInstance) error
 	// GetByID gets process instances by ID.
@@ -158,6 +162,23 @@ func (dao *processInstanceDao) Update(kit *kit.Kit, processInstance *table.Proce
 	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
 
 	if _, err := q.Where(m.ID.Eq(processInstance.ID)).Updates(processInstance); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateSelectedFields 更新指定字段
+func (dao *processInstanceDao) UpdateSelectedFields(kit *kit.Kit, bizID uint32, data map[string]any, conds ...rawgen.Condition) error {
+	m := dao.genQ.ProcessInstance
+	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
+
+	query := q.Where(m.BizID.Eq(bizID))
+	if len(conds) > 0 {
+		query = query.Where(conds...)
+	}
+
+	if _, err := query.Updates(data); err != nil {
 		return err
 	}
 
