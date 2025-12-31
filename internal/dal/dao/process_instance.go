@@ -22,6 +22,8 @@ import (
 type ProcessInstance interface {
 	// Update updates a process instance.
 	Update(kit *kit.Kit, processInstance *table.ProcessInstance) error
+	// UpdateStatus updates process instance status fields (Status, ManagedStatus, StatusUpdatedAt).
+	UpdateStatus(kit *kit.Kit, processInstance *table.ProcessInstance) error
 	// BatchUpdate batch updates process instances.
 	BatchUpdate(kit *kit.Kit, instances []*table.ProcessInstance) error
 	// GetByID gets process instances by ID.
@@ -158,6 +160,21 @@ func (dao *processInstanceDao) Update(kit *kit.Kit, processInstance *table.Proce
 	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
 
 	if _, err := q.Where(m.ID.Eq(processInstance.ID)).Updates(processInstance); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateStatus 更新进程实例的状态字段（Status, ManagedStatus, StatusUpdatedAt）
+func (dao *processInstanceDao) UpdateStatus(kit *kit.Kit, processInstance *table.ProcessInstance) error {
+	m := dao.genQ.ProcessInstance
+	q := dao.genQ.ProcessInstance.WithContext(kit.Ctx)
+
+	// 使用 Select 指定要更新的字段，确保即使是空字符串也会被更新到数据库
+	if _, err := q.Where(m.ID.Eq(processInstance.ID)).
+		Select(m.Status, m.ManagedStatus, m.StatusUpdatedAt).
+		Updates(processInstance); err != nil {
 		return err
 	}
 

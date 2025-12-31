@@ -630,8 +630,6 @@ func buildInstances(bizID, hostID, modID, ccProcessID, procNum, existCount, maxM
 				StatusUpdatedAt: now,
 				HostInstSeq:     uint32(hostInstSeq),
 				ModuleInstSeq:   uint32(moduleInstSeq),
-				Status:          table.ProcessStatusStopped,          // 初始状态：已停止
-				ManagedStatus:   table.ProcessManagedStatusUnmanaged, // 初始状态：未托管
 			},
 			Revision: &table.Revision{
 				CreatedAt: now,

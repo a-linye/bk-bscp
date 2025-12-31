@@ -406,7 +406,7 @@ func updateProcessInstanceStatus(
 		processInstances.Spec.Status = processStatus
 	}
 
-	if err := dao.ProcessInstance().Update(kt, processInstances); err != nil {
+	if err := dao.ProcessInstance().UpdateStatus(kt, processInstances); err != nil {
 		logs.Errorf("update process instance failed, err: %v, rid: %s", err, kt.Rid)
 		return err
 	}

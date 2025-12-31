@@ -552,7 +552,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	processInstance.Spec.ManagedStatus = managedStatus
 	processInstance.Spec.StatusUpdatedAt = time.Now()
 
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+	if err = e.Dao.ProcessInstance().UpdateStatus(kit.New(), processInstance); err != nil {
 		return fmt.Errorf("[Finalize STEP]: failed to update process instance: %w", err)
 	}
 
@@ -562,6 +562,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 // Callback 进程操作回调方法，在任务完成时被调用
 // cbErr: 如果为 nil 表示任务成功，否则表示任务失败
 func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
+	logs.Infof("[ProcessOperateCallback CALLBACK]: starting callback")
 	var payload OperatePayload
 	if err := c.GetPayload(&payload); err != nil {
 		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to get payload: %v", err)
@@ -619,7 +620,7 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	processInstance.Spec.ManagedStatus = managedStatus
 	processInstance.Spec.StatusUpdatedAt = time.Now()
 
-	if err = e.Dao.ProcessInstance().Update(kit.New(), processInstance); err != nil {
+	if err = e.Dao.ProcessInstance().UpdateStatus(kit.New(), processInstance); err != nil {
 		logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to update process instance: %v", err)
 		return fmt.Errorf("failed to update process instance during rollback: %w", err)
 	}
