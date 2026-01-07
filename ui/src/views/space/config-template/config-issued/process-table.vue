@@ -110,7 +110,12 @@
         </template>
         <TableColumn :title="$t('操作')" width="196">
           <template #default="{ row }: { row: ITemplateProcessItem }">
-            <bk-button v-if="isCheck" theme="primary" text @click="handleView(row)">
+            <bk-button
+              v-if="isCheck"
+              theme="primary"
+              text
+              :disabled="row.config_version_name === '-'"
+              @click="handleView(row)">
               {{ $t('查看配置') }}
             </bk-button>
             <div v-else-if="isGenerate" class="op-btns">
@@ -161,16 +166,21 @@
   const checkedVersion = ref<string[]>([]);
   const diffSliderData = ref<{
     open: boolean;
-    data: { ccProcessId: number; moduleInstSeq: number; configVersionId: number };
+    data: { ccProcessId: number; moduleInstSeq: number; configVersionId: number; configTemplateId: number };
     filePath: string;
   }>({
     open: false,
-    data: { ccProcessId: 0, moduleInstSeq: 0, configVersionId: 0 },
+    data: { ccProcessId: 0, moduleInstSeq: 0, configVersionId: 0, configTemplateId: 0 },
     filePath: '',
   });
   const detailSliderData = ref<{
     open: boolean;
-    data: { ccProcessId: number; moduleInstSeq: number; configTemplateId: number; taskId: string };
+    data: {
+      ccProcessId: number;
+      moduleInstSeq: number;
+      configTemplateId: number;
+      taskId: string;
+    };
   }>({
     open: false,
     data: { ccProcessId: 0, moduleInstSeq: 0, configTemplateId: 0, taskId: '' },
@@ -189,6 +199,7 @@
         ccProcessId: row.cc_process_id,
         moduleInstSeq: row.module_inst_seq,
         configVersionId: row.latest_template_revision_id,
+        configTemplateId: row.config_template_id,
       },
     };
   };

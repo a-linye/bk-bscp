@@ -7,17 +7,19 @@
         <span class="file">{{ templateDetail.config_file_name }}</span>
       </div>
     </template>
-    <div class="detail-content-area">
-      <div class="detail-info">
-        <div class="info-item" v-for="item in infoList" :key="item.label">
-          <span class="label">{{ item.label }}</span>
-          <span class="value">{{ templateDetail[item.value as keyof typeof templateDetail] }}</span>
+    <bk-loading :loading="loading">
+      <div class="detail-content-area">
+        <div class="detail-info">
+          <div class="info-item" v-for="item in infoList" :key="item.label">
+            <span class="label">{{ item.label }}</span>
+            <span class="value">{{ templateDetail[item.value as keyof typeof templateDetail] }}</span>
+          </div>
+        </div>
+        <div class="content">
+          <CodeEditor :model-value="templateDetail.content" :editable="false" />
         </div>
       </div>
-      <div class="content">
-        <CodeEditor :model-value="templateDetail.content" :editable="false" />
-      </div>
-    </div>
+    </bk-loading>
   </bk-sideslider>
 </template>
 
@@ -33,7 +35,12 @@
     bkBizId: string;
     isShow: boolean;
     isCheck: boolean;
-    data: { ccProcessId: number; moduleInstSeq: number; configTemplateId: number; taskId: string };
+    data: {
+      ccProcessId: number;
+      moduleInstSeq: number;
+      configTemplateId: number;
+      taskId: string;
+    };
   }>();
   const emits = defineEmits(['update:isShow']);
   const templateDetail = ref({
@@ -47,6 +54,7 @@
     config_template_name: '',
     content: '',
   });
+  const loading = ref(false);
 
   const infoList = [
     {
@@ -85,6 +93,7 @@
   );
 
   const loadGenerateResult = async () => {
+    loading.value = true;
     try {
       let res;
       if (props.isCheck) {
@@ -94,12 +103,33 @@
           module_inst_seq: props.data.moduleInstSeq,
         };
         res = await checkConfigView(props.bkBizId, params);
+        const {
+          config_file_name,
+          config_file_path,
+          config_template_name,
+          config_file_permission,
+          config_file_owner,
+          config_file_group,
+          last_dispatched,
+        } = res;
+        templateDetail.value = {
+          ...templateDetail.value,
+          config_file_name,
+          config_file_path,
+          config_template_name,
+          config_file_permission,
+          config_file_owner,
+          config_file_group,
+          content: last_dispatched.data.content,
+        };
       } else {
         res = await getGenerateResult(props.bkBizId, props.data.taskId);
+        templateDetail.value = res;
       }
-      templateDetail.value = res;
     } catch (error) {
       console.error(error);
+    } finally {
+      loading.value = false;
     }
   };
 </script>
