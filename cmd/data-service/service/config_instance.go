@@ -217,6 +217,9 @@ func getFilteredProcesses(kt *kit.Kit, bizID uint32, dao dao.Set, configTemplate
 	if search != nil && len(search.CcProcessIds) > 0 {
 		finalCcProcessIDs = tools.SliceIntersect(ccProcessIDs, search.CcProcessIds)
 	}
+	if len(finalCcProcessIDs) == 0 {
+		return nil, nil
+	}
 
 	// 根据过滤条件再次查询完整的进程列表
 	processSearchCondition := &pbproc.ProcessSearchCondition{
