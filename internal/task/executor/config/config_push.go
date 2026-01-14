@@ -94,58 +94,6 @@ func (e *PushConfigExecutor) ValidatePushConfig(c *istep.Context) error {
 	return nil
 }
 
-// renderFileNameAndPath 渲染文件名和文件路径
-// 参考配置生成时的渲染逻辑，使用相同的上下文进行渲染
-func (e *PushConfigExecutor) renderFileNameAndPath(commonPayload *common.TaskPayload) (string, string, error) {
-	cfg := commonPayload.ConfigPayload
-	proc := commonPayload.ProcessPayload
-
-	// 如果文件名和路径中都不包含变量，直接返回
-	if !strings.Contains(cfg.ConfigFileName, "${") && !strings.Contains(cfg.ConfigFilePath, "${") {
-		return cfg.ConfigFileName, cfg.ConfigFilePath, nil
-	}
-
-	// 构建渲染上下文参数
-	contextParams := render.ProcessContextParams{
-		SetName:       proc.SetName,
-		ModuleName:    proc.ModuleName,
-		ServiceName:   proc.ServiceName,
-		ProcessName:   proc.Alias,
-		ProcessID:     int(proc.CcProcessID),
-		FuncName:      proc.FuncName,
-		HostInnerIP:   proc.InnerIP,
-		HostInstSeq:   int(proc.HostInstSeq),
-		ModuleInstSeq: int(proc.ModuleInstSeq),
-		CloudID:       proc.CloudID,
-		// 不需要 HELP，因为文件名/路径中不应该包含 HELP
-		WithHelp: false,
-	}
-
-	// 渲染文件名
-	renderedFileName := cfg.ConfigFileName
-	if strings.Contains(cfg.ConfigFileName, "${") {
-		rendered, err := render.Template(cfg.ConfigFileName, contextParams)
-		if err != nil {
-			return "", "", fmt.Errorf("render file name failed: %w", err)
-		}
-		renderedFileName = rendered
-		logs.Infof("render file name: %s -> %s", cfg.ConfigFileName, renderedFileName)
-	}
-
-	// 渲染文件路径
-	renderedFilePath := cfg.ConfigFilePath
-	if strings.Contains(cfg.ConfigFilePath, "${") {
-		rendered, err := render.Template(cfg.ConfigFilePath, contextParams)
-		if err != nil {
-			return "", "", fmt.Errorf("render file path failed: %w", err)
-		}
-		renderedFilePath = rendered
-		logs.Infof("render file path: %s -> %s", cfg.ConfigFilePath, renderedFilePath)
-	}
-
-	return renderedFileName, renderedFilePath, nil
-}
-
 // ReleaseConfig implements istep.Step.
 // ReleaseConfig 通过脚本方式下发配置
 func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
@@ -167,8 +115,8 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 
 	kt.BizID = payload.BizID
 
-	// 渲染文件名和文件路径（支持变量）
-	renderedFileName, renderedFilePath, err := e.renderFileNameAndPath(commonPayload)
+	// 渲染文件名和文件路径
+	renderedFileName, renderedFilePath, err := renderFileNameAndPath(commonPayload)
 	if err != nil {
 		logs.Errorf("[ReleaseConfig STEP]: render file name and path failed: %v", err)
 		return fmt.Errorf("render file name and path failed: %w", err)
@@ -405,7 +353,7 @@ func getServerInfo() (agentID string, containerID string, err error) {
 }
 
 // PushConfig implements istep.Step.
-// PushConfig 通过 GSE 传输文件到目标机器
+// PushConfig 通过 GSE 传输文件到目标机器(预留接口，暂未使用)
 func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	payload := &PushConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
@@ -430,8 +378,8 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	kt := kit.New()
 	kt.BizID = payload.BizID
 
-	// 渲染文件名和文件路径（支持变量）
-	renderedFileName, renderedFilePath, err := e.renderFileNameAndPath(kt, commonPayload)
+	// 渲染文件名和文件路径
+	renderedFileName, renderedFilePath, err := renderFileNameAndPath(commonPayload)
 	if err != nil {
 		logs.Errorf("[PushConfig STEP]: render file name and path failed: %v", err)
 		return fmt.Errorf("render file name and path failed: %w", err)
@@ -556,4 +504,55 @@ func (e *PushConfigExecutor) DownloadConfig(c *istep.Context) error {
 
 	logs.Infof("write config file success: %s", filePath)
 	return nil
+}
+
+// renderFileNameAndPath 渲染文件名和文件路径
+func renderFileNameAndPath(commonPayload *common.TaskPayload) (string, string, error) {
+	cfg := commonPayload.ConfigPayload
+	proc := commonPayload.ProcessPayload
+
+	// 如果文件名和路径中都不包含变量，直接返回
+	if !strings.Contains(cfg.ConfigFileName, "${") && !strings.Contains(cfg.ConfigFilePath, "${") {
+		return cfg.ConfigFileName, cfg.ConfigFilePath, nil
+	}
+
+	// 构建渲染上下文参数
+	contextParams := render.ProcessContextParams{
+		SetName:       proc.SetName,
+		ModuleName:    proc.ModuleName,
+		ServiceName:   proc.ServiceName,
+		ProcessName:   proc.Alias,
+		ProcessID:     int(proc.CcProcessID),
+		FuncName:      proc.FuncName,
+		HostInnerIP:   proc.InnerIP,
+		HostInstSeq:   int(proc.HostInstSeq),
+		ModuleInstSeq: int(proc.ModuleInstSeq),
+		CloudID:       proc.CloudID,
+		// 不需要 HELP，因为文件名/路径中不应该包含 HELP
+		WithHelp: false,
+	}
+
+	// 渲染文件名
+	renderedFileName := cfg.ConfigFileName
+	if strings.Contains(cfg.ConfigFileName, "${") {
+		rendered, err := render.Template(cfg.ConfigFileName, contextParams)
+		if err != nil {
+			return "", "", fmt.Errorf("render file name failed: %w", err)
+		}
+		renderedFileName = rendered
+		logs.Infof("render file name: %s -> %s", cfg.ConfigFileName, renderedFileName)
+	}
+
+	// 渲染文件路径
+	renderedFilePath := cfg.ConfigFilePath
+	if strings.Contains(cfg.ConfigFilePath, "${") {
+		rendered, err := render.Template(cfg.ConfigFilePath, contextParams)
+		if err != nil {
+			return "", "", fmt.Errorf("render file path failed: %w", err)
+		}
+		renderedFilePath = rendered
+		logs.Infof("render file path: %s -> %s", cfg.ConfigFilePath, renderedFilePath)
+	}
+
+	return renderedFileName, renderedFilePath, nil
 }
