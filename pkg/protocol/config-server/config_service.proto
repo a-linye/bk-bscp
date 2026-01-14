@@ -1549,7 +1549,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 进程操作
   rpc OperateProcess(OperateProcessReq) returns (OperateProcessResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/process/operate"
       body: "*"
@@ -1572,7 +1572,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 任务批次详情
   rpc GetTaskBatchDetail(GetTaskBatchDetailReq) returns (GetTaskBatchDetailResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/detail"
       body: "*"
@@ -1580,7 +1580,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 同步cc和gse状态
   rpc SyncCmdbGseStatus(SyncCmdbGseStatusReq) returns (SyncCmdbGseStatusResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/sync/cmdb_gse_status"
       body: "*"
@@ -1659,7 +1659,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 配置生成
   rpc GenerateConfig(GenerateConfigReq) returns (GenerateConfigResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/generate"
       body: "*"
@@ -1668,7 +1668,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 配置检查
   rpc CheckConfig(CheckConfigReq) returns (CheckConfigResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/check"
       body: "*"
@@ -1702,7 +1702,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 配置下发
   rpc PushConfig(PushConfigReq) returns (PushConfigResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/push"
       body: "*"
@@ -1719,6 +1719,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 配置模板列表
   rpc ListConfigTemplate(ListConfigTemplateReq) returns (ListConfigTemplateResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_template/list"
       body: "*"
