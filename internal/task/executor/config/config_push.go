@@ -115,16 +115,16 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 
 	kt.BizID = payload.BizID
 
-	// 渲染文件名和文件路径
-	renderedFileName, renderedFilePath, err := renderFileNameAndPath(commonPayload)
+	// 渲染完整文件路径（路径+文件名）
+	fullPath, err := renderFullPath(commonPayload)
 	if err != nil {
-		logs.Errorf("[ReleaseConfig STEP]: render file name and path failed: %v", err)
-		return fmt.Errorf("render file name and path failed: %w", err)
+		logs.Errorf("[ReleaseConfig STEP]: render full path failed: %v", err)
+		return fmt.Errorf("render full path failed: %w", err)
 	}
 
 	script, err := buildConfigScript(
 		base64.StdEncoding.EncodeToString([]byte(commonPayload.ConfigPayload.ConfigContent)),
-		path.Join(renderedFilePath, renderedFileName),
+		fullPath,
 		commonPayload.ConfigPayload.ConfigFilePermission,
 		commonPayload.ConfigPayload.ConfigFileOwner,
 		commonPayload.ConfigPayload.ConfigFileGroup,
@@ -165,7 +165,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	}
 
 	logs.Infof("[ReleaseConfig STEP]: gse task created, batch_id: %d, task_id: %s, target: %s",
-		payload.BatchID, resp.Result.TaskID, path.Join(renderedFilePath, renderedFileName))
+		payload.BatchID, resp.Result.TaskID, fullPath)
 
 	// 通过任务ID查询脚本执行结果
 	result, err := e.WaitExecuteScriptFinish(kt.Ctx, resp.Result.TaskID, commonPayload.ProcessPayload.AgentID)
@@ -378,12 +378,16 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	kt := kit.New()
 	kt.BizID = payload.BizID
 
-	// 渲染文件名和文件路径
-	renderedFileName, renderedFilePath, err := renderFileNameAndPath(commonPayload)
+	// 渲染完整文件路径（路径+文件名）
+	fullPath, err := renderFullPath(commonPayload)
 	if err != nil {
-		logs.Errorf("[PushConfig STEP]: render file name and path failed: %v", err)
-		return fmt.Errorf("render file name and path failed: %w", err)
+		logs.Errorf("[PushConfig STEP]: render full path failed: %v", err)
+		return fmt.Errorf("render full path failed: %w", err)
 	}
+
+	// 分离文件名和目录
+	renderedFilePath := path.Dir(fullPath)
+	renderedFileName := path.Base(fullPath)
 
 	// 构建源文件路径
 	cacheDir := cc.G().GSE.CacheDir
@@ -433,8 +437,8 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 		return fmt.Errorf("create transfer task failed: %w", err)
 	}
 
-	logs.Infof("[PushConfig STEP]: gse task created, batch_id: %d, task_id: %s, target: %s/%s",
-		payload.BatchID, resp.Result.TaskID, renderedFilePath, renderedFileName)
+	logs.Infof("[PushConfig STEP]: gse task created, batch_id: %d, task_id: %s, target: %s",
+		payload.BatchID, resp.Result.TaskID, fullPath)
 
 	// 等待传输完成
 	result, err := e.WaitTransferFileTaskFinish(kt.Ctx, resp.Result.TaskID)
@@ -506,14 +510,15 @@ func (e *PushConfigExecutor) DownloadConfig(c *istep.Context) error {
 	return nil
 }
 
-// renderFileNameAndPath 渲染文件名和文件路径
-func renderFileNameAndPath(commonPayload *common.TaskPayload) (string, string, error) {
+// renderFullPath 渲染完整文件路径
+func renderFullPath(commonPayload *common.TaskPayload) (string, error) {
 	cfg := commonPayload.ConfigPayload
 	proc := commonPayload.ProcessPayload
 
-	// 如果文件名和路径中都不包含变量，直接返回
-	if !strings.Contains(cfg.ConfigFileName, "${") && !strings.Contains(cfg.ConfigFilePath, "${") {
-		return cfg.ConfigFileName, cfg.ConfigFilePath, nil
+	fullPath := path.Join(cfg.ConfigFilePath, cfg.ConfigFileName)
+	// 不包含变量则无需渲染
+	if !strings.Contains(fullPath, "${") {
+		return fullPath, nil
 	}
 
 	// 构建渲染上下文参数
@@ -532,27 +537,11 @@ func renderFileNameAndPath(commonPayload *common.TaskPayload) (string, string, e
 		WithHelp: false,
 	}
 
-	// 渲染文件名
-	renderedFileName := cfg.ConfigFileName
-	if strings.Contains(cfg.ConfigFileName, "${") {
-		rendered, err := render.Template(cfg.ConfigFileName, contextParams)
-		if err != nil {
-			return "", "", fmt.Errorf("render file name failed: %w", err)
-		}
-		renderedFileName = rendered
-		logs.Infof("render file name: %s -> %s", cfg.ConfigFileName, renderedFileName)
+	renderedPath, err := render.Template(fullPath, contextParams)
+	if err != nil {
+		return "", fmt.Errorf("render full path failed: %w", err)
 	}
 
-	// 渲染文件路径
-	renderedFilePath := cfg.ConfigFilePath
-	if strings.Contains(cfg.ConfigFilePath, "${") {
-		rendered, err := render.Template(cfg.ConfigFilePath, contextParams)
-		if err != nil {
-			return "", "", fmt.Errorf("render file path failed: %w", err)
-		}
-		renderedFilePath = rendered
-		logs.Infof("render file path: %s -> %s", cfg.ConfigFilePath, renderedFilePath)
-	}
-
-	return renderedFileName, renderedFilePath, nil
+	logs.Infof("render full path: %s -> %s", fullPath, renderedPath)
+	return renderedPath, nil
 }
