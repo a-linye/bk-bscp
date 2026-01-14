@@ -77,14 +77,14 @@
           <div class="op-btns">
             <TableBtnTooltips
               v-if="row.spec.cc_sync_status === 'updated'"
-              :disabled="row.spec.actions.unregister.enabled"
-              :reason="row.spec.actions.unregister.reason"
+              :disabled="row.spec.actions.update_register?.enabled"
+              :reason="row.spec.actions.update_register?.reason"
               :link="cmdbUrl">
               <bk-badge position="top-right" theme="danger" dot>
                 <bk-button
                   text
                   theme="primary"
-                  :disabled="!row.spec.actions.unregister.enabled"
+                  :disabled="!row.spec.actions.update_register?.enabled"
                   @click="handleUpdateManagedInfo(row)">
                   {{ t('更新托管信息') }}
                 </bk-button>
@@ -176,8 +176,9 @@
             </TableColumn>
             <TableColumn>
               <template #default="{ row: rowData }: { row: IProcInst }">
-                <div v-if="rowData.spec.actions" class="op-btns">
+                <div class="op-btns">
                   <bk-button
+                    v-if="rowData.spec.actions.stop"
                     text
                     theme="primary"
                     :disabled="!rowData.spec.actions.stop"
@@ -185,6 +186,7 @@
                     {{ t('停止') }}
                   </bk-button>
                   <bk-button
+                    v-if="rowData.spec.actions.unregister"
                     text
                     theme="primary"
                     :disabled="!rowData.spec.actions.unregister"
@@ -192,7 +194,6 @@
                     {{ t('取消托管') }}
                   </bk-button>
                 </div>
-                <span v-else>--</span>
               </template>
             </TableColumn>
           </PrimaryTable>
@@ -222,7 +223,7 @@
   <UpdateManagedInfo
     :is-show="isShowUpdateManagedInfo"
     :managed-info="managedInfo"
-    @update="handleConfirmOp('update_register')"
+    @update="handleConfirmOp('update_register', $event)"
     @close="isShowUpdateManagedInfo = false" />
   <OpProcessDialog
     :is-show="isShowOpProcess"
@@ -465,7 +466,7 @@
 
   const getSecondTableRowClass = ({ row, rowIndex }: { row: IProcInst; rowIndex: number }) => {
     if (row.num && rowIndex + 1 > row.num) {
-      return 'warn';
+      return 'warn default-row';
     }
     return 'default-row';
   };
@@ -504,12 +505,13 @@
     handleConfirmOp(op);
   };
 
-  const handleConfirmOp = async (op: string) => {
+  const handleConfirmOp = async (op: string, restart?: boolean) => {
     try {
       const query = {
         processIds: processIds.value,
         processInstanceId: processInstanceId.value,
         operateType: op,
+        enable_process_restart: restart,
       };
       const res = await processOperate(spaceId.value, query);
       isShowOpProcess.value = false;
@@ -698,7 +700,7 @@
       background: #fff0f0;
     }
     .warn {
-      background: #fdf4e8;
+      background: #fdf4e8 !important;
     }
     .default {
       background: #fafbfd;
@@ -722,7 +724,7 @@
       }
     }
     .default-row {
-      background: #fafbfd !important;
+      background: #fafbfd;
       td {
         height: 32px;
         padding: 0 !important;
