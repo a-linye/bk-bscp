@@ -37,6 +37,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
+	"github.com/TencentBlueKing/bk-bscp/render"
 )
 
 const (
@@ -93,6 +94,58 @@ func (e *PushConfigExecutor) ValidatePushConfig(c *istep.Context) error {
 	return nil
 }
 
+// renderFileNameAndPath 渲染文件名和文件路径
+// 参考配置生成时的渲染逻辑，使用相同的上下文进行渲染
+func (e *PushConfigExecutor) renderFileNameAndPath(commonPayload *common.TaskPayload) (string, string, error) {
+	cfg := commonPayload.ConfigPayload
+	proc := commonPayload.ProcessPayload
+
+	// 如果文件名和路径中都不包含变量，直接返回
+	if !strings.Contains(cfg.ConfigFileName, "${") && !strings.Contains(cfg.ConfigFilePath, "${") {
+		return cfg.ConfigFileName, cfg.ConfigFilePath, nil
+	}
+
+	// 构建渲染上下文参数
+	contextParams := render.ProcessContextParams{
+		SetName:       proc.SetName,
+		ModuleName:    proc.ModuleName,
+		ServiceName:   proc.ServiceName,
+		ProcessName:   proc.Alias,
+		ProcessID:     int(proc.CcProcessID),
+		FuncName:      proc.FuncName,
+		HostInnerIP:   proc.InnerIP,
+		HostInstSeq:   int(proc.HostInstSeq),
+		ModuleInstSeq: int(proc.ModuleInstSeq),
+		CloudID:       proc.CloudID,
+		// 不需要 HELP，因为文件名/路径中不应该包含 HELP
+		WithHelp: false,
+	}
+
+	// 渲染文件名
+	renderedFileName := cfg.ConfigFileName
+	if strings.Contains(cfg.ConfigFileName, "${") {
+		rendered, err := render.Template(cfg.ConfigFileName, contextParams)
+		if err != nil {
+			return "", "", fmt.Errorf("render file name failed: %w", err)
+		}
+		renderedFileName = rendered
+		logs.Infof("render file name: %s -> %s", cfg.ConfigFileName, renderedFileName)
+	}
+
+	// 渲染文件路径
+	renderedFilePath := cfg.ConfigFilePath
+	if strings.Contains(cfg.ConfigFilePath, "${") {
+		rendered, err := render.Template(cfg.ConfigFilePath, contextParams)
+		if err != nil {
+			return "", "", fmt.Errorf("render file path failed: %w", err)
+		}
+		renderedFilePath = rendered
+		logs.Infof("render file path: %s -> %s", cfg.ConfigFilePath, renderedFilePath)
+	}
+
+	return renderedFileName, renderedFilePath, nil
+}
+
 // ReleaseConfig implements istep.Step.
 // ReleaseConfig 通过脚本方式下发配置
 func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
@@ -114,9 +167,16 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 
 	kt.BizID = payload.BizID
 
+	// 渲染文件名和文件路径（支持变量）
+	renderedFileName, renderedFilePath, err := e.renderFileNameAndPath(commonPayload)
+	if err != nil {
+		logs.Errorf("[ReleaseConfig STEP]: render file name and path failed: %v", err)
+		return fmt.Errorf("render file name and path failed: %w", err)
+	}
+
 	script, err := buildConfigScript(
 		base64.StdEncoding.EncodeToString([]byte(commonPayload.ConfigPayload.ConfigContent)),
-		path.Join(commonPayload.ConfigPayload.ConfigFilePath, commonPayload.ConfigPayload.ConfigFileName),
+		path.Join(renderedFilePath, renderedFileName),
 		commonPayload.ConfigPayload.ConfigFilePermission,
 		commonPayload.ConfigPayload.ConfigFileOwner,
 		commonPayload.ConfigPayload.ConfigFileGroup,
@@ -157,8 +217,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	}
 
 	logs.Infof("[ReleaseConfig STEP]: gse task created, batch_id: %d, task_id: %s, target: %s",
-		payload.BatchID, resp.Result.TaskID, path.Join(commonPayload.ConfigPayload.ConfigFilePath,
-			commonPayload.ConfigPayload.ConfigFileName))
+		payload.BatchID, resp.Result.TaskID, path.Join(renderedFilePath, renderedFileName))
 
 	// 通过任务ID查询脚本执行结果
 	result, err := e.WaitExecuteScriptFinish(kt.Ctx, resp.Result.TaskID, commonPayload.ProcessPayload.AgentID)
@@ -346,21 +405,37 @@ func getServerInfo() (agentID string, containerID string, err error) {
 }
 
 // PushConfig implements istep.Step.
-// PushConfig 通过 GSE 传输文件到目标机器(暂时没有用到)
+// PushConfig 通过 GSE 传输文件到目标机器
 func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	payload := &PushConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return err
 	}
 
-	cfg := payload.Payload.ConfigPayload
-	proc := payload.Payload.ProcessPayload
+	commonPayload := &common.TaskPayload{}
+	if err := c.GetCommonPayload(commonPayload); err != nil {
+		return fmt.Errorf("get common payload failed: %w", err)
+	}
+
+	if commonPayload.ConfigPayload == nil {
+		return fmt.Errorf("config payload not found")
+	}
+
+	cfg := commonPayload.ConfigPayload
+	proc := commonPayload.ProcessPayload
 
 	logs.Infof("[PushConfig STEP]: push config for batch %d, biz_id: %d, config_key: %s",
 		payload.BatchID, payload.BizID, cfg.ConfigInstanceKey)
 
 	kt := kit.New()
 	kt.BizID = payload.BizID
+
+	// 渲染文件名和文件路径（支持变量）
+	renderedFileName, renderedFilePath, err := e.renderFileNameAndPath(kt, commonPayload)
+	if err != nil {
+		logs.Errorf("[PushConfig STEP]: render file name and path failed: %v", err)
+		return fmt.Errorf("render file name and path failed: %w", err)
+	}
 
 	// 构建源文件路径
 	cacheDir := cc.G().GSE.CacheDir
@@ -390,8 +465,8 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 					},
 				},
 				Target: gse.TransferFileTarget{
-					FileName: cfg.ConfigFileName,
-					StoreDir: cfg.ConfigFilePath,
+					FileName: renderedFileName,
+					StoreDir: renderedFilePath,
 					Agents: []gse.TransferFileAgent{
 						{
 							BkAgentID: proc.AgentID,
@@ -411,7 +486,7 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	}
 
 	logs.Infof("[PushConfig STEP]: gse task created, batch_id: %d, task_id: %s, target: %s/%s",
-		payload.BatchID, resp.Result.TaskID, cfg.ConfigFilePath, cfg.ConfigFileName)
+		payload.BatchID, resp.Result.TaskID, renderedFilePath, renderedFileName)
 
 	// 等待传输完成
 	result, err := e.WaitTransferFileTaskFinish(kt.Ctx, resp.Result.TaskID)
