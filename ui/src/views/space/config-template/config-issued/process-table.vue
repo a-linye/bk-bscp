@@ -106,7 +106,7 @@
         </template>
         <template v-else>
           <TableColumn :title="$t('版本号')" col-key="config_version_name" width="140" />
-          <TableColumn :title="$t('版本描述')" col-key="config_version_memo" />
+          <TableColumn :title="$t('版本描述')" col-key="config_version_memo" ellipsis />
         </template>
         <TableColumn :title="$t('操作')" width="196">
           <template #default="{ row }: { row: ITemplateProcessItem }">
@@ -198,7 +198,7 @@
       data: {
         ccProcessId: row.cc_process_id,
         moduleInstSeq: row.module_inst_seq,
-        configVersionId: row.latest_template_revision_id,
+        configVersionId: props.templateProcess.revisionId,
         configTemplateId: row.config_template_id,
       },
     };
