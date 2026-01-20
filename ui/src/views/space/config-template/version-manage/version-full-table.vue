@@ -14,20 +14,20 @@
         <span v-if="row.spec">{{ row.spec.revision_memo || '--' }}</span>
       </template>
     </TableColumn>
-    <TableColumn :title="t('更新人')">
+    <TableColumn :title="t('创建人')">
       <template #default="{ row }">
-        <user-name v-if="row.revision" :name="row.revision.rivision" />
+        <user-name v-if="row.revision" :name="row.revision.creator" />
       </template>
     </TableColumn>
-    <TableColumn :title="t('更新时间')">
+    <TableColumn :title="t('创建时间')">
       <template #default="{ row }">
-          {{ datetimeFormat(row.revision.update_at) }}
+          {{ datetimeFormat(row.revision.create_at) }}
       </template>
     </TableColumn>
     <TableColumn :title="t('操作')" width="337">
       <template #default="{ row, rowIndex }">
         <div class="actions-wrapper">
-          <bk-button v-if="rowIndex === 0" text theme="primary" @click="handleConfigIssue">
+          <bk-button v-if="rowIndex === 0" :disabled="!isAssociated" text theme="primary" @click="handleConfigIssue">
             {{ t('配置下发') }}
           </bk-button>
           <bk-button text theme="primary" @click="handleOpenDiffSlider(row)">{{ t('版本对比') }}</bk-button>
@@ -75,6 +75,7 @@
     configTemplateId: number;
     list: ITemplateVersionItem[];
     pagination: IPagination;
+    isAssociated: boolean;
   }>();
 
   const emits = defineEmits([
