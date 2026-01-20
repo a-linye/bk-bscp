@@ -229,47 +229,65 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 		ccProcessIDs = append(ccProcessIDs, process.Attachment.CcProcessID)
 	}
 
-	// 确定需要下发的配置模版ID列表
-	var configTemplateIDs []uint32
+	// 确定需要下发的配置模版列表
+	var configTemplates []*table.ConfigTemplate
 	if len(operateRange.GetConfigTemplateIds()) > 0 {
-		// 用户指定了配置模版ID
-		configTemplateIDs = operateRange.GetConfigTemplateIds()
-	} else if len(operateRange.GetConfigTemplateNames()) > 0 {
-		// 用户指定了配置模版名称，需要根据名称查询ID
-		configTemplateIDs, err = s.getConfigTemplateIDsByNames(kt, bizID, operateRange.GetConfigTemplateNames())
+		// 根据配置模版ID查询（预留）
+		configTemplates, err = s.getConfigTemplatesByIDs(kt, bizID, operateRange.GetConfigTemplateIds())
 		if err != nil {
-			logs.Errorf("get config template ids by names failed, err: %v, rid: %s", err, kt.Rid)
-			return nil, fmt.Errorf("get config template ids by names failed: %w", err)
+			logs.Errorf("get config templates by ids failed, err: %v, rid: %s", err, kt.Rid)
+			return nil, fmt.Errorf("get config templates by ids failed: %w", err)
 		}
-		if len(configTemplateIDs) == 0 {
-			return nil, fmt.Errorf("no config templates found for biz %d with provided names: %v", bizID, operateRange.GetConfigTemplateNames())
+	} else if len(operateRange.GetConfigTemplateNames()) > 0 {
+		// 根据配置模版名称查询（当前插件版本仅支持配置模版名称查询）
+		configTemplates, err = s.getConfigTemplatesByNames(kt, bizID, operateRange.GetConfigTemplateNames())
+		if err != nil {
+			logs.Errorf("get config templates by names failed, err: %v, rid: %s", err, kt.Rid)
+			return nil, fmt.Errorf("get config templates by names failed: %w", err)
 		}
 	} else {
 		// 未指定则下发所有配置模版
-		configTemplateIDs, err = s.getAllConfigTemplateIDs(kt, bizID)
+		configTemplates, err = s.getAllConfigTemplates(kt, bizID)
 		if err != nil {
-			logs.Errorf("get all config template ids failed, err: %v, rid: %s", err, kt.Rid)
-			return nil, fmt.Errorf("get all config template ids failed: %w", err)
-		}
-		if len(configTemplateIDs) == 0 {
-			return nil, fmt.Errorf("no config templates found for biz %d", bizID)
+			logs.Errorf("get all config templates failed, err: %v, rid: %s", err, kt.Rid)
+			return nil, fmt.Errorf("get all config templates failed: %w", err)
 		}
 	}
 
+	if len(configTemplates) == 0 {
+		return nil, fmt.Errorf("no config templates found for biz %d", bizID)
+	}
+
+	// 查询所有配置模版的最新版本
+	templateIDs := make([]uint32, 0, len(configTemplates))
+	for _, configTemplate := range configTemplates {
+		templateIDs = append(templateIDs, configTemplate.Attachment.TemplateID)
+	}
+	latestRevisions, err := s.dao.TemplateRevision().ListLatestRevisionsGroupByTemplateIds(kt, templateIDs)
+	if err != nil {
+		logs.Errorf("list latest revisions failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, fmt.Errorf("list latest revisions failed: %w", err)
+	}
+
+	// 构建 templateID -> latestRevision 的映射
+	revisionMap := make(map[uint32]*table.TemplateRevision, len(latestRevisions))
+	for _, revision := range latestRevisions {
+		revisionMap[revision.Attachment.TemplateID] = revision
+	}
+
 	// 为每个配置模版构建配置模版组
-	configTemplateGroups := make([]*pbcin.ConfigTemplateGroup, 0, len(configTemplateIDs))
-	for _, configTemplateID := range configTemplateIDs {
-		// 查询配置模版的最新版本
-		latestRevision, err := s.dao.TemplateRevision().GetLatestTemplateRevision(kt, bizID, configTemplateID)
-		if err != nil {
-			logs.Errorf("get latest template revision failed, config_template_id: %d, err: %v, rid: %s",
-				configTemplateID, err, kt.Rid)
-			return nil, fmt.Errorf("get latest template revision for template %d failed: %w", configTemplateID, err)
+	configTemplateGroups := make([]*pbcin.ConfigTemplateGroup, 0, len(configTemplates))
+	for _, configTemplate := range configTemplates {
+		latestRevision, ok := revisionMap[configTemplate.Attachment.TemplateID]
+		if !ok {
+			logs.Errorf("latest revision not found for template_id: %d, config_template_id: %d, rid: %s",
+				configTemplate.Attachment.TemplateID, configTemplate.ID, kt.Rid)
+			return nil, fmt.Errorf("latest revision not found for template %d", configTemplate.Attachment.TemplateID)
 		}
 
 		// 构建配置模版组
 		group := &pbcin.ConfigTemplateGroup{
-			ConfigTemplateId:        configTemplateID,
+			ConfigTemplateId:        configTemplate.ID,
 			ConfigTemplateVersionId: latestRevision.ID,
 			CcProcessIds:            ccProcessIDs,
 		}
@@ -279,8 +297,8 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 	return configTemplateGroups, nil
 }
 
-// getAllConfigTemplateIDs 获取业务下所有配置模版ID
-func (s *Service) getAllConfigTemplateIDs(kt *kit.Kit, bizID uint32) ([]uint32, error) {
+// getAllConfigTemplates 获取业务下所有配置模版
+func (s *Service) getAllConfigTemplates(kt *kit.Kit, bizID uint32) ([]*table.ConfigTemplate, error) {
 	// 获取或创建模板空间
 	templateSpace, err := s.getOrCreateTemplateSpace(kt, bizID, time.Now().UTC())
 	if err != nil {
@@ -295,19 +313,38 @@ func (s *Service) getAllConfigTemplateIDs(kt *kit.Kit, bizID uint32) ([]uint32, 
 		return nil, fmt.Errorf("list config templates failed: %w", err)
 	}
 
-	// 提取配置模版ID列表
-	configTemplateIDs := make([]uint32, 0, len(configTemplates))
-	for _, configTemplate := range configTemplates {
-		configTemplateIDs = append(configTemplateIDs, configTemplate.ID)
-	}
-
-	return configTemplateIDs, nil
+	return configTemplates, nil
 }
 
-// getConfigTemplateIDsByNames 根据配置模版名称列表获取配置模版ID列表
-func (s *Service) getConfigTemplateIDsByNames(kt *kit.Kit, bizID uint32, names []string) ([]uint32, error) {
+// getConfigTemplatesByIDs 根据配置模版ID列表批量获取配置模版
+func (s *Service) getConfigTemplatesByIDs(kt *kit.Kit, bizID uint32, ids []uint32) ([]*table.ConfigTemplate, error) {
+	if len(ids) == 0 {
+		return []*table.ConfigTemplate{}, nil
+	}
+
+	// 对输入的ID进行去重
+	uniqueIDs := make(map[uint32]struct{}, len(ids))
+	for _, id := range ids {
+		uniqueIDs[id] = struct{}{}
+	}
+
+	// 批量查询配置模版
+	configTemplates := make([]*table.ConfigTemplate, 0, len(uniqueIDs))
+	for id := range uniqueIDs {
+		configTemplate, err := s.dao.ConfigTemplate().GetByID(kt, bizID, id)
+		if err != nil {
+			return nil, fmt.Errorf("get config template by id %d failed: %w", id, err)
+		}
+		configTemplates = append(configTemplates, configTemplate)
+	}
+
+	return configTemplates, nil
+}
+
+// getConfigTemplatesByNames 根据配置模版名称列表获取配置模版
+func (s *Service) getConfigTemplatesByNames(kt *kit.Kit, bizID uint32, names []string) ([]*table.ConfigTemplate, error) {
 	if len(names) == 0 {
-		return []uint32{}, nil
+		return []*table.ConfigTemplate{}, nil
 	}
 
 	// 对输入的名称进行去重
@@ -342,13 +379,7 @@ func (s *Service) getConfigTemplateIDsByNames(kt *kit.Kit, bizID uint32, names [
 		}
 	}
 
-	// 提取配置模版ID列表
-	configTemplateIDs := make([]uint32, 0, len(configTemplates))
-	for _, configTemplate := range configTemplates {
-		configTemplateIDs = append(configTemplateIDs, configTemplate.ID)
-	}
-
-	return configTemplateIDs, nil
+	return configTemplates, nil
 }
 
 // getFilteredProcesses 获取过滤后的进程列表
