@@ -1,0 +1,86 @@
+# BSCP Single-tenant to Multi-tenant Migration Configuration
+# 单租户到多租户数据迁移配置文件
+
+# Migration settings
+# 迁移设置
+migration:
+  # Target tenant ID to set for all migrated records
+  # 目标租户ID，将填充到所有迁移记录中
+  target_tenant_id: "your_tenant_id"
+  
+  # Number of records to process in each batch
+  # 每批处理的记录数
+  batch_size: 1000
+  
+  # If true, will not actually write data (for testing)
+  # 如果为 true，则不会实际写入数据（用于测试）
+  dry_run: false
+  
+  # If true, continue migration even if some records fail
+  # 如果为 true，即使部分记录失败也继续迁移
+  continue_on_error: false
+
+# Source environment configuration
+# 源环境配置
+source:
+  mysql:
+    # MySQL endpoints in host:port format
+    endpoints:
+      - "source-mysql-host:3306"
+    database: "bk_bscp"
+    user: "root"
+    password: "your_password"
+    # Optional connection settings
+    dialTimeoutSec: 15
+    readTimeoutSec: 30
+    writeTimeoutSec: 30
+    maxOpenConn: 50
+    maxIdleConn: 10
+  
+  vault:
+    # Vault server address
+    address: "http://source-vault:8200"
+    # Vault access token
+    token: "your_vault_token"
+
+# Target environment configuration
+# 目标环境配置
+target:
+  mysql:
+    endpoints:
+      - "target-mysql-host:3306"
+    database: "bk_bscp"
+    user: "root"
+    password: "your_password"
+    dialTimeoutSec: 15
+    readTimeoutSec: 30
+    writeTimeoutSec: 30
+    maxOpenConn: 50
+    maxIdleConn: 10
+  
+  vault:
+    address: "http://target-vault:8200"
+    token: "your_vault_token"
+
+# Tables to skip during migration
+# 迁移时跳过的表（运行时/历史数据）
+skip_tables:
+  - events                        # 事件通知，系统自动生成
+  - current_released_instances    # 客户端当前版本，自动更新
+  - resource_locks                # 资源锁，运行时数据
+  - clients                       # 客户端连接信息
+  - client_events                 # 客户端事件
+  - client_querys                 # 客户端查询记录
+  - audits                        # 审计日志（可选迁移）
+  - published_strategy_histories  # 发布历史（可选迁移）
+  - archived_apps                 # 归档应用
+  - configs                       # ITSM配置，新环境重新配置
+  - schema_migrations             # 迁移记录表
+
+# Logging configuration
+# 日志配置
+log:
+  # Log level: debug, info, warn, error
+  level: "info"
+  # If true, logs to stderr
+  toStdErr: true
