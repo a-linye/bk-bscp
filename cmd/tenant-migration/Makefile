@@ -3,7 +3,7 @@
 .PHONY: build clean
 
 BINARY_NAME=bk-bscp-tenant-migration
-BUILD_DIR=../../build/bk-bscp
+BUILD_DIR=../../build/bk-bscp/bk-bscp-tenant-migration
 
 build:
 	@echo "Building $(BINARY_NAME)..."
