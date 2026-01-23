@@ -125,7 +125,8 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 	// Check if tenant_id is set correctly (for tables that have it)
 	if v.hasTenantIDColumn(tableName) {
 		var nullCount int64
-		query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE tenant_id IS NULL OR tenant_id = ''", tableName)
+		// Use backticks to escape table name (handles reserved keywords like 'groups')
+		query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id IS NULL OR tenant_id = ''", tableName)
 		if err := v.targetDB.Raw(query).Scan(&nullCount).Error; err != nil {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("failed to check tenant_id: %v", err))
@@ -139,7 +140,7 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 
 		// Verify tenant_id value matches configuration
 		var mismatchCount int64
-		query = fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE tenant_id != ?", tableName)
+		query = fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id != ?", tableName)
 		if err := v.targetDB.Raw(query, v.cfg.Migration.TargetTenantID).Scan(&mismatchCount).Error; err != nil {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("failed to verify tenant_id value: %v", err))

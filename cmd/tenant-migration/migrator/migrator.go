@@ -214,6 +214,57 @@ func (m *Migrator) Validate() (*ValidationReport, error) {
 	return m.validator.Validate()
 }
 
+// Cleanup clears all migrated data from target database
+func (m *Migrator) Cleanup() (*CleanupResult, error) {
+	return m.mysqlMigrator.CleanupTarget()
+}
+
+// PrintCleanupReport prints the cleanup report to stdout
+func (m *Migrator) PrintCleanupReport(result *CleanupResult) {
+	fmt.Println("\n" + repeatStr("=", 61))
+	fmt.Println("CLEANUP REPORT")
+	fmt.Println(repeatStr("=", 61))
+	fmt.Printf("Duration:    %v\n", result.Duration)
+	fmt.Printf("Status:      %s\n", boolToStatus(result.Success))
+	fmt.Println()
+
+	if len(result.TableResults) > 0 {
+		fmt.Println("Table Cleanup Results:")
+		fmt.Println(repeatStr("-", 61))
+		fmt.Printf("%-40s %12s %8s\n", "Table", "Deleted", "Status")
+		fmt.Println(repeatStr("-", 61))
+
+		var totalDeleted int64
+		for _, tr := range result.TableResults {
+			fmt.Printf("%-40s %12d %8s\n",
+				tr.TableName, tr.DeletedCount, boolToStatus(tr.Success))
+			totalDeleted += tr.DeletedCount
+		}
+		fmt.Println(repeatStr("-", 61))
+		fmt.Printf("%-40s %12d\n", "Total", totalDeleted)
+		fmt.Println()
+	}
+
+	// Print errors if any
+	hasErrors := false
+	for _, tr := range result.TableResults {
+		if tr.Error != "" {
+			if !hasErrors {
+				fmt.Println("Errors:")
+				fmt.Println(repeatStr("-", 61))
+				hasErrors = true
+			}
+			fmt.Printf("  Table %s: %s\n", tr.TableName, tr.Error)
+		}
+	}
+
+	if hasErrors {
+		fmt.Println()
+	}
+
+	fmt.Println(repeatStr("=", 61))
+}
+
 // PrintReport prints the migration report to stdout
 func (m *Migrator) PrintReport(report *MigrationReport) {
 	fmt.Println("\n" + "=" + repeatStr("=", 60))

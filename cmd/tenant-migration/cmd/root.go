@@ -58,6 +58,7 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(cleanupCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
@@ -214,6 +215,55 @@ source and target databases.`,
 	},
 }
 
+// cleanupCmd represents the cleanup command
+var cleanupCmd = &cobra.Command{
+	Use:   "cleanup",
+	Short: "Clean up target database",
+	Long: `Delete all migrated data from target database.
+This is useful when you need to re-run the migration after a failed attempt.
+
+WARNING: This will delete all data from the core tables in the target database!`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if cfg == nil {
+			fmt.Println("Error: configuration not loaded")
+			os.Exit(1)
+		}
+
+		// Confirm before cleanup
+		if !forceCleanup {
+			fmt.Println("WARNING: This will delete all data from the core tables in the target database!")
+			fmt.Print("Are you sure you want to continue? [y/N]: ")
+			var confirm string
+			fmt.Scanln(&confirm)
+			if confirm != "y" && confirm != "Y" {
+				fmt.Println("Cleanup cancelled.")
+				return
+			}
+		}
+
+		m, err := migrator.NewMigrator(cfg)
+		if err != nil {
+			fmt.Printf("Error creating migrator: %v\n", err)
+			os.Exit(1)
+		}
+		defer m.Close()
+
+		result, err := m.Cleanup()
+		if err != nil {
+			fmt.Printf("Error during cleanup: %v\n", err)
+			os.Exit(1)
+		}
+
+		m.PrintCleanupReport(result)
+
+		if !result.Success {
+			os.Exit(1)
+		}
+	},
+}
+
+var forceCleanup bool
+
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -229,4 +279,7 @@ func init() {
 	migrateCmd.AddCommand(migrateMySQLCmd)
 	migrateCmd.AddCommand(migrateVaultCmd)
 	migrateCmd.AddCommand(migrateAllCmd)
+
+	// Add cleanup flags
+	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")
 }

@@ -308,3 +308,107 @@ func (m *MySQLMigrator) GetSourceDB() *gorm.DB {
 func (m *MySQLMigrator) GetTargetDB() *gorm.DB {
 	return m.targetDB
 }
+
+// CleanupTarget clears all migrated data from target database
+func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
+	startTime := time.Now()
+	result := &CleanupResult{
+		Success: true,
+	}
+
+	// Disable foreign key checks
+	if err := m.targetDB.Exec("SET FOREIGN_KEY_CHECKS = 0").Error; err != nil {
+		return nil, fmt.Errorf("failed to disable foreign key checks: %w", err)
+	}
+	defer func() {
+		if err := m.targetDB.Exec("SET FOREIGN_KEY_CHECKS = 1").Error; err != nil {
+			log.Printf("Warning: failed to re-enable foreign key checks: %v", err)
+		}
+	}()
+
+	// Get core tables in reverse order (to respect dependencies)
+	coreTables := config.CoreTables()
+	reversedTables := make([]string, len(coreTables))
+	for i, t := range coreTables {
+		reversedTables[len(coreTables)-1-i] = t
+	}
+
+	log.Println("Cleaning up target database...")
+
+	for _, tableName := range reversedTables {
+		if m.cfg.ShouldSkipTable(tableName) {
+			continue
+		}
+
+		tableResult := m.cleanupTable(tableName)
+		result.TableResults = append(result.TableResults, tableResult)
+
+		if !tableResult.Success {
+			result.Success = false
+			if !m.cfg.Migration.ContinueOnError {
+				break
+			}
+		}
+	}
+
+	result.Duration = time.Since(startTime)
+	log.Printf("Cleanup completed in %v", result.Duration)
+
+	return result, nil
+}
+
+// cleanupTable deletes all records from a single table
+func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
+	result := TableCleanupResult{
+		TableName: tableName,
+		Success:   true,
+	}
+
+	// Count records before deletion
+	var count int64
+	if err := m.targetDB.Table(tableName).Count(&count).Error; err != nil {
+		result.Error = fmt.Sprintf("failed to count records: %v", err)
+		result.Success = false
+		return result
+	}
+	result.DeletedCount = count
+
+	if count == 0 {
+		log.Printf("  Table %s is empty, skipping", tableName)
+		return result
+	}
+
+	if m.cfg.Migration.DryRun {
+		log.Printf("  Would delete %d records from table %s", count, tableName)
+		return result
+	}
+
+	// Delete all records using TRUNCATE for better performance
+	// Use backticks to handle reserved keywords like 'groups'
+	if err := m.targetDB.Exec(fmt.Sprintf("TRUNCATE TABLE `%s`", tableName)).Error; err != nil {
+		// If TRUNCATE fails (e.g., due to foreign keys), try DELETE
+		if err := m.targetDB.Exec(fmt.Sprintf("DELETE FROM `%s`", tableName)).Error; err != nil {
+			result.Error = fmt.Sprintf("failed to delete records: %v", err)
+			result.Success = false
+			return result
+		}
+	}
+
+	log.Printf("  Deleted %d records from table %s", count, tableName)
+	return result
+}
+
+// CleanupResult contains the result of cleanup operation
+type CleanupResult struct {
+	TableResults []TableCleanupResult
+	Duration     time.Duration
+	Success      bool
+}
+
+// TableCleanupResult contains the result of cleaning up a single table
+type TableCleanupResult struct {
+	TableName    string
+	DeletedCount int64
+	Error        string
+	Success      bool
+}
