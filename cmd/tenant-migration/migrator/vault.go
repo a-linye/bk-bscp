@@ -111,12 +111,12 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 	result.KvCount = int64(len(kvRecords))
 
 	for i, kv := range kvRecords {
-		if err := m.migrateKv(ctx, kv); err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate KV %d: %v", kv.ID, err))
+		if migrateErr := m.migrateKv(ctx, kv); migrateErr != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate KV %d: %v", kv.ID, migrateErr))
 			if !m.cfg.Migration.ContinueOnError {
 				result.Success = false
 				result.Duration = time.Since(startTime)
-				return result, err
+				return result, migrateErr
 			}
 		} else {
 			result.MigratedKvs++
@@ -268,12 +268,12 @@ func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 	}
 
 	for _, kv := range kvRecords {
-		if err := m.deleteKv(ctx, kv); err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete KV %d: %v", kv.ID, err))
+		if deleteErr := m.deleteKv(ctx, kv); deleteErr != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete KV %d: %v", kv.ID, deleteErr))
 			if !m.cfg.Migration.ContinueOnError {
 				result.Success = false
 				result.Duration = time.Since(startTime)
-				return result, err
+				return result, deleteErr
 			}
 		} else {
 			result.DeletedKvs++

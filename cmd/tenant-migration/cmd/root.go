@@ -53,7 +53,9 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path (required)")
-	rootCmd.MarkPersistentFlagRequired("config")
+	if err := rootCmd.MarkPersistentFlagRequired("config"); err != nil {
+		panic(err)
+	}
 
 	// Add subcommands
 	rootCmd.AddCommand(migrateCmd)
@@ -234,9 +236,8 @@ WARNING: This will delete all data from the core tables in the target database!`
 			fmt.Println("WARNING: This will delete all data from the core tables in the target database!")
 			fmt.Print("Are you sure you want to continue? [y/N]: ")
 			var confirm string
-			fmt.Scanln(&confirm)
-			if confirm != "y" && confirm != "Y" {
-				fmt.Println("Cleanup cancelled.")
+			if _, err := fmt.Scanln(&confirm); err != nil || (confirm != "y" && confirm != "Y") {
+				fmt.Println("Cleanup canceled.")
 				return
 			}
 		}

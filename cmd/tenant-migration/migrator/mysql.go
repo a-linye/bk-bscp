@@ -79,7 +79,9 @@ func (m *MySQLMigrator) Close() error {
 	if m.targetDB != nil {
 		sqlDB, err := m.targetDB.DB()
 		if err == nil {
-			sqlDB.Close()
+			if err := sqlDB.Close(); err != nil {
+				return fmt.Errorf("failed to close target database: %w", err)
+			}
 		}
 	}
 	return nil
@@ -231,8 +233,7 @@ func (m *MySQLMigrator) hasTenantIDColumn(tableName string) bool {
 
 // handleSpecialCases handles special type conversions and transformations
 func (m *MySQLMigrator) handleSpecialCases(tableName string, row map[string]interface{}) {
-	switch tableName {
-	case "strategies":
+	if tableName == "strategies" {
 		// itsm_ticket_state_id: int -> string
 		if stateID, ok := row["itsm_ticket_state_id"]; ok && stateID != nil {
 			switch v := stateID.(type) {
