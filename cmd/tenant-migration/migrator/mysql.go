@@ -87,7 +87,7 @@ func (m *MySQLMigrator) Close() error {
 
 // Migrate performs the MySQL data migration
 func (m *MySQLMigrator) Migrate() ([]TableMigrationResult, error) {
-	coreTables := config.CoreTables()
+	coreTables := m.cfg.GetTablesToMigrate()
 	results := make([]TableMigrationResult, 0, len(coreTables))
 
 	// Disable foreign key checks on target database
@@ -327,7 +327,7 @@ func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 	}()
 
 	// Get core tables in reverse order (to respect dependencies)
-	coreTables := config.CoreTables()
+	coreTables := m.cfg.GetTablesToMigrate()
 	reversedTables := make([]string, len(coreTables))
 	for i, t := range coreTables {
 		reversedTables[len(coreTables)-1-i] = t

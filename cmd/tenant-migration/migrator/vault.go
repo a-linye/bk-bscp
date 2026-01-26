@@ -38,7 +38,8 @@ type VaultMigrator struct {
 	cfg         *config.Config
 	sourceVault *vault.Client
 	targetVault *vault.Client
-	mysqlDB     *gorm.DB
+	sourceDB    *gorm.DB // Source MySQL for reading KV records
+	targetDB    *gorm.DB // Target MySQL for reading migrated KV records
 }
 
 // KvRecord represents a KV record from MySQL
@@ -61,7 +62,7 @@ type ReleasedKvRecord struct {
 }
 
 // NewVaultMigrator creates a new VaultMigrator instance
-func NewVaultMigrator(cfg *config.Config, mysqlDB *gorm.DB) (*VaultMigrator, error) {
+func NewVaultMigrator(cfg *config.Config, sourceDB, targetDB *gorm.DB) (*VaultMigrator, error) {
 	// Create source Vault client
 	sourceConfig := vault.DefaultConfig()
 	sourceConfig.Address = cfg.Source.Vault.Address
@@ -84,7 +85,8 @@ func NewVaultMigrator(cfg *config.Config, mysqlDB *gorm.DB) (*VaultMigrator, err
 		cfg:         cfg,
 		sourceVault: sourceClient,
 		targetVault: targetClient,
-		mysqlDB:     mysqlDB,
+		sourceDB:    sourceDB,
+		targetDB:    targetDB,
 	}, nil
 }
 
@@ -99,9 +101,9 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 
 	// Step 1: Migrate unreleased KV data
 	log.Println("Migrating unreleased KV data...")
-	kvRecords, err := m.getKvRecords()
+	kvRecords, err := m.getKvRecordsFromSource()
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records: %v", err))
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records from source: %v", err))
 		result.Success = false
 		result.Duration = time.Since(startTime)
 		return result, err
@@ -127,9 +129,9 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 
 	// Step 2: Migrate released KV data
 	log.Println("Migrating released KV data...")
-	releasedKvRecords, err := m.getReleasedKvRecords()
+	releasedKvRecords, err := m.getReleasedKvRecordsFromSource()
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records: %v", err))
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records from source: %v", err))
 		result.Success = false
 		result.Duration = time.Since(startTime)
 		return result, err
@@ -160,19 +162,19 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 	return result, nil
 }
 
-// getKvRecords retrieves all KV records from MySQL
-func (m *VaultMigrator) getKvRecords() ([]KvRecord, error) {
+// getKvRecordsFromSource retrieves all KV records from source MySQL
+func (m *VaultMigrator) getKvRecordsFromSource() ([]KvRecord, error) {
 	var records []KvRecord
-	if err := m.mysqlDB.Table("kvs").Find(&records).Error; err != nil {
+	if err := m.sourceDB.Table("kvs").Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
 }
 
-// getReleasedKvRecords retrieves all released KV records from MySQL
-func (m *VaultMigrator) getReleasedKvRecords() ([]ReleasedKvRecord, error) {
+// getReleasedKvRecordsFromSource retrieves all released KV records from source MySQL
+func (m *VaultMigrator) getReleasedKvRecordsFromSource() ([]ReleasedKvRecord, error) {
 	var records []ReleasedKvRecord
-	if err := m.mysqlDB.Table("released_kvs").Find(&records).Error; err != nil {
+	if err := m.sourceDB.Table("released_kvs").Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
@@ -231,6 +233,116 @@ func (m *VaultMigrator) migrateReleasedKv(ctx context.Context, rkv ReleasedKvRec
 	_, err = m.targetVault.KVv2(MountPath).Put(ctx, path, secret.Data)
 	if err != nil {
 		return fmt.Errorf("failed to write to target Vault: %w", err)
+	}
+
+	return nil
+}
+
+// VaultCleanupResult contains the result of Vault cleanup operation
+type VaultCleanupResult struct {
+	DeletedKvs  int64
+	DeletedRKvs int64
+	Duration    time.Duration
+	Errors      []string
+	Success     bool
+}
+
+// CleanupTarget deletes all migrated KV data from target Vault
+// Uses source database to get KV records (since target DB may not have data yet)
+func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
+	startTime := time.Now()
+	result := &VaultCleanupResult{
+		Success: true,
+	}
+
+	ctx := context.Background()
+
+	// Step 1: Delete unreleased KV data (use source DB to get records)
+	log.Println("Cleaning up unreleased KV data from target Vault...")
+	kvRecords, err := m.getKvRecordsFromSource()
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records from source: %v", err))
+		result.Success = false
+		result.Duration = time.Since(startTime)
+		return result, err
+	}
+
+	for _, kv := range kvRecords {
+		if err := m.deleteKv(ctx, kv); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete KV %d: %v", kv.ID, err))
+			if !m.cfg.Migration.ContinueOnError {
+				result.Success = false
+				result.Duration = time.Since(startTime)
+				return result, err
+			}
+		} else {
+			result.DeletedKvs++
+		}
+	}
+	log.Printf("  Deleted %d unreleased KVs", result.DeletedKvs)
+
+	// Step 2: Delete released KV data (use source DB to get records)
+	log.Println("Cleaning up released KV data from target Vault...")
+	releasedKvRecords, err := m.getReleasedKvRecordsFromSource()
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records from source: %v", err))
+		result.Success = false
+		result.Duration = time.Since(startTime)
+		return result, err
+	}
+
+	for _, rkv := range releasedKvRecords {
+		if err := m.deleteReleasedKv(ctx, rkv); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete released KV %d: %v", rkv.ID, err))
+			if !m.cfg.Migration.ContinueOnError {
+				result.Success = false
+				result.Duration = time.Since(startTime)
+				return result, err
+			}
+		} else {
+			result.DeletedRKvs++
+		}
+	}
+	log.Printf("  Deleted %d released KVs", result.DeletedRKvs)
+
+	result.Duration = time.Since(startTime)
+	log.Printf("Vault cleanup completed: %d KVs, %d released KVs deleted in %v",
+		result.DeletedKvs, result.DeletedRKvs, result.Duration)
+
+	return result, nil
+}
+
+// deleteKv deletes a single unreleased KV from target Vault
+func (m *VaultMigrator) deleteKv(ctx context.Context, kv KvRecord) error {
+	path := fmt.Sprintf(kvPath, kv.BizID, kv.AppID, kv.Key)
+
+	if m.cfg.Migration.DryRun {
+		log.Printf("  Would delete KV: %s", path)
+		return nil
+	}
+
+	// Delete all versions and metadata
+	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)
+	if err != nil {
+		return fmt.Errorf("failed to delete from target Vault: %w", err)
+	}
+
+	return nil
+}
+
+// deleteReleasedKv deletes a single released KV from target Vault
+func (m *VaultMigrator) deleteReleasedKv(ctx context.Context, rkv ReleasedKvRecord) error {
+	path := fmt.Sprintf(releasedKvPath, rkv.BizID, rkv.AppID, rkv.ReleaseID, rkv.Key)
+
+	if m.cfg.Migration.DryRun {
+		log.Printf("  Would delete released KV: %s", path)
+		return nil
+	}
+
+	// Delete all versions and metadata
+	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)
+	if err != nil {
+		return fmt.Errorf("failed to delete from target Vault: %w", err)
 	}
 
 	return nil

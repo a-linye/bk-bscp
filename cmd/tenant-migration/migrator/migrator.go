@@ -73,7 +73,7 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 
 	var vaultMigrator *VaultMigrator
 	if cfg.Source.Vault.Address != "" && cfg.Target.Vault.Address != "" {
-		vaultMigrator, err = NewVaultMigrator(cfg, mysqlMigrator.targetDB)
+		vaultMigrator, err = NewVaultMigrator(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Vault migrator: %w", err)
 		}
@@ -214,13 +214,70 @@ func (m *Migrator) Validate() (*ValidationReport, error) {
 	return m.validator.Validate()
 }
 
-// Cleanup clears all migrated data from target database
-func (m *Migrator) Cleanup() (*CleanupResult, error) {
+// FullCleanupResult contains the result of full cleanup operation (MySQL + Vault)
+type FullCleanupResult struct {
+	MySQLResult *CleanupResult
+	VaultResult *VaultCleanupResult
+	Duration    time.Duration
+	Success     bool
+}
+
+// Cleanup clears all migrated data from target database and Vault
+func (m *Migrator) Cleanup() (*FullCleanupResult, error) {
+	startTime := time.Now()
+	result := &FullCleanupResult{
+		Success: true,
+	}
+
+	log.Println("Starting full cleanup (MySQL + Vault)...")
+
+	// Step 1: Cleanup MySQL
+	log.Println("Step 1/2: MySQL cleanup...")
+	mysqlResult, err := m.mysqlMigrator.CleanupTarget()
+	result.MySQLResult = mysqlResult
+	if err != nil {
+		result.Success = false
+		log.Printf("MySQL cleanup failed: %v", err)
+	} else if !mysqlResult.Success {
+		result.Success = false
+	}
+
+	// Step 2: Cleanup Vault (if configured)
+	if m.vaultMigrator != nil {
+		log.Println("Step 2/2: Vault cleanup...")
+		vaultResult, err := m.vaultMigrator.CleanupTarget()
+		result.VaultResult = vaultResult
+		if err != nil {
+			result.Success = false
+			log.Printf("Vault cleanup failed: %v", err)
+		} else if !vaultResult.Success {
+			result.Success = false
+		}
+	} else {
+		log.Println("Step 2/2: Vault cleanup skipped (not configured)")
+	}
+
+	result.Duration = time.Since(startTime)
+	log.Printf("Full cleanup completed in %v", result.Duration)
+
+	return result, nil
+}
+
+// CleanupMySQL clears only MySQL migrated data from target database
+func (m *Migrator) CleanupMySQL() (*CleanupResult, error) {
 	return m.mysqlMigrator.CleanupTarget()
 }
 
+// CleanupVault clears only Vault migrated data from target Vault
+func (m *Migrator) CleanupVault() (*VaultCleanupResult, error) {
+	if m.vaultMigrator == nil {
+		return nil, fmt.Errorf("vault migrator is not configured")
+	}
+	return m.vaultMigrator.CleanupTarget()
+}
+
 // PrintCleanupReport prints the cleanup report to stdout
-func (m *Migrator) PrintCleanupReport(result *CleanupResult) {
+func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 	fmt.Println("\n" + repeatStr("=", 61))
 	fmt.Println("CLEANUP REPORT")
 	fmt.Println(repeatStr("=", 61))
@@ -228,14 +285,15 @@ func (m *Migrator) PrintCleanupReport(result *CleanupResult) {
 	fmt.Printf("Status:      %s\n", boolToStatus(result.Success))
 	fmt.Println()
 
-	if len(result.TableResults) > 0 {
-		fmt.Println("Table Cleanup Results:")
+	// MySQL cleanup results
+	if result.MySQLResult != nil && len(result.MySQLResult.TableResults) > 0 {
+		fmt.Println("MySQL Cleanup Results:")
 		fmt.Println(repeatStr("-", 61))
 		fmt.Printf("%-40s %12s %8s\n", "Table", "Deleted", "Status")
 		fmt.Println(repeatStr("-", 61))
 
 		var totalDeleted int64
-		for _, tr := range result.TableResults {
+		for _, tr := range result.MySQLResult.TableResults {
 			fmt.Printf("%-40s %12d %8s\n",
 				tr.TableName, tr.DeletedCount, boolToStatus(tr.Success))
 			totalDeleted += tr.DeletedCount
@@ -245,16 +303,40 @@ func (m *Migrator) PrintCleanupReport(result *CleanupResult) {
 		fmt.Println()
 	}
 
-	// Print errors if any
+	// Vault cleanup results
+	if result.VaultResult != nil {
+		fmt.Println("Vault Cleanup Results:")
+		fmt.Println(repeatStr("-", 61))
+		fmt.Printf("KV Records:          %d deleted\n", result.VaultResult.DeletedKvs)
+		fmt.Printf("Released KV Records: %d deleted\n", result.VaultResult.DeletedRKvs)
+		fmt.Printf("Status:              %s\n", boolToStatus(result.VaultResult.Success))
+		fmt.Println()
+	}
+
+	// Print MySQL errors if any
 	hasErrors := false
-	for _, tr := range result.TableResults {
-		if tr.Error != "" {
-			if !hasErrors {
-				fmt.Println("Errors:")
-				fmt.Println(repeatStr("-", 61))
-				hasErrors = true
+	if result.MySQLResult != nil {
+		for _, tr := range result.MySQLResult.TableResults {
+			if tr.Error != "" {
+				if !hasErrors {
+					fmt.Println("Errors:")
+					fmt.Println(repeatStr("-", 61))
+					hasErrors = true
+				}
+				fmt.Printf("  MySQL Table %s: %s\n", tr.TableName, tr.Error)
 			}
-			fmt.Printf("  Table %s: %s\n", tr.TableName, tr.Error)
+		}
+	}
+
+	// Print Vault errors if any
+	if result.VaultResult != nil && len(result.VaultResult.Errors) > 0 {
+		if !hasErrors {
+			fmt.Println("Errors:")
+			fmt.Println(repeatStr("-", 61))
+			hasErrors = true
+		}
+		for _, err := range result.VaultResult.Errors {
+			fmt.Printf("  Vault: %s\n", err)
 		}
 	}
 

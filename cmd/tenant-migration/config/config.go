@@ -27,7 +27,8 @@ type Config struct {
 	Migration  MigrationConfig   `yaml:"migration"`
 	Source     EnvironmentConfig `yaml:"source"`
 	Target     EnvironmentConfig `yaml:"target"`
-	SkipTables []string          `yaml:"skip_tables"`
+	Tables     []string          `yaml:"tables"`      // Tables to migrate (if empty, use default CoreTables)
+	SkipTables []string          `yaml:"skip_tables"` // Tables to skip during migration
 	Log        LogConfig         `yaml:"log"`
 }
 
@@ -235,6 +236,8 @@ func DefaultSkipTables() []string {
 		"archived_apps",
 		"configs",
 		"schema_migrations",
+		"biz_hosts",
+		"sharding_dbs",
 	}
 }
 
@@ -286,4 +289,13 @@ func (c *Config) ShouldSkipTable(tableName string) bool {
 		}
 	}
 	return false
+}
+
+// GetTablesToMigrate returns the list of tables to migrate
+// If Tables is configured, use it; otherwise use default CoreTables
+func (c *Config) GetTablesToMigrate() []string {
+	if len(c.Tables) > 0 {
+		return c.Tables
+	}
+	return CoreTables()
 }
