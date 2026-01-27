@@ -61,6 +61,7 @@ func init() {
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(cleanupCmd)
+	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
@@ -217,6 +218,52 @@ source and target databases.`,
 	},
 }
 
+var scanAllTables bool
+
+// scanCmd represents the scan command
+var scanCmd = &cobra.Command{
+	Use:   "scan",
+	Short: "Scan assets in source and target databases",
+	Long: `Perform an asset scan to compare source and target databases.
+
+This scans and reports:
+- Number of tables in each database
+- Record counts for each table
+- Differences between source and target
+- Vault KV data summary (if configured)
+
+Use this to understand the current state before or after migration.
+
+By default, only scans configured migration tables.
+Use --all to scan all tables in the databases.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if cfg == nil {
+			fmt.Println("Error: configuration not loaded")
+			os.Exit(1)
+		}
+
+		m, err := migrator.NewMigrator(cfg)
+		if err != nil {
+			fmt.Printf("Error creating migrator: %v\n", err)
+			os.Exit(1)
+		}
+		defer m.Close()
+
+		var report *migrator.ScanReport
+		if scanAllTables {
+			report, err = m.ScanAll()
+		} else {
+			report, err = m.Scan()
+		}
+		if err != nil {
+			fmt.Printf("Error during scan: %v\n", err)
+			os.Exit(1)
+		}
+
+		m.PrintScanReport(report)
+	},
+}
+
 // cleanupCmd represents the cleanup command
 var cleanupCmd = &cobra.Command{
 	Use:   "cleanup",
@@ -288,4 +335,7 @@ func init() {
 
 	// Add cleanup flags
 	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")
+
+	// Add scan flags
+	scanCmd.Flags().BoolVarP(&scanAllTables, "all", "a", false, "Scan all tables in databases (not just configured tables)")
 }

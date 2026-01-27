@@ -28,6 +28,7 @@ type Migrator struct {
 	mysqlMigrator *MySQLMigrator
 	vaultMigrator *VaultMigrator
 	validator     *Validator
+	scanner       *Scanner
 }
 
 // MigrationReport contains the migration results
@@ -81,12 +82,14 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 	}
 
 	validator := NewValidator(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
+	scanner := NewScanner(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
 
 	return &Migrator{
 		cfg:           cfg,
 		mysqlMigrator: mysqlMigrator,
 		vaultMigrator: vaultMigrator,
 		validator:     validator,
+		scanner:       scanner,
 	}, nil
 }
 
@@ -213,6 +216,21 @@ func (m *Migrator) RunAll() (*MigrationReport, error) {
 // Validate runs validation on migrated data
 func (m *Migrator) Validate() (*ValidationReport, error) {
 	return m.validator.Validate()
+}
+
+// Scan performs asset scanning on source and target databases (configured tables only)
+func (m *Migrator) Scan() (*ScanReport, error) {
+	return m.scanner.Scan()
+}
+
+// ScanAll performs asset scanning on all tables in source and target databases
+func (m *Migrator) ScanAll() (*ScanReport, error) {
+	return m.scanner.ScanAll()
+}
+
+// PrintScanReport prints the scan report to stdout
+func (m *Migrator) PrintScanReport(report *ScanReport) {
+	m.scanner.PrintReport(report)
 }
 
 // FullCleanupResult contains the result of full cleanup operation (MySQL + Vault)
