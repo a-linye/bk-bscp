@@ -15,6 +15,7 @@ package migrator
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -172,9 +173,9 @@ func (v *Validator) hasTenantIDColumn(tableName string) bool {
 
 // PrintReport prints the validation report to stdout
 func (v *Validator) PrintReport(report *ValidationReport) {
-	fmt.Println("\n" + repeatStr("=", 61))
+	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("VALIDATION REPORT")
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Start Time:  %s\n", report.StartTime.Format(time.RFC3339))
 	fmt.Printf("End Time:    %s\n", report.EndTime.Format(time.RFC3339))
 	fmt.Printf("Duration:    %v\n", report.Duration)
@@ -182,9 +183,9 @@ func (v *Validator) PrintReport(report *ValidationReport) {
 	fmt.Println()
 
 	fmt.Println("Table Validation Results:")
-	fmt.Println(repeatStr("-", 61))
+	fmt.Println(strings.Repeat("-", 60))
 	fmt.Printf("%-30s %10s %10s %8s %8s\n", "Table", "Source", "Target", "Match", "TenantID")
-	fmt.Println(repeatStr("-", 61))
+	fmt.Println(strings.Repeat("-", 60))
 
 	for _, tr := range report.TableResults {
 		matchStr := "YES"
@@ -206,7 +207,7 @@ func (v *Validator) PrintReport(report *ValidationReport) {
 		if len(tr.Errors) > 0 {
 			if !hasErrors {
 				fmt.Println("Validation Errors:")
-				fmt.Println(repeatStr("-", 61))
+				fmt.Println(strings.Repeat("-", 60))
 				hasErrors = true
 			}
 			fmt.Printf("Table: %s\n", tr.TableName)
@@ -220,5 +221,5 @@ func (v *Validator) PrintReport(report *ValidationReport) {
 		fmt.Println()
 	}
 
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 }

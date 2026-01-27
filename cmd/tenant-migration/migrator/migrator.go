@@ -16,6 +16,7 @@ package migrator
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/tenant-migration/config"
@@ -278,9 +279,9 @@ func (m *Migrator) CleanupVault() (*VaultCleanupResult, error) {
 
 // PrintCleanupReport prints the cleanup report to stdout
 func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
-	fmt.Println("\n" + repeatStr("=", 61))
+	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("CLEANUP REPORT")
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Duration:    %v\n", result.Duration)
 	fmt.Printf("Status:      %s\n", boolToStatus(result.Success))
 	fmt.Println()
@@ -288,9 +289,9 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 	// MySQL cleanup results
 	if result.MySQLResult != nil && len(result.MySQLResult.TableResults) > 0 {
 		fmt.Println("MySQL Cleanup Results:")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		fmt.Printf("%-40s %12s %8s\n", "Table", "Deleted", "Status")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 
 		var totalDeleted int64
 		for _, tr := range result.MySQLResult.TableResults {
@@ -298,7 +299,7 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 				tr.TableName, tr.DeletedCount, boolToStatus(tr.Success))
 			totalDeleted += tr.DeletedCount
 		}
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		fmt.Printf("%-40s %12d\n", "Total", totalDeleted)
 		fmt.Println()
 	}
@@ -306,7 +307,7 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 	// Vault cleanup results
 	if result.VaultResult != nil {
 		fmt.Println("Vault Cleanup Results:")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		fmt.Printf("KV Records:          %d deleted\n", result.VaultResult.DeletedKvs)
 		fmt.Printf("Released KV Records: %d deleted\n", result.VaultResult.DeletedRKvs)
 		fmt.Printf("Status:              %s\n", boolToStatus(result.VaultResult.Success))
@@ -320,7 +321,7 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 			if tr.Error != "" {
 				if !hasErrors {
 					fmt.Println("Errors:")
-					fmt.Println(repeatStr("-", 61))
+					fmt.Println(strings.Repeat("-", 60))
 					hasErrors = true
 				}
 				fmt.Printf("  MySQL Table %s: %s\n", tr.TableName, tr.Error)
@@ -332,7 +333,7 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 	if result.VaultResult != nil && len(result.VaultResult.Errors) > 0 {
 		if !hasErrors {
 			fmt.Println("Errors:")
-			fmt.Println(repeatStr("-", 61))
+			fmt.Println(strings.Repeat("-", 60))
 			hasErrors = true
 		}
 		for _, err := range result.VaultResult.Errors {
@@ -344,14 +345,14 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 		fmt.Println()
 	}
 
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 }
 
 // PrintReport prints the migration report to stdout
 func (m *Migrator) PrintReport(report *MigrationReport) {
-	fmt.Println("\n" + "=" + repeatStr("=", 60))
+	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("MIGRATION REPORT")
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Start Time:  %s\n", report.StartTime.Format(time.RFC3339))
 	fmt.Printf("End Time:    %s\n", report.EndTime.Format(time.RFC3339))
 	fmt.Printf("Duration:    %v\n", report.Duration)
@@ -360,9 +361,9 @@ func (m *Migrator) PrintReport(report *MigrationReport) {
 
 	if len(report.TableResults) > 0 {
 		fmt.Println("MySQL Migration Results:")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		fmt.Printf("%-35s %10s %10s %8s\n", "Table", "Source", "Migrated", "Status")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 
 		for _, tr := range report.TableResults {
 			fmt.Printf("%-35s %10d %10d %8s\n",
@@ -373,7 +374,7 @@ func (m *Migrator) PrintReport(report *MigrationReport) {
 
 	if report.VaultResults != nil {
 		fmt.Println("Vault Migration Results:")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		fmt.Printf("KV Records:          %d migrated of %d\n",
 			report.VaultResults.MigratedKvs, report.VaultResults.KvCount)
 		fmt.Printf("Released KV Records: %d migrated of %d\n",
@@ -384,14 +385,14 @@ func (m *Migrator) PrintReport(report *MigrationReport) {
 
 	if len(report.Errors) > 0 {
 		fmt.Println("Errors:")
-		fmt.Println(repeatStr("-", 61))
+		fmt.Println(strings.Repeat("-", 60))
 		for _, err := range report.Errors {
 			fmt.Printf("  - %s\n", err)
 		}
 		fmt.Println()
 	}
 
-	fmt.Println(repeatStr("=", 61))
+	fmt.Println(strings.Repeat("=", 60))
 }
 
 func boolToStatus(success bool) string {
@@ -399,12 +400,4 @@ func boolToStatus(success bool) string {
 		return "SUCCESS"
 	}
 	return "FAILED"
-}
-
-func repeatStr(s string, count int) string {
-	result := ""
-	for i := 0; i < count; i++ {
-		result += s
-	}
-	return result
 }

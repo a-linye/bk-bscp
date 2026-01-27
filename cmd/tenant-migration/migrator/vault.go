@@ -97,62 +97,90 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 		Success: true,
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 
 	// Step 1: Migrate unreleased KV data
 	log.Println("Migrating unreleased KV data...")
-	kvRecords, err := m.getKvRecordsFromSource()
+	kvCount, err := m.getKvRecordsCount()
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records from source: %v", err))
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to count KV records from source: %v", err))
 		result.Success = false
 		result.Duration = time.Since(startTime)
 		return result, err
 	}
-	result.KvCount = int64(len(kvRecords))
+	result.KvCount = kvCount
 
-	for i, kv := range kvRecords {
-		if migrateErr := m.migrateKv(ctx, kv); migrateErr != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate KV %d: %v", kv.ID, migrateErr))
-			if !m.cfg.Migration.ContinueOnError {
-				result.Success = false
-				result.Duration = time.Since(startTime)
-				return result, migrateErr
+	batchSize := m.cfg.Migration.BatchSize
+	var kvRecords []KvRecord
+	for offset := 0; ; offset += batchSize {
+		kvRecords, err = m.getKvRecordsBatch(offset, batchSize)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records batch at offset %d: %v", offset, err))
+			result.Success = false
+			result.Duration = time.Since(startTime)
+			return result, err
+		}
+
+		if len(kvRecords) == 0 {
+			break
+		}
+
+		for _, kv := range kvRecords {
+			if migrateErr := m.migrateKv(ctx, kv); migrateErr != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate KV %d: %v", kv.ID, migrateErr))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					result.Duration = time.Since(startTime)
+					return result, migrateErr
+				}
+			} else {
+				result.MigratedKvs++
 			}
-		} else {
-			result.MigratedKvs++
 		}
 
-		if (i+1)%100 == 0 || i+1 == len(kvRecords) {
-			log.Printf("  KV progress: %d/%d migrated", result.MigratedKvs, result.KvCount)
-		}
+		log.Printf("  KV progress: %d/%d migrated", result.MigratedKvs, result.KvCount)
 	}
 
 	// Step 2: Migrate released KV data
 	log.Println("Migrating released KV data...")
-	releasedKvRecords, err := m.getReleasedKvRecordsFromSource()
+	releasedKvCount, err := m.getReleasedKvRecordsCount()
 	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records from source: %v", err))
+		result.Errors = append(result.Errors, fmt.Sprintf("failed to count released KV records from source: %v", err))
 		result.Success = false
 		result.Duration = time.Since(startTime)
 		return result, err
 	}
-	result.ReleasedKvCount = int64(len(releasedKvRecords))
+	result.ReleasedKvCount = releasedKvCount
 
-	for i, rkv := range releasedKvRecords {
-		if err := m.migrateReleasedKv(ctx, rkv); err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate released KV %d: %v", rkv.ID, err))
-			if !m.cfg.Migration.ContinueOnError {
-				result.Success = false
-				result.Duration = time.Since(startTime)
-				return result, err
+	var releasedKvRecords []ReleasedKvRecord
+	for offset := 0; ; offset += batchSize {
+		releasedKvRecords, err = m.getReleasedKvRecordsBatch(offset, batchSize)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records batch at offset %d: %v", offset, err))
+			result.Success = false
+			result.Duration = time.Since(startTime)
+			return result, err
+		}
+
+		if len(releasedKvRecords) == 0 {
+			break
+		}
+
+		for _, rkv := range releasedKvRecords {
+			if err := m.migrateReleasedKv(ctx, rkv); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to migrate released KV %d: %v", rkv.ID, err))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					result.Duration = time.Since(startTime)
+					return result, err
+				}
+			} else {
+				result.MigratedRKvs++
 			}
-		} else {
-			result.MigratedRKvs++
 		}
 
-		if (i+1)%100 == 0 || i+1 == len(releasedKvRecords) {
-			log.Printf("  Released KV progress: %d/%d migrated", result.MigratedRKvs, result.ReleasedKvCount)
-		}
+		log.Printf("  Released KV progress: %d/%d migrated", result.MigratedRKvs, result.ReleasedKvCount)
 	}
 
 	result.Duration = time.Since(startTime)
@@ -162,22 +190,40 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 	return result, nil
 }
 
-// getKvRecordsFromSource retrieves all KV records from source MySQL
-func (m *VaultMigrator) getKvRecordsFromSource() ([]KvRecord, error) {
+// getKvRecordsBatch retrieves a batch of KV records from source MySQL with pagination
+func (m *VaultMigrator) getKvRecordsBatch(offset, limit int) ([]KvRecord, error) {
 	var records []KvRecord
-	if err := m.sourceDB.Table("kvs").Find(&records).Error; err != nil {
+	if err := m.sourceDB.Table("kvs").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
 }
 
-// getReleasedKvRecordsFromSource retrieves all released KV records from source MySQL
-func (m *VaultMigrator) getReleasedKvRecordsFromSource() ([]ReleasedKvRecord, error) {
+// getKvRecordsCount returns the total count of KV records from source MySQL
+func (m *VaultMigrator) getKvRecordsCount() (int64, error) {
+	var count int64
+	if err := m.sourceDB.Table("kvs").Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// getReleasedKvRecordsBatch retrieves a batch of released KV records from source MySQL with pagination
+func (m *VaultMigrator) getReleasedKvRecordsBatch(offset, limit int) ([]ReleasedKvRecord, error) {
 	var records []ReleasedKvRecord
-	if err := m.sourceDB.Table("released_kvs").Find(&records).Error; err != nil {
+	if err := m.sourceDB.Table("released_kvs").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
+}
+
+// getReleasedKvRecordsCount returns the total count of released KV records from source MySQL
+func (m *VaultMigrator) getReleasedKvRecordsCount() (int64, error) {
+	var count int64
+	if err := m.sourceDB.Table("released_kvs").Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // migrateKv migrates a single unreleased KV from source to target Vault
@@ -255,52 +301,66 @@ func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 		Success: true,
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 
 	// Step 1: Delete unreleased KV data (use source DB to get records)
 	log.Println("Cleaning up unreleased KV data from target Vault...")
-	kvRecords, err := m.getKvRecordsFromSource()
-	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records from source: %v", err))
-		result.Success = false
-		result.Duration = time.Since(startTime)
-		return result, err
-	}
+	batchSize := m.cfg.Migration.BatchSize
+	for offset := 0; ; offset += batchSize {
+		kvRecords, err := m.getKvRecordsBatch(offset, batchSize)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to get KV records batch at offset %d: %v", offset, err))
+			result.Success = false
+			result.Duration = time.Since(startTime)
+			return result, err
+		}
 
-	for _, kv := range kvRecords {
-		if deleteErr := m.deleteKv(ctx, kv); deleteErr != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete KV %d: %v", kv.ID, deleteErr))
-			if !m.cfg.Migration.ContinueOnError {
-				result.Success = false
-				result.Duration = time.Since(startTime)
-				return result, deleteErr
+		if len(kvRecords) == 0 {
+			break
+		}
+
+		for _, kv := range kvRecords {
+			if deleteErr := m.deleteKv(ctx, kv); deleteErr != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to delete KV %d: %v", kv.ID, deleteErr))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					result.Duration = time.Since(startTime)
+					return result, deleteErr
+				}
+			} else {
+				result.DeletedKvs++
 			}
-		} else {
-			result.DeletedKvs++
 		}
 	}
 	log.Printf("  Deleted %d unreleased KVs", result.DeletedKvs)
 
 	// Step 2: Delete released KV data (use source DB to get records)
 	log.Println("Cleaning up released KV data from target Vault...")
-	releasedKvRecords, err := m.getReleasedKvRecordsFromSource()
-	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records from source: %v", err))
-		result.Success = false
-		result.Duration = time.Since(startTime)
-		return result, err
-	}
+	for offset := 0; ; offset += batchSize {
+		releasedKvRecords, err := m.getReleasedKvRecordsBatch(offset, batchSize)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("failed to get released KV records batch at offset %d: %v", offset, err))
+			result.Success = false
+			result.Duration = time.Since(startTime)
+			return result, err
+		}
 
-	for _, rkv := range releasedKvRecords {
-		if err := m.deleteReleasedKv(ctx, rkv); err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("failed to delete released KV %d: %v", rkv.ID, err))
-			if !m.cfg.Migration.ContinueOnError {
-				result.Success = false
-				result.Duration = time.Since(startTime)
-				return result, err
+		if len(releasedKvRecords) == 0 {
+			break
+		}
+
+		for _, rkv := range releasedKvRecords {
+			if err := m.deleteReleasedKv(ctx, rkv); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to delete released KV %d: %v", rkv.ID, err))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					result.Duration = time.Since(startTime)
+					return result, err
+				}
+			} else {
+				result.DeletedRKvs++
 			}
-		} else {
-			result.DeletedRKvs++
 		}
 	}
 	log.Printf("  Deleted %d released KVs", result.DeletedRKvs)
