@@ -8,6 +8,15 @@ migration:
   # 目标租户ID，将填充到所有迁移记录中
   target_tenant_id: "10001"
   
+  # Business IDs to migrate (if not specified, migrate all businesses)
+  # 要迁移的业务ID列表（如果不指定，则迁移所有业务）
+  # This allows migrating data for specific businesses only
+  # 支持按业务维度迁移数据
+  # biz_ids:
+  #   - 100
+  #   - 200
+  #   - 300
+  
   # Number of records to process in each batch
   # 每批处理的记录数
   batch_size: 1000

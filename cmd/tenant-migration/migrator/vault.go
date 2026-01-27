@@ -191,36 +191,56 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 }
 
 // getKvRecordsBatch retrieves a batch of KV records from source MySQL with pagination
+// If biz_id filter is configured, only returns records for those businesses
 func (m *VaultMigrator) getKvRecordsBatch(offset, limit int) ([]KvRecord, error) {
 	var records []KvRecord
-	if err := m.sourceDB.Table("kvs").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+	query := m.sourceDB.Table("kvs")
+	if m.cfg.Migration.HasBizFilter() {
+		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	}
+	if err := query.Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
 }
 
 // getKvRecordsCount returns the total count of KV records from source MySQL
+// If biz_id filter is configured, only counts records for those businesses
 func (m *VaultMigrator) getKvRecordsCount() (int64, error) {
 	var count int64
-	if err := m.sourceDB.Table("kvs").Count(&count).Error; err != nil {
+	query := m.sourceDB.Table("kvs")
+	if m.cfg.Migration.HasBizFilter() {
+		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	}
+	if err := query.Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
 // getReleasedKvRecordsBatch retrieves a batch of released KV records from source MySQL with pagination
+// If biz_id filter is configured, only returns records for those businesses
 func (m *VaultMigrator) getReleasedKvRecordsBatch(offset, limit int) ([]ReleasedKvRecord, error) {
 	var records []ReleasedKvRecord
-	if err := m.sourceDB.Table("released_kvs").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+	query := m.sourceDB.Table("released_kvs")
+	if m.cfg.Migration.HasBizFilter() {
+		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	}
+	if err := query.Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
 }
 
 // getReleasedKvRecordsCount returns the total count of released KV records from source MySQL
+// If biz_id filter is configured, only counts records for those businesses
 func (m *VaultMigrator) getReleasedKvRecordsCount() (int64, error) {
 	var count int64
-	if err := m.sourceDB.Table("released_kvs").Count(&count).Error; err != nil {
+	query := m.sourceDB.Table("released_kvs")
+	if m.cfg.Migration.HasBizFilter() {
+		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	}
+	if err := query.Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -295,6 +315,7 @@ type VaultCleanupResult struct {
 
 // CleanupTarget deletes all migrated KV data from target Vault
 // Uses source database to get KV records (since target DB may not have data yet)
+// If biz_id filter is configured, only deletes KVs for those businesses
 func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 	startTime := time.Now()
 	result := &VaultCleanupResult{
@@ -303,6 +324,11 @@ func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
+
+	// Log biz_id filter info
+	if m.cfg.Migration.HasBizFilter() {
+		log.Printf("Vault cleanup with biz_id filter: %v", m.cfg.Migration.BizIDs)
+	}
 
 	// Step 1: Delete unreleased KV data (use source DB to get records)
 	log.Println("Cleaning up unreleased KV data from target Vault...")

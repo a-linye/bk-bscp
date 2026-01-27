@@ -26,6 +26,7 @@ import (
 var (
 	cfgFile string
 	cfg     *config.Config
+	bizIDs  []uint32
 )
 
 // rootCmd represents the base command
@@ -77,6 +78,14 @@ func initConfig() {
 	}
 }
 
+// applyBizIDsOverride applies command line biz_ids to config (overrides config file)
+func applyBizIDsOverride() {
+	if len(bizIDs) > 0 {
+		cfg.Migration.BizIDs = bizIDs
+		fmt.Printf("Using biz_ids from command line: %v\n", bizIDs)
+	}
+}
+
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
@@ -94,6 +103,8 @@ var migrateMySQLCmd = &cobra.Command{
 			fmt.Println("Error: configuration not loaded")
 			os.Exit(1)
 		}
+
+		applyBizIDsOverride()
 
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
@@ -131,6 +142,8 @@ var migrateVaultCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		applyBizIDsOverride()
+
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
 			fmt.Printf("Error creating migrator: %v\n", err)
@@ -161,6 +174,8 @@ var migrateAllCmd = &cobra.Command{
 			fmt.Println("Error: configuration not loaded")
 			os.Exit(1)
 		}
+
+		applyBizIDsOverride()
 
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
@@ -193,6 +208,8 @@ source and target databases.`,
 			fmt.Println("Error: configuration not loaded")
 			os.Exit(1)
 		}
+
+		applyBizIDsOverride()
 
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
@@ -231,9 +248,16 @@ WARNING: This will delete all data from the core tables in the target database!`
 			os.Exit(1)
 		}
 
+		applyBizIDsOverride()
+
 		// Confirm before cleanup
 		if !forceCleanup {
-			fmt.Println("WARNING: This will delete all data from the core tables in the target database!")
+			if len(cfg.Migration.BizIDs) > 0 {
+				fmt.Printf("WARNING: This will delete data for biz_ids %v from the core tables in the target database!\n",
+					cfg.Migration.BizIDs)
+			} else {
+				fmt.Println("WARNING: This will delete all data from the core tables in the target database!")
+			}
 			fmt.Print("Are you sure you want to continue? [y/N]: ")
 			var confirm string
 			if _, err := fmt.Scanln(&confirm); err != nil || (confirm != "y" && confirm != "Y") {
@@ -281,6 +305,16 @@ func init() {
 	migrateCmd.AddCommand(migrateVaultCmd)
 	migrateCmd.AddCommand(migrateAllCmd)
 
+	// Add biz-ids flag to migrate command (inherited by subcommands)
+	migrateCmd.PersistentFlags().Uint32SliceVar(&bizIDs, "biz-ids", nil,
+		"Business IDs to migrate (comma-separated, e.g., --biz-ids=100,200,300)")
+
+	// Add biz-ids flag to validate command
+	validateCmd.Flags().Uint32SliceVar(&bizIDs, "biz-ids", nil,
+		"Business IDs to validate (comma-separated, e.g., --biz-ids=100,200,300)")
+
 	// Add cleanup flags
 	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")
+	cleanupCmd.Flags().Uint32SliceVar(&bizIDs, "biz-ids", nil,
+		"Business IDs to cleanup (comma-separated, e.g., --biz-ids=100,200,300)")
 }

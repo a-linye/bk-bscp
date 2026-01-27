@@ -92,6 +92,11 @@ func (m *MySQLMigrator) Migrate() ([]TableMigrationResult, error) {
 	coreTables := m.cfg.GetTablesToMigrate()
 	results := make([]TableMigrationResult, 0, len(coreTables))
 
+	// Log biz_id filter info
+	if m.cfg.Migration.HasBizFilter() {
+		log.Printf("MySQL migration with biz_id filter: %v", m.cfg.Migration.BizIDs)
+	}
+
 	// Disable foreign key checks on target database
 	if err := m.targetDB.Exec("SET FOREIGN_KEY_CHECKS = 0").Error; err != nil {
 		return nil, fmt.Errorf("failed to disable foreign key checks: %w", err)
@@ -135,9 +140,20 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 
 	log.Printf("Migrating table: %s", tableName)
 
-	// Get source count
+	// Check if table has biz_id column for filtering
+	hasBizID := m.hasBizIDColumn(tableName)
+	hasBizFilter := m.cfg.Migration.HasBizFilter()
+
+	// Build base query with biz_id filter if applicable
+	baseQuery := m.sourceDB.Table(tableName)
+	if hasBizID && hasBizFilter {
+		baseQuery = baseQuery.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+		log.Printf("  Filtering by biz_id: %v", m.cfg.Migration.BizIDs)
+	}
+
+	// Get source count (with filter if applicable)
 	var sourceCount int64
-	if err := m.sourceDB.Table(tableName).Count(&sourceCount).Error; err != nil {
+	if err := baseQuery.Count(&sourceCount).Error; err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("failed to count source records: %v", err))
 		result.Success = false
 		result.Duration = time.Since(startTime)
@@ -146,7 +162,7 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 	result.SourceCount = sourceCount
 
 	if sourceCount == 0 {
-		log.Printf("  Table %s is empty, skipping", tableName)
+		log.Printf("  Table %s is empty (or no matching biz_id), skipping", tableName)
 		result.Duration = time.Since(startTime)
 		return result
 	}
@@ -161,7 +177,12 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 
 	for {
 		var rows []map[string]interface{}
-		if err := m.sourceDB.Table(tableName).Offset(offset).Limit(batchSize).Find(&rows).Error; err != nil {
+		// Rebuild query for each batch (GORM modifies the query object)
+		batchQuery := m.sourceDB.Table(tableName)
+		if hasBizID && hasBizFilter {
+			batchQuery = batchQuery.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+		}
+		if err := batchQuery.Offset(offset).Limit(batchSize).Find(&rows).Error; err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("failed to read batch at offset %d: %v", offset, err))
 			result.Success = false
 			break
@@ -221,11 +242,25 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 
 // hasTenantIDColumn checks if a table has tenant_id column
 func (m *MySQLMigrator) hasTenantIDColumn(tableName string) bool {
+	return m.hasColumn(tableName, "tenant_id", m.cfg.Target.MySQL.Database)
+}
+
+// hasBizIDColumn checks if a table has biz_id column
+func (m *MySQLMigrator) hasBizIDColumn(tableName string) bool {
+	return m.hasColumn(tableName, "biz_id", m.cfg.Source.MySQL.Database)
+}
+
+// hasColumn checks if a table has a specific column
+func (m *MySQLMigrator) hasColumn(tableName, columnName, database string) bool {
 	var count int64
 	query := `SELECT COUNT(*) FROM information_schema.columns 
-			  WHERE table_schema = ? AND table_name = ? AND column_name = 'tenant_id'`
-	if err := m.targetDB.Raw(query, m.cfg.Target.MySQL.Database, tableName).Scan(&count).Error; err != nil {
-		log.Printf("Warning: failed to check tenant_id column for table %s: %v", tableName, err)
+			  WHERE table_schema = ? AND table_name = ? AND column_name = ?`
+	db := m.sourceDB
+	if database == m.cfg.Target.MySQL.Database {
+		db = m.targetDB
+	}
+	if err := db.Raw(query, database, tableName, columnName).Scan(&count).Error; err != nil {
+		log.Printf("Warning: failed to check %s column for table %s: %v", columnName, tableName, err)
 		return false
 	}
 	return count > 0
@@ -311,10 +346,16 @@ func (m *MySQLMigrator) GetTargetDB() *gorm.DB {
 }
 
 // CleanupTarget clears all migrated data from target database
+// If biz_id filter is configured, only clears data for those businesses
 func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 	startTime := time.Now()
 	result := &CleanupResult{
 		Success: true,
+	}
+
+	// Log biz_id filter info
+	if m.cfg.Migration.HasBizFilter() {
+		log.Printf("MySQL cleanup with biz_id filter: %v", m.cfg.Migration.BizIDs)
 	}
 
 	// Disable foreign key checks
@@ -359,15 +400,26 @@ func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 }
 
 // cleanupTable deletes all records from a single table
+// If biz_id filter is configured, only delete records for those businesses
 func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 	result := TableCleanupResult{
 		TableName: tableName,
 		Success:   true,
 	}
 
+	// Check if table has biz_id column for filtering
+	hasBizID := m.hasColumn(tableName, "biz_id", m.cfg.Target.MySQL.Database)
+	hasBizFilter := m.cfg.Migration.HasBizFilter()
+
+	// Build base query with biz_id filter if applicable
+	baseQuery := m.targetDB.Table(tableName)
+	if hasBizID && hasBizFilter {
+		baseQuery = baseQuery.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	}
+
 	// Count records before deletion
 	var count int64
-	if err := m.targetDB.Table(tableName).Count(&count).Error; err != nil {
+	if err := baseQuery.Count(&count).Error; err != nil {
 		result.Error = fmt.Sprintf("failed to count records: %v", err)
 		result.Success = false
 		return result
@@ -375,7 +427,7 @@ func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 	result.DeletedCount = count
 
 	if count == 0 {
-		log.Printf("  Table %s is empty, skipping", tableName)
+		log.Printf("  Table %s is empty (or no matching biz_id), skipping", tableName)
 		return result
 	}
 
@@ -384,18 +436,29 @@ func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 		return result
 	}
 
-	// Delete all records using TRUNCATE for better performance
-	// Use backticks to handle reserved keywords like 'groups'
-	if err := m.targetDB.Exec(fmt.Sprintf("TRUNCATE TABLE `%s`", tableName)).Error; err != nil {
-		// If TRUNCATE fails (e.g., due to foreign keys), try DELETE
-		if err := m.targetDB.Exec(fmt.Sprintf("DELETE FROM `%s`", tableName)).Error; err != nil {
+	// Delete records
+	if hasBizID && hasBizFilter {
+		// Delete only records matching the biz_id filter
+		if err := m.targetDB.Table(tableName).Where("biz_id IN ?", m.cfg.Migration.BizIDs).Delete(nil).Error; err != nil {
 			result.Error = fmt.Sprintf("failed to delete records: %v", err)
 			result.Success = false
 			return result
 		}
+		log.Printf("  Deleted %d records from table %s (biz_id filter: %v)", count, tableName, m.cfg.Migration.BizIDs)
+	} else {
+		// Delete all records using TRUNCATE for better performance
+		// Use backticks to handle reserved keywords like 'groups'
+		if err := m.targetDB.Exec(fmt.Sprintf("TRUNCATE TABLE `%s`", tableName)).Error; err != nil {
+			// If TRUNCATE fails (e.g., due to foreign keys), try DELETE
+			if err := m.targetDB.Exec(fmt.Sprintf("DELETE FROM `%s`", tableName)).Error; err != nil {
+				result.Error = fmt.Sprintf("failed to delete records: %v", err)
+				result.Success = false
+				return result
+			}
+		}
+		log.Printf("  Deleted %d records from table %s", count, tableName)
 	}
 
-	log.Printf("  Deleted %d records from table %s", count, tableName)
 	return result
 }
 

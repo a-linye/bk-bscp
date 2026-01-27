@@ -36,12 +36,33 @@ type Config struct {
 type MigrationConfig struct {
 	// TargetTenantID is the tenant ID to set for all migrated records
 	TargetTenantID string `yaml:"target_tenant_id"`
+	// BizIDs is the list of business IDs to migrate
+	// If empty, migrate all businesses
+	BizIDs []uint32 `yaml:"biz_ids"`
 	// BatchSize is the number of records to process in each batch
 	BatchSize int `yaml:"batch_size"`
 	// DryRun if true, will not actually write data
 	DryRun bool `yaml:"dry_run"`
 	// ContinueOnError if true, will continue migration even if some records fail
 	ContinueOnError bool `yaml:"continue_on_error"`
+}
+
+// HasBizFilter returns true if business ID filter is configured
+func (m *MigrationConfig) HasBizFilter() bool {
+	return len(m.BizIDs) > 0
+}
+
+// ContainsBizID checks if a business ID is in the filter list
+func (m *MigrationConfig) ContainsBizID(bizID uint32) bool {
+	if !m.HasBizFilter() {
+		return true // No filter, include all
+	}
+	for _, id := range m.BizIDs {
+		if id == bizID {
+			return true
+		}
+	}
+	return false
 }
 
 // EnvironmentConfig contains source or target environment configuration

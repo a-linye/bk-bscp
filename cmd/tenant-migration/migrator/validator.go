@@ -70,6 +70,9 @@ func (v *Validator) Validate() (*ValidationReport, error) {
 	coreTables := config.CoreTables()
 
 	log.Println("Starting data validation...")
+	if v.cfg.Migration.HasBizFilter() {
+		log.Printf("Validation with biz_id filter: %v", v.cfg.Migration.BizIDs)
+	}
 
 	for _, tableName := range coreTables {
 		if v.cfg.ShouldSkipTable(tableName) {
@@ -98,18 +101,35 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 		Match:     true,
 	}
 
+	// Check if table has biz_id column for filtering
+	hasBizIDSource := v.hasBizIDColumn(tableName, v.sourceDB, v.cfg.Source.MySQL.Database)
+	hasBizIDTarget := v.hasBizIDColumn(tableName, v.targetDB, v.cfg.Target.MySQL.Database)
+	hasBizFilter := v.cfg.Migration.HasBizFilter()
+
+	// Build source query with biz_id filter if applicable
+	sourceQuery := v.sourceDB.Table(tableName)
+	if hasBizIDSource && hasBizFilter {
+		sourceQuery = sourceQuery.Where("biz_id IN ?", v.cfg.Migration.BizIDs)
+	}
+
 	// Get source count
 	var sourceCount int64
-	if err := v.sourceDB.Table(tableName).Count(&sourceCount).Error; err != nil {
+	if err := sourceQuery.Count(&sourceCount).Error; err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("failed to count source records: %v", err))
 		result.Match = false
 		return result
 	}
 	result.SourceCount = sourceCount
 
+	// Build target query with biz_id filter if applicable
+	targetQuery := v.targetDB.Table(tableName)
+	if hasBizIDTarget && hasBizFilter {
+		targetQuery = targetQuery.Where("biz_id IN ?", v.cfg.Migration.BizIDs)
+	}
+
 	// Get target count
 	var targetCount int64
-	if err := v.targetDB.Table(tableName).Count(&targetCount).Error; err != nil {
+	if err := targetQuery.Count(&targetCount).Error; err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("failed to count target records: %v", err))
 		result.Match = false
 		return result
@@ -126,12 +146,22 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 	// Check if tenant_id is set correctly (for tables that have it)
 	if v.hasTenantIDColumn(tableName) {
 		var nullCount int64
-		// Use backticks to escape table name (handles reserved keywords like 'groups')
-		query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id IS NULL OR tenant_id = ''", tableName)
-		if err := v.targetDB.Raw(query).Scan(&nullCount).Error; err != nil {
-			result.Errors = append(result.Errors,
-				fmt.Sprintf("failed to check tenant_id: %v", err))
-		} else if nullCount > 0 {
+		// Build query with biz_id filter if applicable
+		if hasBizIDTarget && hasBizFilter {
+			query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE (tenant_id IS NULL OR tenant_id = '') AND biz_id IN ?", tableName)
+			if err := v.targetDB.Raw(query, v.cfg.Migration.BizIDs).Scan(&nullCount).Error; err != nil {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("failed to check tenant_id: %v", err))
+			}
+		} else {
+			query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id IS NULL OR tenant_id = ''", tableName)
+			if err := v.targetDB.Raw(query).Scan(&nullCount).Error; err != nil {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("failed to check tenant_id: %v", err))
+			}
+		}
+
+		if nullCount > 0 {
 			result.TenantIDSet = false
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("%d records have NULL or empty tenant_id", nullCount))
@@ -141,11 +171,21 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 
 		// Verify tenant_id value matches configuration
 		var mismatchCount int64
-		query = fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id != ?", tableName)
-		if err := v.targetDB.Raw(query, v.cfg.Migration.TargetTenantID).Scan(&mismatchCount).Error; err != nil {
-			result.Errors = append(result.Errors,
-				fmt.Sprintf("failed to verify tenant_id value: %v", err))
-		} else if mismatchCount > 0 {
+		if hasBizIDTarget && hasBizFilter {
+			query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id != ? AND biz_id IN ?", tableName)
+			if err := v.targetDB.Raw(query, v.cfg.Migration.TargetTenantID, v.cfg.Migration.BizIDs).Scan(&mismatchCount).Error; err != nil {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("failed to verify tenant_id value: %v", err))
+			}
+		} else {
+			query := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE tenant_id != ?", tableName)
+			if err := v.targetDB.Raw(query, v.cfg.Migration.TargetTenantID).Scan(&mismatchCount).Error; err != nil {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("failed to verify tenant_id value: %v", err))
+			}
+		}
+
+		if mismatchCount > 0 {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("%d records have incorrect tenant_id (expected: %s)",
 					mismatchCount, v.cfg.Migration.TargetTenantID))
@@ -162,10 +202,20 @@ func (v *Validator) validateTable(tableName string) TableValidationResult {
 
 // hasTenantIDColumn checks if a table has tenant_id column
 func (v *Validator) hasTenantIDColumn(tableName string) bool {
+	return v.hasColumn(tableName, "tenant_id", v.cfg.Target.MySQL.Database, v.targetDB)
+}
+
+// hasBizIDColumn checks if a table has biz_id column
+func (v *Validator) hasBizIDColumn(tableName string, db *gorm.DB, database string) bool {
+	return v.hasColumn(tableName, "biz_id", database, db)
+}
+
+// hasColumn checks if a table has a specific column
+func (v *Validator) hasColumn(tableName, columnName, database string, db *gorm.DB) bool {
 	var count int64
 	query := `SELECT COUNT(*) FROM information_schema.columns 
-			  WHERE table_schema = ? AND table_name = ? AND column_name = 'tenant_id'`
-	if err := v.targetDB.Raw(query, v.cfg.Target.MySQL.Database, tableName).Scan(&count).Error; err != nil {
+			  WHERE table_schema = ? AND table_name = ? AND column_name = ?`
+	if err := db.Raw(query, database, tableName, columnName).Scan(&count).Error; err != nil {
 		return false
 	}
 	return count > 0
