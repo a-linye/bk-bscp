@@ -202,11 +202,6 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 			// Handle special cases
 			m.handleSpecialCases(tableName, row)
 
-			if m.cfg.Migration.DryRun {
-				migratedCount++
-				continue
-			}
-
 			// Insert into target database
 			if err := m.targetDB.Table(tableName).Create(row).Error; err != nil {
 				result.ErrorCount++
@@ -296,11 +291,6 @@ func (m *MySQLMigrator) updateIDGenerators() error {
 
 	// Update target
 	for _, g := range generators {
-		if m.cfg.Migration.DryRun {
-			log.Printf("  Would update id_generators: resource=%s, max_id=%d", g.Resource, g.MaxID)
-			continue
-		}
-
 		// Check if the resource exists in target
 		var count int64
 		if err := m.targetDB.Table("id_generators").
@@ -428,11 +418,6 @@ func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 
 	if count == 0 {
 		log.Printf("  Table %s is empty (or no matching biz_id), skipping", tableName)
-		return result
-	}
-
-	if m.cfg.Migration.DryRun {
-		log.Printf("  Would delete %d records from table %s", count, tableName)
 		return result
 	}
 

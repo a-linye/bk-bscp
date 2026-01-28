@@ -158,7 +158,6 @@ migration:
 | `migration.target_tenant_id` | 是 | 目标租户 ID，将填充到所有迁移记录 |
 | `migration.biz_ids` | 否 | 要迁移的业务 ID 列表，不填则迁移所有业务 |
 | `migration.batch_size` | 否 | 批量处理大小，默认 1000 |
-| `migration.dry_run` | 否 | 试运行模式，true 时只读取不写入 |
 | `migration.continue_on_error` | 否 | 遇错继续，true 时跳过失败记录 |
 | `source.mysql.*` | 是 | 源 MySQL 连接配置 |
 | `source.vault.*` | 否 | 源 Vault 配置（迁移 Vault 时必填） |
@@ -175,19 +174,16 @@ migration:
 2. 资产扫描（了解数据规模）
    ./bk-bscp-tenant-migration -c migration.yaml scan --all
    ↓
-3. 试运行测试（设置 dry_run: true）
+3. 执行迁移
    ./bk-bscp-tenant-migration -c migration.yaml migrate all
    ↓
-4. 正式迁移（设置 dry_run: false）
-   ./bk-bscp-tenant-migration -c migration.yaml migrate all
-   ↓
-5. 资产扫描（对比迁移结果）
+4. 资产扫描（对比迁移结果）
    ./bk-bscp-tenant-migration -c migration.yaml scan
    ↓
-6. 数据验证
+5. 数据验证
    ./bk-bscp-tenant-migration -c migration.yaml validate
    ↓
-7. 验证失败？清理后重试
+6. 验证失败？清理后重试
    ./bk-bscp-tenant-migration -c migration.yaml cleanup -f
-   → 返回步骤 4
+   → 返回步骤 3
 ```

@@ -449,7 +449,6 @@ target:
 
 options:
   batch_size: 1000          # 批量处理大小
-  dry_run: false            # 试运行模式
 
 # 跳过的表（运行时/历史数据）
 skip_tables:

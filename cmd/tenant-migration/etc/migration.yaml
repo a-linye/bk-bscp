@@ -21,10 +21,6 @@ migration:
   # 每批处理的记录数
   batch_size: 1000
   
-  # If true, will not actually write data (for testing)
-  # 如果为 true，则不会实际写入数据（用于测试）
-  dry_run: false
-  
   # If true, continue migration even if some records fail
   # 如果为 true，即使部分记录失败也继续迁移
   continue_on_error: false

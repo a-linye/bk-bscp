@@ -16,6 +16,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -26,6 +28,7 @@ import (
 var (
 	cfgFile string
 	cfg     *config.Config
+	bizIDs  string // Command line flag for biz IDs, comma-separated
 )
 
 // rootCmd represents the base command
@@ -78,6 +81,49 @@ func initConfig() {
 	}
 }
 
+// parseBizIDs parses comma-separated biz IDs string to []uint32
+func parseBizIDs(bizIDsStr string) ([]uint32, error) {
+	if bizIDsStr == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(bizIDsStr, ",")
+	result := make([]uint32, 0, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseUint(part, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid biz ID '%s': %w", part, err)
+		}
+		result = append(result, uint32(id))
+	}
+
+	return result, nil
+}
+
+// applyBizIDsFlag applies command line biz-ids flag to config
+func applyBizIDsFlag() error {
+	if bizIDs == "" {
+		return nil
+	}
+
+	ids, err := parseBizIDs(bizIDs)
+	if err != nil {
+		return err
+	}
+
+	if len(ids) > 0 {
+		cfg.Migration.BizIDs = ids
+		fmt.Printf("Using biz_ids from command line: %v\n", ids)
+	}
+
+	return nil
+}
+
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
@@ -93,6 +139,11 @@ var migrateMySQLCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if cfg == nil {
 			fmt.Println("Error: configuration not loaded")
+			os.Exit(1)
+		}
+
+		if err := applyBizIDsFlag(); err != nil {
+			fmt.Printf("Error parsing biz-ids: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -124,6 +175,11 @@ var migrateVaultCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if cfg == nil {
 			fmt.Println("Error: configuration not loaded")
+			os.Exit(1)
+		}
+
+		if err := applyBizIDsFlag(); err != nil {
+			fmt.Printf("Error parsing biz-ids: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -160,6 +216,11 @@ var migrateAllCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if cfg == nil {
 			fmt.Println("Error: configuration not loaded")
+			os.Exit(1)
+		}
+
+		if err := applyBizIDsFlag(); err != nil {
+			fmt.Printf("Error parsing biz-ids: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -332,6 +393,10 @@ func init() {
 	migrateCmd.AddCommand(migrateMySQLCmd)
 	migrateCmd.AddCommand(migrateVaultCmd)
 	migrateCmd.AddCommand(migrateAllCmd)
+
+	// Add migrate flags (persistent for all subcommands)
+	migrateCmd.PersistentFlags().StringVar(&bizIDs, "biz-ids", "",
+		"Comma-separated list of business IDs to migrate (e.g., '1001,1002,1003'). Overrides config file setting.")
 
 	// Add cleanup flags
 	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")

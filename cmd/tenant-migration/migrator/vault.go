@@ -261,11 +261,6 @@ func (m *VaultMigrator) migrateKv(ctx context.Context, kv KvRecord) error {
 		return nil
 	}
 
-	if m.cfg.Migration.DryRun {
-		log.Printf("  Would migrate KV: %s", path)
-		return nil
-	}
-
 	// Write to target Vault
 	_, err = m.targetVault.KVv2(MountPath).Put(ctx, path, secret.Data)
 	if err != nil {
@@ -287,11 +282,6 @@ func (m *VaultMigrator) migrateReleasedKv(ctx context.Context, rkv ReleasedKvRec
 
 	if secret == nil || secret.Data == nil {
 		log.Printf("  Warning: Released KV %s has no data, skipping", path)
-		return nil
-	}
-
-	if m.cfg.Migration.DryRun {
-		log.Printf("  Would migrate released KV: %s", path)
 		return nil
 	}
 
@@ -402,11 +392,6 @@ func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 func (m *VaultMigrator) deleteKv(ctx context.Context, kv KvRecord) error {
 	path := fmt.Sprintf(kvPath, kv.BizID, kv.AppID, kv.Key)
 
-	if m.cfg.Migration.DryRun {
-		log.Printf("  Would delete KV: %s", path)
-		return nil
-	}
-
 	// Delete all versions and metadata
 	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)
 	if err != nil {
@@ -419,11 +404,6 @@ func (m *VaultMigrator) deleteKv(ctx context.Context, kv KvRecord) error {
 // deleteReleasedKv deletes a single released KV from target Vault
 func (m *VaultMigrator) deleteReleasedKv(ctx context.Context, rkv ReleasedKvRecord) error {
 	path := fmt.Sprintf(releasedKvPath, rkv.BizID, rkv.AppID, rkv.ReleaseID, rkv.Key)
-
-	if m.cfg.Migration.DryRun {
-		log.Printf("  Would delete released KV: %s", path)
-		return nil
-	}
 
 	// Delete all versions and metadata
 	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)

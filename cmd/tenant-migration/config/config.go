@@ -41,8 +41,6 @@ type MigrationConfig struct {
 	BizIDs []uint32 `yaml:"biz_ids"`
 	// BatchSize is the number of records to process in each batch
 	BatchSize int `yaml:"batch_size"`
-	// DryRun if true, will not actually write data
-	DryRun bool `yaml:"dry_run"`
 	// ContinueOnError if true, will continue migration even if some records fail
 	ContinueOnError bool `yaml:"continue_on_error"`
 }
