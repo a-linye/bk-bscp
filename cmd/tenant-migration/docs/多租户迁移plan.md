@@ -398,24 +398,18 @@ func main() {
     // 1. 加载配置
     cfg := loadConfig("migrate.yaml")
     
-    // 2. MySQL 数据迁移
-    mysqlMigrator := NewMySQLMigrator(cfg)
-    if err := mysqlMigrator.Run(); err != nil {
-        log.Fatalf("MySQL migration failed: %v", err)
+    // 2. 创建迁移器
+    migrator := NewMigrator(cfg)
+    defer migrator.Close()
+    
+    // 3. 执行迁移（MySQL + Vault，Vault 未配置时自动跳过）
+    report, err := migrator.Run()
+    if err != nil {
+        log.Fatalf("Migration failed: %v", err)
     }
     
-    // 3. Vault KV 数据迁移
-    vaultMigrator := NewVaultMigrator(cfg)
-    if err := vaultMigrator.Run(); err != nil {
-        log.Fatalf("Vault migration failed: %v", err)
-    }
-    
-    // 4. 数据验证
-    validator := NewValidator(cfg)
-    report := validator.Validate()
-    
-    // 5. 输出迁移报告
-    report.Print()
+    // 4. 输出迁移报告
+    migrator.PrintReport(report)
 }
 ```
 

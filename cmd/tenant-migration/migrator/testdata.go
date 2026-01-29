@@ -893,8 +893,10 @@ func (g *TestDataGenerator) generateKvs() (int64, error) {
 			id := g.nextID("kvs")
 			key := fmt.Sprintf("kv_key_%d_%d", app.ID, i+1)
 
+			// Test scenario: version = 5 to simulate real production data with multiple edits
+			// Vault will also have 5 versions written to match this
 			if err := g.db.Exec(`INSERT INTO kvs (id, `+"`key`"+`, version, kv_type, kv_state, signature, md5, byte_size, memo, biz_id, app_id, creator, reviser, created_at, updated_at) 
-				VALUES (?, ?, 1, 'string', 'add', ?, ?, 64, ?, ?, ?, ?, ?, ?, ?)`,
+				VALUES (?, ?, 5, 'string', 'add', ?, ?, 64, ?, ?, ?, ?, ?, ?, ?)`,
 				id, key, fmt.Sprintf("kv_sha256_%d", id), fmt.Sprintf("kv_md5_%d", id),
 				fmt.Sprintf("kv %d", i+1), app.BizID, app.ID, creator, creator, now, now).Error; err != nil {
 				return count, err
@@ -1173,7 +1175,13 @@ func (g *TestDataGenerator) generateReleasedAppTemplateVariables() (int64, error
 	return count, nil
 }
 
+// vaultKvVersionCount is the number of versions to create for each KV in Vault
+// This should match the version value in generateKvs (currently 5)
+const vaultKvVersionCount = 5
+
 // generateVaultData generates Vault KV data
+// For unreleased KVs: writes 5 times to create version 5 (matching DB version field)
+// For released KVs: writes 1 time (version 1) as released KVs are immutable snapshots
 func (g *TestDataGenerator) generateVaultData() (int64, int64, error) {
 	if g.vaultClient == nil {
 		return 0, 0, nil
@@ -1184,21 +1192,27 @@ func (g *TestDataGenerator) generateVaultData() (int64, int64, error) {
 
 	var kvCount, rkvCount int64
 
-	// Generate unreleased KV data
+	// Generate unreleased KV data with multiple versions
+	// Write 5 times to simulate edits and create version 5
+	log.Printf("  Writing %d versions for each KV to simulate edits...", vaultKvVersionCount)
 	for _, kv := range g.kvs {
 		path := fmt.Sprintf("biz/%d/apps/%d/kvs/%s", kv.BizID, kv.AppID, kv.Key)
-		data := map[string]interface{}{
-			"value": fmt.Sprintf("test_value_%d", kv.ID),
-		}
 
-		_, err := g.vaultClient.KVv2(MountPath).Put(ctx, path, data)
-		if err != nil {
-			return kvCount, rkvCount, fmt.Errorf("failed to write KV %s: %w", path, err)
+		// Write multiple times to create version history
+		for v := 1; v <= vaultKvVersionCount; v++ {
+			data := map[string]interface{}{
+				"value": fmt.Sprintf("test_value_%d_v%d", kv.ID, v),
+			}
+
+			_, err := g.vaultClient.KVv2(MountPath).Put(ctx, path, data)
+			if err != nil {
+				return kvCount, rkvCount, fmt.Errorf("failed to write KV %s version %d: %w", path, v, err)
+			}
 		}
 		kvCount++
 	}
 
-	// Generate released KV data
+	// Generate released KV data (single version - released KVs are immutable)
 	kvsByApp := make(map[uint32][]generatedKv)
 	for _, kv := range g.kvs {
 		kvsByApp[kv.AppID] = append(kvsByApp[kv.AppID], kv)
@@ -1254,6 +1268,8 @@ func (g *TestDataGenerator) updateIDGenerators() error {
 }
 
 // Clean removes all data from test tables using TRUNCATE
+// Note: Vault data must be cleaned BEFORE MySQL data because cleanVaultData()
+// reads from MySQL kvs/released_kvs tables to construct Vault paths
 func (g *TestDataGenerator) Clean() (*TestDataReport, error) {
 	report := &TestDataReport{
 		StartTime:    time.Now(),
@@ -1262,6 +1278,21 @@ func (g *TestDataGenerator) Clean() (*TestDataReport, error) {
 	}
 
 	log.Println("Cleaning all data from test tables...")
+
+	// Clean Vault data FIRST (before MySQL) because cleanVaultData() needs to read
+	// from MySQL kvs/released_kvs tables to get the paths for deletion
+	if g.vaultClient != nil {
+		log.Println("Cleaning Vault data (must be done before MySQL cleanup)...")
+		kvCount, rkvCount, err := g.cleanVaultData()
+		if err != nil {
+			report.Errors = append(report.Errors, fmt.Sprintf("vault: %v", err))
+			report.Success = false
+		} else {
+			report.VaultKvs = kvCount
+			report.VaultRKvs = rkvCount
+			log.Printf("  Cleaned %d KVs, %d released KVs from Vault", kvCount, rkvCount)
+		}
+	}
 
 	// Disable foreign key checks
 	if err := g.db.Exec("SET FOREIGN_KEY_CHECKS = 0").Error; err != nil {
@@ -1306,6 +1337,7 @@ func (g *TestDataGenerator) Clean() (*TestDataReport, error) {
 		"sharding_bizs",
 	}
 
+	log.Println("Cleaning MySQL tables...")
 	for _, table := range tables {
 		// Count before truncate
 		var count int64
@@ -1322,20 +1354,6 @@ func (g *TestDataGenerator) Clean() (*TestDataReport, error) {
 		} else {
 			report.TableResults[table] = count
 			log.Printf("  Truncated %s (%d records)", table, count)
-		}
-	}
-
-	// Clean Vault data if configured
-	if g.vaultClient != nil {
-		log.Println("Cleaning Vault data...")
-		kvCount, rkvCount, err := g.cleanVaultData()
-		if err != nil {
-			report.Errors = append(report.Errors, fmt.Sprintf("vault: %v", err))
-			report.Success = false
-		} else {
-			report.VaultKvs = kvCount
-			report.VaultRKvs = rkvCount
-			log.Printf("  Cleaned %d KVs, %d released KVs from Vault", kvCount, rkvCount)
 		}
 	}
 

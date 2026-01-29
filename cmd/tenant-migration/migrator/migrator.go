@@ -103,78 +103,18 @@ func (m *Migrator) Close() error {
 	return nil
 }
 
-// RunMySQL runs only MySQL migration
-func (m *Migrator) RunMySQL() (*MigrationReport, error) {
-	report := &MigrationReport{
-		StartTime: time.Now(),
-	}
-
-	log.Println("Starting MySQL migration...")
-
-	tableResults, err := m.mysqlMigrator.Migrate()
-	report.TableResults = tableResults
-	report.TotalTables = len(tableResults)
-
-	if err != nil {
-		report.Errors = append(report.Errors, err.Error())
-		report.Success = false
-	} else {
-		report.Success = true
-		for _, tr := range tableResults {
-			if !tr.Success {
-				report.Success = false
-				break
-			}
-		}
-	}
-
-	report.EndTime = time.Now()
-	report.Duration = report.EndTime.Sub(report.StartTime)
-
-	log.Printf("MySQL migration completed in %v\n", report.Duration)
-	return report, nil
-}
-
-// RunVault runs only Vault migration
-func (m *Migrator) RunVault() (*MigrationReport, error) {
-	report := &MigrationReport{
-		StartTime: time.Now(),
-	}
-
-	if m.vaultMigrator == nil {
-		return nil, fmt.Errorf("vault migrator is not configured")
-	}
-
-	log.Println("Starting Vault migration...")
-
-	vaultResult, err := m.vaultMigrator.Migrate()
-	report.VaultResults = vaultResult
-
-	if err != nil {
-		report.Errors = append(report.Errors, err.Error())
-		report.Success = false
-	} else {
-		report.Success = vaultResult.Success
-	}
-
-	report.EndTime = time.Now()
-	report.Duration = report.EndTime.Sub(report.StartTime)
-
-	log.Printf("Vault migration completed in %v\n", report.Duration)
-	return report, nil
-}
-
-// RunAll runs both MySQL and Vault migration
-func (m *Migrator) RunAll() (*MigrationReport, error) {
+// Run runs the full migration (MySQL + Vault)
+func (m *Migrator) Run() (*MigrationReport, error) {
 	report := &MigrationReport{
 		StartTime: time.Now(),
 		Success:   true,
 	}
 
 	log.Println("Starting full migration (MySQL + Vault)...")
+	log.Println("Note: Run 'cleanup' command first if you need to clear existing data for the target business")
 
-	// Step 1: MySQL migration
-	log.Println("Step 1/2: MySQL migration...")
+	// MySQL migration
+	log.Println("MySQL migration...")
 	tableResults, err := m.mysqlMigrator.Migrate()
 	report.TableResults = tableResults
 	report.TotalTables = len(tableResults)
@@ -190,9 +130,14 @@ func (m *Migrator) RunAll() (*MigrationReport, error) {
 		}
 	}
 
-	// Step 2: Vault migration (if configured)
+	// Vault migration (if configured)
 	if m.vaultMigrator != nil {
-		log.Println("Step 2/2: Vault migration...")
+		log.Println("Vault migration...")
+
+		// Pass ID mapper from MySQL migration to Vault migration
+		// This enables Vault paths to be updated with new app_id and release_id
+		m.vaultMigrator.SetIDMapper(m.mysqlMigrator.GetIDMapper())
+
 		vaultResult, err := m.vaultMigrator.Migrate()
 		report.VaultResults = vaultResult
 
@@ -203,7 +148,7 @@ func (m *Migrator) RunAll() (*MigrationReport, error) {
 			report.Success = false
 		}
 	} else {
-		log.Println("Step 2/2: Vault migration skipped (not configured)")
+		log.Println("Vault migration skipped (not configured)")
 	}
 
 	report.EndTime = time.Now()
@@ -241,7 +186,9 @@ type FullCleanupResult struct {
 	Success     bool
 }
 
-// Cleanup clears all migrated data from target database and Vault
+// Cleanup clears migrated data from target database and Vault
+// If biz_id filter is configured (--biz-ids), only clears data for those businesses
+// This should be run before migration to ensure clean state for the target business
 func (m *Migrator) Cleanup() (*FullCleanupResult, error) {
 	startTime := time.Now()
 	result := &FullCleanupResult{
@@ -280,19 +227,6 @@ func (m *Migrator) Cleanup() (*FullCleanupResult, error) {
 	log.Printf("Full cleanup completed in %v", result.Duration)
 
 	return result, nil
-}
-
-// CleanupMySQL clears only MySQL migrated data from target database
-func (m *Migrator) CleanupMySQL() (*CleanupResult, error) {
-	return m.mysqlMigrator.CleanupTarget()
-}
-
-// CleanupVault clears only Vault migrated data from target Vault
-func (m *Migrator) CleanupVault() (*VaultCleanupResult, error) {
-	if m.vaultMigrator == nil {
-		return nil, fmt.Errorf("vault migrator is not configured")
-	}
-	return m.vaultMigrator.CleanupTarget()
 }
 
 // PrintCleanupReport prints the cleanup report to stdout

@@ -29,6 +29,7 @@ type MySQLMigrator struct {
 	cfg      *config.Config
 	sourceDB *gorm.DB
 	targetDB *gorm.DB
+	idMapper *IDMapper
 }
 
 // NewMySQLMigrator creates a new MySQLMigrator instance
@@ -65,6 +66,7 @@ func NewMySQLMigrator(cfg *config.Config) (*MySQLMigrator, error) {
 		cfg:      cfg,
 		sourceDB: sourceDB,
 		targetDB: targetDB,
+		idMapper: NewIDMapper(),
 	}, nil
 }
 
@@ -87,15 +89,22 @@ func (m *MySQLMigrator) Close() error {
 	return nil
 }
 
-// Migrate performs the MySQL data migration
+// GetIDMapper returns the ID mapper for use by other components (e.g., Vault migrator)
+func (m *MySQLMigrator) GetIDMapper() *IDMapper {
+	return m.idMapper
+}
+
+// Migrate performs the MySQL data migration (insert only, cleanup should be done separately)
 func (m *MySQLMigrator) Migrate() ([]TableMigrationResult, error) {
-	coreTables := m.cfg.GetTablesToMigrate()
-	results := make([]TableMigrationResult, 0, len(coreTables))
+	results := make([]TableMigrationResult, 0)
 
 	// Log biz_id filter info
 	if m.cfg.Migration.HasBizFilter() {
 		log.Printf("MySQL migration with biz_id filter: %v", m.cfg.Migration.BizIDs)
 	}
+
+	// Clear ID mappings from any previous runs
+	m.idMapper.ClearAll()
 
 	// Disable foreign key checks on target database
 	if err := m.targetDB.Exec("SET FOREIGN_KEY_CHECKS = 0").Error; err != nil {
@@ -107,7 +116,10 @@ func (m *MySQLMigrator) Migrate() ([]TableMigrationResult, error) {
 		}
 	}()
 
-	for _, tableName := range coreTables {
+	// Insert data in dependency order
+	log.Println("Inserting data into target database...")
+	insertTables := TablesInInsertOrder()
+	for _, tableName := range insertTables {
 		if m.cfg.ShouldSkipTable(tableName) {
 			log.Printf("Skipping table: %s", tableName)
 			continue
@@ -121,16 +133,11 @@ func (m *MySQLMigrator) Migrate() ([]TableMigrationResult, error) {
 		}
 	}
 
-	// Update id_generators table
-	log.Println("Updating id_generators table...")
-	if err := m.updateIDGenerators(); err != nil {
-		log.Printf("Warning: failed to update id_generators: %v", err)
-	}
-
 	return results, nil
 }
 
-// migrateTable migrates a single table
+// migrateTable migrates a single table with new ID allocation and foreign key conversion
+// nolint: funlen
 func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 	startTime := time.Now()
 	result := TableMigrationResult{
@@ -139,6 +146,13 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 	}
 
 	log.Printf("Migrating table: %s", tableName)
+
+	// Get table metadata
+	meta, hasMeta := GetTableMeta(tableName)
+	if !hasMeta {
+		log.Printf("  Warning: no metadata for table %s, using default settings", tableName)
+		meta = TableMeta{Name: tableName, IDColumn: "id", HasBizID: true}
+	}
 
 	// Check if table has biz_id column for filtering
 	hasBizID := m.hasBizIDColumn(tableName)
@@ -194,6 +208,38 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 
 		// Process each row
 		for _, row := range rows {
+			// Get source ID before modifying the row
+			sourceID := m.getUint32FromRow(row, meta.IDColumn)
+
+			// Allocate new ID from id_generators
+			newID, err := m.getNextID(tableName)
+			if err != nil {
+				result.ErrorCount++
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to get next ID: %v", err))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					break
+				}
+				continue
+			}
+
+			// Store ID mapping (source -> target)
+			m.idMapper.Set(tableName, sourceID, newID)
+
+			// Replace ID with new ID
+			row[meta.IDColumn] = newID
+
+			// Convert foreign keys using ID mapper
+			if err := m.convertForeignKeys(row, meta); err != nil {
+				result.ErrorCount++
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to convert foreign keys (sourceID=%d): %v", sourceID, err))
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					break
+				}
+				continue
+			}
+
 			// Fill tenant_id if the column exists
 			if hasTenantID {
 				row["tenant_id"] = m.cfg.Migration.TargetTenantID
@@ -205,7 +251,7 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 			// Insert into target database
 			if err := m.targetDB.Table(tableName).Create(row).Error; err != nil {
 				result.ErrorCount++
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to insert row: %v", err))
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to insert row (sourceID=%d, newID=%d): %v", sourceID, newID, err))
 				if !m.cfg.Migration.ContinueOnError {
 					result.Success = false
 					break
@@ -227,12 +273,93 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 	result.Duration = time.Since(startTime)
 
 	if result.Success {
-		log.Printf("  Completed: %d records migrated in %v", migratedCount, result.Duration)
+		log.Printf("  Completed: %d records migrated in %v (ID mappings: %d)", migratedCount, result.Duration, m.idMapper.Count(tableName))
 	} else {
 		log.Printf("  Failed: %d records migrated, %d errors", migratedCount, result.ErrorCount)
 	}
 
 	return result
+}
+
+// getUint32FromRow extracts a uint32 value from a row map
+func (m *MySQLMigrator) getUint32FromRow(row map[string]interface{}, column string) uint32 {
+	val, ok := row[column]
+	if !ok || val == nil {
+		return 0
+	}
+
+	switch v := val.(type) {
+	case uint32:
+		return v
+	case uint64:
+		return uint32(v)
+	case int64:
+		return uint32(v)
+	case int:
+		return uint32(v)
+	case float64:
+		return uint32(v)
+	default:
+		return 0
+	}
+}
+
+// getNextID allocates the next ID from id_generators table
+func (m *MySQLMigrator) getNextID(tableName string) (uint32, error) {
+	// Use resource name (table name is usually the resource name)
+	resource := tableName
+
+	// Update max_id and get the new value atomically
+	result := m.targetDB.Exec(
+		"UPDATE `id_generators` SET `max_id` = `max_id` + 1, `updated_at` = ? WHERE `resource` = ?",
+		time.Now(), resource)
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to update id_generator: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		// Resource doesn't exist, create it
+		if err := m.targetDB.Exec(
+			"INSERT INTO `id_generators` (`resource`, `max_id`, `updated_at`) VALUES (?, 1, ?)",
+			resource, time.Now()).Error; err != nil {
+			return 0, fmt.Errorf("failed to create id_generator: %w", err)
+		}
+		return 1, nil
+	}
+
+	// Get the new max_id
+	var maxID uint32
+	if err := m.targetDB.Raw("SELECT `max_id` FROM `id_generators` WHERE `resource` = ?", resource).
+		Scan(&maxID).Error; err != nil {
+		return 0, fmt.Errorf("failed to get max_id: %w", err)
+	}
+
+	return maxID, nil
+}
+
+// convertForeignKeys converts foreign key values using ID mapper
+// Returns an error if a foreign key reference cannot be found in the mapper
+func (m *MySQLMigrator) convertForeignKeys(row map[string]interface{}, meta TableMeta) error {
+	if len(meta.ForeignKeys) == 0 {
+		return nil
+	}
+
+	for fkColumn, refTable := range meta.ForeignKeys {
+		sourceFK := m.getUint32FromRow(row, fkColumn)
+		if sourceFK == 0 {
+			// Foreign key is null or zero, skip
+			continue
+		}
+
+		// Look up the target ID from the mapper
+		targetFK := m.idMapper.Get(refTable, sourceFK)
+		if targetFK == 0 {
+			return fmt.Errorf("foreign key %s=%d references %s, but no mapping found (referenced table may not have been migrated yet)",
+				fkColumn, sourceFK, refTable)
+		}
+		row[fkColumn] = targetFK
+	}
+	return nil
 }
 
 // hasTenantIDColumn checks if a table has tenant_id column
@@ -274,55 +401,13 @@ func (m *MySQLMigrator) handleSpecialCases(tableName string, row map[string]inte
 			}
 		}
 	}
-}
 
-// updateIDGenerators updates the id_generators table in target database
-func (m *MySQLMigrator) updateIDGenerators() error {
-	var generators []struct {
-		ID       uint32 `gorm:"column:id"`
-		Resource string `gorm:"column:resource"`
-		MaxID    uint32 `gorm:"column:max_id"`
+	// KV tables version reset:
+	// When migrating to target Vault, the Put operation resets version to 1.
+	// Therefore, the version field in MySQL must also be reset to 1.
+	if tableName == "kvs" || tableName == "released_kvs" {
+		row["version"] = uint32(1)
 	}
-
-	// Read from source
-	if err := m.sourceDB.Table("id_generators").Find(&generators).Error; err != nil {
-		return fmt.Errorf("failed to read id_generators from source: %w", err)
-	}
-
-	// Update target
-	for _, g := range generators {
-		// Check if the resource exists in target
-		var count int64
-		if err := m.targetDB.Table("id_generators").
-			Where("resource = ?", g.Resource).Count(&count).Error; err != nil {
-			log.Printf("Warning: failed to check id_generator for resource %s: %v", g.Resource, err)
-			continue
-		}
-
-		if count > 0 {
-			// Update existing record
-			if err := m.targetDB.Table("id_generators").
-				Where("resource = ?", g.Resource).
-				Update("max_id", gorm.Expr("GREATEST(max_id, ?)", g.MaxID)).Error; err != nil {
-				log.Printf("Warning: failed to update id_generator for resource %s: %v", g.Resource, err)
-			} else {
-				log.Printf("  Updated id_generators: resource=%s, max_id=%d", g.Resource, g.MaxID)
-			}
-		} else {
-			// Insert new record
-			if err := m.targetDB.Table("id_generators").Create(map[string]interface{}{
-				"resource":   g.Resource,
-				"max_id":     g.MaxID,
-				"updated_at": time.Now(),
-			}).Error; err != nil {
-				log.Printf("Warning: failed to insert id_generator for resource %s: %v", g.Resource, err)
-			} else {
-				log.Printf("  Inserted id_generators: resource=%s, max_id=%d", g.Resource, g.MaxID)
-			}
-		}
-	}
-
-	return nil
 }
 
 // GetSourceDB returns the source database connection
@@ -358,16 +443,12 @@ func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 		}
 	}()
 
-	// Get core tables in reverse order (to respect dependencies)
-	coreTables := m.cfg.GetTablesToMigrate()
-	reversedTables := make([]string, len(coreTables))
-	for i, t := range coreTables {
-		reversedTables[len(coreTables)-1-i] = t
-	}
+	// Use proper cleanup order
+	cleanupTables := TablesInCleanupOrder()
 
 	log.Println("Cleaning up target database...")
 
-	for _, tableName := range reversedTables {
+	for _, tableName := range cleanupTables {
 		if m.cfg.ShouldSkipTable(tableName) {
 			continue
 		}

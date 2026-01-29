@@ -38,8 +38,9 @@ type VaultMigrator struct {
 	cfg         *config.Config
 	sourceVault *vault.Client
 	targetVault *vault.Client
-	sourceDB    *gorm.DB // Source MySQL for reading KV records
-	targetDB    *gorm.DB // Target MySQL for reading migrated KV records
+	sourceDB    *gorm.DB  // Source MySQL for reading KV records
+	targetDB    *gorm.DB  // Target MySQL for reading migrated KV records
+	idMapper    *IDMapper // ID mapper from MySQL migration (sourceID -> targetID)
 }
 
 // KvRecord represents a KV record from MySQL
@@ -87,10 +88,17 @@ func NewVaultMigrator(cfg *config.Config, sourceDB, targetDB *gorm.DB) (*VaultMi
 		targetVault: targetClient,
 		sourceDB:    sourceDB,
 		targetDB:    targetDB,
+		idMapper:    nil, // Will be set before migration
 	}, nil
 }
 
-// Migrate performs the Vault KV data migration
+// SetIDMapper sets the ID mapper from MySQL migration
+// This must be called before Migrate() when using incremental migration
+func (m *VaultMigrator) SetIDMapper(mapper *IDMapper) {
+	m.idMapper = mapper
+}
+
+// Migrate performs the Vault KV data migration with ID mapping support
 func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 	startTime := time.Now()
 	result := &VaultMigrationResult{
@@ -100,7 +108,14 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	// Step 1: Migrate unreleased KV data
+	// Log migration mode
+	if m.idMapper != nil && m.idMapper.Count("applications") > 0 {
+		log.Println("Vault migration with ID mapping enabled (incremental migration mode)")
+	} else {
+		log.Println("Vault migration without ID mapping (direct path migration mode)")
+	}
+
+	// Migrate unreleased KV data
 	log.Println("Migrating unreleased KV data...")
 	kvCount, err := m.getKvRecordsCount()
 	if err != nil {
@@ -142,7 +157,7 @@ func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
 		log.Printf("  KV progress: %d/%d migrated", result.MigratedKvs, result.KvCount)
 	}
 
-	// Step 2: Migrate released KV data
+	// Migrate released KV data
 	log.Println("Migrating released KV data...")
 	releasedKvCount, err := m.getReleasedKvRecordsCount()
 	if err != nil {
@@ -246,49 +261,98 @@ func (m *VaultMigrator) getReleasedKvRecordsCount() (int64, error) {
 	return count, nil
 }
 
+// getTargetAppID returns the target app_id using ID mapper, or source app_id if no mapping
+func (m *VaultMigrator) getTargetAppID(sourceAppID uint32) uint32 {
+	if m.idMapper == nil {
+		return sourceAppID
+	}
+	if targetID := m.idMapper.Get("applications", sourceAppID); targetID != 0 {
+		return targetID
+	}
+	return sourceAppID
+}
+
+// getTargetReleaseID returns the target release_id using ID mapper, or source release_id if no mapping
+func (m *VaultMigrator) getTargetReleaseID(sourceReleaseID uint32) uint32 {
+	if m.idMapper == nil {
+		return sourceReleaseID
+	}
+	if targetID := m.idMapper.Get("releases", sourceReleaseID); targetID != 0 {
+		return targetID
+	}
+	return sourceReleaseID
+}
+
+// getSourceKvPath returns the source Vault path for a KV record
+func (m *VaultMigrator) getSourceKvPath(kv KvRecord) string {
+	return fmt.Sprintf(kvPath, kv.BizID, kv.AppID, kv.Key)
+}
+
+// getTargetKvPath returns the target Vault path for a KV record (with ID mapping)
+func (m *VaultMigrator) getTargetKvPath(kv KvRecord) string {
+	targetAppID := m.getTargetAppID(kv.AppID)
+	return fmt.Sprintf(kvPath, kv.BizID, targetAppID, kv.Key)
+}
+
+// getSourceReleasedKvPath returns the source Vault path for a released KV record
+func (m *VaultMigrator) getSourceReleasedKvPath(rkv ReleasedKvRecord) string {
+	return fmt.Sprintf(releasedKvPath, rkv.BizID, rkv.AppID, rkv.ReleaseID, rkv.Key)
+}
+
+// getTargetReleasedKvPath returns the target Vault path for a released KV record (with ID mapping)
+func (m *VaultMigrator) getTargetReleasedKvPath(rkv ReleasedKvRecord) string {
+	targetAppID := m.getTargetAppID(rkv.AppID)
+	targetReleaseID := m.getTargetReleaseID(rkv.ReleaseID)
+	return fmt.Sprintf(releasedKvPath, rkv.BizID, targetAppID, targetReleaseID, rkv.Key)
+}
+
 // migrateKv migrates a single unreleased KV from source to target Vault
+// Uses ID mapping to update the target path if available
 func (m *VaultMigrator) migrateKv(ctx context.Context, kv KvRecord) error {
-	path := fmt.Sprintf(kvPath, kv.BizID, kv.AppID, kv.Key)
+	sourcePath := m.getSourceKvPath(kv)
+	targetPath := m.getTargetKvPath(kv)
 
 	// Read from source Vault
-	secret, err := m.sourceVault.KVv2(MountPath).GetVersion(ctx, path, int(kv.Version))
+	secret, err := m.sourceVault.KVv2(MountPath).GetVersion(ctx, sourcePath, int(kv.Version))
 	if err != nil {
-		return fmt.Errorf("failed to read from source Vault: %w", err)
+		return fmt.Errorf("failed to read from source Vault path %s: %w", sourcePath, err)
 	}
 
 	if secret == nil || secret.Data == nil {
-		log.Printf("  Warning: KV %s has no data, skipping", path)
+		log.Printf("  Warning: KV %s has no data, skipping", sourcePath)
 		return nil
 	}
 
-	// Write to target Vault
-	_, err = m.targetVault.KVv2(MountPath).Put(ctx, path, secret.Data)
+	// Write to target Vault with potentially new path
+	_, err = m.targetVault.KVv2(MountPath).Put(ctx, targetPath, secret.Data)
 	if err != nil {
-		return fmt.Errorf("failed to write to target Vault: %w", err)
+		return fmt.Errorf("failed to write to target Vault path %s: %w", targetPath, err)
 	}
 
 	return nil
 }
 
 // migrateReleasedKv migrates a single released KV from source to target Vault
+// Uses ID mapping to update the target path if available
 func (m *VaultMigrator) migrateReleasedKv(ctx context.Context, rkv ReleasedKvRecord) error {
-	path := fmt.Sprintf(releasedKvPath, rkv.BizID, rkv.AppID, rkv.ReleaseID, rkv.Key)
+	sourcePath := m.getSourceReleasedKvPath(rkv)
+	targetPath := m.getTargetReleasedKvPath(rkv)
 
 	// Read from source Vault
-	secret, err := m.sourceVault.KVv2(MountPath).GetVersion(ctx, path, int(rkv.Version))
+	secret, err := m.sourceVault.KVv2(MountPath).GetVersion(ctx, sourcePath, int(rkv.Version))
 	if err != nil {
-		return fmt.Errorf("failed to read from source Vault: %w", err)
+		return fmt.Errorf("failed to read from source Vault path %s: %w", sourcePath, err)
 	}
 
 	if secret == nil || secret.Data == nil {
-		log.Printf("  Warning: Released KV %s has no data, skipping", path)
+		log.Printf("  Warning: Released KV %s has no data, skipping", sourcePath)
 		return nil
 	}
 
-	// Write to target Vault
-	_, err = m.targetVault.KVv2(MountPath).Put(ctx, path, secret.Data)
+	// Write to target Vault with potentially new path
+	_, err = m.targetVault.KVv2(MountPath).Put(ctx, targetPath, secret.Data)
 	if err != nil {
-		return fmt.Errorf("failed to write to target Vault: %w", err)
+		return fmt.Errorf("failed to write to target Vault path %s: %w", targetPath, err)
 	}
 
 	return nil
@@ -389,26 +453,28 @@ func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
 }
 
 // deleteKv deletes a single unreleased KV from target Vault
+// Uses ID mapping for the target path
 func (m *VaultMigrator) deleteKv(ctx context.Context, kv KvRecord) error {
-	path := fmt.Sprintf(kvPath, kv.BizID, kv.AppID, kv.Key)
+	targetPath := m.getTargetKvPath(kv)
 
 	// Delete all versions and metadata
-	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)
+	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, targetPath)
 	if err != nil {
-		return fmt.Errorf("failed to delete from target Vault: %w", err)
+		return fmt.Errorf("failed to delete from target Vault path %s: %w", targetPath, err)
 	}
 
 	return nil
 }
 
 // deleteReleasedKv deletes a single released KV from target Vault
+// Uses ID mapping for the target path
 func (m *VaultMigrator) deleteReleasedKv(ctx context.Context, rkv ReleasedKvRecord) error {
-	path := fmt.Sprintf(releasedKvPath, rkv.BizID, rkv.AppID, rkv.ReleaseID, rkv.Key)
+	targetPath := m.getTargetReleasedKvPath(rkv)
 
 	// Delete all versions and metadata
-	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, path)
+	err := m.targetVault.KVv2(MountPath).DeleteMetadata(ctx, targetPath)
 	if err != nil {
-		return fmt.Errorf("failed to delete from target Vault: %w", err)
+		return fmt.Errorf("failed to delete from target Vault path %s: %w", targetPath, err)
 	}
 
 	return nil

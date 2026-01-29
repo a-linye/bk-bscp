@@ -127,15 +127,12 @@ func applyBizIDsFlag() error {
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
-	Short: "Run data migration",
-	Long:  `Migrate data from source environment to target environment.`,
-}
+	Short: "Run data migration (MySQL + Vault)",
+	Long: `Migrate data from source environment to target environment.
 
-// migrateMySQLCmd migrates only MySQL data
-var migrateMySQLCmd = &cobra.Command{
-	Use:   "mysql",
-	Short: "Migrate MySQL data only",
-	Long:  `Migrate MySQL data from source to target database with tenant_id population.`,
+This command migrates:
+- MySQL data with tenant_id population
+- Vault KV data via API (if configured)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if cfg == nil {
 			fmt.Println("Error: configuration not loaded")
@@ -154,84 +151,7 @@ var migrateMySQLCmd = &cobra.Command{
 		}
 		defer m.Close()
 
-		report, err := m.RunMySQL()
-		if err != nil {
-			fmt.Printf("Error during migration: %v\n", err)
-		}
-
-		m.PrintReport(report)
-
-		if !report.Success {
-			os.Exit(1)
-		}
-	},
-}
-
-// migrateVaultCmd migrates only Vault data
-var migrateVaultCmd = &cobra.Command{
-	Use:   "vault",
-	Short: "Migrate Vault KV data only",
-	Long:  `Migrate Vault KV data from source to target Vault via API.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if cfg == nil {
-			fmt.Println("Error: configuration not loaded")
-			os.Exit(1)
-		}
-
-		if err := applyBizIDsFlag(); err != nil {
-			fmt.Printf("Error parsing biz-ids: %v\n", err)
-			os.Exit(1)
-		}
-
-		if cfg.Source.Vault.Address == "" || cfg.Target.Vault.Address == "" {
-			fmt.Println("Error: Vault configuration is required for vault migration")
-			os.Exit(1)
-		}
-
-		m, err := migrator.NewMigrator(cfg)
-		if err != nil {
-			fmt.Printf("Error creating migrator: %v\n", err)
-			os.Exit(1)
-		}
-		defer m.Close()
-
-		report, err := m.RunVault()
-		if err != nil {
-			fmt.Printf("Error during migration: %v\n", err)
-		}
-
-		m.PrintReport(report)
-
-		if !report.Success {
-			os.Exit(1)
-		}
-	},
-}
-
-// migrateAllCmd migrates both MySQL and Vault data
-var migrateAllCmd = &cobra.Command{
-	Use:   "all",
-	Short: "Migrate all data (MySQL + Vault)",
-	Long:  `Migrate all data from source to target environment, including MySQL and Vault.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if cfg == nil {
-			fmt.Println("Error: configuration not loaded")
-			os.Exit(1)
-		}
-
-		if err := applyBizIDsFlag(); err != nil {
-			fmt.Printf("Error parsing biz-ids: %v\n", err)
-			os.Exit(1)
-		}
-
-		m, err := migrator.NewMigrator(cfg)
-		if err != nil {
-			fmt.Printf("Error creating migrator: %v\n", err)
-			os.Exit(1)
-		}
-		defer m.Close()
-
-		report, err := m.RunAll()
+		report, err := m.Run()
 		if err != nil {
 			fmt.Printf("Error during migration: %v\n", err)
 		}
@@ -339,6 +259,11 @@ WARNING: This will delete all data from the core tables in the target database!`
 			os.Exit(1)
 		}
 
+		if err := applyBizIDsFlag(); err != nil {
+			fmt.Printf("Error parsing biz-ids: %v\n", err)
+			os.Exit(1)
+		}
+
 		// Confirm before cleanup
 		if !forceCleanup {
 			if len(cfg.Migration.BizIDs) > 0 {
@@ -389,17 +314,14 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
-	// Add migrate subcommands
-	migrateCmd.AddCommand(migrateMySQLCmd)
-	migrateCmd.AddCommand(migrateVaultCmd)
-	migrateCmd.AddCommand(migrateAllCmd)
-
-	// Add migrate flags (persistent for all subcommands)
-	migrateCmd.PersistentFlags().StringVar(&bizIDs, "biz-ids", "",
+	// Add migrate flags
+	migrateCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to migrate (e.g., '1001,1002,1003'). Overrides config file setting.")
 
 	// Add cleanup flags
 	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")
+	cleanupCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
+		"Comma-separated list of business IDs to cleanup (e.g., '1001,1002,1003'). Overrides config file setting.")
 
 	// Add scan flags
 	scanCmd.Flags().BoolVarP(&scanAllTables, "all", "a", false, "Scan all tables in databases (not just configured tables)")
