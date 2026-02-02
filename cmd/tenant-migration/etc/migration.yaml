@@ -66,11 +66,3 @@ target:
   vault:
     address: "http://localhost:8200"
     token: "root-token"
-
-# Logging configuration
-# 日志配置
-log:
-  # Log level: debug, info, warn, error
-  level: "info"
-  # If true, logs to stderr
-  toStdErr: true

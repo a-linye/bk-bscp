@@ -27,7 +27,6 @@ type Config struct {
 	Migration MigrationConfig   `yaml:"migration"`
 	Source    EnvironmentConfig `yaml:"source"`
 	Target    EnvironmentConfig `yaml:"target"`
-	Log       LogConfig         `yaml:"log"`
 }
 
 // MigrationConfig contains migration-specific settings
@@ -97,14 +96,6 @@ type VaultConfig struct {
 	Token string `yaml:"token"`
 }
 
-// LogConfig contains logging configuration
-type LogConfig struct {
-	// Level is the log level (debug, info, warn, error)
-	Level string `yaml:"level"`
-	// ToStdErr if true, logs to stderr
-	ToStdErr bool `yaml:"toStdErr"`
-}
-
 // LoadConfig loads configuration from a YAML file
 func LoadConfig(filePath string) (*Config, error) {
 	data, err := os.ReadFile(filePath)
@@ -136,11 +127,6 @@ func (c *Config) setDefaults() {
 	// MySQL defaults
 	setMySQLDefaults(&c.Source.MySQL)
 	setMySQLDefaults(&c.Target.MySQL)
-
-	// Log defaults
-	if c.Log.Level == "" {
-		c.Log.Level = "info"
-	}
 }
 
 func setMySQLDefaults(m *MySQLConfig) {
