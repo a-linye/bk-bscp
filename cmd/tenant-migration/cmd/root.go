@@ -40,8 +40,7 @@ to multi-tenant environment.
 
 This tool handles:
 - MySQL data migration with tenant_id population
-- Vault KV data migration via API
-- Data validation after migration`,
+- Vault KV data migration via API`,
 }
 
 // Execute runs the root command
@@ -62,7 +61,6 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(migrateCmd)
-	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(cleanupCmd)
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(versionCmd)
@@ -157,41 +155,6 @@ This command migrates:
 		}
 
 		m.PrintReport(report)
-
-		if !report.Success {
-			os.Exit(1)
-		}
-	},
-}
-
-// validateCmd represents the validate command
-var validateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "Validate migrated data",
-	Long: `Validate that data was migrated correctly by comparing 
-source and target databases.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if cfg == nil {
-			fmt.Println("Error: configuration not loaded")
-			os.Exit(1)
-		}
-
-		m, err := migrator.NewMigrator(cfg)
-		if err != nil {
-			fmt.Printf("Error creating migrator: %v\n", err)
-			os.Exit(1)
-		}
-		defer m.Close()
-
-		report, err := m.Validate()
-		if err != nil {
-			fmt.Printf("Error during validation: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Use validator's print report
-		v := migrator.NewValidator(cfg, nil, nil)
-		v.PrintReport(report)
 
 		if !report.Success {
 			os.Exit(1)

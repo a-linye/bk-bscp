@@ -7,81 +7,76 @@ BSCP 租户迁移工具
 
 | 命令 | 功能 |
 |------|------|
-| `migrate` | 全量迁移（MySQL + Vault） |
+| `migrate` | 执行数据迁移（MySQL + Vault） |
 | `cleanup` | 清理目标数据库中的迁移数据 |
+| `scan` | 扫描源/目标数据库资产 |
 
 ## 前置准备
+
 1. 停止源环境的写入操作（避免迁移过程中数据变更）
 2. 备份目标数据库（确保可以回滚）
 3. 确认迁移机器可以访问源/目标的 MySQL 和 Vault
 4. 确认 MySQL 用户有读写权限，Vault Token 有 KV 读写权限
 5. 准备配置文件 `migration.yaml`，参考 `etc/migration.yaml` 模板
 
-## 数据迁移
+## 命令说明
 
-按顺序迁移 MySQL 数据（30张核心表）和 Vault KV 数据（如配置）：
+### migrate - 数据迁移
+
+按依赖顺序迁移 MySQL 数据（30张核心表）和 Vault KV 数据。
+
 ```bash
 # 迁移所有业务
 ./bk-bscp-tenant-migration -c migration.yaml migrate
 
-# 只迁移指定业务
+# 只迁移指定业务（推荐用于分批迁移或测试）
 ./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=100,200,300
 ```
 
-> 注意：如果配置文件中未配置 Vault，则只迁移 MySQL 数据。
+**参数说明**：
 
-### 迁移命令参数
-```
--c, --config string         配置文件路径（必填）
-    --biz-ids uint32Slice   要迁移的业务ID列表（逗号分隔，覆盖配置文件）
-```
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `-c, --config` | 是 | 配置文件路径 |
+| `--biz-ids` | 否 | 要迁移的业务ID列表（逗号分隔），覆盖配置文件设置 |
 
-## 数据清理
+> 如果配置文件中未配置 Vault，则只迁移 MySQL 数据。
 
-清理目标数据库中的迁移数据，用于迁移失败后重新执行：
+### cleanup - 数据清理
+
+清理目标数据库中的迁移数据，用于迁移失败后重新执行。
+
 ```bash
-# 清理所有数据（交互式确认）
-./bk-bscp-tenant-migration -c migration.yaml cleanup
+# 清理指定业务数据（交互式确认）
+./bk-bscp-tenant-migration -c migration.yaml cleanup --biz-ids=100,200
 
-# 只清理指定业务的数据（跳过确认）
+# 跳过确认直接清理
 ./bk-bscp-tenant-migration -c migration.yaml cleanup --biz-ids=100,200 -f
 ```
 
-### 清理命令参数
-```
--c, --config string         配置文件路径（必填）
--f, --force                 跳过确认提示
-    --biz-ids uint32Slice   要清理的业务ID列表（逗号分隔，覆盖配置文件）
-```
+**参数说明**：
 
-## 按业务维度迁移
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `-c, --config` | 是 | 配置文件路径 |
+| `-f, --force` | 否 | 跳过确认提示 |
+| `--biz-ids` | 否 | 要清理的业务ID列表（逗号分隔），覆盖配置文件设置 |
 
-支持只迁移指定业务（biz_id）的数据，有两种方式指定业务ID：
+### scan - 资产扫描
 
-**方式一：通过命令行参数（推荐）**
+扫描源/目标数据库的表和记录数，用于迁移前后对比验证。
+
 ```bash
-./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=100,200,300
+# 扫描配置的迁移表
+./bk-bscp-tenant-migration -c migration.yaml scan
+
+# 扫描数据库中所有表
+./bk-bscp-tenant-migration -c migration.yaml scan --all
 ```
-
-**方式二：通过配置文件**
-```yaml
-migration:
-  target_tenant_id: "your_tenant_id"
-  biz_ids:
-    - 100
-    - 200
-    - 300
-```
-
-> 注意：命令行参数 `--biz-ids` 会覆盖配置文件中的 `biz_ids` 设置。
-
-**适用场景**：
-- 分批迁移大量业务数据
-- 只迁移部分测试业务进行验证
-- 针对特定业务进行数据回滚和重新迁移
 
 ## 配置文件说明
-配置文件使用 YAML 格式，主要配置项：
+
+配置文件使用 YAML 格式，完整示例见 `etc/migration.yaml`。
 
 | 配置项 | 必填 | 说明 |
 |--------|------|------|
@@ -94,25 +89,63 @@ migration:
 | `target.mysql.*` | 是 | 目标 MySQL 连接配置 |
 | `target.vault.*` | 否 | 目标 Vault 配置（迁移 Vault 时必填） |
 
-完整配置示例见 `etc/migration.yaml`。
+## 典型使用场景
 
-## 迁移后工作
+### 场景一：全量迁移
 
-迁移完成后，需要进行以下配置调整：
+迁移所有业务数据到新环境：
+
+```bash
+./bk-bscp-tenant-migration -c migration.yaml migrate
+```
+
+### 场景二：分批迁移
+
+当业务数据量较大时，建议分批迁移：
+
+```bash
+# 第一批
+./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=100,101,102
+
+# 第二批
+./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=200,201,202
+```
+
+### 场景三：测试验证
+
+先迁移少量业务进行验证：
+
+```bash
+# 迁移测试业务
+./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=100
+
+# 验证无误后，继续迁移其他业务
+./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=200,300
+```
+
+### 场景四：迁移失败重试
+
+如果迁移过程中出现问题，需要重新迁移：
+
+```bash
+# 清理已迁移的数据
+./bk-bscp-tenant-migration -c migration.yaml cleanup --biz-ids=100 -f
+
+# 重新迁移
+./bk-bscp-tenant-migration -c migration.yaml migrate --biz-ids=100
+```
+
+## 业务侧配合事项
+
+迁移完成后，需要通知业务侧进行以下配置调整：
 
 ### 1. 更新客户端 Feed-Server 地址
 
-迁移到多租户环境后，客户端需要更新 Feed-Server 的连接地址：
+客户端需要更新 Feed-Server 连接地址为：`bscp-feed.sg.bk2game.com`
 
-| 配置项 | 新地址 |
-|--------|--------|
-| Feed-Server | `bscp-feed.sg.bk2game.com` |
+详细配置方法请参考：[BSCP 客户端配置指南](https://iwiki.woa.com/p/4008897780)
 
-**配置方式**：
-- 修改客户端配置中的 Feed-Server 监听地址
-- 详细配置方法请参考客户端配置文档：[BSCP 客户端配置指南](https://iwiki.woa.com/p/4008897780)
-
-### 2. 验证迁移结果
+### 2. 验证配置拉取
 
 1. 确认客户端能够正常连接新的 Feed-Server
 2. 验证配置拉取功能正常

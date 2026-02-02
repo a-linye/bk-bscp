@@ -27,7 +27,6 @@ type Migrator struct {
 	cfg           *config.Config
 	mysqlMigrator *MySQLMigrator
 	vaultMigrator *VaultMigrator
-	validator     *Validator
 	scanner       *Scanner
 }
 
@@ -81,14 +80,12 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		}
 	}
 
-	validator := NewValidator(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
 	scanner := NewScanner(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
 
 	return &Migrator{
 		cfg:           cfg,
 		mysqlMigrator: mysqlMigrator,
 		vaultMigrator: vaultMigrator,
-		validator:     validator,
 		scanner:       scanner,
 	}, nil
 }
@@ -156,11 +153,6 @@ func (m *Migrator) Run() (*MigrationReport, error) {
 
 	log.Printf("Full migration completed in %v\n", report.Duration)
 	return report, nil
-}
-
-// Validate runs validation on migrated data
-func (m *Migrator) Validate() (*ValidationReport, error) {
-	return m.validator.Validate()
 }
 
 // Scan performs asset scanning on source and target databases (configured tables only)
