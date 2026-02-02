@@ -95,3 +95,25 @@ migration:
 | `target.vault.*` | 否 | 目标 Vault 配置（迁移 Vault 时必填） |
 
 完整配置示例见 `etc/migration.yaml`。
+
+## 迁移后工作
+
+迁移完成后，需要进行以下配置调整：
+
+### 1. 更新客户端 Feed-Server 地址
+
+迁移到多租户环境后，客户端需要更新 Feed-Server 的连接地址：
+
+| 配置项 | 新地址 |
+|--------|--------|
+| Feed-Server | `bscp-feed.sg.bk2game.com` |
+
+**配置方式**：
+- 修改客户端配置中的 Feed-Server 监听地址
+- 详细配置方法请参考客户端配置文档：[BSCP 客户端配置指南](https://iwiki.woa.com/p/4008897780)
+
+### 2. 验证迁移结果
+
+1. 确认客户端能够正常连接新的 Feed-Server
+2. 验证配置拉取功能正常
+3. 检查业务配置数据完整性

@@ -24,12 +24,10 @@ import (
 
 // Config is the main configuration for tenant migration
 type Config struct {
-	Migration  MigrationConfig   `yaml:"migration"`
-	Source     EnvironmentConfig `yaml:"source"`
-	Target     EnvironmentConfig `yaml:"target"`
-	Tables     []string          `yaml:"tables"`      // Tables to migrate (if empty, use default CoreTables)
-	SkipTables []string          `yaml:"skip_tables"` // Tables to skip during migration
-	Log        LogConfig         `yaml:"log"`
+	Migration MigrationConfig   `yaml:"migration"`
+	Source    EnvironmentConfig `yaml:"source"`
+	Target    EnvironmentConfig `yaml:"target"`
+	Log       LogConfig         `yaml:"log"`
 }
 
 // MigrationConfig contains migration-specific settings
@@ -142,11 +140,6 @@ func (c *Config) setDefaults() {
 	// Log defaults
 	if c.Log.Level == "" {
 		c.Log.Level = "info"
-	}
-
-	// Default skip tables
-	if len(c.SkipTables) == 0 {
-		c.SkipTables = DefaultSkipTables()
 	}
 }
 
@@ -302,7 +295,7 @@ func CoreTables() []string {
 
 // ShouldSkipTable checks if a table should be skipped during migration
 func (c *Config) ShouldSkipTable(tableName string) bool {
-	for _, skip := range c.SkipTables {
+	for _, skip := range DefaultSkipTables() {
 		if skip == tableName {
 			return true
 		}
@@ -311,10 +304,6 @@ func (c *Config) ShouldSkipTable(tableName string) bool {
 }
 
 // GetTablesToMigrate returns the list of tables to migrate
-// If Tables is configured, use it; otherwise use default CoreTables
 func (c *Config) GetTablesToMigrate() []string {
-	if len(c.Tables) > 0 {
-		return c.Tables
-	}
 	return CoreTables()
 }
