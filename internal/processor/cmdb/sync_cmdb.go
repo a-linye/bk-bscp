@@ -101,7 +101,6 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 			setTemplateIDs = append(setTemplateIDs, set.SetTemplateID)
 		}
 	}
-
 	listHosts, err := s.fetchAllHostsBySetTemplate(ctx, setTemplateIDs)
 	if err != nil {
 		return fmt.Errorf(
