@@ -322,9 +322,17 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 			continue
 		}
 
+		// 构建 processID -> ProcessTemplateID 映射
+		procTemplateIDMap := make(map[int]int)
+		for _, pi := range svc.ProcessInstances {
+			if pi.Relation != nil {
+				procTemplateIDMap[pi.Relation.BkProcessID] = pi.Relation.ProcessTemplateID
+			}
+		}
+
 		for i := range procs {
 			procs[i].HostID = svc.BkHostID
-			procs[i].ProcessTemplateID = svc.ServiceTemplateID
+			procs[i].ProcessTemplateID = procTemplateIDMap[procs[i].ID]
 		}
 
 		moduleSvcMap[svc.BkModuleID] = append(
