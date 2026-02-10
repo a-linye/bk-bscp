@@ -35,17 +35,19 @@ import (
 
 // SyncCMDBService 同步cmdb
 type syncCMDBService struct {
-	bizID int
-	svc   bkcmdb.Service
-	dao   dao.Set
+	tenantID string
+	bizID    int
+	svc      bkcmdb.Service
+	dao      dao.Set
 }
 
-// NewSyncCMDBService 初始化同步cmdb
-func NewSyncCMDBService(bizID int, svc bkcmdb.Service, dao dao.Set) *syncCMDBService {
+// NewSyncCMDBService 初始化同步cmdb（多租户：tenantID 为空时按单租户 "default" 处理）
+func NewSyncCMDBService(tenantID string, bizID int, svc bkcmdb.Service, dao dao.Set) *syncCMDBService {
 	return &syncCMDBService{
-		bizID: bizID,
-		svc:   svc,
-		dao:   dao,
+		tenantID: tenantID,
+		bizID:    bizID,
+		svc:      svc,
+		dao:      dao,
 	}
 }
 
@@ -63,10 +65,13 @@ func NewSyncCMDBService(bizID int, svc bkcmdb.Service, dao dao.Set) *syncCMDBSer
 //   - 构建完整业务拓扑
 //   - 通过 SyncProcessData 统一落库
 //
-// nolint: funlen
+// nolint: funlen,gocyclo
 func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 	kt := kit.FromGrpcContext(ctx)
-	logs.Infof("[SyncSingleBiz][Start] bizID=%d", s.bizID)
+	if s.tenantID != "" {
+		kt.TenantID = s.tenantID
+	}
+	logs.Infof("[SyncSingleBiz][Start] bizID=%d tenantID=%s", s.bizID, s.tenantID)
 
 	// 1. 获取集群
 	listSets, err := s.fetchAllSets(ctx)
@@ -110,7 +115,7 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 	}
 	var hosts []Host
 	for _, h := range listHosts {
-		hosts = append(hosts, Host{ID: h.BkHostID, IP: h.BkHostInnerIP,
+		hosts = append(hosts, Host{ID: h.BkHostID, IP: h.BkHostInnerIP, IPV6: h.BkHostInnerIPV6,
 			CloudId: h.BkCloudID, AgentID: h.BkAgentID})
 	}
 
@@ -187,8 +192,12 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 		}
 	}
 
-	// 构建并立即入库
-	newProcesses := buildProcessesFromSets(s.bizID, sets)
+	// 构建并立即入库（多租户：写入时带上 tenantID）
+	tenantID := s.tenantID
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	newProcesses := buildProcessesFromSets(tenantID, s.bizID, sets)
 
 	tx := s.dao.GenQuery().Begin()
 
@@ -198,6 +207,16 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 			"[SyncSingleBiz][ListOldProcess] bizID=%d failed: %v",
 			s.bizID, err,
 		)
+	}
+	// 多租户：只处理当前租户的进程
+	if s.tenantID != "" {
+		filtered := make([]*table.Process, 0, len(oldProcesses))
+		for _, p := range oldProcesses {
+			if p != nil && p.Attachment != nil && p.Attachment.TenantID == s.tenantID {
+				filtered = append(filtered, p)
+			}
+		}
+		oldProcesses = filtered
 	}
 
 	_, err = SyncProcessData(
@@ -360,6 +379,7 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 				Fields: []string{
 					"bk_host_id",
 					"bk_host_innerip",
+					"bk_host_innerip_v6",
 					"bk_cloud_id",
 					"bk_agent_id",
 				},
@@ -374,6 +394,7 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 			hosts = append(hosts, Host{
 				ID:      h.BkHostID,
 				IP:      h.BkHostInnerIP,
+				IPV6:    h.BkHostInnerIPV6,
 				CloudId: h.BkCloudID,
 				AgentID: h.BkAgentID,
 			})
@@ -439,10 +460,16 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 		})
 	}
 
-	processBatch := buildProcessesFromSets(s.bizID, sets)
+	tenantID := s.tenantID
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	processBatch := buildProcessesFromSets(tenantID, s.bizID, sets)
 
+	kt := kit.New()
+	kt.TenantID = s.tenantID
 	tx := s.dao.GenQuery().Begin()
-	res, err := SyncProcessData(kit.New(), s.dao, tx, uint32(s.bizID), nil, processBatch)
+	res, err := SyncProcessData(kt, s.dao, tx, uint32(s.bizID), nil, processBatch)
 	if err != nil {
 		if rErr := tx.Rollback(); rErr != nil {
 			logs.Errorf("transaction rollback failed, err: %v", rErr)
@@ -453,7 +480,7 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 		return nil, err
 	}
 
-	logs.Infof("[syncCMDB] bizID=%d synced, %d processes", s.bizID, len(processBatch))
+	logs.Infof("[syncCMDB] bizID=%d tenantID=%s synced, %d processes", s.bizID, s.tenantID, len(processBatch))
 
 	return res, nil
 
@@ -471,6 +498,7 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 	}
 
 	kt := kit.New()
+	kt.TenantID = s.tenantID
 
 	// 1. 构建 newProcesses（来自事件）
 	newProcesses := make([]*table.Process, 0, len(processes))
@@ -546,10 +574,10 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 		return &SyncProcessResult{}, nil
 	}
 
-	// 开启事务并入库
+	// 开启事务并入库（kit 已带 TenantID，SyncProcessData 内按租户回填 ProcessID）
 	tx := s.dao.GenQuery().Begin()
 
-	res, err := SyncProcessData(kit.New(), s.dao, tx, uint32(s.bizID), oldProcesses, newProcesses)
+	res, err := SyncProcessData(kt, s.dao, tx, uint32(s.bizID), oldProcesses, newProcesses)
 	if err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			logs.Errorf("[UpdateProcess][ERROR] rollback failed for bizID=%d: %v", s.bizID, rbErr)
@@ -566,7 +594,7 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 		)
 	}
 
-	logs.Infof("[UpdateProcess][Success] bizID=%d process data synced, %d processes written", s.bizID, len(newProcesses))
+	logs.Infof("[UpdateProcess][Success] bizID=%d tenantID=%s process data synced, %d processes written", s.bizID, s.tenantID, len(newProcesses))
 
 	return res, nil
 
@@ -591,7 +619,10 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 //
 // 返回值：
 //   - 返回构建完成的进程列表
-func buildProcessesFromSets(bizID int, sets []Set) []*table.Process {
+func buildProcessesFromSets(tenantID string, bizID int, sets []Set) []*table.Process {
+	if tenantID == "" {
+		tenantID = "default"
+	}
 	now := time.Now()
 
 	processBatch := make([]*table.Process, 0)
@@ -628,7 +659,7 @@ func buildProcessesFromSets(bizID int, sets []Set) []*table.Process {
 
 					processBatch = append(processBatch, &table.Process{
 						Attachment: &table.ProcessAttachment{
-							TenantID:          "default",
+							TenantID:          tenantID,
 							BizID:             uint32(bizID),
 							CcProcessID:       uint32(proc.ID),
 							SetID:             uint32(set.ID),
@@ -647,6 +678,7 @@ func buildProcessesFromSets(bizID int, sets []Set) []*table.Process {
 							Environment:          set.SetEnv,
 							Alias:                proc.Name,
 							InnerIP:              h.IP,
+							InnerIPV6:            h.IPV6,
 							CcSyncStatus:         table.Synced,
 							ProcessStateSyncedAt: nil,
 							SourceData:           sourceData,
@@ -763,6 +795,7 @@ func (s *syncCMDBService) fetchAllHostsBySetTemplate(ctx context.Context, setTem
 					"bk_host_id",
 					"bk_host_name",
 					"bk_host_innerip",
+					"bk_host_innerip_v6",
 					"bk_cloud_id",
 					"bk_agent_id",
 				},
@@ -1345,9 +1378,13 @@ func buildInstances(ctx *SyncContext, params *BuildInstancesParams) []*table.Pro
 		hostInstSeq := ctx.HostCounter[hostKey]
 		moduleInstSeq := ctx.ModuleCounter[modKey]
 
+		instTenantID := ctx.Kit.TenantID
+		if instTenantID == "" {
+			instTenantID = "default"
+		}
 		instances = append(instances, &table.ProcessInstance{
 			Attachment: &table.ProcessInstanceAttachment{
-				TenantID:    "default",
+				TenantID:    instTenantID,
 				BizID:       params.BizID,
 				CcProcessID: params.CcProcessID,
 			},

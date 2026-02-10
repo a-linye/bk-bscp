@@ -1751,6 +1751,8 @@ type PushProvider struct {
 
 // PushProviderConfig 推送相关的具体配置项
 type PushProviderConfig struct {
+	// Enabled 是否启用推送；默认 false 不启用；为 true 时才会校验下方参数并启用通知
+	Enabled bool `yaml:"enabled"`
 	// Host 推送服务地址
 	// 当 Type=bcs-push-manager 时必填
 	Host string `yaml:"host"`

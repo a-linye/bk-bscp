@@ -19,8 +19,61 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 )
 
+// noopService 未启用推送时的空实现，不校验参数、不发起通知
+type noopService struct{}
+
+func (noopService) CreatePushEvent(context.Context, *CreatePushEventRequest) (*CreatePushEventResponse, error) {
+	return &CreatePushEventResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) DeletePushEvent(context.Context, string, string) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) GetPushEvent(context.Context, string, string) (*GetPushEventResponse, error) {
+	return &GetPushEventResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) ListPushEvents(context.Context, string, *ListPushEventsRequest) (*ListPushEventsResponse, error) {
+	return &ListPushEventsResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) UpdatePushEvent(context.Context, string, string, *UpdatePushEventRequest) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) CreatePushWhitelist(context.Context, *CreatePushWhitelistRequest) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) DeletePushWhitelist(context.Context, string, string) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) GetPushWhitelist(context.Context, string, string) (*GetPushWhitelistResponse, error) {
+	return &GetPushWhitelistResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) ListPushWhitelists(context.Context, string, *ListPushWhitelistsRequest) (*ListPushWhitelistsResponse, error) {
+	return &ListPushWhitelistsResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) UpdatePushWhitelist(context.Context, string, string, *UpdatePushWhitelistRequest) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) CreatePushTemplate(context.Context, *CreatePushTemplateRequest) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) DeletePushTemplate(context.Context, string, string) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+func (noopService) GetPushTemplate(context.Context, string, string) (*GetPushTemplateResponse, error) {
+	return &GetPushTemplateResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) ListPushTemplates(context.Context, string, *ListPushTemplatesRequest) (*ListPushTemplatesResponse, error) {
+	return &ListPushTemplatesResponse{BaseResponse: BaseResponse{Code: 0}}, nil
+}
+func (noopService) UpdatePushTemplate(context.Context, string, string, *UpdatePushTemplateRequest) (*BaseResponse, error) {
+	return &BaseResponse{Code: 0}, nil
+}
+
 // New push manager service
+// 仅当 pushProvider.config.enabled 为 true 时校验参数并返回真实推送客户端；否则返回 noop，不校验、不推送
 func New(cfg cc.PushProvider) (Service, error) {
+	if !cfg.Config.Enabled {
+		return &noopService{}, nil
+	}
 	if cfg.Type == "bcs-push-manager" {
 		// 从 BCS 全局配置中补齐 push manager 依赖的参数
 		if cfg.Config.Host == "" {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/data-service/service"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
+	"github.com/TencentBlueKing/bk-bscp/internal/components/bkuser"
 	gsecomponents "github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/processor/cmdb"
@@ -29,6 +30,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/gse"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -84,27 +86,61 @@ func (c *cmdbResourceWatcher) Run() {
 					logs.Infof("current service instance is slave, skip sync cmdb")
 					continue
 				}
-				// 顺序监听每种资源类型
-				for _, res := range []bkcmdb.ResourceType{
-					bkcmdb.ResourceSet,
-					bkcmdb.ResourceModule,
-					bkcmdb.ResourceProcess,
-				} {
-					if err := c.watchCMDBResources(kt, res); err != nil {
-						logs.Errorf("[CMDB Watch] watch %s resource failed: %v", res.String(), err)
-					}
-				}
-
+				c.watchCMDBResourcesByTenant(kt)
 			}
 
 		}
 	}()
 }
 
+// watchCMDBResourcesByTenant 按租户监听 CMDB 资源变化
+func (c *cmdbResourceWatcher) watchCMDBResourcesByTenant(kt *kit.Kit) {
+	// 多租户模式：获取所有启用的租户并逐个监听
+	if cc.DataService().FeatureFlags.EnableMultiTenantMode {
+		tenants, err := bkuser.ListEnabledTenants(kt.Ctx)
+		if err != nil {
+			logs.Errorf("[CMDB Watch] failed to list tenants: %v", err)
+			return
+		}
+
+		if len(tenants) == 0 {
+			logs.Warnf("[CMDB Watch] no enabled tenants found")
+			return
+		}
+
+		for _, tenant := range tenants {
+			kt.TenantID = tenant.ID
+			c.watchResourcesForTenant(kt)
+		}
+		return
+	}
+
+	// 单租户模式
+	c.watchResourcesForTenant(kt)
+}
+
+// watchResourcesForTenant 为单个租户监听所有资源类型
+func (c *cmdbResourceWatcher) watchResourcesForTenant(kt *kit.Kit) {
+	// 顺序监听每种资源类型
+	for _, res := range []bkcmdb.ResourceType{
+		bkcmdb.ResourceSet,
+		bkcmdb.ResourceModule,
+		bkcmdb.ResourceProcess,
+	} {
+		if err := c.watchCMDBResources(kt, res); err != nil {
+			logs.Errorf("[CMDB Watch] tenant=%s watch %s resource failed: %v", kt.TenantID, res.String(), err)
+		}
+	}
+}
+
 // watchCMDBResources 监听并处理指定资源类型
 func (c *cmdbResourceWatcher) watchCMDBResources(kt *kit.Kit, resource bkcmdb.ResourceType) error {
 	fields := []string{}
+	// 生成带租户前缀的游标 key
 	cursorKey := fmt.Sprintf("resource:%s:cursor", resource.String())
+	if kt.TenantID != "" {
+		cursorKey = fmt.Sprintf("%s-%s", kt.TenantID, cursorKey)
+	}
 	var cursor string
 	switch resource {
 	case bkcmdb.ResourceSet:
@@ -367,7 +403,7 @@ func (c *cmdbResourceWatcher) handleProcessCreateEventsBatch(kt *kit.Kit, events
 			continue
 		}
 
-		svc := cmdb.NewSyncCMDBService(bizID, c.cmdb, c.dao)
+		svc := cmdb.NewSyncCMDBService(kt.TenantID, bizID, c.cmdb, c.dao)
 		res, err := svc.SyncByProcessIDs(kt.Ctx, procs)
 		if err != nil {
 			logs.Errorf("[CMDB][ProcessSync] create sync failed, bizID=%d, err=%v", bizID, err)
@@ -412,8 +448,6 @@ func (c *cmdbResourceWatcher) handleProcessDeleteEventsBatch(kt *kit.Kit, events
 
 	processIDsByBiz := c.collectDeleteProcessIDs(kt, processesByBiz)
 
-	fmt.Println("processIDsByBiz:", processIDsByBiz)
-
 	for bizID, procIDs := range processIDsByBiz {
 		if len(procIDs) == 0 {
 			continue
@@ -441,7 +475,7 @@ func (c *cmdbResourceWatcher) handleProcessUpdateEventsBatch(kt *kit.Kit, events
 			continue
 		}
 
-		svc := cmdb.NewSyncCMDBService(bizID, c.cmdb, c.dao)
+		svc := cmdb.NewSyncCMDBService(kt.TenantID, bizID, c.cmdb, c.dao)
 		res, err := svc.UpdateProcess(kt.Ctx, procs)
 		if err != nil {
 			logs.Errorf("[CMDB][ProcessSync] update sync failed, bizID=%d, err=%v", bizID, err)

@@ -752,7 +752,7 @@ func (e *Executor) AfterCallbackNotify(ctx context.Context, notify CallbackNotif
 
 	if err := e.sendCallbackPushEvent(ctx,
 		pushContent{
-			receivers: fmt.Sprintf("%s%s", "gc_caoqiwen", cc.G().PushProvider.Config.MailSuffix),
+			receivers: fmt.Sprintf("%s%s", task.Revision.Creator, cc.G().PushProvider.Config.MailSuffix),
 			title:     buildTitle(),
 			content:   content,
 		},
