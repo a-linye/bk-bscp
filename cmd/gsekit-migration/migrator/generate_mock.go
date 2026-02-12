@@ -130,6 +130,7 @@ type configInstRow struct {
 }
 
 // Generate queries CMDB for the configured biz and writes mock-data.sql to outputPath.
+// nolint:gocyclo
 func (g *MockGenerator) Generate(outputPath string) error {
 	ctx := context.Background()
 	bizID := g.bizID
@@ -502,7 +503,7 @@ func (g *MockGenerator) writeSQL(
 	sb.WriteString("USE `bk_gsekit`;\n\n")
 
 	// --- gsekit_process ---
-	sb.WriteString(fmt.Sprintf("-- =============================================================================\n"))
+	sb.WriteString("-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 1: gsekit_process (%d records)\n", len(procRows)))
 	sb.WriteString("-- =============================================================================\n\n")
 
@@ -551,7 +552,7 @@ func (g *MockGenerator) writeSQL(
 	}
 
 	// --- gsekit_processinst ---
-	sb.WriteString(fmt.Sprintf("\n-- =============================================================================\n"))
+	sb.WriteString("\n-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 2: gsekit_processinst (%d records)\n", len(instRows)))
 	sb.WriteString("-- =============================================================================\n\n")
 
@@ -600,7 +601,7 @@ func (g *MockGenerator) writeSQL(
 	}
 
 	// --- gsekit_configtemplate ---
-	sb.WriteString(fmt.Sprintf("\n-- =============================================================================\n"))
+	sb.WriteString("\n-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 3: gsekit_configtemplate (%d records)\n", len(configTpls)))
 	sb.WriteString("-- =============================================================================\n\n")
 
@@ -640,7 +641,7 @@ func (g *MockGenerator) writeSQL(
 	}
 
 	// --- gsekit_configtemplateversion ---
-	sb.WriteString(fmt.Sprintf("\n-- =============================================================================\n"))
+	sb.WriteString("\n-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 4: gsekit_configtemplateversion (%d records)\n", len(configVers)))
 	sb.WriteString("-- =============================================================================\n\n")
 
@@ -663,7 +664,7 @@ func (g *MockGenerator) writeSQL(
 
 	sb.WriteString("\n")
 	for _, cv := range configVers {
-		sb.WriteString(fmt.Sprintf("INSERT INTO `gsekit_configtemplateversion` VALUES\n"))
+		sb.WriteString("INSERT INTO `gsekit_configtemplateversion` VALUES\n")
 		sb.WriteString(fmt.Sprintf("(%s, 'admin', %s, 'admin',\n %d, %d, %s,\n %s,\n %d, %d, %s);\n\n",
 			sqlQuote(now), sqlQuote(now), cv.ID, cv.ConfigTemplateID,
 			sqlQuote(cv.Description), sqlQuote(cv.Content),
@@ -671,7 +672,7 @@ func (g *MockGenerator) writeSQL(
 	}
 
 	// --- gsekit_configtemplatebindingrelationship ---
-	sb.WriteString(fmt.Sprintf("-- =============================================================================\n"))
+	sb.WriteString("-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 5: gsekit_configtemplatebindingrelationship (%d records)\n", len(configBinds)))
 	sb.WriteString("-- =============================================================================\n\n")
 
@@ -706,7 +707,7 @@ func (g *MockGenerator) writeSQL(
 	}
 
 	// --- gsekit_configinstance ---
-	sb.WriteString(fmt.Sprintf("\n-- =============================================================================\n"))
+	sb.WriteString("\n-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 6: gsekit_configinstance (%d records)\n", len(configInsts)))
 	sb.WriteString("-- content stored as plain text (decompressBz2 fallback handles this)\n")
 	sb.WriteString("-- =============================================================================\n\n")
@@ -733,7 +734,7 @@ func (g *MockGenerator) writeSQL(
 
 	sb.WriteString("\n")
 	for _, ci := range configInsts {
-		sb.WriteString(fmt.Sprintf("INSERT INTO `gsekit_configinstance` VALUES\n"))
+		sb.WriteString("INSERT INTO `gsekit_configinstance` VALUES\n")
 		sb.WriteString(fmt.Sprintf("(%d, %d, %d, %d, %d,\n %s,\n %s, %d, %d,\n %s,\n %s, %s, 'admin', %s);\n\n",
 			ci.ID, ci.ConfigVersionID, ci.ConfigTemplateID, ci.BkProcessID, ci.InstID,
 			sqlQuote(ci.Content), sqlQuote(ci.Path), ci.IsLatest, ci.IsReleased,
