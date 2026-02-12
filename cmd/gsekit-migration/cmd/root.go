@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	cfgFile        string
-	cfg            *config.Config
-	bizIDs         string
-	forceCleanup   bool
-	mockOutput     string
-	maxProcesses   int
+	cfgFile      string
+	cfg          *config.Config
+	bizIDs       string
+	forceCleanup bool
+	mockOutput   string
+	maxProcesses int
 )
 
 // rootCmd represents the base command
