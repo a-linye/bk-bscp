@@ -101,11 +101,15 @@ func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, erro
 		}
 
 		if err := m.targetDB.Exec(
-			"INSERT INTO template_sets (id, name, memo, template_ids, public, bound_apps, biz_id, template_space_id, tenant_id, creator, reviser, created_at, updated_at) "+
+			"INSERT INTO template_sets "+
+				"(id, name, memo, template_ids, public, bound_apps, "+
+				"biz_id, template_space_id, tenant_id, "+
+				"creator, reviser, created_at, updated_at) "+
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			setID, spaceName, "GSEKit migration default template set",
 			"[]", false, "[]",
-			bizID, spaceID, tenantID, "gsekit-migration", "gsekit-migration", now, now,
+			bizID, spaceID, tenantID,
+			"gsekit-migration", "gsekit-migration", now, now,
 		).Error; err != nil {
 			return nil, fmt.Errorf("insert template_set failed: %w", err)
 		}

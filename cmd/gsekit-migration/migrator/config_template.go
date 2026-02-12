@@ -75,6 +75,7 @@ func (GSEKitConfigTemplateBindingRelationship) TableName() string {
 }
 
 // migrateConfigTemplates migrates config templates from GSEKit to BSCP
+// nolint:gocyclo,funlen
 func (m *Migrator) migrateConfigTemplates() error {
 	log.Println("=== Step 4: Migrating config templates ===")
 
@@ -158,7 +159,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 				}
 
 				now := time.Now()
-				if err := m.targetDB.Exec(
+				if err = m.targetDB.Exec(
 					"INSERT INTO templates (id, name, path, memo, biz_id, template_space_id, tenant_id, "+
 						"creator, reviser, created_at, updated_at) "+
 						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -206,7 +207,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 						cosSkipped++
 					}
 
-					revisionID, err := m.idGen.NextID("template_revisions")
+					var revisionID uint32
+					revisionID, err = m.idGen.NextID("template_revisions")
 					if err != nil {
 						return fmt.Errorf("allocate template_revision id failed: %w", err)
 					}
@@ -258,9 +260,10 @@ func (m *Migrator) migrateConfigTemplates() error {
 					templateProcIDs := make([]uint32, 0)
 					instanceProcIDs := make([]uint32, 0)
 					for _, rel := range rels {
-						if rel.ProcessObjectType == "TEMPLATE" {
+						switch rel.ProcessObjectType {
+						case "TEMPLATE":
 							templateProcIDs = append(templateProcIDs, uint32(rel.ProcessObjectID))
-						} else if rel.ProcessObjectType == "INSTANCE" {
+						case "INSTANCE":
 							instanceProcIDs = append(instanceProcIDs, uint32(rel.ProcessObjectID))
 						}
 					}

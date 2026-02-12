@@ -173,9 +173,9 @@ This command migrates:
 
 // validateCmd represents the validate command
 var validateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "Validate migrated data",
-	Long:  `Validate that data was migrated correctly by comparing source and target databases.`,
+	Use:     "validate",
+	Short:   "Validate migrated data",
+	Long:    `Validate that data was migrated correctly by comparing source and target databases.`,
 	PreRunE: requireConfig,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := applyBizIDsFlag(); err != nil {

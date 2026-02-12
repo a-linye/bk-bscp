@@ -41,13 +41,13 @@ type CMDBClient interface {
 
 // CMDBServiceInstance holds service instance detail returned by list_service_instance_detail API.
 type CMDBServiceInstance struct {
-	ID                int                    `json:"id"`
-	Name              string                 `json:"name"`
-	BkBizID           int                    `json:"bk_biz_id"`
-	BkModuleID        int                    `json:"bk_module_id"`
-	ServiceTemplateID int                    `json:"service_template_id"`
-	BkHostID          int                    `json:"bk_host_id"`
-	ProcessInstances  []CMDBProcessInstance  `json:"process_instances"`
+	ID                int                   `json:"id"`
+	Name              string                `json:"name"`
+	BkBizID           int                   `json:"bk_biz_id"`
+	BkModuleID        int                   `json:"bk_module_id"`
+	ServiceTemplateID int                   `json:"service_template_id"`
+	BkHostID          int                   `json:"bk_host_id"`
+	ProcessInstances  []CMDBProcessInstance `json:"process_instances"`
 }
 
 // CMDBProcessInstance holds a single process instance within a service instance.
@@ -189,7 +189,7 @@ func (c *realCMDBClient) ListServiceInstanceDetail(ctx context.Context, bizID ui
 		batch := svcInstIDs[start:end]
 
 		reqBody := map[string]interface{}{
-			"bk_biz_id":           bizID,
+			"bk_biz_id":            bizID,
 			"service_instance_ids": batch,
 			"page": map[string]interface{}{
 				"start": 0,
