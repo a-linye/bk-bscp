@@ -14,6 +14,7 @@ package migrator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -115,8 +116,21 @@ func (m *Migrator) migrateProcesses() error {
 
 			// CMDB enrichment: use ListServiceInstanceDetail to get host_id, func_name, service_name
 			svcInstDetails, _ := m.cmdbClient.ListServiceInstanceDetail(ctx, bizID, uniqueInt64(svcInstIDs))
-			setNames, _ := m.cmdbClient.FindSetBatch(ctx, bizID, uniqueInt64(setIDs))
-			moduleNames, _ := m.cmdbClient.FindModuleBatch(ctx, bizID, uniqueInt64(moduleIDs))
+			moduleInfos, _ := m.cmdbClient.FindModuleBatch(ctx, bizID, uniqueInt64(moduleIDs))
+
+			// Collect real set IDs from module info for set name lookup
+			realSetIDs := make([]int64, 0)
+			for _, mi := range moduleInfos {
+				if mi.BkSetID > 0 {
+					realSetIDs = append(realSetIDs, int64(mi.BkSetID))
+				}
+			}
+			// Also include set IDs from gsekit_process records as fallback
+			realSetIDs = append(realSetIDs, uniqueInt64(setIDs)...)
+			setNames, _ := m.cmdbClient.FindSetBatch(ctx, bizID, uniqueInt64(realSetIDs))
+
+			// Get process details for source_data/prev_data
+			processDetails, _ := m.cmdbClient.ListProcessDetailByIds(ctx, bizID, uniqueInt64(processIDs))
 
 			// Build processID → (host_id, func_name) lookup from service instance details
 			type processEnrich struct {
@@ -174,7 +188,14 @@ func (m *Migrator) migrateProcesses() error {
 					funcName = enrich.FuncName
 				}
 				setName := setNames[p.BkSetID]
-				moduleName := moduleNames[p.BkModuleID]
+				moduleName := ""
+				if mi, ok := moduleInfos[p.BkModuleID]; ok {
+					moduleName = mi.BkModuleName
+					// Use the real set_id from module info if the gsekit record has a wrong one
+					if mi.BkSetID > 0 {
+						setName = setNames[int64(mi.BkSetID)]
+					}
+				}
 				serviceName := svcInstNameMap[p.ServiceInstanceID]
 
 				procNum := procInstCounts[p.BkProcessID]
@@ -185,6 +206,27 @@ func (m *Migrator) migrateProcesses() error {
 				svcTemplateID := uint32(0)
 				if p.ServiceTemplateID != nil {
 					svcTemplateID = uint32(*p.ServiceTemplateID)
+				}
+
+				// Build source_data from CMDB process details
+				sourceData := "{}"
+				if detail, ok := processDetails[p.BkProcessID]; ok {
+					pi := map[string]interface{}{
+						"bk_start_param_regex": detail.BkStartParamRegex,
+						"work_path":            detail.WorkPath,
+						"pid_file":             detail.PidFile,
+						"user":                 detail.User,
+						"reload_cmd":           detail.ReloadCmd,
+						"restart_cmd":          detail.RestartCmd,
+						"start_cmd":            detail.StartCmd,
+						"stop_cmd":             detail.StopCmd,
+						"face_stop_cmd":        detail.FaceStopCmd,
+						"timeout":              detail.Timeout,
+						"start_check_secs":     detail.BkStartCheckSecs,
+					}
+					if b, err := json.Marshal(pi); err == nil {
+						sourceData = string(b)
+					}
 				}
 
 				if err := m.targetDB.Exec(
@@ -200,7 +242,7 @@ func (m *Migrator) migrateProcesses() error {
 					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip,
-					"synced", procNum, funcName, "{}", "{}",
+					"synced", procNum, funcName, sourceData, sourceData,
 					"gsekit-migration", "gsekit-migration", now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
