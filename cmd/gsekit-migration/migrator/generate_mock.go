@@ -129,15 +129,35 @@ type configInstRow struct {
 	Name             string
 }
 
+// rawProcess holds extracted process data from CMDB service instances.
+type rawProcess struct {
+	BkProcessID       int
+	BkProcessName     string
+	BkFuncName        string
+	BkBizID           int
+	BkModuleID        int
+	ServiceInstanceID int
+	ServiceTemplateID int
+	ProcessTemplateID int
+	BkHostID          int
+	ProcNum           int
+}
+
+// cmdbEnrichment holds enriched data fetched from CMDB for mock generation.
+type cmdbEnrichment struct {
+	moduleSetMap   map[int]int                  // module_id → set_id
+	hostMap        map[int]*CMDBHostInfo        // host_id → host info
+	processDetails map[int64]*CMDBProcessDetail // process_id → process detail
+}
+
 // Generate queries CMDB for the configured biz and writes mock-data.sql to outputPath.
-// nolint:gocyclo
 func (g *MockGenerator) Generate(outputPath string) error {
 	ctx := context.Background()
 	bizID := g.bizID
 
 	log.Printf("Generating mock data for biz_id=%d (max_processes=%d)", bizID, g.maxProcesses)
 
-	// 1. List all service instances (paged with empty ID filter trick: pass biz_id only)
+	// 1. List all service instances
 	svcInstances, err := g.listAllServiceInstances(ctx, bizID)
 	if err != nil {
 		return fmt.Errorf("list service instances failed: %w", err)
@@ -149,18 +169,31 @@ func (g *MockGenerator) Generate(outputPath string) error {
 	}
 
 	// 2. Extract processes and collect unique IDs
-	type rawProcess struct {
-		BkProcessID       int
-		BkProcessName     string
-		BkFuncName        string
-		BkBizID           int
-		BkModuleID        int
-		ServiceInstanceID int
-		ServiceTemplateID int
-		ProcessTemplateID int
-		BkHostID          int
-		ProcNum           int
-	}
+	processes, moduleIDSet, hostIDSet, processIDSet := g.extractProcesses(svcInstances)
+	log.Printf("  Using %d processes for mock data", len(processes))
+
+	// 3. Enrich from CMDB
+	enrichment := g.enrichFromCMDB(ctx, bizID, moduleIDSet, hostIDSet, processIDSet)
+
+	// 4. Build gsekit_process rows
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // nolint:gosec
+	procRows := g.buildProcessRows(processes, enrichment, rng)
+
+	// 5. Build gsekit_processinst rows
+	instRows := g.buildProcessInstRows(procRows, rng)
+
+	// 6. Build config data
+	configTpls, configVers, configBinds, configInsts := g.buildConfigData(procRows)
+
+	// 7. Write SQL
+	log.Printf("  Writing SQL to %s", outputPath)
+	return g.writeSQL(outputPath, procRows, instRows, configTpls, configVers, configBinds, configInsts)
+}
+
+// extractProcesses extracts raw processes from service instances and collects unique IDs.
+// nolint:gocyclo
+func (g *MockGenerator) extractProcesses(svcInstances []*CMDBServiceInstance) (
+	[]rawProcess, map[int64]bool, map[int64]bool, map[int64]bool) {
 
 	var processes []rawProcess
 	moduleIDSet := make(map[int64]bool)
@@ -197,7 +230,6 @@ func (g *MockGenerator) Generate(outputPath string) error {
 	// Cap at maxProcesses
 	if len(processes) > g.maxProcesses {
 		processes = processes[:g.maxProcesses]
-		// Recalculate ID sets
 		moduleIDSet = make(map[int64]bool)
 		hostIDSet = make(map[int64]bool)
 		processIDSet = make(map[int64]bool)
@@ -208,33 +240,29 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		}
 	}
 
-	log.Printf("  Using %d processes for mock data", len(processes))
+	return processes, moduleIDSet, hostIDSet, processIDSet
+}
 
-	// 3. Enrich from CMDB
+// enrichFromCMDB fetches module, host, and process details from CMDB.
+func (g *MockGenerator) enrichFromCMDB(ctx context.Context, bizID uint32,
+	moduleIDSet, hostIDSet, processIDSet map[int64]bool) cmdbEnrichment {
+
 	moduleIDs := mapKeys(moduleIDSet)
 	hostIDs := mapKeys(hostIDSet)
 	processIDs := mapKeys(processIDSet)
 
-	// We need set IDs — derive from module → set mapping via FindModuleBatch (which returns bk_set_id).
 	moduleInfos, _ := g.cmdbClient.FindModuleBatch(ctx, bizID, moduleIDs)
 
-	// Build module_id → set_id mapping and collect real set IDs
-	moduleSetMap := make(map[int]int) // module_id → set_id
-	setIDSet := make(map[int64]bool)
+	moduleSetMap := make(map[int]int)
 	for _, mi := range moduleInfos {
 		if mi.BkSetID > 0 {
 			moduleSetMap[mi.BkModuleID] = mi.BkSetID
-			setIDSet[int64(mi.BkSetID)] = true
 		}
 	}
 
-	// Get hosts
 	allHosts, _ := g.cmdbClient.ListBizHosts(ctx, bizID)
-
-	// Get process details
 	processDetails, _ := g.cmdbClient.ListProcessDetailByIds(ctx, bizID, processIDs)
 
-	// Build host lookup (only for hosts we care about)
 	hostMap := make(map[int]*CMDBHostInfo)
 	for _, hid := range hostIDs {
 		if h, ok := allHosts[hid]; ok {
@@ -242,26 +270,25 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		}
 	}
 
-	// Fetch set names for the real set IDs
-	setNames := make(map[int64]string)
-	if len(setIDSet) > 0 {
-		fetchedSets, _ := g.cmdbClient.FindSetBatch(ctx, bizID, mapKeys(setIDSet))
-		for k, v := range fetchedSets {
-			setNames[k] = v
-		}
+	return cmdbEnrichment{
+		moduleSetMap:   moduleSetMap,
+		hostMap:        hostMap,
+		processDetails: processDetails,
 	}
+}
 
-	// 4. Build gsekit_process rows
-	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // nolint:gosec
+// buildProcessRows builds gsekit_process rows from raw processes and CMDB enrichment.
+func (g *MockGenerator) buildProcessRows(processes []rawProcess,
+	enrichment cmdbEnrichment, rng *rand.Rand) []processRow {
+
+	bizID := g.bizID
 	var procRows []processRow
-	hostNumCounter := 0
 
 	for _, p := range processes {
-		hostNumCounter++
 		ip := ""
 		cloudID := 0
 		agentID := ""
-		if h, ok := hostMap[p.BkHostID]; ok {
+		if h, ok := enrichment.hostMap[p.BkHostID]; ok {
 			ip = h.BkHostInnerIP
 			cloudID = h.BkCloudID
 			agentID = h.BkAgentID
@@ -280,7 +307,7 @@ func (g *MockGenerator) Generate(outputPath string) error {
 
 		procNum := p.ProcNum
 		if procNum <= 0 {
-			if detail, ok := processDetails[int64(p.BkProcessID)]; ok && detail.ProcNum > 0 {
+			if detail, ok := enrichment.processDetails[int64(p.BkProcessID)]; ok && detail.ProcNum > 0 {
 				procNum = detail.ProcNum
 			} else {
 				procNum = 1
@@ -289,9 +316,8 @@ func (g *MockGenerator) Generate(outputPath string) error {
 
 		expression := fmt.Sprintf("%s:%d:%s", ip, cloudID, p.BkProcessName)
 
-		// Get real set_id from module info
 		realSetID := 0
-		if sid, ok := moduleSetMap[p.BkModuleID]; ok {
+		if sid, ok := enrichment.moduleSetMap[p.BkModuleID]; ok {
 			realSetID = sid
 		}
 
@@ -316,7 +342,12 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		})
 	}
 
-	// 5. Build gsekit_processinst rows
+	return procRows
+}
+
+// buildProcessInstRows builds gsekit_processinst rows from process rows.
+func (g *MockGenerator) buildProcessInstRows(procRows []processRow, rng *rand.Rand) []processInstRow {
+	bizID := g.bizID
 	var instRows []processInstRow
 	instIDCounter := 0
 
@@ -324,8 +355,6 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		for instIdx := 1; instIdx <= pr.ProcNum; instIdx++ {
 			instIDCounter++
 			procStatus := rng.Intn(3)
-			isAuto := pr.IsAuto
-
 			uniqKey := fmt.Sprintf("%s:%d:%s:%d", pr.BkHostInnerip, pr.BkCloudID, pr.BkProcessName, instIdx)
 
 			instRows = append(instRows, processInstRow{
@@ -339,7 +368,7 @@ func (g *MockGenerator) Generate(outputPath string) error {
 				BkProcessName:      pr.BkProcessName,
 				InstID:             instIdx,
 				ProcessStatus:      procStatus,
-				IsAuto:             isAuto,
+				IsAuto:             pr.IsAuto,
 				LocalInstID:        instIdx,
 				LocalInstIDUniqKey: uniqKey,
 				ProcNum:            pr.ProcNum,
@@ -349,10 +378,16 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		}
 	}
 
-	// 6. Build synthetic config template/version/binding/instance data
-	//    Use real process IDs to create a small config template referencing them.
+	return instRows
+}
 
-	// Create one config template per unique process name
+// buildConfigData builds synthetic config template, version, binding, and instance data.
+func (g *MockGenerator) buildConfigData(procRows []processRow) (
+	[]configTplRow, []configVerRow, []configBindRow, []configInstRow) {
+
+	bizID := g.bizID
+
+	// Collect unique process names in order
 	processNameSet := make(map[string]bool)
 	var uniqueProcessNames []string
 	for _, pr := range procRows {
@@ -366,10 +401,7 @@ func (g *MockGenerator) Generate(outputPath string) error {
 	var configVers []configVerRow
 	var configBinds []configBindRow
 	var configInsts []configInstRow
-	tplID := 0
-	verID := 0
-	bindID := 0
-	instID := 0
+	tplID, verID, bindID, instID := 0, 0, 0, 0
 
 	for _, pname := range uniqueProcessNames {
 		tplID++
@@ -377,66 +409,40 @@ func (g *MockGenerator) Generate(outputPath string) error {
 		absPath := "/etc/" + pname
 
 		configTpls = append(configTpls, configTplRow{
-			ID:           tplID,
-			BkBizID:      bizID,
-			TemplateName: pname + "_config",
-			FileName:     fileName,
-			AbsPath:      absPath,
-			Owner:        "root",
-			Group:        "root",
-			Filemode:     "0644",
+			ID: tplID, BkBizID: bizID, TemplateName: pname + "_config",
+			FileName: fileName, AbsPath: absPath, Owner: "root", Group: "root", Filemode: "0644",
 		})
 
-		// One active version
 		verID++
 		content := fmt.Sprintf("# Config for %s\n# Auto-generated mock data\nkey = value\n", pname)
 		configVers = append(configVers, configVerRow{
-			ID:               verID,
-			ConfigTemplateID: tplID,
-			Description:      "mock version",
-			Content:          content,
-			IsDraft:          0,
-			IsActive:         1,
-			FileFormat:       "python",
+			ID: verID, ConfigTemplateID: tplID, Description: "mock version",
+			Content: content, IsDraft: 0, IsActive: 1, FileFormat: "python",
 		})
 
 		activeVerID := verID
 
-		// Bind template to matching processes and create instances
 		for _, pr := range procRows {
 			if pr.BkProcessName != pname {
 				continue
 			}
 			bindID++
 			configBinds = append(configBinds, configBindRow{
-				ID:                bindID,
-				BkBizID:           bizID,
-				ConfigTemplateID:  tplID,
-				ProcessObjectType: "INSTANCE",
-				ProcessObjectID:   pr.BkProcessID,
+				ID: bindID, BkBizID: bizID, ConfigTemplateID: tplID,
+				ProcessObjectType: "INSTANCE", ProcessObjectID: pr.BkProcessID,
 			})
 
 			instID++
 			configInsts = append(configInsts, configInstRow{
-				ID:               instID,
-				ConfigVersionID:  activeVerID,
-				ConfigTemplateID: tplID,
-				BkProcessID:      pr.BkProcessID,
-				InstID:           1,
-				Content:          content,
-				Path:             absPath,
-				IsLatest:         1,
-				IsReleased:       1,
-				SHA256:           byteSHA256([]byte(content)),
-				Expression:       pr.Expression,
-				Name:             fileName,
+				ID: instID, ConfigVersionID: activeVerID, ConfigTemplateID: tplID,
+				BkProcessID: pr.BkProcessID, InstID: 1, Content: content, Path: absPath,
+				IsLatest: 1, IsReleased: 1, SHA256: byteSHA256([]byte(content)),
+				Expression: pr.Expression, Name: fileName,
 			})
 		}
 	}
 
-	// 7. Write SQL
-	log.Printf("  Writing SQL to %s", outputPath)
-	return g.writeSQL(outputPath, procRows, instRows, configTpls, configVers, configBinds, configInsts)
+	return configTpls, configVers, configBinds, configInsts
 }
 
 // listAllServiceInstances pages through all service instances for a biz.
@@ -460,7 +466,7 @@ func (g *MockGenerator) listAllServiceInstances(ctx context.Context, bizID uint3
 
 		var paged cmdbPagedResp[CMDBServiceInstance]
 		if err := g.cmdbClient.doRequest(
-			ctx, "POST", url, reqBody, &paged); err != nil {
+			ctx, url, reqBody, &paged); err != nil {
 			return nil, err
 		}
 
