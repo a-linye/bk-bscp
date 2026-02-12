@@ -26,10 +26,12 @@ import (
 )
 
 var (
-	cfgFile      string
-	cfg          *config.Config
-	bizIDs       string
-	forceCleanup bool
+	cfgFile        string
+	cfg            *config.Config
+	bizIDs         string
+	forceCleanup   bool
+	mockOutput     string
+	maxProcesses   int
 )
 
 // rootCmd represents the base command
@@ -65,6 +67,7 @@ func init() {
 	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(cleanupCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(generateMockCmd)
 }
 
 func initConfig() {
@@ -259,6 +262,29 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+// generateMockCmd represents the generate-mock command
+var generateMockCmd = &cobra.Command{
+	Use:   "generate-mock",
+	Short: "Generate mock-data.sql from real CMDB data",
+	Long: `Query CMDB APIs for a given business (default biz=2) and generate a realistic
+mock-data.sql file with real IPs, set/module IDs, and process details.`,
+	PreRunE: requireConfig,
+	Run: func(cmd *cobra.Command, args []string) {
+		bizID := uint32(2)
+		if len(cfg.Migration.BizIDs) > 0 {
+			bizID = cfg.Migration.BizIDs[0]
+		}
+
+		gen := migrator.NewMockGenerator(&cfg.CMDB, bizID, maxProcesses)
+		if err := gen.Generate(mockOutput); err != nil {
+			fmt.Printf("Error generating mock data: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Mock data written to %s\n", mockOutput)
+	},
+}
+
 func init() {
 	migrateCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to migrate (overrides config)")
@@ -269,4 +295,9 @@ func init() {
 	cleanupCmd.Flags().BoolVarP(&forceCleanup, "force", "f", false, "Skip confirmation prompt")
 	cleanupCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to cleanup (overrides config)")
+
+	generateMockCmd.Flags().StringVarP(&mockOutput, "output", "o", "mock-data.sql",
+		"Output path for generated SQL file")
+	generateMockCmd.Flags().IntVar(&maxProcesses, "max-processes", 20,
+		"Maximum number of processes to include in mock data")
 }
