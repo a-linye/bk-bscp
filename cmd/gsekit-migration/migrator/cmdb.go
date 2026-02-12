@@ -156,7 +156,7 @@ func NewRealCMDBClient(cfg *config.CMDBConfig) CMDBClient {
 	}
 }
 
-func (c *realCMDBClient) doRequest(ctx context.Context, method, url string, body interface{}, result interface{}) error {
+func (c *realCMDBClient) doRequest(ctx context.Context, url string, body interface{}, result interface{}) error {
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -166,7 +166,7 @@ func (c *realCMDBClient) doRequest(ctx context.Context, method, url string, body
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, reqBody)
 	if err != nil {
 		return fmt.Errorf("create request failed: %w", err)
 	}
@@ -244,7 +244,7 @@ func (c *realCMDBClient) ListServiceInstanceDetail(ctx context.Context, bizID ui
 		}
 
 		var paged cmdbPagedResp[CMDBServiceInstance]
-		if err := c.doRequest(ctx, http.MethodPost, url, reqBody, &paged); err != nil {
+		if err := c.doRequest(ctx, url, reqBody, &paged); err != nil {
 			return nil, fmt.Errorf("ListServiceInstanceDetail for biz %d failed: %w", bizID, err)
 		}
 
@@ -292,7 +292,7 @@ func (c *realCMDBClient) FindSetBatch(ctx context.Context, bizID uint32, setIDs 
 		}
 
 		var sets []CMDBSetInfo
-		if err := c.doRequest(ctx, http.MethodPost, url, reqBody, &sets); err != nil {
+		if err := c.doRequest(ctx, url, reqBody, &sets); err != nil {
 			return nil, fmt.Errorf("FindSetBatch for biz %d failed: %w", bizID, err)
 		}
 
@@ -338,7 +338,7 @@ func (c *realCMDBClient) FindModuleBatch(ctx context.Context, bizID uint32, modu
 		}
 
 		var modules []CMDBModuleInfo
-		if err := c.doRequest(ctx, http.MethodPost, url, reqBody, &modules); err != nil {
+		if err := c.doRequest(ctx, url, reqBody, &modules); err != nil {
 			return nil, fmt.Errorf("FindModuleBatch for biz %d failed: %w", bizID, err)
 		}
 
@@ -384,7 +384,7 @@ func (c *realCMDBClient) ListProcessDetailByIds(ctx context.Context, bizID uint3
 		}
 
 		var details []CMDBProcessDetail
-		if err := c.doRequest(ctx, http.MethodPost, url, reqBody, &details); err != nil {
+		if err := c.doRequest(ctx, url, reqBody, &details); err != nil {
 			return nil, fmt.Errorf("ListProcessDetailByIds for biz %d failed: %w", bizID, err)
 		}
 
@@ -419,7 +419,7 @@ func (c *realCMDBClient) ListBizHosts(ctx context.Context, bizID uint32) (
 		}
 
 		var paged cmdbPagedResp[CMDBHostInfo]
-		if err := c.doRequest(ctx, http.MethodPost, url, reqBody, &paged); err != nil {
+		if err := c.doRequest(ctx, url, reqBody, &paged); err != nil {
 			return nil, fmt.Errorf("ListBizHosts for biz %d failed: %w", bizID, err)
 		}
 
