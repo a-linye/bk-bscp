@@ -177,21 +177,13 @@ func (m *Migrator) migrateConfigTemplates() error {
 
 				// 3. Create template_revisions for EACH non-draft version
 				for _, version := range versions {
-					// Decompress content (bz2)
-					var decompressed []byte
-					decompressed, err = decompressBz2(version.Content)
-					if err != nil {
-						if m.cfg.Migration.ContinueOnError {
-							log.Printf("  Warning: decompress content failed for version %d: %v", version.ConfigVersionID, err)
-							continue
-						}
-						return fmt.Errorf("decompress content for version %d failed: %w", version.ConfigVersionID, err)
-					}
+					// Template version content is stored as plain text, no decompression needed
+					content := version.Content
 
 					// Upload to repository
 					var uploadResult *UploadResult
 					if m.uploader != nil {
-						uploadResult, err = m.uploader.Upload(ctx, bizID, decompressed)
+						uploadResult, err = m.uploader.Upload(ctx, bizID, content)
 						if err != nil {
 							cosFailed++
 							if m.cfg.Migration.ContinueOnError {
@@ -203,7 +195,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 						cosUploaded++
 					} else {
 						// No uploader configured, compute hashes but skip upload
-						uploadResult = computeContentHashes(decompressed)
+						uploadResult = computeContentHashes(content)
 						cosSkipped++
 					}
 
@@ -306,19 +298,24 @@ func (m *Migrator) migrateConfigTemplates() error {
 	return nil
 }
 
-// decompressBz2 decompresses bz2 compressed data
+// decompressBz2 decompresses bz2 compressed data.
+// If the data is not bz2 compressed (no "BZh" magic header), the original data is returned as-is.
+// If the data has a bz2 header but decompression fails, an error is returned.
 func decompressBz2(data []byte) ([]byte, error) {
 	if len(data) == 0 {
 		return []byte{}, nil
 	}
 
-	// Try bz2 decompression
+	// BZ2 magic bytes: "BZh" (0x42, 0x5A, 0x68)
+	if len(data) < 3 || data[0] != 0x42 || data[1] != 0x5A || data[2] != 0x68 {
+		// Not bz2 compressed, return original data as plain text
+		return data, nil
+	}
+
 	reader := bzip2.NewReader(bytes.NewReader(data))
 	decompressed, err := io.ReadAll(reader)
 	if err != nil {
-		// If decompression fails, the data might not be compressed
-		// Return original data as-is
-		return data, err
+		return nil, fmt.Errorf("bz2 decompression failed: %w", err)
 	}
 
 	return decompressed, nil
