@@ -215,12 +215,9 @@ func (v *Validator) checkConfigInstanceCount() *ValidationCheck {
 	check := &ValidationCheck{Name: "ConfigInstance record count", Pass: true}
 
 	for _, bizID := range v.cfg.Migration.BizIDs {
-		// Source: count is_latest=true instances for processes in this biz
+		// Source: count latest released instances (max id per group where is_released=true)
 		var sourceCount int64
-		if err := v.sourceDB.Raw(
-			"SELECT COUNT(*) FROM gsekit_configinstance ci "+
-				"INNER JOIN gsekit_process p ON ci.bk_process_id = p.bk_process_id "+
-				"WHERE p.bk_biz_id = ? AND ci.is_latest = ?", bizID, true).
+		if err := v.sourceDB.Raw(latestReleasedCountQuery, bizID).
 			Scan(&sourceCount).Error; err != nil {
 			check.Pass = false
 			check.Details = fmt.Sprintf("source query failed for biz %d: %v", bizID, err)
