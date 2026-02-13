@@ -145,11 +145,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 				}
 
 				if len(versions) == 0 {
-					if m.cfg.Migration.ContinueOnError {
-						log.Printf("  Warning: no non-draft versions for config_template %d, skipping", tmpl.ConfigTemplateID)
-						continue
-					}
-					return fmt.Errorf("no non-draft versions for config_template %d", tmpl.ConfigTemplateID)
+					log.Printf("  Info: config_template %d has no published versions, skipping", tmpl.ConfigTemplateID)
+					continue
 				}
 
 				// 2. Create templates record (one per ConfigTemplate)

@@ -39,7 +39,30 @@ type GSEKitConfigInstance struct {
 // TableName returns the GSEKit config instance table name
 func (GSEKitConfigInstance) TableName() string { return "gsekit_configinstance" }
 
-// migrateConfigInstances migrates config instances from GSEKit to BSCP
+// latestReleasedQuery is the SQL to find the latest released config instance
+// (max id) per (bk_process_id, config_template_id, inst_id) group,
+// filtered by is_released=true and bk_process_id belonging to a given biz.
+// This matches the GSEKit config delivery page logic (filter_released=True).
+const latestReleasedQuery = "SELECT ci.* FROM gsekit_configinstance ci " +
+	"INNER JOIN (" +
+	"  SELECT MAX(id) AS max_id FROM gsekit_configinstance " +
+	"  WHERE is_released = true AND bk_process_id IN (" +
+	"    SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?" +
+	"  ) GROUP BY bk_process_id, config_template_id, inst_id" +
+	") latest ON ci.id = latest.max_id"
+
+// latestReleasedCountQuery counts the number of latest released config instances.
+const latestReleasedCountQuery = "SELECT COUNT(*) FROM (" +
+	"  SELECT MAX(id) AS max_id FROM gsekit_configinstance " +
+	"  WHERE is_released = true AND bk_process_id IN (" +
+	"    SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?" +
+	"  ) GROUP BY bk_process_id, config_template_id, inst_id" +
+	") t"
+
+// migrateConfigInstances migrates config instances from GSEKit to BSCP.
+// Only the latest released instance (max id where is_released=true) per
+// (bk_process_id, config_template_id, inst_id) is migrated, matching the
+// GSEKit config delivery page display logic.
 func (m *Migrator) migrateConfigInstances() error {
 	log.Println("=== Step 5: Migrating config instances ===")
 
@@ -49,29 +72,12 @@ func (m *Migrator) migrateConfigInstances() error {
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing config instances for biz %d", bizID)
 
-		// We need to join with gsekit_process to filter by bk_biz_id
-		// since gsekit_configinstance doesn't have bk_biz_id directly.
-		// Instead, we use bk_process_id to filter through gsekit_process.
-		// First get all process IDs for this biz
-		var processIDs []int64
-		if err := m.sourceDB.Raw(
-			"SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?", bizID,
-		).Scan(&processIDs).Error; err != nil {
-			return fmt.Errorf("get process IDs for biz %d failed: %w", bizID, err)
-		}
-
-		if len(processIDs) == 0 {
-			log.Printf("  No processes for biz %d, skipping config instances", bizID)
-			continue
-		}
-
 		var sourceCount int64
-		if err := m.sourceDB.Model(&GSEKitConfigInstance{}).
-			Where("is_latest = ? AND bk_process_id IN ?", true, processIDs).
-			Count(&sourceCount).Error; err != nil {
-			return fmt.Errorf("count gsekit_configinstance for biz %d failed: %w", bizID, err)
+		if err := m.sourceDB.Raw(latestReleasedCountQuery, bizID).
+			Scan(&sourceCount).Error; err != nil {
+			return fmt.Errorf("count latest released config instances for biz %d failed: %w", bizID, err)
 		}
-		log.Printf("  Found %d latest config instances in GSEKit for biz %d", sourceCount, bizID)
+		log.Printf("  Found %d latest released config instances in GSEKit for biz %d", sourceCount, bizID)
 
 		if sourceCount == 0 {
 			continue
@@ -80,11 +86,10 @@ func (m *Migrator) migrateConfigInstances() error {
 		offset := 0
 		for {
 			var instances []GSEKitConfigInstance
-			if err := m.sourceDB.
-				Where("is_latest = ? AND bk_process_id IN ?", true, processIDs).
-				Offset(offset).Limit(batchSize).
-				Find(&instances).Error; err != nil {
-				return fmt.Errorf("read gsekit_configinstance batch for biz %d offset %d failed: %w",
+			if err := m.sourceDB.Raw(latestReleasedQuery+" ORDER BY ci.id LIMIT ? OFFSET ?",
+				bizID, batchSize, offset).
+				Scan(&instances).Error; err != nil {
+				return fmt.Errorf("read latest released config instances for biz %d offset %d failed: %w",
 					bizID, offset, err)
 			}
 			if len(instances) == 0 {
