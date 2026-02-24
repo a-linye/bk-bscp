@@ -26,12 +26,14 @@ import (
 )
 
 var (
-	cfgFile      string
-	cfg          *config.Config
-	bizIDs       string
-	forceCleanup bool
-	mockOutput   string
-	maxProcesses int
+	cfgFile        string
+	cfg            *config.Config
+	bizIDs         string
+	forceCleanup   bool
+	confirmMigrate bool
+	mockOutput     string
+	mockBizID      uint32
+	maxProcesses   int
 )
 
 // rootCmd represents the base command
@@ -154,6 +156,18 @@ This command migrates:
 			os.Exit(1)
 		}
 
+		if !confirmMigrate {
+			fmt.Printf("The following biz_ids will be migrated from GSEKit to BSCP: %v\n", cfg.Migration.BizIDs)
+			fmt.Printf("Source DB: %s, Target DB: %s\n",
+				cfg.Source.MySQL.Endpoints, cfg.Target.MySQL.Endpoints)
+			fmt.Print("Are you sure you want to continue? [y/N]: ")
+			var confirm string
+			if _, err := fmt.Scanln(&confirm); err != nil || (confirm != "y" && confirm != "Y") {
+				fmt.Println("Migration canceled.")
+				return
+			}
+		}
+
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
 			fmt.Printf("Error creating migrator: %v\n", err)
@@ -270,9 +284,12 @@ var generateMockCmd = &cobra.Command{
 mock-data.sql file with real IPs, set/module IDs, and process details.`,
 	PreRunE: requireConfig,
 	Run: func(cmd *cobra.Command, args []string) {
-		bizID := uint32(2)
-		if len(cfg.Migration.BizIDs) > 0 {
+		bizID := mockBizID
+		if bizID == 0 && len(cfg.Migration.BizIDs) > 0 {
 			bizID = cfg.Migration.BizIDs[0]
+		}
+		if bizID == 0 {
+			bizID = 2
 		}
 
 		gen := migrator.NewMockGenerator(&cfg.CMDB, bizID, maxProcesses)
@@ -286,6 +303,7 @@ mock-data.sql file with real IPs, set/module IDs, and process details.`,
 }
 
 func init() {
+	migrateCmd.Flags().BoolVarP(&confirmMigrate, "yes", "y", false, "Skip confirmation prompt")
 	migrateCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to migrate (overrides config)")
 
@@ -298,6 +316,8 @@ func init() {
 
 	generateMockCmd.Flags().StringVarP(&mockOutput, "output", "o", "mock-data.sql",
 		"Output path for generated SQL file")
+	generateMockCmd.Flags().Uint32Var(&mockBizID, "biz-id", 0,
+		"Business ID for mock data generation (overrides config, default 2)")
 	generateMockCmd.Flags().IntVar(&maxProcesses, "max-processes", 20,
 		"Maximum number of processes to include in mock data")
 }

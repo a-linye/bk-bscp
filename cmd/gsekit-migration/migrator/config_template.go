@@ -88,6 +88,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 	cosUploaded := 0
 	cosSkipped := 0
 	cosFailed := 0
+	bizTemplateIDs := make(map[uint32][]uint32)
 
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing config templates for biz %d", bizID)
@@ -173,6 +174,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 					return fmt.Errorf("insert template for config_template %d failed: %w", tmpl.ConfigTemplateID, err)
 				}
 				m.templateIDMap[uint32(tmpl.ConfigTemplateID)] = templateID
+				bizTemplateIDs[bizID] = append(bizTemplateIDs[bizID], templateID)
 
 				// 3. Create template_revisions for EACH non-draft version
 				for _, version := range versions {
@@ -221,7 +223,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 						revisionID, fmt.Sprintf("v%d", version.ConfigVersionID), version.Description,
 						tmpl.FileName, tmpl.AbsPath,
 						"text", "unix", tmpl.Owner, tmpl.Group, privilege,
-						uploadResult.Signature, uploadResult.ByteSize, uploadResult.Md5, "UTF-8",
+						uploadResult.Signature, uploadResult.ByteSize, uploadResult.Md5, "",
 						bizID, spaceInfo.TemplateSpaceID, templateID, m.cfg.Migration.TenantID,
 						creator, now,
 					).Error; err != nil {
@@ -290,6 +292,19 @@ func (m *Migrator) migrateConfigTemplates() error {
 			log.Printf("  Progress: %d config templates, %d revisions migrated for biz %d",
 				totalTemplates, totalRevisions, bizID)
 		}
+	}
+
+	// Update template_sets.template_ids with collected template IDs
+	for bizID, templateIDs := range bizTemplateIDs {
+		spaceInfo := m.templateSpaceMap[bizID]
+		if err := m.targetDB.Exec(
+			"UPDATE template_sets SET template_ids = ? WHERE id = ?",
+			uint32SliceToJSON(templateIDs), spaceInfo.TemplateSetID,
+		).Error; err != nil {
+			return fmt.Errorf("update template_sets.template_ids for biz %d failed: %w", bizID, err)
+		}
+		log.Printf("  Updated template_set %d with %d template_ids for biz %d",
+			spaceInfo.TemplateSetID, len(templateIDs), bizID)
 	}
 
 	logUploadStats(cosUploaded, cosSkipped, cosFailed)
