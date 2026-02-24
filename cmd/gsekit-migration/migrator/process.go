@@ -73,6 +73,8 @@ func (m *Migrator) migrateProcesses() error {
 
 	ctx := context.Background()
 	batchSize := m.cfg.Migration.BatchSize
+	creator := m.cfg.Migration.Creator
+	reviser := m.cfg.Migration.Reviser
 	totalMigrated := 0
 
 	for _, bizID := range m.cfg.Migration.BizIDs {
@@ -114,9 +116,15 @@ func (m *Migrator) migrateProcesses() error {
 				svcInstIDs = append(svcInstIDs, p.ServiceInstanceID)
 			}
 
-			// CMDB enrichment: use ListServiceInstanceDetail to get host_id, func_name, service_name
-			svcInstDetails, _ := m.cmdbClient.ListServiceInstanceDetail(ctx, bizID, uniqueInt64(svcInstIDs))
-			moduleInfos, _ := m.cmdbClient.FindModuleBatch(ctx, bizID, uniqueInt64(moduleIDs))
+			svcInstDetails, err := m.cmdbClient.ListServiceInstanceDetail(ctx, bizID, uniqueInt64(svcInstIDs))
+			if err != nil {
+				return fmt.Errorf("list service instance detail for biz %d failed: %w", bizID, err)
+			}
+
+			moduleInfos, err := m.cmdbClient.FindModuleBatch(ctx, bizID, uniqueInt64(moduleIDs))
+			if err != nil {
+				return fmt.Errorf("find module batch for biz %d failed: %w", bizID, err)
+			}
 
 			// Collect real set IDs from module info for set name lookup
 			realSetIDs := make([]int64, 0)
@@ -127,10 +135,16 @@ func (m *Migrator) migrateProcesses() error {
 			}
 			// Also include set IDs from gsekit_process records as fallback
 			realSetIDs = append(realSetIDs, uniqueInt64(setIDs)...)
-			setNames, _ := m.cmdbClient.FindSetBatch(ctx, bizID, uniqueInt64(realSetIDs))
+			setNames, err := m.cmdbClient.FindSetBatch(ctx, bizID, uniqueInt64(realSetIDs))
+			if err != nil {
+				return fmt.Errorf("find set batch for biz %d failed: %w", bizID, err)
+			}
 
 			// Get process details for source_data/prev_data
-			processDetails, _ := m.cmdbClient.ListProcessDetailByIds(ctx, bizID, uniqueInt64(processIDs))
+			processDetails, err := m.cmdbClient.ListProcessDetailByIds(ctx, bizID, uniqueInt64(processIDs))
+			if err != nil {
+				return fmt.Errorf("list process detail by ids for biz %d failed: %w", bizID, err)
+			}
 
 			// Build processID → (host_id, func_name) lookup from service instance details
 			type processEnrich struct {
@@ -232,18 +246,18 @@ func (m *Migrator) migrateProcesses() error {
 				if err := m.targetDB.Exec(
 					"INSERT INTO processes (id, tenant_id, biz_id, cc_process_id, set_id, module_id, "+
 						"service_instance_id, host_id, cloud_id, agent_id, process_template_id, service_template_id, "+
-						"set_name, module_name, service_name, environment, alias, inner_ip, "+
+						"set_name, module_name, service_name, environment, alias, inner_ip, inner_ip_v6, "+
 						"cc_sync_status, proc_num, func_name, source_data, prev_data, "+
 						"creator, reviser, created_at, updated_at) "+
-						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					newID, m.cfg.Migration.TenantID, bizID, uint32(p.BkProcessID),
 					uint32(p.BkSetID), uint32(p.BkModuleID),
 					uint32(p.ServiceInstanceID), hostID, uint32(p.BkCloudID),
 					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
-					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip,
+					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
 					"synced", procNum, funcName, sourceData, sourceData,
-					"gsekit-migration", "gsekit-migration", now, now,
+					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert process failed (bk_process_id=%d): %v", p.BkProcessID, err)
@@ -269,7 +283,8 @@ func (m *Migrator) migrateProcessInstances() error {
 
 	batchSize := m.cfg.Migration.BatchSize
 	totalMigrated := 0
-
+	creator := m.cfg.Migration.Creator
+	reviser := m.cfg.Migration.Reviser
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing process instances for biz %d", bizID)
 
@@ -333,7 +348,7 @@ func (m *Migrator) migrateProcessInstances() error {
 						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					newID, m.cfg.Migration.TenantID, bizID, processID, uint32(inst.BkProcessID),
 					inst.LocalInstID, inst.InstID, status, managedStatus, now,
-					"gsekit-migration", "gsekit-migration", now, now,
+					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert process_instance failed (id=%d): %v", inst.ID, err)
