@@ -1,6 +1,8 @@
 migration:
   multi_tenant: false
   tenant_id: "default"
+  creator: "xiaolnwang"
+  reviser: "xiaolnwang"
   biz_ids: []
   batch_size: 500
   continue_on_error: false

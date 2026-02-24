@@ -48,6 +48,8 @@ func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, erro
 	const spaceName = "config_delivery"
 	now := time.Now()
 	tenantID := m.cfg.Migration.TenantID
+	creator := m.cfg.Migration.Creator
+	reviser := m.cfg.Migration.Reviser
 
 	// Check if template_space already exists
 	var existingID uint32
@@ -73,7 +75,7 @@ func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, erro
 			"INSERT INTO template_spaces (id, name, memo, biz_id, tenant_id, creator, reviser, created_at, updated_at) "+
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			spaceID, spaceName, "GSEKit migration config delivery space",
-			bizID, tenantID, "gsekit-migration", "gsekit-migration", now, now,
+			bizID, tenantID, creator, reviser, now, now,
 		).Error
 		if err != nil {
 			return nil, fmt.Errorf("insert template_space failed: %w", err)
@@ -109,7 +111,7 @@ func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, erro
 			setID, spaceName, "GSEKit migration default template set",
 			"[]", false, "[]",
 			bizID, spaceID, tenantID,
-			"gsekit-migration", "gsekit-migration", now, now,
+			creator, reviser, now, now,
 		).Error; err != nil {
 			return nil, fmt.Errorf("insert template_set failed: %w", err)
 		}

@@ -39,6 +39,10 @@ type MigrationConfig struct {
 	MultiTenant bool `yaml:"multi_tenant"`
 	// TenantID is the target tenant ID for all migrated records
 	TenantID string `yaml:"tenant_id"`
+	// Creator is the creator of the migrated records
+	Creator string `yaml:"creator"`
+	// Reviser is the reviser of the migrated records
+	Reviser string `yaml:"reviser"`
 	// BizIDs is the list of business IDs to migrate
 	BizIDs []uint32 `yaml:"biz_ids"`
 	// BatchSize is the number of records to process in each batch
