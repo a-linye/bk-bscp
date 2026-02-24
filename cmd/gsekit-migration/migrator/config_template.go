@@ -81,6 +81,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 
 	ctx := context.Background()
 	batchSize := m.cfg.Migration.BatchSize
+	creator := m.cfg.Migration.Creator
+	reviser := m.cfg.Migration.Reviser
 	totalTemplates := 0
 	totalRevisions := 0
 	cosUploaded := 0
@@ -162,7 +164,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					templateID, tmpl.FileName, tmpl.AbsPath, "",
 					bizID, spaceInfo.TemplateSpaceID, m.cfg.Migration.TenantID,
-					"gsekit-migration", "gsekit-migration", now, now,
+					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert template failed for config_template %d: %v", tmpl.ConfigTemplateID, err)
@@ -221,7 +223,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 						"text", "unix", tmpl.Owner, tmpl.Group, privilege,
 						uploadResult.Signature, uploadResult.ByteSize, uploadResult.Md5, "UTF-8",
 						bizID, spaceInfo.TemplateSpaceID, templateID, m.cfg.Migration.TenantID,
-						"gsekit-migration", now,
+						creator, now,
 					).Error; err != nil {
 						if m.cfg.Migration.ContinueOnError {
 							log.Printf("  Warning: insert template_revision failed for version %d: %v", version.ConfigVersionID, err)
@@ -272,7 +274,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 					configTemplateID, tmpl.TemplateName, highlightStyle,
 					bizID, templateID,
 					ccTemplateProcessIDs, ccProcessIDs, m.cfg.Migration.TenantID,
-					"gsekit-migration", "gsekit-migration", now, now,
+					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert config_template failed for %d: %v", tmpl.ConfigTemplateID, err)

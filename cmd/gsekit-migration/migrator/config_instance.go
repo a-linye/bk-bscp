@@ -68,6 +68,8 @@ func (m *Migrator) migrateConfigInstances() error {
 
 	batchSize := m.cfg.Migration.BatchSize
 	totalMigrated := 0
+	creator := m.cfg.Migration.Creator
+	reviser := m.cfg.Migration.Reviser
 
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing config instances for biz %d", bizID)
@@ -148,7 +150,7 @@ func (m *Migrator) migrateConfigInstances() error {
 					newID, bizID, newConfigTemplateID, newConfigVersionID,
 					uint32(inst.BkProcessID), inst.InstID, "", m.cfg.Migration.TenantID,
 					md5Hash, contentStr,
-					"gsekit-migration", "gsekit-migration", now, now,
+					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert config_instance failed for %d: %v", inst.ID, err)
