@@ -149,11 +149,6 @@ func (c *Cleaner) cleanupTable(tableName, query string, args []interface{}) Tabl
 		Success:   true,
 	}
 
-	// Count before delete
-	var count int64
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE ", tableName)
-	// Build a simple count using the same conditions
-	// We'll just run the delete and check rows affected
 	execResult := c.targetDB.Exec(query, args...)
 	if execResult.Error != nil {
 		result.Error = fmt.Sprintf("delete failed: %v", execResult.Error)
@@ -162,10 +157,7 @@ func (c *Cleaner) cleanupTable(tableName, query string, args []interface{}) Tabl
 		return result
 	}
 
-	count = execResult.RowsAffected
-	result.DeletedCount = count
-
-	_ = countQuery // suppress unused variable
-	log.Printf("  [OK] %s: %d records deleted", tableName, count)
+	result.DeletedCount = execResult.RowsAffected
+	log.Printf("  [OK] %s: %d records deleted", tableName, result.DeletedCount)
 	return result
 }

@@ -251,7 +251,7 @@ func (g *MockGenerator) enrichFromCMDB(ctx context.Context, bizID uint32,
 	hostIDs := mapKeys(hostIDSet)
 	processIDs := mapKeys(processIDSet)
 
-	moduleInfos, _ := g.cmdbClient.FindModuleBatch(ctx, bizID, moduleIDs)
+	moduleInfos, _ := g.cmdbClient.findModuleBatchRaw(ctx, bizID, moduleIDs)
 
 	moduleSetMap := make(map[int]int)
 	for _, mi := range moduleInfos {
@@ -260,7 +260,7 @@ func (g *MockGenerator) enrichFromCMDB(ctx context.Context, bizID uint32,
 		}
 	}
 
-	allHosts, _ := g.cmdbClient.ListBizHosts(ctx, bizID)
+	allHosts, _ := g.cmdbClient.ListBizHosts(ctx, bizID, nil)
 	processDetails, _ := g.cmdbClient.ListProcessDetailByIds(ctx, bizID, processIDs)
 
 	hostMap := make(map[int]*CMDBHostInfo)
@@ -287,11 +287,9 @@ func (g *MockGenerator) buildProcessRows(processes []rawProcess,
 	for _, p := range processes {
 		ip := ""
 		cloudID := 0
-		agentID := ""
 		if h, ok := enrichment.hostMap[p.BkHostID]; ok {
 			ip = h.BkHostInnerIP
 			cloudID = h.BkCloudID
-			agentID = h.BkAgentID
 		}
 
 		setEnv := "3" // production
@@ -336,7 +334,6 @@ func (g *MockGenerator) buildProcessRows(processes []rawProcess,
 			ProcessTemplateID: p.ProcessTemplateID,
 			ProcessStatus:     procStatus,
 			IsAuto:            isAuto,
-			BkAgentID:         agentID,
 			BkHostID:          p.BkHostID,
 			ProcNum:           procNum,
 		})
@@ -346,16 +343,27 @@ func (g *MockGenerator) buildProcessRows(processes []rawProcess,
 }
 
 // buildProcessInstRows builds gsekit_processinst rows from process rows.
+// inst_id is sequential per (bk_module_id, bk_process_name) to satisfy the unique constraint.
 func (g *MockGenerator) buildProcessInstRows(procRows []processRow, rng *rand.Rand) []processInstRow {
 	bizID := g.bizID
 	var instRows []processInstRow
 	instIDCounter := 0
 
+	type moduleProcessKey struct {
+		ModuleID    int
+		ProcessName string
+	}
+	instIDByGroup := make(map[moduleProcessKey]int)
+
 	for _, pr := range procRows {
-		for instIdx := 1; instIdx <= pr.ProcNum; instIdx++ {
+		key := moduleProcessKey{pr.BkModuleID, pr.BkProcessName}
+		for i := 0; i < pr.ProcNum; i++ {
 			instIDCounter++
+			instIDByGroup[key]++
+			instID := instIDByGroup[key]
+
 			procStatus := rng.Intn(3)
-			uniqKey := fmt.Sprintf("%s:%d:%s:%d", pr.BkHostInnerip, pr.BkCloudID, pr.BkProcessName, instIdx)
+			uniqKey := fmt.Sprintf("%s:%d:%s:%d", pr.BkHostInnerip, pr.BkCloudID, pr.BkProcessName, instID)
 
 			instRows = append(instRows, processInstRow{
 				ID:                 instIDCounter,
@@ -366,10 +374,10 @@ func (g *MockGenerator) buildProcessInstRows(procRows []processRow, rng *rand.Ra
 				BkProcessID:        pr.BkProcessID,
 				BkModuleID:         pr.BkModuleID,
 				BkProcessName:      pr.BkProcessName,
-				InstID:             instIdx,
+				InstID:             instID,
 				ProcessStatus:      procStatus,
 				IsAuto:             pr.IsAuto,
-				LocalInstID:        instIdx,
+				LocalInstID:        instID,
 				LocalInstIDUniqKey: uniqKey,
 				ProcNum:            pr.ProcNum,
 				BkAgentID:          pr.BkAgentID,
@@ -515,25 +523,40 @@ func (g *MockGenerator) writeSQL(
 
 	sb.WriteString("DROP TABLE IF EXISTS `gsekit_process`;\n")
 	sb.WriteString(`CREATE TABLE ` + "`gsekit_process`" + ` (
-  ` + "`bk_biz_id`" + ` int NOT NULL,
+  ` + "`bk_biz_id`" + ` int(11) NOT NULL,
   ` + "`expression`" + ` varchar(256) NOT NULL,
   ` + "`bk_host_innerip`" + ` char(39) DEFAULT NULL,
-  ` + "`bk_cloud_id`" + ` int NOT NULL,
+  ` + "`bk_cloud_id`" + ` int(11) NOT NULL,
   ` + "`bk_set_env`" + ` varchar(4) NOT NULL,
-  ` + "`bk_set_id`" + ` int NOT NULL,
-  ` + "`bk_module_id`" + ` int NOT NULL,
-  ` + "`service_template_id`" + ` int DEFAULT NULL,
-  ` + "`service_instance_id`" + ` int NOT NULL,
+  ` + "`bk_set_id`" + ` int(11) NOT NULL,
+  ` + "`bk_module_id`" + ` int(11) NOT NULL,
+  ` + "`service_template_id`" + ` int(11) DEFAULT NULL,
+  ` + "`service_instance_id`" + ` int(11) NOT NULL,
   ` + "`bk_process_name`" + ` varchar(64) DEFAULT NULL,
-  ` + "`bk_process_id`" + ` int NOT NULL,
-  ` + "`process_template_id`" + ` int NOT NULL,
-  ` + "`process_status`" + ` int NOT NULL,
+  ` + "`bk_process_id`" + ` int(11) NOT NULL,
+  ` + "`process_template_id`" + ` int(11) NOT NULL,
+  ` + "`process_status`" + ` int(11) NOT NULL,
   ` + "`is_auto`" + ` tinyint(1) NOT NULL,
   ` + "`bk_agent_id`" + ` varchar(64) DEFAULT NULL,
   ` + "`bk_host_innerip_v6`" + ` char(39) DEFAULT NULL,
-  ` + "`bk_host_id`" + ` int NOT NULL,
-  PRIMARY KEY (` + "`bk_process_id`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+  PRIMARY KEY (` + "`bk_process_id`" + `),
+  UNIQUE KEY ` + "`gsekit_process_bk_process_id_c6f623a0_uniq`" + ` (` + "`bk_process_id`" + `),
+  KEY ` + "`gsekit_process_bk_biz_id_22f954af`" + ` (` + "`bk_biz_id`" + `),
+  KEY ` + "`gsekit_process_expression_5fe85e14`" + ` (` + "`expression`" + `),
+  KEY ` + "`gsekit_process_bk_host_innerip_04a3bf7f`" + ` (` + "`bk_host_innerip`" + `),
+  KEY ` + "`gsekit_process_bk_cloud_id_0306b5a9`" + ` (` + "`bk_cloud_id`" + `),
+  KEY ` + "`gsekit_process_bk_set_env_65d8f5fd`" + ` (` + "`bk_set_env`" + `),
+  KEY ` + "`gsekit_process_bk_set_id_fc71679a`" + ` (` + "`bk_set_id`" + `),
+  KEY ` + "`gsekit_process_bk_module_id_727beafa`" + ` (` + "`bk_module_id`" + `),
+  KEY ` + "`gsekit_process_service_template_id_948ddf2e`" + ` (` + "`service_template_id`" + `),
+  KEY ` + "`gsekit_process_service_instance_id_69e4d212`" + ` (` + "`service_instance_id`" + `),
+  KEY ` + "`gsekit_process_bk_process_name_a1a3fc55`" + ` (` + "`bk_process_name`" + `),
+  KEY ` + "`gsekit_process_process_template_id_179d2552`" + ` (` + "`process_template_id`" + `),
+  KEY ` + "`gsekit_process_process_status_38661f5c`" + ` (` + "`process_status`" + `),
+  KEY ` + "`gsekit_process_is_auto_c3dbd052`" + ` (` + "`is_auto`" + `),
+  KEY ` + "`gsekit_process_bk_agent_id_4e63d881`" + ` (` + "`bk_agent_id`" + `),
+  KEY ` + "`gsekit_process_bk_host_innerip_v6_f2f9f096`" + ` (` + "`bk_host_innerip_v6`" + `)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 `)
 
 	sb.WriteString("\n")
@@ -544,11 +567,11 @@ func (g *MockGenerator) writeSQL(
 			if pr.BkAgentID != "" {
 				agentID = sqlQuote(pr.BkAgentID)
 			}
-			sb.WriteString(fmt.Sprintf("(%d, %s, %s, %d, %s, %d, %d, %d, %d, %s, %d, %d, %d, %d, %s, NULL, %d)",
+			sb.WriteString(fmt.Sprintf("(%d, %s, %s, %d, %s, %d, %d, %d, %d, %s, %d, %d, %d, %d, %s, NULL)",
 				pr.BkBizID, sqlQuote(pr.Expression), sqlQuote(pr.BkHostInnerip), pr.BkCloudID,
 				sqlQuote(pr.BkSetEnv), pr.BkSetID, pr.BkModuleID, pr.ServiceTemplateID,
 				pr.ServiceInstanceID, sqlQuote(pr.BkProcessName), pr.BkProcessID,
-				pr.ProcessTemplateID, pr.ProcessStatus, pr.IsAuto, agentID, pr.BkHostID))
+				pr.ProcessTemplateID, pr.ProcessStatus, pr.IsAuto, agentID))
 			if i < len(procRows)-1 {
 				sb.WriteString(",\n")
 			} else {
@@ -561,29 +584,6 @@ func (g *MockGenerator) writeSQL(
 	sb.WriteString("\n-- =============================================================================\n")
 	sb.WriteString(fmt.Sprintf("-- Table 2: gsekit_processinst (%d records)\n", len(instRows)))
 	sb.WriteString("-- =============================================================================\n\n")
-
-	sb.WriteString("DROP TABLE IF EXISTS `gsekit_processinst`;\n")
-	sb.WriteString(`CREATE TABLE ` + "`gsekit_processinst`" + ` (
-  ` + "`id`" + ` bigint NOT NULL AUTO_INCREMENT,
-  ` + "`bk_biz_id`" + ` int NOT NULL,
-  ` + "`bk_host_num`" + ` int NOT NULL,
-  ` + "`bk_host_innerip`" + ` char(39) DEFAULT NULL,
-  ` + "`bk_cloud_id`" + ` int NOT NULL,
-  ` + "`bk_process_id`" + ` int NOT NULL,
-  ` + "`bk_module_id`" + ` int NOT NULL,
-  ` + "`bk_process_name`" + ` varchar(64) NOT NULL,
-  ` + "`inst_id`" + ` int NOT NULL,
-  ` + "`process_status`" + ` int NOT NULL,
-  ` + "`is_auto`" + ` tinyint(1) NOT NULL,
-  ` + "`local_inst_id`" + ` int NOT NULL,
-  ` + "`local_inst_id_uniq_key`" + ` varchar(256) NOT NULL,
-  ` + "`proc_num`" + ` int NOT NULL,
-  ` + "`bk_agent_id`" + ` varchar(64) DEFAULT NULL,
-  ` + "`bk_host_innerip_v6`" + ` char(39) DEFAULT NULL,
-  ` + "`bk_host_id`" + ` int NOT NULL,
-  PRIMARY KEY (` + "`id`" + `)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
-`)
 
 	sb.WriteString("\n")
 	if len(instRows) > 0 {
