@@ -133,6 +133,40 @@ func (m *Migrator) Close() {
 	}
 }
 
+// isBizMigrated checks whether a biz has already been migrated by looking for
+// the migration-specific template space (name="config_delivery") in the target DB.
+// This is reliable because template_spaces is always the first thing created
+// during migration and is cleaned up by the cleanup tool.
+func (m *Migrator) isBizMigrated(bizID uint32) (bool, error) {
+	var count int64
+	if err := m.targetDB.Raw(
+		"SELECT COUNT(*) FROM template_spaces WHERE biz_id = ? AND name = ? AND tenant_id = ?",
+		bizID, "config_delivery", m.cfg.Migration.TenantID).Scan(&count).Error; err != nil {
+		return false, fmt.Errorf("query template_spaces for biz %d: %w", bizID, err)
+	}
+	return count > 0, nil
+}
+
+// checkAlreadyMigrated checks all biz IDs and returns an error listing
+// which ones have already been migrated, so the user can re-check the command.
+func (m *Migrator) checkAlreadyMigrated() error {
+	var migrated []uint32
+	for _, bizID := range m.cfg.Migration.BizIDs {
+		found, err := m.isBizMigrated(bizID)
+		if err != nil {
+			return fmt.Errorf("failed to check migration status for biz %d: %w", bizID, err)
+		}
+		if found {
+			migrated = append(migrated, bizID)
+		}
+	}
+	if len(migrated) > 0 {
+		return fmt.Errorf("the following biz_ids have already been migrated: %v\n"+
+			"please remove them from biz_ids or run cleanup first, then retry", migrated)
+	}
+	return nil
+}
+
 // Run executes the full migration pipeline
 func (m *Migrator) Run() (*MigrationReport, error) {
 	report := &MigrationReport{
@@ -143,6 +177,14 @@ func (m *Migrator) Run() (*MigrationReport, error) {
 	log.Printf("Starting GSEKit to BSCP migration for biz_ids: %v", m.cfg.Migration.BizIDs)
 	log.Printf("Multi-tenant: %v, Tenant ID: %q, Batch Size: %d",
 		m.cfg.Migration.MultiTenant, m.cfg.Migration.TenantID, m.cfg.Migration.BatchSize)
+
+	// Check for already-migrated biz IDs; abort immediately if any found
+	if err := m.checkAlreadyMigrated(); err != nil {
+		report.Success = false
+		report.Errors = append(report.Errors, err.Error())
+		report.Duration = time.Since(report.StartTime)
+		return report, err
+	}
 
 	steps := []struct {
 		name string

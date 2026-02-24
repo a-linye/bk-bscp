@@ -33,14 +33,16 @@ type CMDBClient interface {
 		map[int64]*CMDBServiceInstance, error)
 	// FindSetBatch gets set names by set IDs. Returns a map of set_id → set_name.
 	FindSetBatch(ctx context.Context, bizID uint32, setIDs []int64) (map[int64]string, error)
-	// FindModuleBatch gets module info by module IDs. Returns a map of module_id → CMDBModuleInfo.
-	FindModuleBatch(ctx context.Context, bizID uint32, moduleIDs []int64) (map[int64]*CMDBModuleInfo, error)
+	// FindModuleBatch gets module names by module IDs. Returns a map of module_id → module_name.
+	FindModuleBatch(ctx context.Context, bizID uint32, moduleIDs []int64) (map[int64]string, error)
 	// ListProcessDetailByIds gets process details by process IDs.
 	// Returns a map of bk_process_id → CMDBProcessDetail.
 	ListProcessDetailByIds(ctx context.Context, bizID uint32, processIDs []int64) (
 		map[int64]*CMDBProcessDetail, error)
-	// ListBizHosts gets host info for a biz. Returns a map of bk_host_id → CMDBHostInfo.
-	ListBizHosts(ctx context.Context, bizID uint32) (map[int64]*CMDBHostInfo, error)
+	// ListBizHosts gets host info for a biz, optionally filtered by module IDs.
+	// When moduleIDs is non-empty, only hosts under those modules are returned.
+	// Returns a map of bk_host_id → CMDBHostInfo.
+	ListBizHosts(ctx context.Context, bizID uint32, moduleIDs []int64) (map[int64]*CMDBHostInfo, error)
 }
 
 // ----- CMDB response types (self-contained, independent of internal/components/bkcmdb) -----
@@ -306,11 +308,8 @@ func (c *realCMDBClient) FindSetBatch(ctx context.Context, bizID uint32, setIDs 
 	return result, nil
 }
 
-// FindModuleBatch calls find_module_batch API.
-// API: POST /api/v3/findmany/module/bk_biz_id/{bk_biz_id}
-// Request: { bk_ids, fields }
-// Response data: [ModuleInfo]
-func (c *realCMDBClient) FindModuleBatch(ctx context.Context, bizID uint32, moduleIDs []int64) (
+// findModuleBatchRaw calls find_module_batch API and returns full module info.
+func (c *realCMDBClient) findModuleBatchRaw(ctx context.Context, bizID uint32, moduleIDs []int64) (
 	map[int64]*CMDBModuleInfo, error) {
 
 	result := make(map[int64]*CMDBModuleInfo, len(moduleIDs))
@@ -350,6 +349,22 @@ func (c *realCMDBClient) FindModuleBatch(ctx context.Context, bizID uint32, modu
 
 	log.Printf("  [CMDB] FindModuleBatch: biz=%d, requested=%d, got=%d",
 		bizID, len(moduleIDs), len(result))
+	return result, nil
+}
+
+// FindModuleBatch calls find_module_batch API and returns module_id → module_name.
+func (c *realCMDBClient) FindModuleBatch(ctx context.Context, bizID uint32, moduleIDs []int64) (
+	map[int64]string, error) {
+
+	raw, err := c.findModuleBatchRaw(ctx, bizID, moduleIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int64]string, len(raw))
+	for id, mi := range raw {
+		result[id] = mi.BkModuleName
+	}
 	return result, nil
 }
 
@@ -401,40 +416,64 @@ func (c *realCMDBClient) ListProcessDetailByIds(ctx context.Context, bizID uint3
 
 // ListBizHosts calls the list biz hosts API.
 // API: POST /api/v3/hosts/app/{bk_biz_id}/list_hosts
-// Request: { page }
-// Response data: { count, info: [CMDBHostInfo] }
-func (c *realCMDBClient) ListBizHosts(ctx context.Context, bizID uint32) (
+// When moduleIDs is non-empty, adds bk_module_ids filter (max 500 per request).
+func (c *realCMDBClient) ListBizHosts(ctx context.Context, bizID uint32, moduleIDs []int64) (
 	map[int64]*CMDBHostInfo, error) {
 
 	result := make(map[int64]*CMDBHostInfo)
 	url := fmt.Sprintf("%s/api/v3/hosts/app/%d/list_hosts", c.cfg.Endpoint, bizID)
+	fields := []string{"bk_host_id", "bk_host_innerip", "bk_cloud_id", "bk_agent_id"}
 
-	start := 0
-	for {
-		reqBody := map[string]interface{}{
-			"page": map[string]interface{}{
-				"start": start,
-				"limit": maxBatchSize,
-			},
+	var moduleChunks [][]int64
+	if len(moduleIDs) > 0 {
+		for i := 0; i < len(moduleIDs); i += maxBatchSize {
+			end := i + maxBatchSize
+			if end > len(moduleIDs) {
+				end = len(moduleIDs)
+			}
+			moduleChunks = append(moduleChunks, moduleIDs[i:end])
 		}
-
-		var paged cmdbPagedResp[CMDBHostInfo]
-		if err := c.doRequest(ctx, url, reqBody, &paged); err != nil {
-			return nil, fmt.Errorf("ListBizHosts for biz %d failed: %w", bizID, err)
-		}
-
-		for i := range paged.Info {
-			host := &paged.Info[i]
-			result[int64(host.BkHostID)] = host
-		}
-
-		if len(paged.Info) < maxBatchSize {
-			break
-		}
-		start += maxBatchSize
+	} else {
+		moduleChunks = [][]int64{nil}
 	}
 
-	log.Printf("  [CMDB] ListBizHosts: biz=%d, got=%d", bizID, len(result))
+	for _, chunk := range moduleChunks {
+		start := 0
+		for {
+			reqBody := map[string]interface{}{
+				"page": map[string]interface{}{
+					"start": start,
+					"limit": maxBatchSize,
+				},
+				"fields": fields,
+			}
+			if chunk != nil {
+				bkModuleIDs := make([]int, len(chunk))
+				for i, id := range chunk {
+					bkModuleIDs[i] = int(id)
+				}
+				reqBody["bk_module_ids"] = bkModuleIDs
+			}
+
+			var paged cmdbPagedResp[CMDBHostInfo]
+			if err := c.doRequest(ctx, url, reqBody, &paged); err != nil {
+				return nil, fmt.Errorf("ListBizHosts for biz %d failed: %w", bizID, err)
+			}
+
+			for i := range paged.Info {
+				host := &paged.Info[i]
+				result[int64(host.BkHostID)] = host
+			}
+
+			if len(paged.Info) < maxBatchSize {
+				break
+			}
+			start += maxBatchSize
+		}
+	}
+
+	log.Printf("  [CMDB] ListBizHosts: biz=%d, moduleFilter=%d, got=%d",
+		bizID, len(moduleIDs), len(result))
 	return result, nil
 }
 
@@ -456,8 +495,8 @@ func (c *mockCMDBClient) FindSetBatch(_ context.Context, _ uint32, _ []int64) (m
 	return make(map[int64]string), nil
 }
 
-func (c *mockCMDBClient) FindModuleBatch(_ context.Context, _ uint32, _ []int64) (map[int64]*CMDBModuleInfo, error) {
-	return make(map[int64]*CMDBModuleInfo), nil
+func (c *mockCMDBClient) FindModuleBatch(_ context.Context, _ uint32, _ []int64) (map[int64]string, error) {
+	return make(map[int64]string), nil
 }
 
 func (c *mockCMDBClient) ListProcessDetailByIds(_ context.Context, _ uint32, _ []int64) (
@@ -465,6 +504,6 @@ func (c *mockCMDBClient) ListProcessDetailByIds(_ context.Context, _ uint32, _ [
 	return make(map[int64]*CMDBProcessDetail), nil
 }
 
-func (c *mockCMDBClient) ListBizHosts(_ context.Context, _ uint32) (map[int64]*CMDBHostInfo, error) {
+func (c *mockCMDBClient) ListBizHosts(_ context.Context, _ uint32, _ []int64) (map[int64]*CMDBHostInfo, error) {
 	return make(map[int64]*CMDBHostInfo), nil
 }
