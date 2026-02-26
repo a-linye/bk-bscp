@@ -195,12 +195,7 @@ func (m *Migrator) migrateProcesses() error {
 				setName := setNames[p.BkSetID]
 				moduleName := moduleNames[p.BkModuleID]
 				serviceName := svcInstNameMap[p.ServiceInstanceID]
-
 				procNum := procInstCounts[p.BkProcessID]
-				if procNum == 0 {
-					procNum = 1
-				}
-
 				svcTemplateID := uint32(0)
 				if p.ServiceTemplateID != nil {
 					svcTemplateID = uint32(*p.ServiceTemplateID)
@@ -231,16 +226,16 @@ func (m *Migrator) migrateProcesses() error {
 					"INSERT INTO processes (id, tenant_id, biz_id, cc_process_id, set_id, module_id, "+
 						"service_instance_id, host_id, cloud_id, agent_id, process_template_id, service_template_id, "+
 						"set_name, module_name, service_name, environment, alias, inner_ip, inner_ip_v6, "+
-						"cc_sync_status, proc_num, func_name, source_data, prev_data, "+
+						"cc_sync_status, process_state_synced_at, proc_num, func_name, source_data, prev_data, "+
 						"creator, reviser, created_at, updated_at) "+
-						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					newID, m.cfg.Migration.TenantID, bizID, uint32(p.BkProcessID),
 					uint32(p.BkSetID), uint32(p.BkModuleID),
 					uint32(p.ServiceInstanceID), hostID, uint32(p.BkCloudID),
 					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
-					"synced", procNum, funcName, sourceData, sourceData,
+					"synced", now, procNum, funcName, sourceData, sourceData,
 					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
