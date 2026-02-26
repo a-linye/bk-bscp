@@ -88,11 +88,15 @@ func (m *Migrator) migrateConfigTemplates() error {
 	cosUploaded := 0
 	cosSkipped := 0
 	cosFailed := 0
+	// bizTemplateIDs: bizID → 该业务下所有迁移生成的 BSCP template ID 列表，
+	// 用于最后批量更新 template_sets.template_ids
 	bizTemplateIDs := make(map[uint32][]uint32)
 
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing config templates for biz %d", bizID)
 
+		// templateSpaceMap: bizID → 模版空间信息(template_space_id, template_set_id)，
+		// 在 Step 1 中创建，此处用于关联模版到对应的模版空间和模版套餐
 		spaceInfo, ok := m.templateSpaceMap[bizID]
 		if !ok {
 			return fmt.Errorf("no template space found for biz %d", bizID)
@@ -115,7 +119,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 			return fmt.Errorf("read binding relationships for biz %d failed: %w", bizID, err)
 		}
 
-		// Group bindings by config_template_id
+		// bindingMap: GSEKit config_template_id → 该模版的绑定关系列表，
+		// 用于迁移时填充 config_templates 的 cc_template_process_ids 和 cc_process_ids
 		bindingMap := make(map[int64][]GSEKitConfigTemplateBindingRelationship)
 		for _, b := range bindings {
 			bindingMap[b.ConfigTemplateID] = append(bindingMap[b.ConfigTemplateID], b)
@@ -173,6 +178,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 					}
 					return fmt.Errorf("insert template for config_template %d failed: %w", tmpl.ConfigTemplateID, err)
 				}
+				// templateIDMap: GSEKit config_template_id → BSCP template ID，
+				// 仅用于迁移完成后的统计计数（printSummary）
 				m.templateIDMap[uint32(tmpl.ConfigTemplateID)] = templateID
 				bizTemplateIDs[bizID] = append(bizTemplateIDs[bizID], templateID)
 
@@ -233,6 +240,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 						}
 						return fmt.Errorf("insert template_revision for version %d failed: %w", version.ConfigVersionID, err)
 					}
+					// configVersionIDMap: GSEKit config_version_id → BSCP template_revision ID，
+					// 供 migrateConfigInstances 中将配置实例关联到正确的 template_revision
 					m.configVersionIDMap[uint32(version.ConfigVersionID)] = revisionID
 					totalRevisions++
 				}
@@ -284,6 +293,8 @@ func (m *Migrator) migrateConfigTemplates() error {
 					}
 					return fmt.Errorf("insert config_template for %d failed: %w", tmpl.ConfigTemplateID, err)
 				}
+				// configTemplateIDMap: GSEKit config_template_id → BSCP config_template ID，
+				// 供 migrateConfigInstances 中将配置实例关联到正确的 config_template
 				m.configTemplateIDMap[uint32(tmpl.ConfigTemplateID)] = configTemplateID
 				totalTemplates++
 			}
