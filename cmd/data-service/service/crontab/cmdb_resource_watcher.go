@@ -402,6 +402,10 @@ func (c *cmdbResourceWatcher) handleProcessCreateEventsBatch(kt *kit.Kit, events
 		if len(procs) == 0 {
 			continue
 		}
+		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(uint32(bizID)) {
+			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
+			continue
+		}
 
 		svc := cmdb.NewSyncCMDBService(kt.TenantID, bizID, c.cmdb, c.dao)
 		res, err := svc.SyncByProcessIDs(kt.Ctx, procs)
@@ -452,6 +456,10 @@ func (c *cmdbResourceWatcher) handleProcessDeleteEventsBatch(kt *kit.Kit, events
 		if len(procIDs) == 0 {
 			continue
 		}
+		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(bizID) {
+			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
+			continue
+		}
 
 		tx := c.dao.GenQuery().Begin()
 		if err := cmdb.DeleteInstanceStoppedUnmanaged(kt, c.dao, tx, bizID, procIDs); err != nil {
@@ -472,6 +480,10 @@ func (c *cmdbResourceWatcher) handleProcessUpdateEventsBatch(kt *kit.Kit, events
 
 	for bizID, procs := range processesByBiz {
 		if len(procs) == 0 {
+			continue
+		}
+		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(uint32(bizID)) {
+			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
 			continue
 		}
 
