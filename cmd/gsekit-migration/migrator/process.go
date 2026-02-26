@@ -126,11 +126,6 @@ func (m *Migrator) migrateProcesses() error {
 				return fmt.Errorf("find module batch for biz %d failed: %w", bizID, err)
 			}
 
-			hostInfoMap, err := m.cmdbClient.ListBizHosts(ctx, bizID, uniqueInt64(moduleIDs))
-			if err != nil {
-				return fmt.Errorf("list biz hosts for biz %d failed: %w", bizID, err)
-			}
-
 			setNames, err := m.cmdbClient.FindSetBatch(ctx, bizID, uniqueInt64(setIDs))
 			if err != nil {
 				return fmt.Errorf("find set batch for biz %d failed: %w", bizID, err)
@@ -193,13 +188,9 @@ func (m *Migrator) migrateProcesses() error {
 				// Get CMDB enrichment data
 				var hostID uint32
 				var funcName string
-				var agentID string
 				if enrich, ok := processEnrichMap[p.BkProcessID]; ok {
 					hostID = uint32(enrich.HostID)
 					funcName = enrich.FuncName
-					if hi, ok := hostInfoMap[int64(enrich.HostID)]; ok {
-						agentID = hi.BkAgentID
-					}
 				}
 				setName := setNames[p.BkSetID]
 				moduleName := moduleNames[p.BkModuleID]
@@ -246,7 +237,7 @@ func (m *Migrator) migrateProcesses() error {
 					newID, m.cfg.Migration.TenantID, bizID, uint32(p.BkProcessID),
 					uint32(p.BkSetID), uint32(p.BkModuleID),
 					uint32(p.ServiceInstanceID), hostID, uint32(p.BkCloudID),
-					agentID, uint32(p.ProcessTemplateID), svcTemplateID,
+					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
 					"synced", procNum, funcName, sourceData, sourceData,
