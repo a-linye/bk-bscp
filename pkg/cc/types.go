@@ -50,6 +50,8 @@ type FeatureFlags struct {
 	ResourceLimit FeatureResourceLimit `json:"resource_limit" yaml:"RESOURCE_LIMIT"`
 	// TrpcGoPlugin trpc go plugin
 	TrpcGoPlugin TrpcGoPlugin `json:"trpc_go_plugin" yaml:"TRPC_GO_PLUGIN"`
+	// ProcessConfigView 进程与配置管理可见性控制
+	ProcessConfigView FeatureBizView `json:"process_config_view" yaml:"PROCESS_CONFIG_VIEW"`
 }
 
 // FeatureBizView 业务白名单
@@ -101,12 +103,32 @@ func (f FeatureFlags) validate() error {
 		}
 	}
 
+	for bizID := range f.ProcessConfigView.Spec {
+		if _, err := strconv.Atoi(bizID); err != nil {
+			return fmt.Errorf("invalid featureFlags.PROCESS_CONFIG_VIEW.spec.{bizID} value %s, "+
+				"biz id should be an integer", bizID)
+		}
+	}
+
 	return nil
+}
+
+// IsProcessConfigViewEnabled 判断指定业务是否开启了进程与配置管理
+func (f FeatureFlags) IsProcessConfigViewEnabled(bizID uint32) bool {
+	if enable, ok := f.ProcessConfigView.Spec[strconv.Itoa(int(bizID))]; ok && enable != nil {
+		return *enable
+	}
+	if f.ProcessConfigView.Default != nil {
+		return *f.ProcessConfigView.Default
+	}
+	return DefaultProcessConfigView
 }
 
 const (
 	// DefaultBizView is default biz view
 	DefaultBizView = true
+	// DefaultProcessConfigView is default process config view
+	DefaultProcessConfigView = false
 	// DefaultMaxFileSize is default max file size, unit is MB
 	DefaultMaxFileSize = 200
 	// DefaultAppConfigCnt is default app's config count
@@ -140,6 +162,11 @@ func (f *FeatureFlags) trySetDefault() {
 
 	if f.ResourceLimit.Default.MaxUploadContentLength == 0 {
 		f.ResourceLimit.Default.MaxUploadContentLength = DefaultMaxUploadContentLength
+	}
+
+	if f.ProcessConfigView.Default == nil {
+		processConfigView := DefaultProcessConfigView
+		f.ProcessConfigView.Default = &processConfigView
 	}
 }
 

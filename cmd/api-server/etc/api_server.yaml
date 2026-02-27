@@ -78,6 +78,12 @@ featureFlags:
         appConfigCnt:
         # 单个模版套餐下允许创建的模版数
         tmplSetTmplCnt:
+  # 进程与配置管理可见性控制
+  PROCESS_CONFIG_VIEW:
+    # 全局默认配置，false=不展示，true=展示
+    default: false
+    # 业务级配置，key 为业务 ID
+    spec:
 
 # defines service related settings.
 service:
