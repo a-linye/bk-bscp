@@ -106,13 +106,8 @@ func (s *Service) ListConfigTemplate(ctx context.Context, req *pbds.ListConfigTe
 	if er != nil {
 		return nil, er
 	}
-	// 用于标记配置模板是否已下发过配置实例
-	releasedMap := make(map[uint32]bool, len(configTemplateIDs))
-	// 先默认全部为 false（未下发）
-	for _, id := range configTemplateIDs {
-		releasedMap[id] = false
-	}
-	// 如果存在配置实例，则标记为 true（已下发）
+	// 标记配置模板是否已下发过配置实例
+	releasedMap := make(map[uint32]bool, len(ci))
 	for _, inst := range ci {
 		releasedMap[inst.Attachment.ConfigTemplateID] = true
 	}
