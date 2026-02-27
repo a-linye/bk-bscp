@@ -1677,6 +1677,8 @@ func isSafeToUpdateProcess(
 }
 
 // CheckAndMarkHostAliasConflicts 检测同主机同别名冲突并标记状态
+//
+// 逻辑：
 //  1. 查询同 biz 下 (host_id, alias) 重复的进程 ID 列表
 //  2. 将冲突进程标记为 abnormal
 //  3. 将之前标记为 abnormal 但已不再冲突的进程恢复为 synced
