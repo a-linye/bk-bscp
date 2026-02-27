@@ -247,7 +247,7 @@ func (c *cmdbResourceWatcher) watchCMDBResources(kt *kit.Kit, resource bkcmdb.Re
 			return fmt.Errorf("request CMDB watch for %s failed: %w", resource, err)
 		}
 
-		// 无事件时会返回一个不含详情但是含有cursor的事件
+		// 异常防护：正常情况下 CMDB 总会返回至少一条事件（真实事件或长轮询超时的空事件）
 		if len(resp.BkEvents) == 0 {
 			return fmt.Errorf("CMDB watch for %s returned empty events (BkWatched=%v)", resource, resp.BkWatched)
 		}
