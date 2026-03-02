@@ -124,6 +124,29 @@ func (m *Migrator) migrateConfigTemplates() error {
 		bindingMap := make(map[int64][]GSEKitConfigTemplateBindingRelationship)
 		for _, b := range bindings {
 			bindingMap[b.ConfigTemplateID] = append(bindingMap[b.ConfigTemplateID], b)
+			// Also populate Migrator-level binding sets for config instance migration
+			key := templateProcessKey{configTemplateID: b.ConfigTemplateID, processID: b.ProcessObjectID}
+			switch b.ProcessObjectType {
+			case "INSTANCE":
+				m.instanceBindSet[key] = true
+			case "TEMPLATE":
+				m.templateBindSet[key] = true
+			}
+		}
+
+		// Load bk_process_id → process_template_id mappings for this biz,
+		// used by config instance migration to resolve TEMPLATE-type bindings.
+		var ptMappings []struct {
+			BkProcessID       int64 `gorm:"column:bk_process_id"`
+			ProcessTemplateID int64 `gorm:"column:process_template_id"`
+		}
+		if err := m.sourceDB.Raw(
+			"SELECT bk_process_id, process_template_id FROM gsekit_process WHERE bk_biz_id = ?",
+			bizID).Scan(&ptMappings).Error; err != nil {
+			return fmt.Errorf("read process template mappings for biz %d failed: %w", bizID, err)
+		}
+		for _, pt := range ptMappings {
+			m.processTemplateMap[pt.BkProcessID] = pt.ProcessTemplateID
 		}
 
 		offset := 0

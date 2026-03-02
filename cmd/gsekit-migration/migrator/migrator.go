@@ -41,6 +41,12 @@ type Migrator struct {
 	configVersionIDMap  map[uint32]uint32               // gsekitConfigVersionID → bscpTemplateRevisionID
 	templateIDMap       map[uint32]uint32               // gsekitConfigTemplateID → bscpTemplateID
 	templateSpaceMap    map[uint32]*templateSpaceResult // bizID → templateSpaceResult
+
+	// Binding relationship sets, built during config template migration and
+	// consumed by config instance migration to skip unbound pairs.
+	instanceBindSet    map[templateProcessKey]bool // (configTemplateID, bkProcessID) for INSTANCE-type bindings
+	templateBindSet    map[templateProcessKey]bool // (configTemplateID, processTemplateID) for TEMPLATE-type bindings
+	processTemplateMap map[int64]int64             // bkProcessID → processTemplateID
 }
 
 // MigrationReport contains the overall migration report
@@ -114,6 +120,9 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		configVersionIDMap:  make(map[uint32]uint32),
 		templateIDMap:       make(map[uint32]uint32),
 		templateSpaceMap:    make(map[uint32]*templateSpaceResult),
+		instanceBindSet:    make(map[templateProcessKey]bool),
+		templateBindSet:    make(map[templateProcessKey]bool),
+		processTemplateMap: make(map[int64]int64),
 	}, nil
 }
 

@@ -39,30 +39,46 @@ type GSEKitConfigInstance struct {
 // TableName returns the GSEKit config instance table name
 func (GSEKitConfigInstance) TableName() string { return "gsekit_configinstance" }
 
-// latestReleasedQuery is the SQL to find the latest released config instance
-// (max id) per (bk_process_id, config_template_id, inst_id) group,
-// filtered by is_released=true and bk_process_id belonging to a given biz.
-// This matches the GSEKit config delivery page logic (filter_released=True).
-const latestReleasedQuery = "SELECT ci.* FROM gsekit_configinstance ci " +
-	"INNER JOIN (" +
-	"  SELECT MAX(id) AS max_id FROM gsekit_configinstance " +
-	"  WHERE is_released = true AND bk_process_id IN (" +
-	"    SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?" +
-	"  ) GROUP BY bk_process_id, config_template_id, inst_id" +
-	") latest ON ci.id = latest.max_id"
+// collectTargetIDsQuery collects the IDs of the latest released config instance
+// (max id where is_released=true) per (bk_process_id, config_template_id, inst_id)
+// group for a given biz. Only IDs are returned so the expensive GROUP BY + MAX(id)
+// aggregation runs once, and full rows are fetched later via primary-key lookups.
+const collectTargetIDsQuery = "SELECT MAX(id) AS max_id FROM gsekit_configinstance " +
+	"WHERE is_released = true AND bk_process_id IN (" +
+	"  SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?" +
+	") GROUP BY bk_process_id, config_template_id, inst_id " +
+	"ORDER BY max_id"
 
-// latestReleasedCountQuery counts the number of latest released config instances.
-const latestReleasedCountQuery = "SELECT COUNT(*) FROM (" +
-	"  SELECT MAX(id) AS max_id FROM gsekit_configinstance " +
-	"  WHERE is_released = true AND bk_process_id IN (" +
-	"    SELECT bk_process_id FROM gsekit_process WHERE bk_biz_id = ?" +
-	"  ) GROUP BY bk_process_id, config_template_id, inst_id" +
-	") t"
+// templateProcessKey is a composite key for checking whether a config template
+// is still bound to a specific process (directly or via process template).
+type templateProcessKey struct {
+	configTemplateID int64
+	processID        int64
+}
+
+// isProcessTemplateBound checks whether a config instance's (config_template_id,
+// bk_process_id) pair still has a valid binding, either directly (INSTANCE type)
+// or via the process's process_template_id (TEMPLATE type).
+// The binding sets are pre-built during config template migration.
+func (m *Migrator) isProcessTemplateBound(configTemplateID, bkProcessID int64) bool {
+	if m.instanceBindSet[templateProcessKey{configTemplateID, bkProcessID}] {
+		return true
+	}
+	ptID := m.processTemplateMap[bkProcessID]
+	return ptID != 0 && m.templateBindSet[templateProcessKey{configTemplateID, ptID}]
+}
 
 // migrateConfigInstances migrates config instances from GSEKit to BSCP.
 // Only the latest released instance (max id where is_released=true) per
 // (bk_process_id, config_template_id, inst_id) is migrated, matching the
 // GSEKit config delivery page display logic.
+//
+// The migration uses a two-phase approach to avoid OFFSET deep-pagination:
+//   - Phase 1: collect all target IDs via a single GROUP BY aggregation
+//   - Phase 2: fetch full rows in batches using primary-key IN lookups
+//
+// Instances whose config template has been deleted or unbound from the process
+// are silently skipped.
 func (m *Migrator) migrateConfigInstances() error {
 	log.Println("=== Step 5: Migrating config instances ===")
 
@@ -74,28 +90,30 @@ func (m *Migrator) migrateConfigInstances() error {
 	for _, bizID := range m.cfg.Migration.BizIDs {
 		log.Printf("  Processing config instances for biz %d", bizID)
 
-		var sourceCount int64
-		if err := m.sourceDB.Raw(latestReleasedCountQuery, bizID).
-			Scan(&sourceCount).Error; err != nil {
-			return fmt.Errorf("count latest released config instances for biz %d failed: %w", bizID, err)
+		// Phase 1: collect all target IDs with a single aggregation query
+		var targetIDs []int64
+		if err := m.sourceDB.Raw(collectTargetIDsQuery, bizID).
+			Scan(&targetIDs).Error; err != nil {
+			return fmt.Errorf("collect target config instance IDs for biz %d failed: %w", bizID, err)
 		}
-		log.Printf("  Found %d latest released config instances in GSEKit for biz %d", sourceCount, bizID)
+		log.Printf("  Found %d latest released config instances in GSEKit for biz %d", len(targetIDs), bizID)
 
-		if sourceCount == 0 {
+		if len(targetIDs) == 0 {
 			continue
 		}
 
-		offset := 0
-		for {
-			var instances []GSEKitConfigInstance
-			if err := m.sourceDB.Raw(latestReleasedQuery+" ORDER BY ci.id LIMIT ? OFFSET ?",
-				bizID, batchSize, offset).
-				Scan(&instances).Error; err != nil {
-				return fmt.Errorf("read latest released config instances for biz %d offset %d failed: %w",
-					bizID, offset, err)
+		// Phase 2: fetch full rows in batches using WHERE id IN (...)
+		for batchStart := 0; batchStart < len(targetIDs); batchStart += batchSize {
+			batchEnd := batchStart + batchSize
+			if batchEnd > len(targetIDs) {
+				batchEnd = len(targetIDs)
 			}
-			if len(instances) == 0 {
-				break
+			batchIDs := targetIDs[batchStart:batchEnd]
+
+			var instances []GSEKitConfigInstance
+			if err := m.sourceDB.Where("id IN ?", batchIDs).
+				Find(&instances).Error; err != nil {
+				return fmt.Errorf("fetch config instances by IDs for biz %d failed: %w", bizID, err)
 			}
 
 			ids, err := m.idGen.BatchNextID("config_instances", len(instances))
@@ -107,26 +125,25 @@ func (m *Migrator) migrateConfigInstances() error {
 			for i, inst := range instances {
 				newID := ids[i]
 
-				// Look up mapped config_template_id
+				// Look up mapped config_template_id.
+				// The source template may have been deleted in GSEKit (the config
+				// instance table acts as a history table), so a missing mapping is
+				// expected and the record is silently skipped.
 				newConfigTemplateID, ok := m.configTemplateIDMap[uint32(inst.ConfigTemplateID)]
 				if !ok {
-					if m.cfg.Migration.ContinueOnError {
-						log.Printf("  Warning: no config_template mapping for %d, skipping instance %d",
-							inst.ConfigTemplateID, inst.ID)
-						continue
-					}
-					return fmt.Errorf("no config_template mapping for %d", inst.ConfigTemplateID)
+					continue
 				}
 
-				// Look up mapped config_version_id → template_revision_id
+				// Look up mapped config_version_id → template_revision_id.
+				// Same as above: the version may belong to a deleted template.
 				newConfigVersionID, ok := m.configVersionIDMap[uint32(inst.ConfigVersionID)]
 				if !ok {
-					if m.cfg.Migration.ContinueOnError {
-						log.Printf("  Warning: no config_version mapping for %d, skipping instance %d",
-							inst.ConfigVersionID, inst.ID)
-						continue
-					}
-					return fmt.Errorf("no config_version mapping for %d", inst.ConfigVersionID)
+					continue
+				}
+
+				// Skip instances whose process-template binding has been removed
+				if !m.isProcessTemplateBound(inst.ConfigTemplateID, inst.BkProcessID) {
+					continue
 				}
 
 				// Decompress content (bz2)
@@ -161,8 +178,8 @@ func (m *Migrator) migrateConfigInstances() error {
 				totalMigrated++
 			}
 
-			offset += batchSize
-			log.Printf("  Progress: %d config instances migrated for biz %d", totalMigrated, bizID)
+			log.Printf("  Progress: %d/%d config instances migrated for biz %d",
+				totalMigrated, len(targetIDs), bizID)
 		}
 	}
 
