@@ -49,8 +49,6 @@ type MigrationConfig struct {
 	BatchSize int `yaml:"batch_size"`
 	// ContinueOnError if true, will continue migration even if some records fail
 	ContinueOnError bool `yaml:"continue_on_error"`
-	// SkipCMDB if true, skip CMDB API calls and use default values
-	SkipCMDB bool `yaml:"skip_cmdb"`
 }
 
 // HasBizFilter returns true if business ID filter is configured

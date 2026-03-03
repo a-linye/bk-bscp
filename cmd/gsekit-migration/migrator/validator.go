@@ -217,7 +217,7 @@ func (v *Validator) checkConfigInstanceCount() *ValidationCheck {
 	for _, bizID := range v.cfg.Migration.BizIDs {
 		// Source: count latest released instances (max id per group where is_released=true)
 		var sourceCount int64
-		if err := v.sourceDB.Raw(latestReleasedCountQuery, bizID).
+		if err := v.sourceDB.Raw("SELECT COUNT(*) FROM ("+collectTargetIDsQuery+") t", bizID).
 			Scan(&sourceCount).Error; err != nil {
 			check.Pass = false
 			check.Details = fmt.Sprintf("source query failed for biz %d: %v", bizID, err)

@@ -235,7 +235,7 @@ func (m *Migrator) migrateProcesses() error {
 					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
-					"synced", now, procNum, funcName, sourceData, sourceData,
+					"synced", now, procNum, funcName, sourceData, "{}",
 					creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
