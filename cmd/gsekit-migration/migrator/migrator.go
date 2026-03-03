@@ -84,14 +84,8 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 	idGen := NewIDGenerator(targetDB)
 
 	// Create CMDB client
-	var cmdbClient CMDBClient
-	if cfg.Migration.SkipCMDB {
-		log.Println("CMDB: using mock client (skip_cmdb=true)")
-		cmdbClient = NewMockCMDBClient()
-	} else {
-		log.Println("CMDB: using real client")
-		cmdbClient = NewRealCMDBClient(&cfg.CMDB)
-	}
+	log.Println("CMDB: using real client")
+	cmdbClient := NewRealCMDBClient(&cfg.CMDB)
 
 	// Create content uploader (BKREPO or S3/COS based on config)
 	// BKREPO project naming uses tenantID only in multi-tenant mode ({tenantID}.{project}).
@@ -120,9 +114,9 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		configVersionIDMap:  make(map[uint32]uint32),
 		templateIDMap:       make(map[uint32]uint32),
 		templateSpaceMap:    make(map[uint32]*templateSpaceResult),
-		instanceBindSet:    make(map[templateProcessKey]bool),
-		templateBindSet:    make(map[templateProcessKey]bool),
-		processTemplateMap: make(map[int64]int64),
+		instanceBindSet:     make(map[templateProcessKey]bool),
+		templateBindSet:     make(map[templateProcessKey]bool),
+		processTemplateMap:  make(map[int64]int64),
 	}, nil
 }
 

@@ -6,7 +6,6 @@ migration:
   biz_ids: []
   batch_size: 500
   continue_on_error: false
-  skip_cmdb: false
 
 source:
   mysql:

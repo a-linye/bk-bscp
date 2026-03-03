@@ -477,33 +477,3 @@ func (c *realCMDBClient) ListBizHosts(ctx context.Context, bizID uint32, moduleI
 	return result, nil
 }
 
-// ----- Mock CMDB client (skip_cmdb mode) -----
-
-type mockCMDBClient struct{}
-
-// NewMockCMDBClient creates a mock CMDB client that returns empty values.
-func NewMockCMDBClient() CMDBClient {
-	return &mockCMDBClient{}
-}
-
-func (c *mockCMDBClient) ListServiceInstanceDetail(_ context.Context, _ uint32, _ []int64) (
-	map[int64]*CMDBServiceInstance, error) {
-	return make(map[int64]*CMDBServiceInstance), nil
-}
-
-func (c *mockCMDBClient) FindSetBatch(_ context.Context, _ uint32, _ []int64) (map[int64]string, error) {
-	return make(map[int64]string), nil
-}
-
-func (c *mockCMDBClient) FindModuleBatch(_ context.Context, _ uint32, _ []int64) (map[int64]string, error) {
-	return make(map[int64]string), nil
-}
-
-func (c *mockCMDBClient) ListProcessDetailByIds(_ context.Context, _ uint32, _ []int64) (
-	map[int64]*CMDBProcessDetail, error) {
-	return make(map[int64]*CMDBProcessDetail), nil
-}
-
-func (c *mockCMDBClient) ListBizHosts(_ context.Context, _ uint32, _ []int64) (map[int64]*CMDBHostInfo, error) {
-	return make(map[int64]*CMDBHostInfo), nil
-}
