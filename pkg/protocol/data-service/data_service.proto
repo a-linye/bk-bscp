@@ -363,6 +363,11 @@ service Data {
   rpc DeleteConfigTemplate(DeleteConfigTemplateReq) returns (DeleteConfigTemplateResp) {}
   rpc OperateGenerateConfig(OperateGenerateConfigReq) returns (OperateGenerateConfigResp) {}
   rpc GetProcessInstanceTopo(GetProcessInstanceTopoReq) returns (GetProcessInstanceTopoResp) {}
+
+  // 进程与配置管理可见性白名单管理
+  rpc UpsertBizProcessConfigView(UpsertBizProcessConfigViewReq) returns (pbbase.EmptyResp) {}
+  rpc DeleteBizProcessConfigView(DeleteBizProcessConfigViewReq) returns (pbbase.EmptyResp) {}
+  rpc ListBizProcessConfigView(ListBizProcessConfigViewReq) returns (ListBizProcessConfigViewResp) {}
 }
 message UpdateCredentialScopesReq {
   uint32 biz_id = 1;
@@ -2727,4 +2732,24 @@ message GetProcessInstanceTopoReq {
 
 message GetProcessInstanceTopoResp {
   repeated pbct.BizTopoNode biz_topo_nodes = 1;
+}
+
+message UpsertBizProcessConfigViewReq {
+  uint32 biz_id = 1;
+  bool enabled = 2;
+}
+
+message DeleteBizProcessConfigViewReq {
+  uint32 biz_id = 1;
+}
+
+message ListBizProcessConfigViewReq {}
+
+message BizProcessConfigViewItem {
+  uint32 biz_id = 1;
+  bool enabled = 2;
+}
+
+message ListBizProcessConfigViewResp {
+  repeated BizProcessConfigViewItem items = 1;
 }

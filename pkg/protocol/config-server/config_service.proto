@@ -1789,6 +1789,29 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       get: "/api/v1/config/biz_id/{biz_id}/process_instance_topo"
     };
   }
+
+  // 设置业务进程与配置管理可见性
+  rpc UpsertBizProcessConfigView(UpsertBizProcessConfigViewReq) returns (UpsertBizProcessConfigViewResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.http) = {
+      put: "/api/v1/config/process_config_view/biz/{biz_id}"
+      body: "*"
+    };
+  }
+  // 删除业务进程与配置管理可见性配置
+  rpc DeleteBizProcessConfigView(DeleteBizProcessConfigViewReq) returns (DeleteBizProcessConfigViewResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.http) = {
+      delete: "/api/v1/config/process_config_view/biz/{biz_id}"
+    };
+  }
+  // 列出所有已配置的业务进程与配置管理可见性
+  rpc ListBizProcessConfigView(ListBizProcessConfigViewReq) returns (ListBizProcessConfigViewResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.http) = {
+      get: "/api/v1/config/process_config_view/biz"
+    };
+  }
 }
 
 message UpdateCredentialScopeReq {
@@ -5223,4 +5246,28 @@ message GetProcessInstanceTopoReq {
 
 message GetProcessInstanceTopoResp {
   repeated pbct.BizTopoNode biz_topo_nodes = 1;
+}
+
+message UpsertBizProcessConfigViewReq {
+  uint32 biz_id = 1;
+  bool enabled = 2;
+}
+
+message UpsertBizProcessConfigViewResp {}
+
+message DeleteBizProcessConfigViewReq {
+  uint32 biz_id = 1;
+}
+
+message DeleteBizProcessConfigViewResp {}
+
+message ListBizProcessConfigViewReq {}
+
+message BizProcessConfigViewItem {
+  uint32 biz_id = 1;
+  bool enabled = 2;
+}
+
+message ListBizProcessConfigViewResp {
+  repeated BizProcessConfigViewItem items = 1;
 }

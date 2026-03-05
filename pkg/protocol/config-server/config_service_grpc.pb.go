@@ -240,6 +240,9 @@ const (
 	Config_ServiceInstance_FullMethodName                    = "/pbcs.Config/ServiceInstance"
 	Config_DeleteConfigTemplate_FullMethodName               = "/pbcs.Config/DeleteConfigTemplate"
 	Config_GetProcessInstanceTopo_FullMethodName             = "/pbcs.Config/GetProcessInstanceTopo"
+	Config_UpsertBizProcessConfigView_FullMethodName         = "/pbcs.Config/UpsertBizProcessConfigView"
+	Config_DeleteBizProcessConfigView_FullMethodName         = "/pbcs.Config/DeleteBizProcessConfigView"
+	Config_ListBizProcessConfigView_FullMethodName           = "/pbcs.Config/ListBizProcessConfigView"
 )
 
 // ConfigClient is the client API for Config service.
@@ -667,6 +670,12 @@ type ConfigClient interface {
 	DeleteConfigTemplate(ctx context.Context, in *DeleteConfigTemplateReq, opts ...grpc.CallOption) (*DeleteConfigTemplateResp, error)
 	// 进程实例拓扑
 	GetProcessInstanceTopo(ctx context.Context, in *GetProcessInstanceTopoReq, opts ...grpc.CallOption) (*GetProcessInstanceTopoResp, error)
+	// 设置业务进程与配置管理可见性
+	UpsertBizProcessConfigView(ctx context.Context, in *UpsertBizProcessConfigViewReq, opts ...grpc.CallOption) (*UpsertBizProcessConfigViewResp, error)
+	// 删除业务进程与配置管理可见性配置
+	DeleteBizProcessConfigView(ctx context.Context, in *DeleteBizProcessConfigViewReq, opts ...grpc.CallOption) (*DeleteBizProcessConfigViewResp, error)
+	// 列出所有已配置的业务进程与配置管理可见性
+	ListBizProcessConfigView(ctx context.Context, in *ListBizProcessConfigViewReq, opts ...grpc.CallOption) (*ListBizProcessConfigViewResp, error)
 }
 
 type configClient struct {
@@ -2594,6 +2603,33 @@ func (c *configClient) GetProcessInstanceTopo(ctx context.Context, in *GetProces
 	return out, nil
 }
 
+func (c *configClient) UpsertBizProcessConfigView(ctx context.Context, in *UpsertBizProcessConfigViewReq, opts ...grpc.CallOption) (*UpsertBizProcessConfigViewResp, error) {
+	out := new(UpsertBizProcessConfigViewResp)
+	err := c.cc.Invoke(ctx, Config_UpsertBizProcessConfigView_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) DeleteBizProcessConfigView(ctx context.Context, in *DeleteBizProcessConfigViewReq, opts ...grpc.CallOption) (*DeleteBizProcessConfigViewResp, error) {
+	out := new(DeleteBizProcessConfigViewResp)
+	err := c.cc.Invoke(ctx, Config_DeleteBizProcessConfigView_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) ListBizProcessConfigView(ctx context.Context, in *ListBizProcessConfigViewReq, opts ...grpc.CallOption) (*ListBizProcessConfigViewResp, error) {
+	out := new(ListBizProcessConfigViewResp)
+	err := c.cc.Invoke(ctx, Config_ListBizProcessConfigView_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServer is the server API for Config service.
 // All implementations should embed UnimplementedConfigServer
 // for forward compatibility
@@ -3019,6 +3055,12 @@ type ConfigServer interface {
 	DeleteConfigTemplate(context.Context, *DeleteConfigTemplateReq) (*DeleteConfigTemplateResp, error)
 	// 进程实例拓扑
 	GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error)
+	// 设置业务进程与配置管理可见性
+	UpsertBizProcessConfigView(context.Context, *UpsertBizProcessConfigViewReq) (*UpsertBizProcessConfigViewResp, error)
+	// 删除业务进程与配置管理可见性配置
+	DeleteBizProcessConfigView(context.Context, *DeleteBizProcessConfigViewReq) (*DeleteBizProcessConfigViewResp, error)
+	// 列出所有已配置的业务进程与配置管理可见性
+	ListBizProcessConfigView(context.Context, *ListBizProcessConfigViewReq) (*ListBizProcessConfigViewResp, error)
 }
 
 // UnimplementedConfigServer should be embedded to have forward compatible implementations.
@@ -3663,6 +3705,15 @@ func (UnimplementedConfigServer) DeleteConfigTemplate(context.Context, *DeleteCo
 }
 func (UnimplementedConfigServer) GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProcessInstanceTopo not implemented")
+}
+func (UnimplementedConfigServer) UpsertBizProcessConfigView(context.Context, *UpsertBizProcessConfigViewReq) (*UpsertBizProcessConfigViewResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertBizProcessConfigView not implemented")
+}
+func (UnimplementedConfigServer) DeleteBizProcessConfigView(context.Context, *DeleteBizProcessConfigViewReq) (*DeleteBizProcessConfigViewResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteBizProcessConfigView not implemented")
+}
+func (UnimplementedConfigServer) ListBizProcessConfigView(context.Context, *ListBizProcessConfigViewReq) (*ListBizProcessConfigViewResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBizProcessConfigView not implemented")
 }
 
 // UnsafeConfigServer may be embedded to opt out of forward compatibility for this service.
@@ -7510,6 +7561,60 @@ func _Config_GetProcessInstanceTopo_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_UpsertBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertBizProcessConfigViewReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).UpsertBizProcessConfigView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_UpsertBizProcessConfigView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).UpsertBizProcessConfigView(ctx, req.(*UpsertBizProcessConfigViewReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_DeleteBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteBizProcessConfigViewReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).DeleteBizProcessConfigView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_DeleteBizProcessConfigView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).DeleteBizProcessConfigView(ctx, req.(*DeleteBizProcessConfigViewReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_ListBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBizProcessConfigViewReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).ListBizProcessConfigView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_ListBizProcessConfigView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).ListBizProcessConfigView(ctx, req.(*ListBizProcessConfigViewReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Config_ServiceDesc is the grpc.ServiceDesc for Config service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -8368,6 +8473,18 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProcessInstanceTopo",
 			Handler:    _Config_GetProcessInstanceTopo_Handler,
+		},
+		{
+			MethodName: "UpsertBizProcessConfigView",
+			Handler:    _Config_UpsertBizProcessConfigView_Handler,
+		},
+		{
+			MethodName: "DeleteBizProcessConfigView",
+			Handler:    _Config_DeleteBizProcessConfigView_Handler,
+		},
+		{
+			MethodName: "ListBizProcessConfigView",
+			Handler:    _Config_ListBizProcessConfigView_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

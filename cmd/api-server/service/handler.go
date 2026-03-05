@@ -14,6 +14,7 @@ package service
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/render"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
+	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
 	"github.com/TencentBlueKing/bk-bscp/pkg/rest"
 )
 
@@ -89,7 +91,7 @@ type TrpcGoPlugin struct {
 }
 
 // FeatureFlagsHandler 特性开关接口
-func FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
+func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	featureFlags := FeatureFlags{}
 
 	biz := r.URL.Query().Get("biz")
@@ -123,11 +125,20 @@ func FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	featureFlags.TrpcGoPlugin = TrpcGoPlugin(cc.ApiServer().FeatureFlags.TrpcGoPlugin)
 	featureFlags.EnableMultiTenantMode = cc.ApiServer().FeatureFlags.EnableMultiTenantMode
 
-	// set process_config_view feature flag
-	processConfigViewConf := cc.ApiServer().FeatureFlags.ProcessConfigView
-	featureFlags.ProcessConfigView = *processConfigViewConf.Default
-	if enable, ok := processConfigViewConf.Spec[biz]; ok && enable != nil {
-		featureFlags.ProcessConfigView = *enable
+	// set process_config_view feature flag from DB via config-server gRPC
+	featureFlags.ProcessConfigView = false
+	if bizID, err := strconv.ParseUint(biz, 10, 32); err == nil && bizID > 0 {
+		resp, grpcErr := p.cfgClient.ListBizProcessConfigView(r.Context(), &pbcs.ListBizProcessConfigViewReq{})
+		if grpcErr != nil {
+			logs.Errorf("list biz process config view failed: %v", grpcErr)
+		} else {
+			for _, item := range resp.Items {
+				if item.BizId == uint32(bizID) {
+					featureFlags.ProcessConfigView = item.Enabled
+					break
+				}
+			}
+		}
 	}
 
 	render.Render(w, r, rest.OKRender(featureFlags))

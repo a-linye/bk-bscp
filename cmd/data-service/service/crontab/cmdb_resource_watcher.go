@@ -401,7 +401,7 @@ func (c *cmdbResourceWatcher) handleProcessCreateEventsBatch(kt *kit.Kit, events
 		if len(procs) == 0 {
 			continue
 		}
-		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(uint32(bizID)) {
+		if !c.svc.IsProcessConfigViewEnabled(uint32(bizID)) {
 			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
 			continue
 		}
@@ -455,7 +455,7 @@ func (c *cmdbResourceWatcher) handleProcessDeleteEventsBatch(kt *kit.Kit, events
 		if len(procIDs) == 0 {
 			continue
 		}
-		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(bizID) {
+		if !c.svc.IsProcessConfigViewEnabled(bizID) {
 			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
 			continue
 		}
@@ -487,7 +487,7 @@ func (c *cmdbResourceWatcher) handleProcessUpdateEventsBatch(kt *kit.Kit, events
 		if len(procs) == 0 {
 			continue
 		}
-		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(uint32(bizID)) {
+		if !c.svc.IsProcessConfigViewEnabled(uint32(bizID)) {
 			logs.Infof("[CMDB][ProcessSync] skip biz %d: process config view not enabled", bizID)
 			continue
 		}

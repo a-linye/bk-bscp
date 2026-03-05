@@ -49,7 +49,7 @@ func (p *proxy) routers() http.Handler {
 
 	// 用户信息
 	r.With(p.authorizer.UnifiedAuthentication).Get("/api/v1/auth/user/info", UserInfoHandler)
-	r.With(p.authorizer.UnifiedAuthentication).Get("/api/v1/feature_flags", FeatureFlagsHandler)
+	r.With(p.authorizer.UnifiedAuthentication).Get("/api/v1/feature_flags", p.FeatureFlagsHandler)
 	// 登入接口, 不带鉴权信息
 	r.Get("/api/v1/logout", p.LogoutHandler)
 
@@ -82,6 +82,12 @@ func (p *proxy) routers() http.Handler {
 		r.Use(p.authorizer.BizVerified)
 		r.Use(view.Generic(p.authorizer))
 		r.Use(p.CheckDefaultTmplSpace)
+		r.Mount("/", p.cfgSvrMux)
+	})
+
+	// 进程与配置管理可见性白名单管理接口，通过 appCode + appSecret 校验
+	r.Route("/api/v1/config/process_config_view", func(r chi.Router) {
+		r.Use(p.AppCodeSecretVerified)
 		r.Mount("/", p.cfgSvrMux)
 	})
 

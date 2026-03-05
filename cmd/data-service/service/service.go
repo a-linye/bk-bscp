@@ -55,6 +55,7 @@ type Service struct {
 	cmdb        bkcmdb.Service
 	taskManager *task.TaskManager
 	gseSvc      *gse.Service
+	pcvCache    *PcvCache
 }
 
 // NewService create a service instance.
@@ -111,6 +112,8 @@ func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Se
 		taskManager: taskManager,
 		gseSvc:      gseSvc,
 	}
+
+	svc.InitPcvCache()
 
 	return svc, nil
 }
