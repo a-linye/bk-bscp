@@ -854,6 +854,7 @@ export default {
   移出套餐成功: 'Moved out of package successfully',
   新建版本: 'New version',
   '版本号/版本说明/创建人': 'Version number/version description/creator',
+  '版本号/版本描述/创建人': 'Version number/version description/creator',
   选择载入版本: 'Select version to load',
   版本说明: 'Release Notes',
   展开列表: 'Expand list',
@@ -1487,4 +1488,5 @@ export default {
   异常: 'Abnormal',
   无需更新托管信息: 'No need to update host information',
   进程异常: 'Process Abnormal',
+  '进程别名发生了变化，已自动在下方创建新进程。旧进程已删除，建议停止': 'The process alias has changed, a new process has been automatically created below. The old process has been deleted, it is recommended to stop',
 };

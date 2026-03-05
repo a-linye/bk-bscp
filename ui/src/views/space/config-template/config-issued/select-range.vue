@@ -5,7 +5,6 @@
       <FilterProcess
         :bk-biz-id="bkBizId"
         :is-issued="true"
-        :process-ids="ccProcessIds"
         @search="handleSelectProcessRange" />
     </div>
     <div class="config-template">
@@ -43,15 +42,10 @@
   const selectedTemplate = ref<number[]>([]);
   const templateList = ref<IConfigTemplateItem[]>();
   const filterConditions = ref<Record<string, any>>({});
-  const ccProcessIds = ref<string[]>([]);
 
   onMounted(async () => {
     await loadConfigTemplateList();
-    const { processIds, templateIds } = route.query;
-
-    if (Array.isArray(processIds) && processIds.length) {
-      ccProcessIds.value = processIds as string[];
-    }
+    const { templateIds } = route.query;
 
     if (Array.isArray(templateIds) && templateIds.length) {
       selectedTemplate.value = templateIds.map(Number);
