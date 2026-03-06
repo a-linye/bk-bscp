@@ -35,6 +35,9 @@ const (
 	// AppCodeKey is blueking application code header key.
 	AppCodeKey = "X-Bkapi-App-Code"
 
+	// AppSecretKey is blueking application secret header key.
+	AppSecretKey = "X-Bkapi-App-Secret" //nolint:gosec
+
 	// OperateWayKey is approve operate way header key.
 	OperateWayKey = "X-Bscp-Operate-Way"
 

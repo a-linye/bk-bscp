@@ -27,7 +27,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	cmdbGse "github.com/TencentBlueKing/bk-bscp/internal/task/builder/cmdb_gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/builder/common"
-	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
@@ -37,7 +36,7 @@ import (
 func (s *Service) SyncCmdbGseStatus(ctx context.Context, req *pbds.SyncCmdbGseStatusReq) (*pbds.SyncCmdbGseStatusResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(req.GetBizId()) {
+	if !s.IsProcessConfigViewEnabled(req.GetBizId()) {
 		return nil, fmt.Errorf("process config view is not enabled for biz %d", req.GetBizId())
 	}
 
@@ -76,7 +75,7 @@ func (s *Service) SynchronizeCmdbData(ctx context.Context, tenantID string, bizI
 	}
 
 	for _, id := range bizIDs {
-		if !cc.DataService().FeatureFlags.IsProcessConfigViewEnabled(uint32(id)) {
+		if !s.IsProcessConfigViewEnabled(uint32(id)) {
 			logs.Infof("[syncBiz] skip biz %d: process config view not enabled, rid: %s", id, grpcKit.Rid)
 			continue
 		}

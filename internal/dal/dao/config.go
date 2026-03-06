@@ -30,6 +30,10 @@ type Config interface {
 	UpsertConfig(kit *kit.Kit, itsmConfigs []*table.Config) error
 	// ListConfigByKeys 根据多个键获取相关配置信息
 	ListConfigByKeys(kit *kit.Kit, keys []string) ([]*table.Config, error)
+	// ListConfigByKeyPrefix 根据键前缀获取配置列表
+	ListConfigByKeyPrefix(kit *kit.Kit, prefix string) ([]*table.Config, error)
+	// DeleteConfigByKey 根据键删除配置
+	DeleteConfigByKey(kit *kit.Kit, key string) error
 }
 
 var _ Config = new(configDao)
@@ -51,6 +55,19 @@ func (dao *configDao) GetConfig(kit *kit.Kit, key string) (*table.Config, error)
 	m := dao.genQ.Config
 	return m.WithContext(kit.Ctx).Where(
 		m.Key.Eq(key)).Take()
+}
+
+// ListConfigByKeyPrefix 根据键前缀获取配置列表
+func (dao *configDao) ListConfigByKeyPrefix(kit *kit.Kit, prefix string) ([]*table.Config, error) {
+	m := dao.genQ.Config
+	return m.WithContext(kit.Ctx).Where(m.Key.Like(prefix + "%")).Find()
+}
+
+// DeleteConfigByKey 根据键删除配置
+func (dao *configDao) DeleteConfigByKey(kit *kit.Kit, key string) error {
+	m := dao.genQ.Config
+	_, err := m.WithContext(kit.Ctx).Where(m.Key.Eq(key)).Delete()
+	return err
 }
 
 // SetConfig Set itsm config.

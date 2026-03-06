@@ -336,6 +336,9 @@ func (ds *dataService) listenAndServe() error {
 
 		ds.serve.GracefulStop()
 		ds.taskManager.Stop()
+		if ds.service != nil {
+			ds.service.StopConfigKVCache()
+		}
 
 		notifier.Done()
 
