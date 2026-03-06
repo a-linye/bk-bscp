@@ -364,10 +364,8 @@ service Data {
   rpc OperateGenerateConfig(OperateGenerateConfigReq) returns (OperateGenerateConfigResp) {}
   rpc GetProcessInstanceTopo(GetProcessInstanceTopoReq) returns (GetProcessInstanceTopoResp) {}
 
-  // 进程与配置管理可见性白名单管理
-  rpc UpsertBizProcessConfigView(UpsertBizProcessConfigViewReq) returns (pbbase.EmptyResp) {}
-  rpc DeleteBizProcessConfigView(DeleteBizProcessConfigViewReq) returns (pbbase.EmptyResp) {}
-  rpc ListBizProcessConfigView(ListBizProcessConfigViewReq) returns (ListBizProcessConfigViewResp) {}
+  // configs 表 KV 管理
+  rpc ManageConfigKV(ManageConfigKVReq) returns (ManageConfigKVResp) {}
 }
 message UpdateCredentialScopesReq {
   uint32 biz_id = 1;
@@ -2734,24 +2732,31 @@ message GetProcessInstanceTopoResp {
   repeated pbct.BizTopoNode biz_topo_nodes = 1;
 }
 
-message UpsertBizProcessConfigViewReq {
-  uint32 biz_id = 1;
-  bool enabled = 2;
+// ManageConfigKVReq 通用 configs 表管理请求
+message ManageConfigKVReq {
+  // action 操作类型: "upsert", "delete", "get", "list", "append", "remove"
+  //   upsert  — 整体写入 KV（覆盖），kvs 必填
+  //   delete  — 删除指定 key，key 必填
+  //   get     — 精确获取单条，key 必填
+  //   list    — 按前缀批量查询，key_prefix 必填
+  //   append  — 向逗号分隔列表追加元素（自动去重），kvs 必填
+  //   remove  — 从逗号分隔列表移除元素，kvs 必填
+  string action = 1;
+  // kvs 用于 upsert / append / remove 操作
+  repeated ConfigKVItem kvs = 2;
+  // key 用于 delete / get
+  string key = 3;
+  // key_prefix 用于 list 按前缀查询
+  string key_prefix = 4;
 }
 
-message DeleteBizProcessConfigViewReq {
-  uint32 biz_id = 1;
+// ConfigKVItem configs 表的 KV 条目
+message ConfigKVItem {
+  string key = 1;
+  string value = 2;
 }
 
-message ListBizProcessConfigViewReq {
-  uint32 biz_id = 1;
-}
-
-message BizProcessConfigViewItem {
-  uint32 biz_id = 1;
-  bool enabled = 2;
-}
-
-message ListBizProcessConfigViewResp {
-  repeated BizProcessConfigViewItem items = 1;
+// ManageConfigKVResp 通用 configs 表管理响应
+message ManageConfigKVResp {
+  repeated ConfigKVItem items = 1;
 }

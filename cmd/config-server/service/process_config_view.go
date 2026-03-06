@@ -21,62 +21,32 @@ import (
 	pbds "github.com/TencentBlueKing/bk-bscp/pkg/protocol/data-service"
 )
 
-// UpsertBizProcessConfigView creates or updates a biz's process config view setting.
-func (s *Service) UpsertBizProcessConfigView(ctx context.Context,
-	req *pbcs.UpsertBizProcessConfigViewReq) (*pbcs.UpsertBizProcessConfigViewResp, error) {
+// ManageConfigKV proxies the generic config KV management request to data-service.
+func (s *Service) ManageConfigKV(ctx context.Context,
+	req *pbcs.ManageConfigKVReq) (*pbcs.ManageConfigKVResp, error) {
 
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	if _, err := s.client.DS.UpsertBizProcessConfigView(grpcKit.RpcCtx(), &pbds.UpsertBizProcessConfigViewReq{
-		BizId:   req.BizId,
-		Enabled: req.Enabled,
-	}); err != nil {
-		logs.Errorf("upsert biz process config view failed, bizID: %d, err: %v, rid: %s",
-			req.BizId, err, grpcKit.Rid)
-		return nil, err
+	dsReq := &pbds.ManageConfigKVReq{
+		Action:    req.Action,
+		Key:       req.Key,
+		KeyPrefix: req.KeyPrefix,
+	}
+	for _, kv := range req.Kvs {
+		dsReq.Kvs = append(dsReq.Kvs, &pbds.ConfigKVItem{Key: kv.Key, Value: kv.Value})
 	}
 
-	return &pbcs.UpsertBizProcessConfigViewResp{}, nil
-}
-
-// DeleteBizProcessConfigView removes a biz's process config view setting.
-func (s *Service) DeleteBizProcessConfigView(ctx context.Context,
-	req *pbcs.DeleteBizProcessConfigViewReq) (*pbcs.DeleteBizProcessConfigViewResp, error) {
-
-	grpcKit := kit.FromGrpcContext(ctx)
-
-	if _, err := s.client.DS.DeleteBizProcessConfigView(grpcKit.RpcCtx(), &pbds.DeleteBizProcessConfigViewReq{
-		BizId: req.BizId,
-	}); err != nil {
-		logs.Errorf("delete biz process config view failed, bizID: %d, err: %v, rid: %s",
-			req.BizId, err, grpcKit.Rid)
-		return nil, err
-	}
-
-	return &pbcs.DeleteBizProcessConfigViewResp{}, nil
-}
-
-// ListBizProcessConfigView lists all configured biz process config view entries.
-func (s *Service) ListBizProcessConfigView(ctx context.Context,
-	req *pbcs.ListBizProcessConfigViewReq) (*pbcs.ListBizProcessConfigViewResp, error) {
-
-	grpcKit := kit.FromGrpcContext(ctx)
-
-	resp, err := s.client.DS.ListBizProcessConfigView(grpcKit.RpcCtx(), &pbds.ListBizProcessConfigViewReq{
-		BizId: req.BizId,
-	})
+	resp, err := s.client.DS.ManageConfigKV(grpcKit.RpcCtx(), dsReq)
 	if err != nil {
-		logs.Errorf("list biz process config view failed, err: %v, rid: %s", err, grpcKit.Rid)
+		logs.Errorf("manage config kv failed, action: %s, err: %v, rid: %s",
+			req.Action, err, grpcKit.Rid)
 		return nil, err
 	}
 
-	items := make([]*pbcs.BizProcessConfigViewItem, 0, len(resp.Items))
+	result := &pbcs.ManageConfigKVResp{}
 	for _, item := range resp.Items {
-		items = append(items, &pbcs.BizProcessConfigViewItem{
-			BizId:   item.BizId,
-			Enabled: item.Enabled,
-		})
+		result.Items = append(result.Items, &pbcs.ConfigKVItem{Key: item.Key, Value: item.Value})
 	}
 
-	return &pbcs.ListBizProcessConfigViewResp{Items: items}, nil
+	return result, nil
 }

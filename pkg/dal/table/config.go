@@ -15,10 +15,10 @@ package table
 // Config defines a config model
 type Config struct {
 	// ID is an auto-increased value, which is a unique identity
-	// of a itsm_config.
+	// of a config.
 	ID    uint32 `db:"id" json:"id" gorm:"primaryKey"`
 	Key   string `db:"key" json:"key" gorm:"column:key"`
-	Value string `db:"value" json:"value" gorm:"column:value"`
+	Value string `db:"value" json:"value" gorm:"column:value;type:text"`
 }
 
 // TableName is the strategy's database table name.

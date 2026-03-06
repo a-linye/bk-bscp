@@ -85,9 +85,9 @@ func (p *proxy) routers() http.Handler {
 		r.Mount("/", p.cfgSvrMux)
 	})
 
-	// 进程与配置管理可见性白名单管理接口，通过 appCode + appSecret 校验
-	r.Route("/api/v1/config/process_config_view", func(r chi.Router) {
-		r.Use(p.AppCodeSecretVerified)
+	// configs 表 KV 管理接口
+	r.Route("/api/v1/config/manage_config_kv", func(r chi.Router) {
+		r.Use(p.authorizer.UnifiedAuthentication)
 		r.Mount("/", p.cfgSvrMux)
 	})
 

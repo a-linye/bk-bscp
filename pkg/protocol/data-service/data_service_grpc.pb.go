@@ -252,9 +252,7 @@ const (
 	Data_DeleteConfigTemplate_FullMethodName              = "/pbds.Data/DeleteConfigTemplate"
 	Data_OperateGenerateConfig_FullMethodName             = "/pbds.Data/OperateGenerateConfig"
 	Data_GetProcessInstanceTopo_FullMethodName            = "/pbds.Data/GetProcessInstanceTopo"
-	Data_UpsertBizProcessConfigView_FullMethodName        = "/pbds.Data/UpsertBizProcessConfigView"
-	Data_DeleteBizProcessConfigView_FullMethodName        = "/pbds.Data/DeleteBizProcessConfigView"
-	Data_ListBizProcessConfigView_FullMethodName          = "/pbds.Data/ListBizProcessConfigView"
+	Data_ManageConfigKV_FullMethodName                    = "/pbds.Data/ManageConfigKV"
 )
 
 // DataClient is the client API for Data service.
@@ -533,10 +531,8 @@ type DataClient interface {
 	DeleteConfigTemplate(ctx context.Context, in *DeleteConfigTemplateReq, opts ...grpc.CallOption) (*DeleteConfigTemplateResp, error)
 	OperateGenerateConfig(ctx context.Context, in *OperateGenerateConfigReq, opts ...grpc.CallOption) (*OperateGenerateConfigResp, error)
 	GetProcessInstanceTopo(ctx context.Context, in *GetProcessInstanceTopoReq, opts ...grpc.CallOption) (*GetProcessInstanceTopoResp, error)
-	// 进程与配置管理可见性白名单管理
-	UpsertBizProcessConfigView(ctx context.Context, in *UpsertBizProcessConfigViewReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
-	DeleteBizProcessConfigView(ctx context.Context, in *DeleteBizProcessConfigViewReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
-	ListBizProcessConfigView(ctx context.Context, in *ListBizProcessConfigViewReq, opts ...grpc.CallOption) (*ListBizProcessConfigViewResp, error)
+	// configs 表 KV 管理
+	ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error)
 }
 
 type dataClient struct {
@@ -2527,27 +2523,9 @@ func (c *dataClient) GetProcessInstanceTopo(ctx context.Context, in *GetProcessI
 	return out, nil
 }
 
-func (c *dataClient) UpsertBizProcessConfigView(ctx context.Context, in *UpsertBizProcessConfigViewReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
-	out := new(base.EmptyResp)
-	err := c.cc.Invoke(ctx, Data_UpsertBizProcessConfigView_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *dataClient) DeleteBizProcessConfigView(ctx context.Context, in *DeleteBizProcessConfigViewReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
-	out := new(base.EmptyResp)
-	err := c.cc.Invoke(ctx, Data_DeleteBizProcessConfigView_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *dataClient) ListBizProcessConfigView(ctx context.Context, in *ListBizProcessConfigViewReq, opts ...grpc.CallOption) (*ListBizProcessConfigViewResp, error) {
-	out := new(ListBizProcessConfigViewResp)
-	err := c.cc.Invoke(ctx, Data_ListBizProcessConfigView_FullMethodName, in, out, opts...)
+func (c *dataClient) ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error) {
+	out := new(ManageConfigKVResp)
+	err := c.cc.Invoke(ctx, Data_ManageConfigKV_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2830,10 +2808,8 @@ type DataServer interface {
 	DeleteConfigTemplate(context.Context, *DeleteConfigTemplateReq) (*DeleteConfigTemplateResp, error)
 	OperateGenerateConfig(context.Context, *OperateGenerateConfigReq) (*OperateGenerateConfigResp, error)
 	GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error)
-	// 进程与配置管理可见性白名单管理
-	UpsertBizProcessConfigView(context.Context, *UpsertBizProcessConfigViewReq) (*base.EmptyResp, error)
-	DeleteBizProcessConfigView(context.Context, *DeleteBizProcessConfigViewReq) (*base.EmptyResp, error)
-	ListBizProcessConfigView(context.Context, *ListBizProcessConfigViewReq) (*ListBizProcessConfigViewResp, error)
+	// configs 表 KV 管理
+	ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3500,14 +3476,8 @@ func (UnimplementedDataServer) OperateGenerateConfig(context.Context, *OperateGe
 func (UnimplementedDataServer) GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProcessInstanceTopo not implemented")
 }
-func (UnimplementedDataServer) UpsertBizProcessConfigView(context.Context, *UpsertBizProcessConfigViewReq) (*base.EmptyResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpsertBizProcessConfigView not implemented")
-}
-func (UnimplementedDataServer) DeleteBizProcessConfigView(context.Context, *DeleteBizProcessConfigViewReq) (*base.EmptyResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteBizProcessConfigView not implemented")
-}
-func (UnimplementedDataServer) ListBizProcessConfigView(context.Context, *ListBizProcessConfigViewReq) (*ListBizProcessConfigViewResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBizProcessConfigView not implemented")
+func (UnimplementedDataServer) ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ManageConfigKV not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -7481,56 +7451,20 @@ func _Data_GetProcessInstanceTopo_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Data_UpsertBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpsertBizProcessConfigViewReq)
+func _Data_ManageConfigKV_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ManageConfigKVReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DataServer).UpsertBizProcessConfigView(ctx, in)
+		return srv.(DataServer).ManageConfigKV(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Data_UpsertBizProcessConfigView_FullMethodName,
+		FullMethod: Data_ManageConfigKV_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataServer).UpsertBizProcessConfigView(ctx, req.(*UpsertBizProcessConfigViewReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Data_DeleteBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteBizProcessConfigViewReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataServer).DeleteBizProcessConfigView(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Data_DeleteBizProcessConfigView_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataServer).DeleteBizProcessConfigView(ctx, req.(*DeleteBizProcessConfigViewReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Data_ListBizProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListBizProcessConfigViewReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataServer).ListBizProcessConfigView(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Data_ListBizProcessConfigView_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataServer).ListBizProcessConfigView(ctx, req.(*ListBizProcessConfigViewReq))
+		return srv.(DataServer).ManageConfigKV(ctx, req.(*ManageConfigKVReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -8423,16 +8357,8 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Data_GetProcessInstanceTopo_Handler,
 		},
 		{
-			MethodName: "UpsertBizProcessConfigView",
-			Handler:    _Data_UpsertBizProcessConfigView_Handler,
-		},
-		{
-			MethodName: "DeleteBizProcessConfigView",
-			Handler:    _Data_DeleteBizProcessConfigView_Handler,
-		},
-		{
-			MethodName: "ListBizProcessConfigView",
-			Handler:    _Data_ListBizProcessConfigView_Handler,
+			MethodName: "ManageConfigKV",
+			Handler:    _Data_ManageConfigKV_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

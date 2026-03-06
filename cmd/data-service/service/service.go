@@ -48,15 +48,15 @@ type Service struct {
 	vault   vault.Set
 	gateway *gateway
 	// esb esb api client.
-	esb         client.Client
-	repo        repository.Provider
-	tmplProc    tmplprocess.TmplProcessor
-	itsm        itsm.Service
-	cmdb           bkcmdb.Service
-	taskManager    *task.TaskManager
-	gseSvc         *gse.Service
-	pcvCache       *PcvCache
-	pcvCacheCancel context.CancelFunc
+	esb                 client.Client
+	repo                repository.Provider
+	tmplProc            tmplprocess.TmplProcessor
+	itsm                itsm.Service
+	cmdb                bkcmdb.Service
+	taskManager         *task.TaskManager
+	gseSvc              *gse.Service
+	configKVCache       *ConfigKVCache
+	configKVCacheCancel context.CancelFunc
 }
 
 // NewService create a service instance.
@@ -114,7 +114,7 @@ func NewService(sd serviced.Service, ssd serviced.ServiceDiscover, daoSet dao.Se
 		gseSvc:      gseSvc,
 	}
 
-	svc.InitPcvCache()
+	svc.InitConfigKVCache()
 
 	return svc, nil
 }
