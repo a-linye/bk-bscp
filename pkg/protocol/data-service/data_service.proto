@@ -2743,7 +2743,9 @@ message DeleteBizProcessConfigViewReq {
   uint32 biz_id = 1;
 }
 
-message ListBizProcessConfigViewReq {}
+message ListBizProcessConfigViewReq {
+  uint32 biz_id = 1;
+}
 
 message BizProcessConfigViewItem {
   uint32 biz_id = 1;

@@ -52,10 +52,11 @@ type Service struct {
 	repo        repository.Provider
 	tmplProc    tmplprocess.TmplProcessor
 	itsm        itsm.Service
-	cmdb        bkcmdb.Service
-	taskManager *task.TaskManager
-	gseSvc      *gse.Service
-	pcvCache    *PcvCache
+	cmdb           bkcmdb.Service
+	taskManager    *task.TaskManager
+	gseSvc         *gse.Service
+	pcvCache       *PcvCache
+	pcvCacheCancel context.CancelFunc
 }
 
 // NewService create a service instance.

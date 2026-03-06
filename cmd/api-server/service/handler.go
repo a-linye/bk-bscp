@@ -128,16 +128,12 @@ func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	// set process_config_view feature flag from DB via config-server gRPC
 	featureFlags.ProcessConfigView = false
 	if bizID, err := strconv.ParseUint(biz, 10, 32); err == nil && bizID > 0 {
-		resp, grpcErr := p.cfgClient.ListBizProcessConfigView(r.Context(), &pbcs.ListBizProcessConfigViewReq{})
+		resp, grpcErr := p.cfgClient.ListBizProcessConfigView(r.Context(),
+			&pbcs.ListBizProcessConfigViewReq{BizId: uint32(bizID)})
 		if grpcErr != nil {
 			logs.Errorf("list biz process config view failed: %v", grpcErr)
-		} else {
-			for _, item := range resp.Items {
-				if item.BizId == uint32(bizID) {
-					featureFlags.ProcessConfigView = item.Enabled
-					break
-				}
-			}
+		} else if len(resp.Items) > 0 {
+			featureFlags.ProcessConfigView = resp.Items[0].Enabled
 		}
 	}
 

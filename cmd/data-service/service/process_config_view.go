@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	pcvKeyPrefix    = "pcv_biz:"
+	pcvKeyPrefix       = "pcv_biz:"
 	pcvRefreshInterval = 5 * time.Minute
 )
 
@@ -86,7 +86,16 @@ func (s *Service) InitPcvCache() {
 	if err := s.refreshPcvCache(); err != nil {
 		logs.Errorf("initial pcv cache load failed: %v", err)
 	}
-	go s.pcvCacheRefreshLoop()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.pcvCacheCancel = cancel
+	go s.pcvCacheRefreshLoop(ctx)
+}
+
+// StopPcvCache stops the background pcv cache refresh goroutine.
+func (s *Service) StopPcvCache() {
+	if s.pcvCacheCancel != nil {
+		s.pcvCacheCancel()
+	}
 }
 
 func (s *Service) refreshPcvCache() error {
@@ -108,12 +117,18 @@ func (s *Service) refreshPcvCache() error {
 	return nil
 }
 
-func (s *Service) pcvCacheRefreshLoop() {
+func (s *Service) pcvCacheRefreshLoop(ctx context.Context) {
 	ticker := time.NewTicker(pcvRefreshInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		if err := s.refreshPcvCache(); err != nil {
-			logs.Errorf("pcv cache refresh failed: %v", err)
+	for {
+		select {
+		case <-ctx.Done():
+			logs.Infof("pcv cache refresh loop stopped")
+			return
+		case <-ticker.C:
+			if err := s.refreshPcvCache(); err != nil {
+				logs.Errorf("pcv cache refresh failed: %v", err)
+			}
 		}
 	}
 }
@@ -169,9 +184,19 @@ func (s *Service) DeleteBizProcessConfigView(ctx context.Context,
 	return &pbbase.EmptyResp{}, nil
 }
 
-// ListBizProcessConfigView lists all configured biz process config view entries.
+// ListBizProcessConfigView lists configured biz process config view entries.
 func (s *Service) ListBizProcessConfigView(ctx context.Context,
 	req *pbds.ListBizProcessConfigViewReq) (*pbds.ListBizProcessConfigViewResp, error) {
+
+	if req.BizId > 0 {
+		enabled, ok := s.pcvCache.Get(req.BizId)
+		if !ok {
+			return &pbds.ListBizProcessConfigViewResp{}, nil
+		}
+		return &pbds.ListBizProcessConfigViewResp{
+			Items: []*pbds.BizProcessConfigViewItem{{BizId: req.BizId, Enabled: enabled}},
+		}, nil
+	}
 
 	kt := kit.FromGrpcContext(ctx)
 

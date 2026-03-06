@@ -62,7 +62,9 @@ func (s *Service) ListBizProcessConfigView(ctx context.Context,
 
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	resp, err := s.client.DS.ListBizProcessConfigView(grpcKit.RpcCtx(), &pbds.ListBizProcessConfigViewReq{})
+	resp, err := s.client.DS.ListBizProcessConfigView(grpcKit.RpcCtx(), &pbds.ListBizProcessConfigViewReq{
+		BizId: req.BizId,
+	})
 	if err != nil {
 		logs.Errorf("list biz process config view failed, err: %v, rid: %s", err, grpcKit.Rid)
 		return nil, err
