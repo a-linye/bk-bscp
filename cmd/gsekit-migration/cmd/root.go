@@ -18,6 +18,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -34,6 +35,12 @@ var (
 	mockOutput     string
 	mockBizID      uint32
 	maxProcesses   int
+
+	// compare-render flags
+	compareRenderOutput       string
+	compareRenderShowDiff     bool
+	compareRenderDiffCtxLines int
+	compareRenderTimeout      time.Duration
 )
 
 // rootCmd represents the base command
@@ -70,6 +77,7 @@ func init() {
 	rootCmd.AddCommand(cleanupCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(generateMockCmd)
+	rootCmd.AddCommand(compareRenderCmd)
 }
 
 func initConfig() {
@@ -302,6 +310,59 @@ mock-data.sql file with real IPs, set/module IDs, and process details.`,
 	},
 }
 
+// compareRenderCmd represents the compare-render command
+var compareRenderCmd = &cobra.Command{
+	Use:   "compare-render",
+	Short: "Compare BSCP render results with GSEKit stored rendered content",
+	Long: `For each latest released config instance in GSEKit, render the template
+using BSCP's Mako renderer with the same context, then compare the output
+with the already-rendered content stored in GSEKit.
+
+This verifies that BSCP rendering produces identical results before migration.`,
+	PreRunE: requireConfig,
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := applyBizIDsFlag(); err != nil {
+			fmt.Printf("Error parsing biz-ids: %v\n", err)
+			os.Exit(1)
+		}
+
+		m, err := migrator.NewMigrator(cfg)
+		if err != nil {
+			fmt.Printf("Error creating migrator: %v\n", err)
+			os.Exit(1)
+		}
+		defer m.Close()
+
+		opts := migrator.CompareRenderOptions{
+			ShowDiff:         compareRenderShowDiff,
+			DiffContextLines: compareRenderDiffCtxLines,
+			OutputFile:       compareRenderOutput,
+			RenderTimeout:    compareRenderTimeout,
+		}
+
+		report, err := m.CompareRender(opts)
+		if err != nil {
+			fmt.Printf("Error during compare-render: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print table report to stdout
+		m.PrintCompareRenderReport(report)
+
+		// Write JSON report if output file specified
+		if compareRenderOutput != "" {
+			if err := m.WriteCompareRenderReportJSON(report, compareRenderOutput); err != nil {
+				fmt.Printf("Error writing report: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		if !report.Success {
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	migrateCmd.Flags().BoolVarP(&confirmMigrate, "yes", "y", false, "Skip confirmation prompt")
 	migrateCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
@@ -320,4 +381,15 @@ func init() {
 		"Business ID for mock data generation (overrides config, default 2)")
 	generateMockCmd.Flags().IntVar(&maxProcesses, "max-processes", 20,
 		"Maximum number of processes to include in mock data")
+
+	compareRenderCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
+		"Comma-separated list of business IDs to compare (overrides config)")
+	compareRenderCmd.Flags().StringVarP(&compareRenderOutput, "output", "o", "",
+		"Output file path for JSON report (default: stdout only)")
+	compareRenderCmd.Flags().BoolVar(&compareRenderShowDiff, "show-diff", false,
+		"Show unified diff for mismatched instances")
+	compareRenderCmd.Flags().IntVar(&compareRenderDiffCtxLines, "diff-context-lines", 3,
+		"Number of context lines in diff output")
+	compareRenderCmd.Flags().DurationVar(&compareRenderTimeout, "render-timeout", 30*time.Second,
+		"Timeout for a single render operation")
 }
