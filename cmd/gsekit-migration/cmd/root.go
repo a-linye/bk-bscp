@@ -313,10 +313,10 @@ mock-data.sql file with real IPs, set/module IDs, and process details.`,
 // compareRenderCmd represents the compare-render command
 var compareRenderCmd = &cobra.Command{
 	Use:   "compare-render",
-	Short: "Compare BSCP render results with GSEKit stored rendered content",
-	Long: `For each latest released config instance in GSEKit, render the template
-using BSCP's Mako renderer with the same context, then compare the output
-with the already-rendered content stored in GSEKit.
+	Short: "Compare BSCP render results with GSEKit preview API results",
+	Long: `For each config template in GSEKit, find its latest published version,
+pick any one bound process, then render via both GSEKit preview API and
+BSCP Mako renderer, and compare the two outputs.
 
 This verifies that BSCP rendering produces identical results before migration.`,
 	PreRunE: requireConfig,
