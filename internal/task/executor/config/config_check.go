@@ -212,6 +212,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		storedMD5 = "<nil>"
 	case configInstance.Attachment.Md5 == actualMD5:
 		commonPayload.ConfigPayload.CompareStatus = common.CompareResultSame
+		commonPayload.ConfigPayload.ConfigContent = configInstance.Attachment.Content
 		storedMD5 = configInstance.Attachment.Md5
 	default:
 		commonPayload.ConfigPayload.CompareStatus = common.CompareResultDifferent
