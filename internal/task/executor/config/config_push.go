@@ -140,7 +140,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return err
 	}
 
-	scriptStoreDir := e.GseConf.ScriptStoreDir
+	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
 
 	scriptName := fmt.Sprintf(scriptNameTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
 

@@ -40,8 +40,8 @@ const (
 	CheckConfigMD5StepName istep.StepName = "CheckConfigMD5"
 	// FetchConfigContentStepName fetch config content step name
 	FetchConfigContentStepName istep.StepName = "FetchConfigConten"
-	md5ScriptTmpl              string         = "bk_gse_check_config_md5_%d_%d.sh"
-	catScriptTmpl              string         = "bk_gse_cat_config_%d_%d.sh"
+	md5ScriptTmpl              string         = "bk_gse_check_md5_%d_%d.sh"
+	catScriptTmpl              string         = "bk_gse_cat_%d_%d.sh"
 )
 
 // CheckConfigExecutor 配置检查执行器
@@ -110,7 +110,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 	}
 
 	scriptName := fmt.Sprintf(md5ScriptTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
-	scriptStoreDir := e.GseConf.ScriptStoreDir
+	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
 
 	logs.Infof("[CheckConfigMD5 STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
@@ -267,7 +267,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 	}
 
 	scriptName := fmt.Sprintf(catScriptTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
-	scriptStoreDir := e.GseConf.ScriptStoreDir
+	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
 
 	logs.Infof("[FetchConfigContent STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
@@ -427,4 +427,14 @@ cat "$TARGET_PATH"
 `,
 		shellQuote(absPath),
 	), nil
+}
+
+// taskScriptDir returns a per-template, per-process subdirectory under the base
+// scriptStoreDir so that scripts from different templates/processes on the same
+// host never collide. Layout: {base}/{ConfigTemplateID}/{CcProcessID}/
+func taskScriptDir(base string, p *common.TaskPayload) string {
+	return path.Join(base,
+		fmt.Sprintf("%d", p.ConfigPayload.ConfigTemplateID),
+		fmt.Sprintf("%d", p.ProcessPayload.CcProcessID),
+	)
 }
