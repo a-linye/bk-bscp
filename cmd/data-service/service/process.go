@@ -512,7 +512,7 @@ func buildOperateRange(processes []*table.Process, req *pbds.OperateProcessReq) 
 // createTaskBatch 创建任务批次
 func createTaskBatch(kt *kit.Kit, dao dao.Set, operateType string, environment string,
 	operateRange table.OperateRange, totalCount uint32) (uint32, error) {
-	now := time.Now().UTC()
+	now := time.Now()
 	taskBatchSpec := &table.TaskBatchSpec{
 		TaskObject: table.TaskObjectProcess,
 		TaskAction: table.TaskAction(operateType),
