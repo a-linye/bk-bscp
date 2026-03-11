@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
 	"time"
 
 	istep "github.com/Tencent/bk-bcs/bcs-common/common/task/steps/iface"
@@ -588,6 +587,21 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 		CbErr:    cbErr,
 	})
 
+	kt := kit.New()
+
+	defer func() {
+		// 只要批次任务全部完成，就触发一次 CMDB 模块实例序列更新，确保模块实例序列的正确性
+		if allCompleted {
+			if errR := cmdb.ComputeModuleInstSeqUpdates(
+				kt, e.Dao, payload.BizID, payload.ProcessID); errR != nil {
+
+				logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to reorder module instance sequence, "+
+					"bizID: %d, processID: %d, err: %v",
+					payload.BizID, payload.ProcessID, errR)
+			}
+		}
+	}()
+
 	// 如果任务成功，不需要回滚
 	if isSuccess {
 		if payload.OperateType == table.UnregisterProcessOperate || payload.OperateType == table.StopProcessOperate {
@@ -613,14 +627,6 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 			c.GetTaskID())
 
 		return nil
-	}
-
-	// 只要任务完成就排序
-	if allCompleted {
-		if errR := e.reorderModuleInstSeq(kit.New(), payload.BizID, payload.ProcessID); errR != nil {
-			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to reorder module instance sequence, "+
-				"bizID: %d, processID: %d, err: %v", payload.BizID, payload.ProcessID, errR)
-		}
 	}
 
 	// 任务失败，执行回滚逻辑
@@ -767,74 +773,4 @@ func RegisterExecutor(e *ProcessExecutor) {
 	istep.Register(FinalizeOperateProcessStepName, istep.StepExecutorFunc(e.Finalize))
 	// 注册回调，用于任务失败时的状态回滚
 	istep.RegisterCallback(ProcessOperateCallbackName, istep.CallbackExecutorFunc(e.Callback))
-}
-
-// reorderModuleInstSeq 重新排序模块实例序列，确保同一模块下相同别名的进程实例的 ModuleInstSeq 是连续的
-func (e *ProcessExecutor) reorderModuleInstSeq(kit *kit.Kit, bizID uint32, processID uint32) error {
-	// 1 获取进程
-	process, err := e.Dao.Process().GetByID(kit, bizID, processID)
-	if err != nil {
-		return fmt.Errorf("failed to get process by ID: %w", err)
-	}
-
-	tx := e.Dao.GenQuery().Begin()
-	committed := false
-	defer func() {
-		if !committed {
-			if errR := tx.Rollback(); errR != nil {
-				logs.Errorf(
-					"[reorderModuleInstSeq ERROR] biz %d: rollback failed, err=%v",
-					bizID, errR,
-				)
-			}
-		}
-	}()
-
-	// 2 查询同 module + alias 的所有 process
-	processIDs, err := e.Dao.Process().ListByModuleIDAndAliasWithTx(kit, tx, bizID, process.Attachment.ModuleID,
-		process.Spec.Alias)
-	if err != nil {
-		return fmt.Errorf("failed to list processes by module ID and alias: %w", err)
-	}
-
-	// 3 查询所有实例
-	instances, err := e.Dao.ProcessInstance().ListByProcessIDsWithTx(kit, tx, bizID, processIDs)
-	if err != nil {
-		return err
-	}
-
-	// 4 排序
-	sort.Slice(instances, func(i, j int) bool {
-		if instances[i].Attachment.CcProcessID != instances[j].Attachment.CcProcessID {
-			return instances[i].Attachment.CcProcessID < instances[j].Attachment.CcProcessID
-		}
-		return instances[i].Spec.HostInstSeq < instances[j].Spec.HostInstSeq
-	})
-
-	// 5 重新计算 seq，只更新变化的数据
-	updates := make([]*table.ProcessInstance, 0, len(instances))
-	for i := range instances {
-		newSeq := uint32(i + 1)
-		if instances[i].Spec.ModuleInstSeq != newSeq {
-			instances[i].Spec.ModuleInstSeq = newSeq
-			updates = append(updates, instances[i])
-		}
-	}
-
-	// 6 批量更新
-	if len(updates) > 0 {
-		err = e.Dao.ProcessInstance().BatchUpdateWithTx(kit, tx, updates)
-		if err != nil {
-			return fmt.Errorf("failed to update process instances: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		logs.Errorf("[reorderModuleInstSeq ERROR] biz %d: commit failed, err=%v", bizID, err)
-		return err
-	}
-
-	committed = true
-
-	return nil
 }
