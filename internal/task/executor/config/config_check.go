@@ -40,8 +40,8 @@ const (
 	CheckConfigMD5StepName istep.StepName = "CheckConfigMD5"
 	// FetchConfigContentStepName fetch config content step name
 	FetchConfigContentStepName istep.StepName = "FetchConfigConten"
-	md5ScriptTmpl              string         = "bk_gse_check_md5_%d_%d.sh"
-	catScriptTmpl              string         = "bk_gse_cat_%d_%d.sh"
+	// scriptTmpl unified script name: bk_gse_script_{action}_{timestamp}_{templateID}_{processID}_{seq}.sh
+	scriptTmpl string = "bk_gse_script_%s_%d_%d_%d_%d.sh"
 )
 
 // CheckConfigExecutor 配置检查执行器
@@ -109,13 +109,13 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return err
 	}
 
-	scriptName := fmt.Sprintf(md5ScriptTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
-	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
+	scriptName := buildScriptName("check_md5", commonPayload)
+	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
 
 	logs.Infof("[CheckConfigMD5 STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
-		payload.BatchID, scriptName, scriptStoreDir,
-		path.Join(scriptStoreDir, scriptName),
+		payload.BatchID, scriptName, storeDir,
+		path.Join(storeDir, scriptName),
 		payload.Process.Attachment.AgentID,
 		payload.TemplateRevision.Spec.Permission.User,
 		fullPath)
@@ -130,13 +130,13 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		Scripts: []gse.Script{
 			{
 				ScriptName:     scriptName,
-				ScriptStoreDir: scriptStoreDir,
+				ScriptStoreDir: storeDir,
 				ScriptContent:  script,
 			},
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(scriptStoreDir, scriptName),
+				Command:        path.Join(storeDir, scriptName),
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -266,13 +266,13 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return err
 	}
 
-	scriptName := fmt.Sprintf(catScriptTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
-	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
+	scriptName := buildScriptName("cat", commonPayload)
+	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
 
 	logs.Infof("[FetchConfigContent STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
-		payload.BatchID, scriptName, scriptStoreDir,
-		path.Join(scriptStoreDir, scriptName),
+		payload.BatchID, scriptName, storeDir,
+		path.Join(storeDir, scriptName),
 		payload.Process.Attachment.AgentID,
 		payload.TemplateRevision.Spec.Permission.User,
 		fullPath)
@@ -287,13 +287,13 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		Scripts: []gse.Script{
 			{
 				ScriptName:     scriptName,
-				ScriptStoreDir: scriptStoreDir,
+				ScriptStoreDir: storeDir,
 				ScriptContent:  script,
 			},
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(scriptStoreDir, scriptName),
+				Command:        path.Join(storeDir, scriptName),
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -429,12 +429,19 @@ cat "$TARGET_PATH"
 	), nil
 }
 
-// taskScriptDir returns a per-template, per-process subdirectory under the base
-// scriptStoreDir so that scripts from different templates/processes on the same
-// host never collide. Layout: {base}/{ConfigTemplateID}/{CcProcessID}/
-func taskScriptDir(base string, p *common.TaskPayload) string {
-	return path.Join(base,
-		fmt.Sprintf("%d", p.ConfigPayload.ConfigTemplateID),
-		fmt.Sprintf("%d", p.ProcessPayload.CcProcessID),
+// scriptStoreDir returns the script storage directory: {baseDir}/{agentUser}/
+func scriptStoreDir(baseDir, agentUser string) string {
+	return path.Join(baseDir, agentUser)
+}
+
+// buildScriptName generates a unified script name:
+// bk_gse_script_{action}_{timestamp}_{templateID}_{processID}_{seq}.sh
+func buildScriptName(action string, p *common.TaskPayload) string {
+	return fmt.Sprintf(scriptTmpl,
+		action,
+		time.Now().Unix(),
+		p.ConfigPayload.ConfigTemplateID,
+		p.ProcessPayload.CcProcessID,
+		p.ProcessPayload.ModuleInstSeq,
 	)
 }

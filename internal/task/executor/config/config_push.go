@@ -53,8 +53,6 @@ const (
 	ReleaseConfigStepName istep.StepName = "ReleaseConfig"
 	// CallbackName push config callback name
 	CallbackName istep.CallbackName = "Callback"
-	// scriptNameTmpl 脚本名称模板
-	scriptNameTmpl   = "bk_gse_script_%d_%d.sh"
 	scriptTimeoutSec = 3600
 )
 
@@ -140,9 +138,8 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return err
 	}
 
-	scriptStoreDir := taskScriptDir(e.GseConf.ScriptStoreDir, commonPayload)
-
-	scriptName := fmt.Sprintf(scriptNameTmpl, time.Now().Unix(), commonPayload.ProcessPayload.ModuleInstSeq)
+	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
+	scriptName := buildScriptName("release", commonPayload)
 
 	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
@@ -152,10 +149,10 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 			},
 		},
 		Scripts: []gse.Script{
-			{ScriptName: scriptName, ScriptStoreDir: scriptStoreDir, ScriptContent: script},
+			{ScriptName: scriptName, ScriptStoreDir: storeDir, ScriptContent: script},
 		},
 		AtomicTasks: []gse.AtomicTask{
-			{Command: path.Join(scriptStoreDir, scriptName), AtomicTaskID: 0, TimeoutSeconds: scriptTimeoutSec},
+			{Command: path.Join(storeDir, scriptName), AtomicTaskID: 0, TimeoutSeconds: scriptTimeoutSec},
 		},
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
