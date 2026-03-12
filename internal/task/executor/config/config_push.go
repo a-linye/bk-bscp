@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +118,8 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 
 	kt.BizID = payload.BizID
 
+	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+
 	// 渲染完整文件路径（路径+文件名）
 	fullPath, err := renderFullPath(commonPayload)
 	if err != nil {
@@ -126,7 +127,8 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return fmt.Errorf("render full path failed: %w", err)
 	}
 
-	script, err := buildConfigScript(
+	builder := &ScriptBuilder{FileMode: fileMode}
+	script, err := builder.BuildConfigPushScript(
 		base64.StdEncoding.EncodeToString([]byte(commonPayload.ConfigPayload.ConfigContent)),
 		fullPath,
 		commonPayload.ConfigPayload.ConfigFilePermission,
@@ -138,26 +140,34 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return err
 	}
 
-	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
-	scriptName := buildScriptName("release", commonPayload)
+	storeDir := ScriptStoreDirByFileMode(
+		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+	scriptName := BuildScriptNameByFileMode("release", commonPayload, fileMode)
+	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
+	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: commonPayload.ProcessPayload.AgentID,
-				User:      commonPayload.ConfigPayload.ConfigFileOwner,
+				User:      GetExecutionUser(fileMode, commonPayload.ConfigPayload.ConfigFileOwner),
 			},
 		},
 		Scripts: []gse.Script{
 			{ScriptName: scriptName, ScriptStoreDir: storeDir, ScriptContent: script},
 		},
 		AtomicTasks: []gse.AtomicTask{
-			{Command: path.Join(storeDir, scriptName), AtomicTaskID: 0, TimeoutSeconds: scriptTimeoutSec},
+			{Command: command, AtomicTaskID: 0, TimeoutSeconds: scriptTimeoutSec},
 		},
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	})
+	}
+
+	if wi := GetWindowsInterpreter(fileMode); wi != "" {
+		req.WindowsInterpreter = wi
+	}
+
+	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
 	if err != nil {
 		logs.Errorf("[ReleaseConfig STEP]: create execute script task failed: %v", err)
 		return fmt.Errorf("create execute script task failed: %w", err)
@@ -253,53 +263,6 @@ func RegisterPushConfigExecutor(e *PushConfigExecutor) {
 	istep.Register(ValidatePushConfigStepName, istep.StepExecutorFunc(e.ValidatePushConfig))
 	istep.Register(ReleaseConfigStepName, istep.StepExecutorFunc(e.ReleaseConfig))
 	istep.RegisterCallback(CallbackName, istep.CallbackExecutorFunc(e.Callback))
-}
-
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\'"\'"'`) + "'"
-}
-
-var fileModeRe = regexp.MustCompile(`^[0-7]{3,4}$`)
-
-// buildConfigScript 构建配置下发脚本
-func buildConfigScript(base64Content string, absPath string, fileMode string, owner string,
-	group string) (string, error) {
-
-	if !strings.HasPrefix(absPath, "/") {
-		return "", fmt.Errorf("absPath must be absolute")
-	}
-
-	if !fileModeRe.MatchString(fileMode) {
-		return "", fmt.Errorf("invalid fileMode: %s", fileMode)
-	}
-
-	return fmt.Sprintf(`#!/bin/bash
-set -euo pipefail
-
-TARGET_PATH=%s
-TARGET_DIR="$(dirname "$TARGET_PATH")"
-
-# 1. 创建目标目录
-mkdir -p -- "$TARGET_DIR"
-
-# 2. 写入配置文件（base64 解码）
-echo %s | base64 -d > "$TARGET_PATH"
-
-# 3. 设置权限和属主
-chmod %s "$TARGET_PATH"
-chown %s:%s "$TARGET_PATH"
-
-# 4. 校验（不影响主流程）
-set +e
-ls -l "$TARGET_PATH" || true
-md5sum "$TARGET_PATH" || true
-`,
-		shellQuote(absPath),
-		shellQuote(base64Content),
-		fileMode,
-		shellQuote(owner),
-		shellQuote(group),
-	), nil
 }
 
 // getServerInfo 获取服务器 AgentID 和 ContainerID(暂时没有用到)

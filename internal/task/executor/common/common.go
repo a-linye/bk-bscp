@@ -166,7 +166,8 @@ type ConfigPayload struct {
 	ConfigFileOwner         string
 	ConfigFileGroup         string
 	ConfigFilePermission    string
-	ConfigInstanceKey       string // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
+	ConfigFileMode          table.FileMode // 目标操作系统类型: "win" / "unix"
+	ConfigInstanceKey       string         // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
 	ConfigContent           string
 	ConfigContentSignature  string        // 配置内容的签名(sha256)
 	CompareStatus           CompareStatus // 对比状态
@@ -420,6 +421,7 @@ func BuildConfigTaskPayload(
 			ConfigFileOwner:         templateRevision.Spec.Permission.User,
 			ConfigFileGroup:         templateRevision.Spec.Permission.UserGroup,
 			ConfigFilePermission:    templateRevision.Spec.Permission.Privilege,
+			ConfigFileMode:          templateRevision.Spec.FileMode,
 			ConfigInstanceKey:       key,
 			ConfigContent:           "",
 		},

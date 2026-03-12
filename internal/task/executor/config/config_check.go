@@ -15,9 +15,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"path"
 	"strings"
-	"time"
 
 	istep "github.com/Tencent/bk-bcs/bcs-common/common/task/steps/iface"
 	"gorm.io/gorm"
@@ -40,8 +38,6 @@ const (
 	CheckConfigMD5StepName istep.StepName = "CheckConfigMD5"
 	// FetchConfigContentStepName fetch config content step name
 	FetchConfigContentStepName istep.StepName = "FetchConfigConten"
-	// scriptTmpl unified script name: bk_gse_script_{action}_{timestamp}_{templateID}_{processID}_{seq}.sh
-	scriptTmpl string = "bk_gse_script_%s_%d_%d_%d_%d.sh"
 )
 
 // CheckConfigExecutor 配置检查执行器
@@ -104,27 +100,32 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return fmt.Errorf("render full path failed: %w", err)
 	}
 
-	script, err := buildFileMD5Script(fullPath)
+	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+	builder := &ScriptBuilder{FileMode: fileMode}
+
+	script, err := builder.BuildFileMD5Script(fullPath)
 	if err != nil {
 		return err
 	}
 
-	scriptName := buildScriptName("check_md5", commonPayload)
-	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
+	scriptName := BuildScriptNameByFileMode("check_md5", commonPayload, fileMode)
+	storeDir := ScriptStoreDirByFileMode(
+		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
 	logs.Infof("[CheckConfigMD5 STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
 		payload.BatchID, scriptName, storeDir,
-		path.Join(storeDir, scriptName),
+		command,
 		payload.Process.Attachment.AgentID,
 		payload.TemplateRevision.Spec.Permission.User,
 		fullPath)
 
-	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
+	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      payload.TemplateRevision.Spec.Permission.User,
+				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
 			},
 		},
 		Scripts: []gse.Script{
@@ -136,7 +137,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(storeDir, scriptName),
+				Command:        command,
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -144,7 +145,13 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	})
+	}
+
+	if wi := GetWindowsInterpreter(fileMode); wi != "" {
+		req.WindowsInterpreter = wi
+	}
+
+	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
 
 	if err != nil {
 		logs.Errorf("[CheckConfigMD5 STEP]: create execute script task failed: %v", err)
@@ -261,27 +268,32 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return fmt.Errorf("render full path failed: %w", err)
 	}
 
-	script, err := buildFileCatScript(fullPath)
+	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+	builder := &ScriptBuilder{FileMode: fileMode}
+
+	script, err := builder.BuildFileCatScript(fullPath)
 	if err != nil {
 		return err
 	}
 
-	scriptName := buildScriptName("cat", commonPayload)
-	storeDir := scriptStoreDir(e.GseConf.ScriptStoreDir, e.GseConf.AgentUser)
+	scriptName := BuildScriptNameByFileMode("cat", commonPayload, fileMode)
+	storeDir := ScriptStoreDirByFileMode(
+		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
 	logs.Infof("[FetchConfigContent STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
 		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
 		payload.BatchID, scriptName, storeDir,
-		path.Join(storeDir, scriptName),
+		command,
 		payload.Process.Attachment.AgentID,
 		payload.TemplateRevision.Spec.Permission.User,
 		fullPath)
 
-	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
+	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      payload.TemplateRevision.Spec.Permission.User,
+				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
 			},
 		},
 		Scripts: []gse.Script{
@@ -293,7 +305,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(storeDir, scriptName),
+				Command:        command,
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -301,7 +313,13 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	})
+	}
+
+	if wi := GetWindowsInterpreter(fileMode); wi != "" {
+		req.WindowsInterpreter = wi
+	}
+
+	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
 
 	if err != nil {
 		logs.Errorf("[FetchConfigContent STEP]: create execute script task failed: %v", err)
@@ -393,55 +411,4 @@ func RegisterCheckConfigExecutor(e *CheckConfigExecutor) {
 	istep.Register(CheckConfigMD5StepName, istep.StepExecutorFunc(e.CheckConfigMD5))
 	istep.Register(FetchConfigContentStepName, istep.StepExecutorFunc(e.FetchConfigContent))
 	istep.RegisterCallback(CheckConfigCallbackName, istep.CallbackExecutorFunc(e.Callback))
-}
-
-// buildFileMD5Script 构建计算文件MD5的脚本
-func buildFileMD5Script(absPath string) (string, error) {
-	if !strings.HasPrefix(absPath, "/") {
-		return "", fmt.Errorf("absPath must be absolute")
-	}
-
-	return fmt.Sprintf(`#!/bin/bash
-set -euo pipefail
-
-TARGET_PATH=%s
-
-md5sum "$TARGET_PATH" | awk '{print $1}'
-`,
-		shellQuote(absPath),
-	), nil
-}
-
-// buildFileCatScript 构建cat文件内容的脚本
-func buildFileCatScript(absPath string) (string, error) {
-	if !strings.HasPrefix(absPath, "/") {
-		return "", fmt.Errorf("absPath must be absolute")
-	}
-
-	return fmt.Sprintf(`#!/bin/bash
-set -euo pipefail
-
-TARGET_PATH=%s
-
-cat "$TARGET_PATH"
-`,
-		shellQuote(absPath),
-	), nil
-}
-
-// scriptStoreDir returns the script storage directory: {baseDir}/{agentUser}/
-func scriptStoreDir(baseDir, agentUser string) string {
-	return path.Join(baseDir, agentUser)
-}
-
-// buildScriptName generates a unified script name:
-// bk_gse_script_{action}_{timestamp}_{templateID}_{processID}_{seq}.sh
-func buildScriptName(action string, p *common.TaskPayload) string {
-	return fmt.Sprintf(scriptTmpl,
-		action,
-		time.Now().Unix(),
-		p.ConfigPayload.ConfigTemplateID,
-		p.ProcessPayload.CcProcessID,
-		p.ProcessPayload.ModuleInstSeq,
-	)
 }
