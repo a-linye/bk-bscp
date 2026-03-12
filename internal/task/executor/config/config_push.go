@@ -50,10 +50,12 @@ const (
 	PushConfigStepName istep.StepName = "PushConfig"
 	// ReleaseConfigStepName release config step name
 	ReleaseConfigStepName istep.StepName = "ReleaseConfig"
-	// CallbackName push config callback name
-	CallbackName     istep.CallbackName = "Callback"
-	scriptTimeoutSec                    = 3600
 )
+
+// CallbackName push config callback name
+const CallbackName istep.CallbackName = "Callback"
+
+const scriptTimeoutSec = 3600
 
 // PushConfigExecutor 配置下发执行器
 type PushConfigExecutor struct {
@@ -146,7 +148,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	}
 
 	storeDir := ScriptStoreDirByFileMode(
-		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	scriptName := BuildScriptNameByFileMode("release", commonPayload, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 

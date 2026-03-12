@@ -119,7 +119,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 
 	scriptName := BuildScriptNameByFileMode("check_md5", commonPayload, fileMode)
 	storeDir := ScriptStoreDirByFileMode(
-		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
 	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, target=%s",
@@ -239,6 +239,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 }
 
 // FetchConfigContent implements istep.Step.
+// nolint:funlen
 func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 	payload := &CheckConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
@@ -286,7 +287,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 
 	scriptName := BuildScriptNameByFileMode("cat", commonPayload, fileMode)
 	storeDir := ScriptStoreDirByFileMode(
-		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
+		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
 	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, target=%s",

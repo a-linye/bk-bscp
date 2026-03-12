@@ -36,7 +36,7 @@ func (b *ScriptBuilder) IsWindows() bool {
 // BuildConfigPushScript 构建配置下发脚本
 func (b *ScriptBuilder) BuildConfigPushScript(base64Content, absPath, fileMode, owner, group string) (string, error) {
 	if b.IsWindows() {
-		return b.buildWindowsPushScript(base64Content, absPath)
+		return b.buildWindowsPushScript(base64Content, absPath, owner, group)
 	}
 	return buildLinuxPushScript(base64Content, absPath, fileMode, owner, group)
 }
@@ -141,7 +141,7 @@ cat "$TARGET_PATH"
 // ---- Windows 脚本 ----
 
 // buildWindowsPushScript 构建 Windows 配置下发脚本
-func (b *ScriptBuilder) buildWindowsPushScript(base64Content, absPath string) (string, error) {
+func (b *ScriptBuilder) buildWindowsPushScript(base64Content, absPath, owner, group string) (string, error) {
 	winPath := ToWindowsPath(absPath)
 
 	return fmt.Sprintf(`@echo off
@@ -154,16 +154,27 @@ for %%%%i in ("%%TARGET_PATH%%") do set "TARGET_DIR=%%%%~dpi"
 if not exist "%%TARGET_DIR%%" mkdir "%%TARGET_DIR%%"
 
 REM 2. 写入配置文件（base64 解码）
+if exist "%%TARGET_PATH%%" del /f "%%TARGET_PATH%%"
 echo %s > "%%TEMP%%\bscp_tmp.b64"
-certutil -decode "%%TEMP%%\bscp_tmp.b64" "%%TARGET_PATH%%" >nul
+certutil -decode "%%TEMP%%\bscp_tmp.b64" "%%TARGET_PATH%%"
+if !ERRORLEVEL! neq 0 (
+    echo DECODE_FAILED
+    del "%%TEMP%%\bscp_tmp.b64"
+    exit /b 1
+)
 del "%%TEMP%%\bscp_tmp.b64"
 
-REM 3. 校验
+REM 3. 设置文件所属用户和用户组
+icacls "%%TARGET_PATH%%" /setowner "%s" >nul 2>&1
+icacls "%%TARGET_PATH%%" /grant "%s:(F)" >nul 2>&1
+icacls "%%TARGET_PATH%%" /grant "%s:(R)" >nul 2>&1
+
+REM 4. 校验
 dir "%%TARGET_PATH%%"
 certutil -hashfile "%%TARGET_PATH%%" MD5
 
 endlocal
-`, winPath, base64Content), nil
+`, winPath, base64Content, owner, owner, group), nil
 }
 
 // buildWindowsMD5Script 构建 Windows MD5 校验脚本
@@ -194,18 +205,13 @@ if exist "%s" (
 
 // ---- 公共辅助函数 ----
 
-// scriptStoreDir 返回 Linux 脚本存放目录: {baseDir}/{agentUser}/
-func scriptStoreDir(baseDir, agentUser string) string {
-	return path.Join(baseDir, agentUser)
-}
-
 // ScriptStoreDirByFileMode 根据平台返回脚本存放目录
-func ScriptStoreDirByFileMode(linuxBaseDir, linuxAgentUser, windowsScriptDir string,
+func ScriptStoreDirByFileMode(linuxBaseDir, windowsScriptDir string,
 	fileMode table.FileMode) string {
 	if fileMode == table.Windows {
 		return windowsScriptDir
 	}
-	return scriptStoreDir(linuxBaseDir, linuxAgentUser)
+	return linuxBaseDir
 }
 
 // BuildScriptNameByFileMode 生成脚本文件名（区分平台后缀）
@@ -234,16 +240,13 @@ func BuildScriptCommand(storeDir, scriptName string, fileMode table.FileMode) st
 
 // GetExecutionUser 根据平台返回执行账号
 func GetExecutionUser(fileMode table.FileMode, configUser string) string {
-	if fileMode == table.Windows {
-		if configUser == "" {
-			return "Administrator"
-		}
+	if configUser != "" {
 		return configUser
 	}
-	if configUser == "" {
-		return "root"
+	if fileMode == table.Windows {
+		return "Administrator"
 	}
-	return configUser
+	return "root"
 }
 
 // ToWindowsPath 将 POSIX 路径转换为 Windows 路径
