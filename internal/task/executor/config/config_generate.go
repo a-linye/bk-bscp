@@ -104,9 +104,12 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 	// 1. 获取 payload
 	generatePayload := &GenerateConfigPayload{}
 	if err := c.GetPayload(generatePayload); err != nil {
-		logs.Errorf("[GenerateConfig STEP]: get payload failed, err=%v", err)
 		return err
 	}
+
+	logs.Infof("[GenerateConfig STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
+		generatePayload.BizID, generatePayload.BatchID, generatePayload.ConfigTemplateID,
+		generatePayload.ConfigTemplateName)
 
 	// 将渲染结果存储到 CommonPayload 中
 	commonPayload := &common.TaskPayload{}
@@ -203,6 +206,11 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 	)
 	commonPayload.ConfigPayload.ConfigContent = renderedContent
 	commonPayload.ConfigPayload.ConfigContentSignature = tools.SHA256(renderedContent)
+
+	logs.Infof("[GenerateConfig STEP]: done, config_key=%s, content_length=%d",
+		commonPayload.ConfigPayload.ConfigInstanceKey,
+		len(renderedContent))
+
 	if err := c.SetCommonPayload(commonPayload); err != nil {
 		logs.Errorf("[GenerateConfig STEP]: set common payload failed: %d, error: %v",
 			generatePayload.TemplateRevision.Attachment.TemplateID, err)
@@ -244,6 +252,10 @@ func generateConfigKey(configTemplateID, ccProcessID, moduleInstSeq uint32) stri
 // Callback 配置生成回调方法
 // cbErr: 如果为 nil 表示任务成功，否则表示任务失败
 func (e *GenerateConfigExecutor) Callback(c *istep.Context, cbErr error) error {
+	logs.Infof("[ConfigGenerate Callback]: taskID=%s, success=%v", c.GetTaskID(), cbErr == nil)
+	if cbErr != nil {
+		logs.Errorf("[ConfigGenerate Callback]: taskID=%s, err=%v", c.GetTaskID(), cbErr)
+	}
 	payload := &GenerateConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("[ConfigGenerateCallback]: get payload failed: %w", err)

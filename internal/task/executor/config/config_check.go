@@ -84,6 +84,10 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 	kt := kit.New()
 	kt.BizID = payload.BizID
 
+	logs.Infof("[CheckConfigMD5 STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
+		payload.BizID, payload.BatchID,
+		payload.ConfigTemplateID, payload.ConfigTemplateName)
+
 	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
 		return fmt.Errorf("get common payload failed: %w", err)
@@ -94,6 +98,11 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 	if commonPayload.ProcessPayload == nil {
 		return fmt.Errorf("process payload is nil")
 	}
+
+	logs.Infof("[CheckConfigMD5 STEP]: file_mode=%s, config_key=%s, agent_id=%s",
+		commonPayload.ConfigPayload.ConfigFileMode,
+		commonPayload.ConfigPayload.ConfigInstanceKey,
+		commonPayload.ProcessPayload.AgentID)
 
 	fullPath, err := renderFullPath(commonPayload)
 	if err != nil {
@@ -113,13 +122,8 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	logs.Infof("[CheckConfigMD5 STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
-		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
-		payload.BatchID, scriptName, storeDir,
-		command,
-		payload.Process.Attachment.AgentID,
-		payload.TemplateRevision.Spec.Permission.User,
-		fullPath)
+	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, target=%s",
+		payload.BatchID, command, fullPath)
 
 	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
@@ -145,10 +149,6 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	}
-
-	if wi := GetWindowsInterpreter(fileMode); wi != "" {
-		req.WindowsInterpreter = wi
 	}
 
 	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
@@ -242,21 +242,29 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 	payload := &CheckConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
-		logs.Errorf("[FetchConfigContent Execute]: fetch config conten payload nil")
+		logs.Errorf("[FetchConfigContent STEP]: get payload failed, err=%v", err)
 		return err
 	}
+
+	logs.Infof("[FetchConfigContent STEP]: start, biz_id=%d, batch_id=%d",
+		payload.BizID, payload.BatchID)
+
 	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
-		return fmt.Errorf("[Finalize STEP]: get common payload failed: %w", err)
+		return fmt.Errorf("[FetchConfigContent STEP]: get common payload failed: %w", err)
 	}
 	if commonPayload.ConfigPayload == nil {
-		logs.Errorf("[FetchConfigContent Execute]: fetch config conten config payload nil")
-		return fmt.Errorf("fetch config conten config payload nil")
+		logs.Errorf("[FetchConfigContent STEP]: config payload is nil")
+		return fmt.Errorf("config payload is nil")
 	}
+
+	logs.Infof("[FetchConfigContent STEP]: compare_status=%s, config_key=%s",
+		commonPayload.ConfigPayload.CompareStatus,
+		commonPayload.ConfigPayload.ConfigInstanceKey)
 
 	// 没有差异直接跳过
 	if commonPayload.ConfigPayload.CompareStatus != common.CompareResultDifferent {
-		logs.Infof("[FetchConfigContent]: md5 matched, skip")
+		logs.Infof("[FetchConfigContent STEP]: status=%s, skip fetch", commonPayload.ConfigPayload.CompareStatus)
 		return nil
 	}
 
@@ -281,13 +289,8 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.AgentUser, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	logs.Infof("[FetchConfigContent STEP]: preparing gse script, batch_id: %d, scriptName: %s, "+
-		"scriptStoreDir: %s, command: %s, agentID: %s, user: %s, targetPath: %s",
-		payload.BatchID, scriptName, storeDir,
-		command,
-		payload.Process.Attachment.AgentID,
-		payload.TemplateRevision.Spec.Permission.User,
-		fullPath)
+	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, target=%s",
+		payload.BatchID, command, fullPath)
 
 	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
@@ -313,10 +316,6 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	}
-
-	if wi := GetWindowsInterpreter(fileMode); wi != "" {
-		req.WindowsInterpreter = wi
 	}
 
 	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
@@ -377,7 +376,10 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 
 // Callback implements istep.Callback.
 func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
-	logs.Infof("[CheckConfig Callback]: start callback processing")
+	logs.Infof("[CheckConfig Callback]: taskID=%s, success=%v", c.GetTaskID(), cbErr == nil)
+	if cbErr != nil {
+		logs.Errorf("[CheckConfig Callback]: taskID=%s, err=%v", c.GetTaskID(), cbErr)
+	}
 	payload := &CheckConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("get payload failed: %w", err)
@@ -397,11 +399,6 @@ func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		Operator: payload.OperatorUser,
 		CbErr:    cbErr,
 	})
-
-	logs.Infof(
-		"[CheckConfig Callback] finished, taskID=%s, batchID=%d",
-		c.GetTaskID(), payload.BatchID,
-	)
 
 	return nil
 }

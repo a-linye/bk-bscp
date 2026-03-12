@@ -435,7 +435,6 @@ func (e *ProcessExecutor) CompareWithGSEProcessConfig(c *istep.Context) error {
 
 // Operate 进程操作
 func (e *ProcessExecutor) Operate(c *istep.Context) error {
-	logs.Infof("[Operate STEP]: starting operation")
 	payload := &OperatePayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("[Operate STEP]: get payload failed: %w", err)
@@ -446,9 +445,15 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		return fmt.Errorf("[Operate STEP]: get common payload failed: %w", err)
 	}
 
+	proc := commonPayload.ProcessPayload
+	logs.Infof("[Operate STEP]: start, biz_id=%d, batch_id=%d, operate_type=%s, "+
+		"alias=%s, func_name=%s, agent_id=%s",
+		payload.BizID, payload.BatchID, payload.OperateType,
+		proc.Alias, proc.FuncName, proc.AgentID)
+
 	// 解析进程配置信息
 	var processInfo table.ProcessInfo
-	err := json.Unmarshal([]byte(commonPayload.ProcessPayload.ConfigData), &processInfo)
+	err := json.Unmarshal([]byte(proc.ConfigData), &processInfo)
 	if err != nil {
 		return fmt.Errorf("[Operate STEP]: unmarshal process info failed: %w", err)
 	}
@@ -462,14 +467,14 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 	// 构建进程操作接口请求参数
 	params := gesprocessor.BuildProcessOperateParams{
 		BizID:         payload.BizID,
-		Alias:         commonPayload.ProcessPayload.Alias,
-		FuncName:      commonPayload.ProcessPayload.FuncName,
-		AgentID:       []string{commonPayload.ProcessPayload.AgentID},
+		Alias:         proc.Alias,
+		FuncName:      proc.FuncName,
+		AgentID:       []string{proc.AgentID},
 		GseOpType:     gseOpType,
-		HostInstSeq:   commonPayload.ProcessPayload.HostInstSeq,
-		ModuleInstSeq: commonPayload.ProcessPayload.ModuleInstSeq,
-		SetName:       commonPayload.ProcessPayload.SetName,
-		ModuleName:    commonPayload.ProcessPayload.ModuleName,
+		HostInstSeq:   proc.HostInstSeq,
+		ModuleInstSeq: proc.ModuleInstSeq,
+		SetName:       proc.SetName,
+		ModuleName:    proc.ModuleName,
 		ProcessInfo:   processInfo,
 	}
 	processOperate, err := gesprocessor.BuildProcessOperate(params)
@@ -477,41 +482,36 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 		return fmt.Errorf("[Operate STEP]: failed to build process operate: %w", err)
 	}
 
-	items := []gse.ProcessOperate{*processOperate}
-
 	req := &gse.MultiProcOperateReq{
-		ProcOperateReq: items,
+		ProcOperateReq: []gse.ProcessOperate{*processOperate},
 	}
 
 	resp, err := e.GseService.OperateProcMulti(c.Context(), req)
 	if err != nil {
-		return fmt.Errorf("[Operate STEP]: failed to operate process via gseService.OperateProcMulti: %w", err)
+		return fmt.Errorf("[Operate STEP]: OperateProcMulti failed: %w", err)
 	}
+
+	logs.Infof("[Operate STEP]: gse task created, task_id=%s", resp.TaskID)
 
 	result, err := e.WaitProcOperateTaskFinish(c.Context(), resp.TaskID,
-		payload.BizID,
-		commonPayload.ProcessPayload.HostInstSeq,
-		commonPayload.ProcessPayload.Alias,
-		commonPayload.ProcessPayload.AgentID)
+		payload.BizID, proc.HostInstSeq, proc.Alias, proc.AgentID)
 	if err != nil {
-		return fmt.Errorf("[Operate STEP]: failed to wait for task finish: %w", err)
-	}
-	// 构建 GSE 返回结果的 key
-	key := gse.BuildResultKey(commonPayload.ProcessPayload.AgentID,
-		payload.BizID,
-		commonPayload.ProcessPayload.Alias,
-		commonPayload.ProcessPayload.HostInstSeq)
-	logs.Infof("[Operate STEP]: Finalize key: %s", key)
-	procResult, ok := result[key]
-	if !ok {
-		return fmt.Errorf("[Operate STEP]: process result not found for key: %s", key)
+		return fmt.Errorf("[Operate STEP]: wait task finish failed: %w", err)
 	}
 
-	// 检查进程操作是否成功，若操作成功则进入Finalize步骤，由Finalize步骤更新进程实例状态，否则在回调中回滚
+	// 构建 GSE 返回结果的 key
+	key := gse.BuildResultKey(proc.AgentID, payload.BizID, proc.Alias, proc.HostInstSeq)
+	procResult, ok := result[key]
+	if !ok {
+		return fmt.Errorf("[Operate STEP]: result not found for key: %s", key)
+	}
+
 	if !gse.IsSuccess(procResult.ErrorCode) {
 		return fmt.Errorf("[Operate STEP]: process operate failed, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)
 	}
+
+	logs.Infof("[Operate STEP]: success")
 	return nil
 }
 

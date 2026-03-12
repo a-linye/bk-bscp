@@ -51,8 +51,8 @@ const (
 	// ReleaseConfigStepName release config step name
 	ReleaseConfigStepName istep.StepName = "ReleaseConfig"
 	// CallbackName push config callback name
-	CallbackName istep.CallbackName = "Callback"
-	scriptTimeoutSec = 3600
+	CallbackName     istep.CallbackName = "Callback"
+	scriptTimeoutSec                    = 3600
 )
 
 // PushConfigExecutor 配置下发执行器
@@ -101,7 +101,6 @@ func (e *PushConfigExecutor) ValidatePushConfig(c *istep.Context) error {
 // ReleaseConfig 通过脚本方式下发配置
 func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	kt := kit.New()
-	logs.Infof("[ReleaseConfig STEP]: start release config")
 	payload := &PushConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return err
@@ -119,6 +118,12 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	kt.BizID = payload.BizID
 
 	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+
+	logs.Infof("[ReleaseConfig STEP]: start, biz_id=%d, batch_id=%d, file_mode=%s, "+
+		"config_key=%s, agent_id=%s",
+		payload.BizID, payload.BatchID, fileMode,
+		commonPayload.ConfigPayload.ConfigInstanceKey,
+		commonPayload.ProcessPayload.AgentID)
 
 	// 渲染完整文件路径（路径+文件名）
 	fullPath, err := renderFullPath(commonPayload)
@@ -145,11 +150,16 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	scriptName := BuildScriptNameByFileMode("release", commonPayload, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
+	executionUser := GetExecutionUser(fileMode, commonPayload.ConfigPayload.ConfigFileOwner)
+
+	logs.Infof("[ReleaseConfig STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
+		payload.BatchID, command, executionUser, fullPath)
+
 	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: commonPayload.ProcessPayload.AgentID,
-				User:      GetExecutionUser(fileMode, commonPayload.ConfigPayload.ConfigFileOwner),
+				User:      executionUser,
 			},
 		},
 		Scripts: []gse.Script{
@@ -161,10 +171,6 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	}
-
-	if wi := GetWindowsInterpreter(fileMode); wi != "" {
-		req.WindowsInterpreter = wi
 	}
 
 	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
@@ -190,6 +196,24 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return fmt.Errorf("script execution result is empty, task_id=%s", resp.Result.TaskID)
 	}
 
+	r := result.Result[0]
+	if r.ErrorCode != 0 || r.ScriptExitCode != 0 {
+		logs.Errorf(
+			"[ReleaseConfig STEP]: script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
+		)
+		return fmt.Errorf(
+			"script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
+		)
+	}
+
 	logs.Infof("[ReleaseConfig STEP]: script execution success, batch_id: %d, task_id: %s", payload.BatchID,
 		resp.Result.TaskID)
 
@@ -198,7 +222,10 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 
 // Callback implements istep.Callback.
 func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
-	logs.Infof("[PushConfig Callback]: start callback processing")
+	logs.Infof("[PushConfig Callback]: taskID=%s, success=%v", c.GetTaskID(), cbErr == nil)
+	if cbErr != nil {
+		logs.Errorf("[PushConfig Callback]: taskID=%s, err=%v", c.GetTaskID(), cbErr)
+	}
 
 	payload := &PushConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
@@ -486,13 +513,23 @@ func (e *PushConfigExecutor) DownloadConfig(c *istep.Context) error {
 }
 
 // renderFullPath 渲染完整文件路径
+// 支持 Windows 和 Linux 两种路径格式：
+//   - 内部统一使用 `/` 进行 path.Join，避免 POSIX path 库无法处理 `\` 的问题
+//   - Windows 平台最终输出转回 `\`
 func renderFullPath(commonPayload *common.TaskPayload) (string, error) {
 	cfg := commonPayload.ConfigPayload
 	proc := commonPayload.ProcessPayload
 
-	fullPath := path.Join(cfg.ConfigFilePath, cfg.ConfigFileName)
+	// 统一将反斜杠转为正斜杠，确保 POSIX path.Join 能正确处理
+	filePath := strings.ReplaceAll(cfg.ConfigFilePath, `\`, "/")
+	fileName := strings.ReplaceAll(cfg.ConfigFileName, `\`, "/")
+
+	fullPath := path.Join(filePath, fileName)
 	// 不包含变量则无需渲染
 	if !strings.Contains(fullPath, "${") {
+		if cfg.ConfigFileMode == table.Windows {
+			return ToWindowsPath(fullPath), nil
+		}
 		return fullPath, nil
 	}
 
@@ -515,6 +552,11 @@ func renderFullPath(commonPayload *common.TaskPayload) (string, error) {
 	renderedPath, err := render.Template(fullPath, contextParams)
 	if err != nil {
 		return "", fmt.Errorf("render full path failed: %w", err)
+	}
+
+	// Windows 平台转回反斜杠
+	if cfg.ConfigFileMode == table.Windows {
+		renderedPath = ToWindowsPath(renderedPath)
 	}
 
 	logs.Infof("render full path: %s -> %s", fullPath, renderedPath)

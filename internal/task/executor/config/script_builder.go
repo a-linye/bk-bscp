@@ -246,14 +246,6 @@ func GetExecutionUser(fileMode table.FileMode, configUser string) string {
 	return configUser
 }
 
-// GetWindowsInterpreter 返回 Windows 脚本解释器配置
-func GetWindowsInterpreter(fileMode table.FileMode) string {
-	if fileMode == table.Windows {
-		return "cmd.exe /c"
-	}
-	return ""
-}
-
 // ToWindowsPath 将 POSIX 路径转换为 Windows 路径
 func ToWindowsPath(posixPath string) string {
 	return strings.ReplaceAll(posixPath, "/", `\`)
