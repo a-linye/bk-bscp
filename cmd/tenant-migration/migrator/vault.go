@@ -213,7 +213,7 @@ func (m *VaultMigrator) getKvRecordsBatch(offset, limit int) ([]KvRecord, error)
 	if m.cfg.Migration.HasBizFilter() {
 		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
 	}
-	if err := query.Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+	if err := query.Order("id").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
@@ -241,7 +241,7 @@ func (m *VaultMigrator) getReleasedKvRecordsBatch(offset, limit int) ([]Released
 	if m.cfg.Migration.HasBizFilter() {
 		query = query.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
 	}
-	if err := query.Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+	if err := query.Order("id").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
