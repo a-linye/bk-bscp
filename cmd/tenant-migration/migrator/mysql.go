@@ -196,7 +196,7 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 		if hasBizID && hasBizFilter {
 			batchQuery = batchQuery.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
 		}
-		if err := batchQuery.Offset(offset).Limit(batchSize).Find(&rows).Error; err != nil {
+		if err := batchQuery.Order("id").Offset(offset).Limit(batchSize).Find(&rows).Error; err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("failed to read batch at offset %d: %v", offset, err))
 			result.Success = false
 			break
