@@ -28,7 +28,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	pushmanager "github.com/TencentBlueKing/bk-bscp/internal/components/push_manager"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
-	gesprocessor "github.com/TencentBlueKing/bk-bscp/internal/processor/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/lock"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/cmdb"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
@@ -38,8 +37,16 @@ import (
 )
 
 const (
-	maxWait  = 10 * time.Second
+	// maxWait 脚本执行轮询总超时
+	maxWait = 10 * time.Second
+	// interval 脚本执行轮询间隔
 	interval = 2 * time.Second
+
+	// procOperateInterval 用户发起的进程操作轮询间隔
+	procOperateInterval = 3 * time.Second
+	// procOperateMaxRetries 用户发起的进程操作允许的 115 最大重试次数
+	// 配合 procOperateInterval=3s，总等待约 3 分钟
+	procOperateMaxRetries = 60
 
 	dimBizName  = "biz_name"
 	dimTaskID   = "task_id"
@@ -166,7 +173,8 @@ type ConfigPayload struct {
 	ConfigFileOwner         string
 	ConfigFileGroup         string
 	ConfigFilePermission    string
-	ConfigInstanceKey       string // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
+	ConfigFileMode          table.FileMode // 目标操作系统类型: "win" / "unix"
+	ConfigInstanceKey       string         // 配置实例标识: {configTemplateID}-{ccProcessID}-{moduleInstSeq}
 	ConfigContent           string
 	ConfigContentSignature  string        // 配置内容的签名(sha256)
 	CompareStatus           CompareStatus // 对比状态
@@ -243,16 +251,15 @@ func (e *Executor) WaitProcOperateTaskFinish(
 		// 115：仍在执行中
 		if gse.IsInProgress(procResult.ErrorCode) {
 			inProgressCount++
-			logs.Infof(
-				"WaitTaskFinish task %s still in progress (errorCode=115), retry=%d/%d",
-				gseTaskID, inProgressCount, gesprocessor.MaxInProgressRetries,
-			)
+			if inProgressCount%10 == 1 {
+				logs.Infof("WaitTaskFinish task %s in progress, retry=%d/%d",
+					gseTaskID, inProgressCount, procOperateMaxRetries)
+			}
 
-			if inProgressCount >= gesprocessor.MaxInProgressRetries {
-				logs.Warnf(
-					"WaitTaskFinish task %s exceeded max in-progress retries, treat as finished",
-					gseTaskID,
-				)
+			if inProgressCount >= procOperateMaxRetries {
+				logs.Warnf("WaitTaskFinish task %s exceeded max retries (%d), errorCode=%d, errorMsg=%s",
+					gseTaskID, procOperateMaxRetries,
+					procResult.ErrorCode, procResult.ErrorMsg)
 				return task.ErrEndLoop
 			}
 
@@ -260,9 +267,11 @@ func (e *Executor) WaitProcOperateTaskFinish(
 		}
 
 		// 非 115，认为任务已结束（成功或失败由上层判断）
+		logs.Infof("WaitTaskFinish task %s finished, errorCode=%d, retries=%d",
+			gseTaskID, procResult.ErrorCode, inProgressCount)
 		return task.ErrEndLoop
 
-	}, task.LoopInterval(gesprocessor.DefaultInterval))
+	}, task.LoopInterval(procOperateInterval))
 
 	if err != nil {
 		logs.Errorf("WaitTaskFinish error, gseTaskID %s, err=%+v", gseTaskID, err)
@@ -420,6 +429,7 @@ func BuildConfigTaskPayload(
 			ConfigFileOwner:         templateRevision.Spec.Permission.User,
 			ConfigFileGroup:         templateRevision.Spec.Permission.UserGroup,
 			ConfigFilePermission:    templateRevision.Spec.Permission.Privilege,
+			ConfigFileMode:          templateRevision.Spec.FileMode,
 			ConfigInstanceKey:       key,
 			ConfigContent:           "",
 		},

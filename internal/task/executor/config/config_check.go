@@ -15,9 +15,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"path"
 	"strings"
-	"time"
 
 	istep "github.com/Tencent/bk-bcs/bcs-common/common/task/steps/iface"
 	"gorm.io/gorm"
@@ -27,6 +25,7 @@ import (
 	pushmanager "github.com/TencentBlueKing/bk-bscp/internal/components/push_manager"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -39,8 +38,6 @@ const (
 	CheckConfigMD5StepName istep.StepName = "CheckConfigMD5"
 	// FetchConfigContentStepName fetch config content step name
 	FetchConfigContentStepName istep.StepName = "FetchConfigConten"
-	md5ScriptTmpl              string         = "bk_ges_check_config_md5_%d.sh"
-	catScriptTmpl              string         = "bk_ges_cat_config_%d.sh"
 )
 
 // CheckConfigExecutor 配置检查执行器
@@ -55,6 +52,7 @@ func NewCheckConfigExecutor(dao dao.Set, gseService *gse.Service, cmdbService bk
 		Executor: &common.Executor{
 			Dao:         dao,
 			GseService:  gseService,
+			GseConf:     cc.G().GSE,
 			CMDBService: cmdbService,
 			PM:          pm,
 		},
@@ -86,36 +84,64 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 	kt := kit.New()
 	kt.BizID = payload.BizID
 
-	script, err := buildFileMD5Script(
-		path.Join(
-			payload.TemplateRevision.Spec.Path,
-			payload.TemplateRevision.Spec.Name,
-		),
-	)
+	logs.Infof("[CheckConfigMD5 STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
+		payload.BizID, payload.BatchID,
+		payload.ConfigTemplateID, payload.ConfigTemplateName)
+
+	commonPayload := &common.TaskPayload{}
+	if err := c.GetCommonPayload(commonPayload); err != nil {
+		return fmt.Errorf("get common payload failed: %w", err)
+	}
+	if commonPayload.ConfigPayload == nil {
+		return fmt.Errorf("config payload is nil")
+	}
+	if commonPayload.ProcessPayload == nil {
+		return fmt.Errorf("process payload is nil")
+	}
+
+	logs.Infof("[CheckConfigMD5 STEP]: file_mode=%s, config_key=%s, agent_id=%s",
+		commonPayload.ConfigPayload.ConfigFileMode,
+		commonPayload.ConfigPayload.ConfigInstanceKey,
+		commonPayload.ProcessPayload.AgentID)
+
+	fullPath, err := renderFullPath(commonPayload)
+	if err != nil {
+		return fmt.Errorf("render full path failed: %w", err)
+	}
+
+	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+	builder := &ScriptBuilder{FileMode: fileMode}
+
+	script, err := builder.BuildFileMD5Script(fullPath)
 	if err != nil {
 		return err
 	}
 
-	scriptName := fmt.Sprintf(md5ScriptTmpl, time.Now().Unix())
-	scriptStoreDir := e.GseConf.ScriptStoreDir
+	scriptName := BuildScriptNameByFileMode("check_md5", commonPayload, fileMode)
+	storeDir := ScriptStoreDirByFileMode(
+		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
+	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
+	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, target=%s",
+		payload.BatchID, command, fullPath)
+
+	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      payload.TemplateRevision.Spec.Permission.User,
+				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
 			},
 		},
 		Scripts: []gse.Script{
 			{
 				ScriptName:     scriptName,
-				ScriptStoreDir: scriptStoreDir,
+				ScriptStoreDir: storeDir,
 				ScriptContent:  script,
 			},
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(scriptStoreDir, scriptName),
+				Command:        command,
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -123,7 +149,9 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	})
+	}
+
+	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
 
 	if err != nil {
 		logs.Errorf("[CheckConfigMD5 STEP]: create execute script task failed: %v", err)
@@ -135,10 +163,6 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return fmt.Errorf("gse execute script response is nil, batch_id=%d", payload.BatchID)
 	}
 
-	logs.Infof("[CheckConfigMD5 STEP]: gse task created, batch_id: %d, task_id: %s, target: %s",
-		payload.BatchID, resp.Result.TaskID, path.Join(payload.TemplateRevision.Spec.Path,
-			payload.TemplateRevision.Spec.Name))
-
 	// 通过脚本任务ID获取脚本执行结果
 	result, err := e.WaitExecuteScriptFinish(kt.Ctx, resp.Result.TaskID, payload.Process.Attachment.AgentID)
 	if err != nil {
@@ -149,39 +173,31 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return fmt.Errorf("script execution result is empty, task_id=%s", resp.Result.TaskID)
 	}
 
+	logs.Infof("[CheckConfigMD5 STEP]: gse full result, batch_id: %d, result: %+v",
+		payload.BatchID, result)
+
 	r := result.Result[0]
-	if r.ErrorCode != 0 {
+
+	if r.ErrorCode != 0 || r.ScriptExitCode != 0 {
 		logs.Errorf(
-			"[checkConfigMD5 Callback]: script execution failed, agent=%s, container=%s, code=%d, msg=%s",
-			r.BkAgentID,
-			r.BkContainerID,
-			r.ErrorCode,
-			r.ErrorMsg,
+			"[CheckConfigMD5 STEP]: script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
 		)
 		return fmt.Errorf(
-			"script execution failed, agent=%s, container=%s, code=%d, msg=%s",
-			r.BkAgentID,
-			r.BkContainerID,
-			r.ErrorCode,
-			r.ErrorMsg,
+			"script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
 		)
 	}
 
 	actualMD5 := strings.TrimSpace(r.Screen)
 
 	// 2. 查询历史下发记录
-	commonPayload := &common.TaskPayload{}
-	if errC := c.GetCommonPayload(commonPayload); errC != nil {
-		return errC
-	}
-
-	if commonPayload.ConfigPayload == nil {
-		return fmt.Errorf("script execution failed, config payload nil")
-	}
-	if commonPayload.ProcessPayload == nil {
-		return fmt.Errorf("script execution failed, process payload nil")
-	}
-
 	configInstance, err := e.Dao.ConfigInstance().GetConfigInstance(
 		kt,
 		payload.BizID,
@@ -196,14 +212,22 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 	}
 
 	// 3. 推导状态
+	var storedMD5 string
 	switch {
 	case configInstance == nil:
 		commonPayload.ConfigPayload.CompareStatus = common.CompareResultNeverPublished
+		storedMD5 = "<nil>"
 	case configInstance.Attachment.Md5 == actualMD5:
 		commonPayload.ConfigPayload.CompareStatus = common.CompareResultSame
+		commonPayload.ConfigPayload.ConfigContent = configInstance.Attachment.Content
+		storedMD5 = configInstance.Attachment.Md5
 	default:
 		commonPayload.ConfigPayload.CompareStatus = common.CompareResultDifferent
+		storedMD5 = configInstance.Attachment.Md5
 	}
+
+	logs.Infof("[CheckConfigMD5 STEP]: compare result, batch_id: %d, actualMD5=%s, storedMD5=%s, status=%s",
+		payload.BatchID, actualMD5, storedMD5, commonPayload.ConfigPayload.CompareStatus)
 
 	commonPayload.ConfigPayload.ConfigContentSignature = actualMD5
 
@@ -215,60 +239,77 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 }
 
 // FetchConfigContent implements istep.Step.
+// nolint:funlen
 func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 	payload := &CheckConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
-		logs.Errorf("[FetchConfigContent Execute]: fetch config conten payload nil")
+		logs.Errorf("[FetchConfigContent STEP]: get payload failed, err=%v", err)
 		return err
 	}
+
+	logs.Infof("[FetchConfigContent STEP]: start, biz_id=%d, batch_id=%d",
+		payload.BizID, payload.BatchID)
+
 	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
-		return fmt.Errorf("[Finalize STEP]: get common payload failed: %w", err)
+		return fmt.Errorf("[FetchConfigContent STEP]: get common payload failed: %w", err)
 	}
 	if commonPayload.ConfigPayload == nil {
-		logs.Errorf("[FetchConfigContent Execute]: fetch config conten config payload nil")
-		return fmt.Errorf("fetch config conten config payload nil")
+		logs.Errorf("[FetchConfigContent STEP]: config payload is nil")
+		return fmt.Errorf("config payload is nil")
 	}
+
+	logs.Infof("[FetchConfigContent STEP]: compare_status=%s, config_key=%s",
+		commonPayload.ConfigPayload.CompareStatus,
+		commonPayload.ConfigPayload.ConfigInstanceKey)
 
 	// 没有差异直接跳过
 	if commonPayload.ConfigPayload.CompareStatus != common.CompareResultDifferent {
-		logs.Infof("[FetchConfigContent]: md5 matched, skip")
+		logs.Infof("[FetchConfigContent STEP]: status=%s, skip fetch", commonPayload.ConfigPayload.CompareStatus)
 		return nil
 	}
 
 	kt := kit.New()
 	kt.BizID = payload.BizID
 
-	script, err := buildFileCatScript(
-		path.Join(
-			payload.TemplateRevision.Spec.Path,
-			payload.TemplateRevision.Spec.Name,
-		),
-	)
+	fullPath, err := renderFullPath(commonPayload)
+	if err != nil {
+		return fmt.Errorf("render full path failed: %w", err)
+	}
+
+	fileMode := commonPayload.ConfigPayload.ConfigFileMode
+	builder := &ScriptBuilder{FileMode: fileMode}
+
+	script, err := builder.BuildFileCatScript(fullPath)
 	if err != nil {
 		return err
 	}
 
-	scriptName := fmt.Sprintf(catScriptTmpl, time.Now().Unix())
-	scriptStoreDir := e.GseConf.ScriptStoreDir
+	scriptName := BuildScriptNameByFileMode("cat", commonPayload, fileMode)
+	storeDir := ScriptStoreDirByFileMode(
+		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
+	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, &gse.ExecuteScriptReq{
+	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, target=%s",
+		payload.BatchID, command, fullPath)
+
+	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      payload.TemplateRevision.Spec.Permission.User,
+				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
 			},
 		},
 		Scripts: []gse.Script{
 			{
 				ScriptName:     scriptName,
-				ScriptStoreDir: scriptStoreDir,
+				ScriptStoreDir: storeDir,
 				ScriptContent:  script,
 			},
 		},
 		AtomicTasks: []gse.AtomicTask{
 			{
-				Command:        path.Join(scriptStoreDir, scriptName),
+				Command:        command,
 				AtomicTaskID:   0,
 				TimeoutSeconds: scriptTimeoutSec,
 			},
@@ -276,7 +317,9 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},
 		},
-	})
+	}
+
+	resp, err := e.GseService.AsyncExtensionsExecuteScript(kt.Ctx, req)
 
 	if err != nil {
 		logs.Errorf("[FetchConfigContent STEP]: create execute script task failed: %v", err)
@@ -288,7 +331,9 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return fmt.Errorf("gse execute script response is nil, batch_id=%d", payload.BatchID)
 	}
 
-	// 存在差异化
+	logs.Infof("[FetchConfigContent STEP]: gse task created, batch_id: %d, task_id: %s",
+		payload.BatchID, resp.Result.TaskID)
+
 	result, err := e.WaitExecuteScriptFinish(kt.Ctx, resp.Result.TaskID, payload.Process.Attachment.AgentID)
 	if err != nil {
 		return fmt.Errorf("wait script execution failed: %w", err)
@@ -298,21 +343,25 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return fmt.Errorf("cat script execution result is empty, task_id=%s", resp.Result.TaskID)
 	}
 
+	logs.Infof("[FetchConfigContent STEP]: gse full result, batch_id: %d, result: %+v",
+		payload.BatchID, result)
+
 	r := result.Result[0]
-	if r.ErrorCode != 0 {
+
+	if r.ErrorCode != 0 || r.ScriptExitCode != 0 {
 		logs.Errorf(
-			"[FetchConfigContent STEP]: cat script execution failed, agent=%s, container=%s, code=%d, msg=%s",
-			r.BkAgentID,
-			r.BkContainerID,
-			r.ErrorCode,
-			r.ErrorMsg,
+			"[FetchConfigContent STEP]: cat script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
 		)
 		return fmt.Errorf(
-			"cat script execution failed, agent=%s, container=%s, code=%d, msg=%s",
-			r.BkAgentID,
-			r.BkContainerID,
-			r.ErrorCode,
-			r.ErrorMsg,
+			"cat script execution failed, agent=%s, container=%s, "+
+				"errorCode=%d, scriptExitCode=%d, msg=%s, screen=%s",
+			r.BkAgentID, r.BkContainerID,
+			r.ErrorCode, r.ScriptExitCode,
+			r.ErrorMsg, r.Screen,
 		)
 	}
 
@@ -328,7 +377,10 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 
 // Callback implements istep.Callback.
 func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
-	logs.Infof("[CheckConfig Callback]: start callback processing")
+	logs.Infof("[CheckConfig Callback]: taskID=%s, success=%v", c.GetTaskID(), cbErr == nil)
+	if cbErr != nil {
+		logs.Errorf("[CheckConfig Callback]: taskID=%s, err=%v", c.GetTaskID(), cbErr)
+	}
 	payload := &CheckConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return fmt.Errorf("get payload failed: %w", err)
@@ -349,11 +401,6 @@ func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		CbErr:    cbErr,
 	})
 
-	logs.Infof(
-		"[CheckConfig Callback] finished, taskID=%s, batchID=%d",
-		c.GetTaskID(), payload.BatchID,
-	)
-
 	return nil
 }
 
@@ -362,38 +409,4 @@ func RegisterCheckConfigExecutor(e *CheckConfigExecutor) {
 	istep.Register(CheckConfigMD5StepName, istep.StepExecutorFunc(e.CheckConfigMD5))
 	istep.Register(FetchConfigContentStepName, istep.StepExecutorFunc(e.FetchConfigContent))
 	istep.RegisterCallback(CheckConfigCallbackName, istep.CallbackExecutorFunc(e.Callback))
-}
-
-// buildFileMD5Script 构建计算文件MD5的脚本
-func buildFileMD5Script(absPath string) (string, error) {
-	if !strings.HasPrefix(absPath, "/") {
-		return "", fmt.Errorf("absPath must be absolute")
-	}
-
-	return fmt.Sprintf(`#!/bin/bash
-set -euo pipefail
-
-TARGET_PATH=%s
-
-md5sum "$TARGET_PATH" | awk '{print $1}'
-`,
-		shellQuote(absPath),
-	), nil
-}
-
-// buildFileCatScript 构建cat文件内容的脚本
-func buildFileCatScript(absPath string) (string, error) {
-	if !strings.HasPrefix(absPath, "/") {
-		return "", fmt.Errorf("absPath must be absolute")
-	}
-
-	return fmt.Sprintf(`#!/bin/bash
-set -euo pipefail
-
-TARGET_PATH=%s
-
-cat "$TARGET_PATH"
-`,
-		shellQuote(absPath),
-	), nil
 }

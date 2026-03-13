@@ -39,8 +39,8 @@ const (
 	// DefaultStartCheckSecs 默认启动后检查存活的时间（秒）
 	DefaultStartCheckSecs = 5
 
-	defaultMaxWait  = 5 * time.Second
-	DefaultInterval = 1 * time.Second
+	defaultMaxWait  = 15 * time.Second
+	DefaultInterval = 3 * time.Second
 	// Maximum number of times to tolerate ErrorCode 115 before treating as complete
 	MaxInProgressRetries = 5
 

@@ -362,6 +362,7 @@ func (s *DataServiceSetting) trySetDefault() {
 	s.Gorm.trySetDefault()
 	s.Crontab.trySetDefault()
 	s.GSE.getFromEnv()
+	s.GSE.trySetDefault()
 	s.CMDB.trySetDefault()
 }
 
