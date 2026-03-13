@@ -942,8 +942,17 @@ func (s *Service) PreviewConfig(ctx context.Context, req *pbds.PreviewConfigReq)
 	}
 	contextParams := render.BuildProcessContextParamsFromSource(grpcKit.Ctx, source, s.cmdb)
 
-	// 5. 渲染模板
-	renderedContent, err := render.Template(req.GetTemplateContent(), contextParams)
+	// 5. 展开 Ginclude 引用
+	templateContent := req.GetTemplateContent()
+	templateContent, err = render.ExpandGinclude(templateContent, func(templateName string) (string, error) {
+		return executorCommon.ResolveGincludeTemplate(grpcKit, s.dao, s.repo, req.GetBizId(), templateName)
+	}, 10)
+	if err != nil {
+		return nil, fmt.Errorf("expand ginclude failed: %w", err)
+	}
+
+	// 6. 渲染模板
+	renderedContent, err := render.Template(templateContent, contextParams)
 	if err != nil {
 		logs.Errorf("render template failed, template content: %s, err: %v, rid: %s", req.GetTemplateContent(), err, grpcKit.Rid)
 		return nil, fmt.Errorf("render template failed: %v", err)
