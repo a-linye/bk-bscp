@@ -237,11 +237,11 @@ func (m *Migrator) migrateConfigTemplates() error {
 					}
 
 					// file_type fixed to "text" (all GSEKit config templates are text)
-					// file_mode fixed to "unix" (GSEKit abs_path is Unix-style, and BSCP "win" mode
-					// doesn't support permission validation)
+					// file_mode mapped from GSEKit line_separator: CRLF → "win", others → "unix"
 					// GSEKit file_format is not migrated (it's a syntax highlight hint, not an OS mode)
 
 					privilege := normalizePrivilege(tmpl.Filemode)
+					fileMode := mapFileMode(tmpl.LineSeparator)
 
 					if err = m.targetDB.Exec(
 						"INSERT INTO template_revisions (id, revision_name, revision_memo, name, path, "+
@@ -252,7 +252,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 							"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 						revisionID, fmt.Sprintf("v%d", version.ConfigVersionID), version.Description,
 						tmpl.FileName, tmpl.AbsPath,
-						"text", "unix", tmpl.Owner, tmpl.Group, privilege,
+						"text", fileMode, tmpl.Owner, tmpl.Group, privilege,
 						uploadResult.Signature, uploadResult.ByteSize, uploadResult.Md5, "",
 						bizID, spaceInfo.TemplateSpaceID, templateID, m.cfg.Migration.TenantID,
 						creator, now,
@@ -398,6 +398,16 @@ func mapHighlightStyle(versions []GSEKitConfigTemplateVersion) string {
 	default:
 		return "python"
 	}
+}
+
+// mapFileMode maps GSEKit line_separator to BSCP file_mode.
+// GSEKit line_separator values: "CR" (MacOs), "LF" (Unix), "CRLF" (Windows).
+// BSCP file_mode values: "unix", "win".
+func mapFileMode(lineSeparator string) string {
+	if lineSeparator == "CRLF" {
+		return "win"
+	}
+	return "unix"
 }
 
 // normalizePrivilege ensures privilege is in 3-digit format
