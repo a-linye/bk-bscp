@@ -98,6 +98,7 @@ func (p *GenerateConfigPayload) NeedHelp() bool {
 }
 
 // GenerateConfig generate config
+// nolint:funlen
 func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 	kt := kit.New()
 
@@ -171,6 +172,18 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 			}
 
 			configContent = string(content)
+		}
+	}
+
+	// 2.5 展开 Ginclude 引用
+	if configContent != "" {
+		var err error
+		configContent, err = render.ExpandGinclude(configContent, func(templateName string) (string, error) {
+			return common.ResolveGincludeTemplate(kt, e.Dao, e.Repo, generatePayload.BizID, templateName)
+		}, 10)
+		if err != nil {
+			return fmt.Errorf("expand ginclude failed, template id: %d, error: %w",
+				generatePayload.TemplateRevision.Attachment.TemplateID, err)
 		}
 	}
 
