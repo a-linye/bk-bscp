@@ -315,8 +315,10 @@ var compareRenderCmd = &cobra.Command{
 	Use:   "compare-render",
 	Short: "Compare BSCP render results with GSEKit preview API results",
 	Long: `For each config template in GSEKit, find its latest published version,
-pick any one bound process, then render via both GSEKit preview API and
-BSCP Mako renderer, and compare the two outputs.
+look up the template's bound process via the binding table, select the
+process's first instance (matching GSEKit's ProcessInst.get_single_inst()),
+then render via both GSEKit preview API and BSCP Mako renderer, and compare
+the two outputs.
 
 This verifies that BSCP rendering produces identical results before migration.`,
 	PreRunE: requireConfig,
@@ -346,10 +348,8 @@ This verifies that BSCP rendering produces identical results before migration.`,
 			os.Exit(1)
 		}
 
-		// Print table report to stdout
 		m.PrintCompareRenderReport(report)
 
-		// Write JSON report if output file specified
 		if compareRenderOutput != "" {
 			if err := m.WriteCompareRenderReportJSON(report, compareRenderOutput); err != nil {
 				fmt.Printf("Error writing report: %v\n", err)
