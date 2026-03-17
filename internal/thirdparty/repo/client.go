@@ -96,15 +96,17 @@ func (c *Client) buildHeaders(ctx context.Context) http.Header {
 	for k, v := range c.basicHeader {
 		headers[k] = slices.Clone(v)
 	}
-	headers.Set(constant.BkTenantID, kit.TenantID)
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		headers.Set(constant.BkTenantID, kit.TenantID)
+	}
 	return headers
 }
 
 func (c *Client) buildProject(ctx context.Context) string {
 	kit := kit.MustGetKit(ctx)
 
-	// 多租户下, bkrepo项目格式{tenantID}.{projectID}
-	if kit.TenantID != "" {
+	// 仅多租户模式下, bkrepo项目格式{tenantID}.{projectID}
+	if cc.G().FeatureFlags.EnableMultiTenantMode && kit.TenantID != "" {
 		return fmt.Sprintf("%s.%s", kit.TenantID, c.config.BkRepo.Project)
 	}
 

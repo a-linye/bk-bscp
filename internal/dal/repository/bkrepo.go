@@ -95,8 +95,8 @@ func (c *bkrepoClient) SyncManager() *SyncManager {
 }
 
 func (c *bkrepoClient) buildProject(kt *kit.Kit) string {
-	// 多租户下, bkrepo项目格式{tenantID}.{projectID}
-	if kt.TenantID != "" {
+	// 仅多租户模式下, bkrepo项目格式{tenantID}.{projectID}
+	if cc.G().FeatureFlags.EnableMultiTenantMode && kt.TenantID != "" {
 		return fmt.Sprintf("%s.%s", kt.TenantID, c.project)
 	}
 
@@ -175,9 +175,11 @@ func (c *bkrepoClient) Upload(kt *kit.Kit, sign string, body io.Reader) (*Object
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set(constant.BkTenantID, kt.TenantID)
 	req.Header.Set(constant.RidKey, kt.Rid)
 	req.Header.Set(repo.HeaderKeyOverwrite, "true")
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		req.Header.Set(constant.BkTenantID, kt.TenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -256,7 +258,9 @@ func (c *bkrepoClient) Metadata(kt *kit.Kit, sign string) (*ObjectMetadata, erro
 		return nil, err
 	}
 	req.Header.Set(constant.RidKey, kt.Rid)
-	req.Header.Set(constant.BkTenantID, kt.TenantID)
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		req.Header.Set(constant.BkTenantID, kt.TenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -309,9 +313,11 @@ func (c *bkrepoClient) InitMultipartUpload(kt *kit.Kit, sign string) (string, er
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set(constant.BkTenantID, kt.TenantID)
 	req.Header.Set(constant.RidKey, kt.Rid)
 	req.Header.Set(repo.HeaderKeyOverwrite, "true")
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		req.Header.Set(constant.BkTenantID, kt.TenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -355,10 +361,12 @@ func (c *bkrepoClient) MultipartUpload(kt *kit.Kit, sign string, uploadID string
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set(constant.BkTenantID, kt.TenantID)
 	req.Header.Set(constant.RidKey, kt.Rid)
 	req.Header.Set(repo.HeaderKeyUploadID, uploadID)
 	req.Header.Set(repo.HeaderKeySequence, strconv.Itoa(int(partNum)))
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		req.Header.Set(constant.BkTenantID, kt.TenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -396,10 +404,12 @@ func (c *bkrepoClient) CompleteMultipartUpload(kt *kit.Kit, sign string, uploadI
 		return nil, err
 	}
 
-	req.Header.Set(constant.BkTenantID, kt.TenantID)
 	req.Header.Set(constant.RidKey, kt.Rid)
 	req.Header.Set(repo.HeaderKeyUploadID, uploadID)
 	req.Header.Set(repo.HeaderKeyOverwrite, "true")
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		req.Header.Set(constant.BkTenantID, kt.TenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
