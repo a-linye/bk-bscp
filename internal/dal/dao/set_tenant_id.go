@@ -43,10 +43,10 @@ func beforeQuery(db *gorm.DB) {
 		return
 	}
 
-	kit := kit.FromGrpcContext(db.Statement.Context)
-	if kit.TenantID == "" || db.Statement.Schema == nil {
+	if db.Statement.Schema == nil {
 		return
 	}
+
 	// 查找 TenantID 字段
 	field := db.Statement.Schema.LookUpField("TenantID")
 	if field == nil {
@@ -67,11 +67,23 @@ func beforeQuery(db *gorm.DB) {
 	tableName := db.Statement.Table
 	qualifiedTenantCol := fmt.Sprintf("%s.tenant_id", tableName)
 
-	// 构建新的 WHERE 表达式
+	// 防止 FindByPage 等场景下回调重复触发导致 tenant_id 条件被注入多次
+	if hasTenantIDExpr(oldExprs, qualifiedTenantCol) {
+		return
+	}
+
+	kt := kit.FromGrpcContext(db.Statement.Context)
+
+	var tenantExpr clause.Expression
+	if kt.TenantID == "" {
+		// 兼容旧数据（空字符串）和新数据（default）
+		tenantExpr = clause.IN{Column: qualifiedTenantCol, Values: []interface{}{"default", ""}}
+	} else {
+		tenantExpr = clause.Eq{Column: qualifiedTenantCol, Value: kt.TenantID}
+	}
+
 	newWhere := clause.Where{
-		Exprs: append([]clause.Expression{
-			clause.Eq{Column: qualifiedTenantCol, Value: kit.TenantID},
-		}, oldExprs...),
+		Exprs: append([]clause.Expression{tenantExpr}, oldExprs...),
 	}
 
 	// 设置新的 WHERE 子句
@@ -79,6 +91,23 @@ func beforeQuery(db *gorm.DB) {
 		Name:       "WHERE",
 		Expression: newWhere,
 	}
+}
+
+// hasTenantIDExpr 检查 WHERE 表达式中是否已包含 tenant_id 条件
+func hasTenantIDExpr(exprs []clause.Expression, qualifiedCol string) bool {
+	for _, expr := range exprs {
+		switch e := expr.(type) {
+		case clause.Eq:
+			if col, ok := e.Column.(string); ok && col == qualifiedCol {
+				return true
+			}
+		case clause.IN:
+			if col, ok := e.Column.(string); ok && col == qualifiedCol {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // 新增和编辑前置操作
