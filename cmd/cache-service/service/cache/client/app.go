@@ -328,7 +328,7 @@ func (c *client) refreshTenantIDCache(kit *kit.Kit, bizID uint32) (string, error
 	cancel := kit.CtxWithTimeoutMS(200)
 	defer cancel()
 
-	app, err := c.op.App().GetOneAppByBiz(kit, bizID)
+	app, err := c.op.App().GetOneAppByBiz(kit.WithSkipTenantFilter(), bizID)
 	if err != nil {
 		return "", err
 	}

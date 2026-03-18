@@ -73,6 +73,7 @@ func NewProcessExecutor(gseService *gse.Service, cmdbService bkcmdb.Service, pm 
 
 // OperatePayload 进程操作负载
 type OperatePayload struct {
+	TenantID                  string
 	BizID                     uint32
 	BatchID                   uint32 // 任务批次ID，用于 Callback 更新批次状态
 	OperateType               table.ProcessOperateType
@@ -170,7 +171,8 @@ func (e *ProcessExecutor) CompareWithCMDBProcessInfo(c *istep.Context) error {
 	if len(processInfo) == 0 {
 		tx := e.Dao.GenQuery().Begin()
 
-		err = cmdb.MarkProcessDeletedAndCleanInstancesTx(kit.New(), e.Dao, tx, payload.BizID, []uint32{payload.ProcessID})
+		ktForCmdb := kit.NewWithTenant(payload.TenantID)
+		err = cmdb.MarkProcessDeletedAndCleanInstancesTx(ktForCmdb, e.Dao, tx, payload.BizID, []uint32{payload.ProcessID})
 		if err != nil {
 			logs.Errorf("[CompareWithCMDBProcessInfo STEP]: delete stopped/unmanaged failed for bizID=%d, processIDs=%v: %v",
 				payload.BizID, payload.ProcessID, err)
@@ -544,7 +546,7 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 
 	// 更新进程实例状态字段
 	m := e.Dao.GenQuery().ProcessInstance
-	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kit.NewWithTenant(payload.TenantID), payload.BizID, map[string]any{
 		"status":            processStatus,
 		"managed_status":    managedStatus,
 		"status_updated_at": time.Now(),
@@ -570,7 +572,7 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	// 更新 TaskBatch 的完成计数
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		allCompleted, err = e.Dao.TaskBatch().IncrementCompletedCount(kit.New(), payload.BatchID, isSuccess)
+		allCompleted, err = e.Dao.TaskBatch().IncrementCompletedCount(kit.NewWithTenant(payload.TenantID), payload.BatchID, isSuccess)
 		if err != nil {
 			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to increment completed count, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
@@ -581,13 +583,14 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	// 统一推送事件
 	e.AfterCallbackNotify(c.Context(), common.CallbackNotify{
+		TenantID: payload.TenantID,
 		BizID:    payload.BizID,
 		BatchID:  payload.BatchID,
 		Operator: payload.OperateUser,
 		CbErr:    cbErr,
 	})
 
-	kt := kit.New()
+	kt := kit.NewWithTenant(payload.TenantID)
 
 	defer func() {
 		// 只要批次任务全部完成，就触发一次 CMDB 模块实例序列更新，确保模块实例序列的正确性
@@ -605,19 +608,19 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 	// 如果任务成功，不需要回滚
 	if isSuccess {
 		if payload.OperateType == table.UnregisterProcessOperate || payload.OperateType == table.StopProcessOperate {
-			process, errP := e.Dao.Process().GetByID(kit.New(), payload.BizID, payload.ProcessID)
+			process, errP := e.Dao.Process().GetByID(kt, payload.BizID, payload.ProcessID)
 			if errP != nil {
 				return fmt.Errorf("[Finalize STEP]: failed to get process: %w", errP)
 			}
 
-			allInsts, errI := e.Dao.ProcessInstance().GetByProcessIDs(kit.New(), payload.BizID, []uint32{payload.ProcessID})
+			allInsts, errI := e.Dao.ProcessInstance().GetByProcessIDs(kt, payload.BizID, []uint32{payload.ProcessID})
 			if errI != nil {
 				return fmt.Errorf("[Finalize STEP]: failed to get process instance: %w", errI)
 			}
 
 			// 若进程数量被缩容，则删除对应的实例
 			if process.Spec.ProcNum < uint(len(allInsts)) {
-				if errD := e.Dao.ProcessInstance().Delete(kit.New(), payload.BizID, payload.ProcessInstanceID); errD != nil {
+				if errD := e.Dao.ProcessInstance().Delete(kt, payload.BizID, payload.ProcessInstanceID); errD != nil {
 					return fmt.Errorf("[Finalize STEP]: failed to delete process instance: %w", errD)
 				}
 			}
@@ -653,7 +656,7 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	// 更新进程实例状态
 	m := e.Dao.GenQuery().ProcessInstance
-	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+	if err = e.Dao.ProcessInstance().UpdateSelectedFields(kt, payload.BizID, map[string]any{
 		"status":            processStatus,
 		"managed_status":    managedStatus,
 		"status_updated_at": time.Now(),
@@ -682,7 +685,7 @@ func (e *ProcessExecutor) getGSEProcessStatus(
 		return "", "", fmt.Errorf("get common payload failed: %w", err)
 	}
 	// 查询进程信息
-	process, err := e.Dao.Process().GetByID(kit.New(), bizID, payload.ProcessID)
+	process, err := e.Dao.Process().GetByID(kit.NewWithTenant(payload.TenantID), bizID, payload.ProcessID)
 	if err != nil {
 		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: failed to get process: %w", err)
 	}

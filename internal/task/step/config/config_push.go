@@ -31,6 +31,7 @@ const (
 
 // ValidatePushConfig 验证配置下发步骤
 func ValidatePushConfig(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	operateType table.ConfigOperateType,
@@ -45,6 +46,7 @@ func ValidatePushConfig(
 		SetMaxTries(0)
 
 	lo.Must0(validate.SetPayload(config.PushConfigPayload{
+		TenantID:     tenantID,
 		BizID:        bizID,
 		BatchID:      batchID,
 		OperateType:  operateType,
@@ -56,6 +58,7 @@ func ValidatePushConfig(
 
 // DownloadConfig 下载配置到本地步骤
 func DownloadConfig(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	operateType table.ConfigOperateType,
@@ -71,6 +74,7 @@ func DownloadConfig(
 		SetMaxTries(0)
 
 	lo.Must0(download.SetPayload(config.PushConfigPayload{
+		TenantID:     tenantID,
 		BizID:        bizID,
 		BatchID:      batchID,
 		OperateType:  operateType,
@@ -81,7 +85,8 @@ func DownloadConfig(
 }
 
 // PushConfigToTarget 推送配置到目标机器步骤
-func PushConfigToTarget(bizID, batchID uint32, operateType table.ConfigOperateType, operatorUser string,
+func PushConfigToTarget(tenantID string, bizID, batchID uint32, operateType table.ConfigOperateType,
+	operatorUser string,
 	generateTaskID string, generateTaskPayload *executorCommon.TaskPayload) *types.Step {
 	logs.V(3).Infof("push config to target: bizID: %d, batchID: %d, operateType: %s", bizID, batchID, operateType)
 
@@ -91,6 +96,7 @@ func PushConfigToTarget(bizID, batchID uint32, operateType table.ConfigOperateTy
 		SetMaxTries(0)
 
 	lo.Must0(push.SetPayload(config.PushConfigPayload{
+		TenantID:     tenantID,
 		BizID:        bizID,
 		BatchID:      batchID,
 		OperateType:  operateType,
@@ -102,6 +108,7 @@ func PushConfigToTarget(bizID, batchID uint32, operateType table.ConfigOperateTy
 
 // ReleaseConfig 通过脚本方式下发配置步骤
 func ReleaseConfig(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	operateType table.ConfigOperateType,
@@ -116,6 +123,7 @@ func ReleaseConfig(
 		SetMaxTries(0)
 
 	lo.Must0(push.SetPayload(config.PushConfigPayload{
+		TenantID:     tenantID,
 		BizID:        bizID,
 		BatchID:      batchID,
 		OperateType:  operateType,

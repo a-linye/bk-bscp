@@ -25,16 +25,18 @@ import (
 
 type processStateSyncTask struct {
 	*common.Builder
+	tenantID         string
 	bizID            uint32
 	process          *table.Process
 	processInstances []*table.ProcessInstance
 }
 
 // NewProcessStateSyncTask 创建一个进程状态同步任务
-func NewProcessStateSyncTask(dao dao.Set, bizID uint32, process *table.Process,
+func NewProcessStateSyncTask(dao dao.Set, tenantID string, bizID uint32, process *table.Process,
 	processInstances []*table.ProcessInstance) types.TaskBuilder {
 	return &processStateSyncTask{
 		Builder:          common.NewBuilder(dao),
+		tenantID:         tenantID,
 		bizID:            bizID,
 		process:          process,
 		processInstances: processInstances,
@@ -50,7 +52,7 @@ func (p *processStateSyncTask) FinalizeTask(t *types.Task) error {
 func (p *processStateSyncTask) Steps() ([]*types.Step, error) {
 	// 构建任务的步骤
 	return []*types.Step{
-		gse.ProcessStateSync(p.bizID, p.process, p.processInstances),
+		gse.ProcessStateSync(p.tenantID, p.bizID, p.process, p.processInstances),
 	}, nil
 }
 

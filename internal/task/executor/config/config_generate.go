@@ -65,6 +65,7 @@ func (e *GenerateConfigExecutor) SetCMDBService(cmdbService bkcmdb.Service) {
 
 // GenerateConfigPayload generate config payload
 type GenerateConfigPayload struct {
+	TenantID           string
 	BizID              uint32
 	BatchID            uint32
 	ConfigTemplateID   uint32
@@ -100,13 +101,15 @@ func (p *GenerateConfigPayload) NeedHelp() bool {
 // GenerateConfig generate config
 // nolint:funlen
 func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
-	kt := kit.New()
-
 	// 1. 获取 payload
 	generatePayload := &GenerateConfigPayload{}
 	if err := c.GetPayload(generatePayload); err != nil {
 		return err
 	}
+
+	kt := kit.New()
+	kt.TenantID = generatePayload.TenantID
+	kt.Ctx = kt.InternalRpcCtx()
 
 	logs.Infof("[GenerateConfig STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
 		generatePayload.BizID, generatePayload.BatchID, generatePayload.ConfigTemplateID,
@@ -274,15 +277,18 @@ func (e *GenerateConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("[ConfigGenerateCallback]: get payload failed: %w", err)
 	}
 
-	// 更新 TaskBatch 状态
+	kt := kit.New()
+	kt.TenantID = payload.TenantID
+	kt.Ctx = kt.InternalRpcCtx()
+
 	isSuccess := cbErr == nil
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kit.New(), payload.BatchID, isSuccess); err != nil {
+	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
 		return fmt.Errorf("[ConfigGenerateCallback]: increment completed count failed, batchID: %d, err: %w",
 			payload.BatchID, err)
 	}
 
-	// 统一推送事件
 	e.AfterCallbackNotify(c.Context(), common.CallbackNotify{
+		TenantID: payload.TenantID,
 		BizID:    payload.BizID,
 		BatchID:  payload.BatchID,
 		Operator: payload.OperatorUser,

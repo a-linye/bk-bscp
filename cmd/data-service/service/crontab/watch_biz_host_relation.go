@@ -139,8 +139,10 @@ func (w *WatchBizHostRelation) watchBizHostByTenant(kt *kit.Kit) {
 			if app.Spec.TenantID == "" {
 				continue
 			}
-			kt.TenantID = app.Spec.TenantID
-			w.watchBizHost(kt)
+			tenantKit := *kt
+			tenantKit.TenantID = app.Spec.TenantID
+			tenantKit.Ctx = tenantKit.InternalRpcCtx()
+			w.watchBizHost(&tenantKit)
 		}
 		return
 	}

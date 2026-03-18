@@ -67,7 +67,7 @@ func (dao *strategyDao) GetStrategyByIDs(kit *kit.Kit, strategyIDs []uint32) ([]
 // GetStrategyByIDs Get strategy by ids.
 func (dao *strategyDao) ListStrategyByItsm(kit *kit.Kit) ([]*table.Strategy, error) {
 	m := dao.genQ.Strategy
-	return m.WithContext(kit.Ctx).Where(m.ItsmTicketStatus.In(
+	return m.WithContext(kit.WithSkipTenantFilter().Ctx).Where(m.ItsmTicketStatus.In(
 		constant.ItsmTicketStatusCreated),
 		m.ItsmTicketStateID.Neq(""), m.ItsmTicketSn.Neq(""),
 		m.PublishStatus.In(string(table.PendingApproval), string(table.PendingPublish))).Find()

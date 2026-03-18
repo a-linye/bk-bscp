@@ -433,7 +433,12 @@ func (sch *Scheduler) watchRetry() {
 
 		instCount, members := sch.retry.Purge()
 		for _, one := range members {
-			sch.notifyEvent(kt, one.cursorID, []*member{one.member})
+			retryKt := kt.Clone()
+			if err := sch.lc.App.EnsureTenantID(retryKt, one.member.InstSpec.BizID); err != nil {
+				logs.Errorf("ensure tenant id for retry failed, biz: %d, err: %v, rid: %s",
+					one.member.InstSpec.BizID, err, retryKt.Rid)
+			}
+			sch.notifyEvent(retryKt, one.cursorID, []*member{one.member})
 		}
 
 		logs.Infof("finished scheduler retry send event job, instance count: %d, rid: %s", instCount, kt.Rid)

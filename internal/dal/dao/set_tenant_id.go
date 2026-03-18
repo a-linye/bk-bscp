@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
@@ -69,6 +70,11 @@ func beforeQuery(db *gorm.DB) {
 
 	// 防止 FindByPage 等场景下回调重复触发导致 tenant_id 条件被注入多次
 	if hasTenantIDExpr(oldExprs, qualifiedTenantCol) {
+		return
+	}
+
+	// 如果 skip_tenant_filter 为 true，则不添加 tenant_id 条件
+	if skip, ok := db.Statement.Context.Value(constant.SkipTenantFilterKey).(bool); ok && skip {
 		return
 	}
 

@@ -81,7 +81,7 @@ func (lw *loopWatch) loop() {
 		if reWatch || !initialized {
 			// service state have been changed, and need to do re-watch to get the
 			// latest event cursor.
-			latestCursor, err := lw.ds.event.LatestCursor(kt)
+			latestCursor, err := lw.ds.event.LatestCursor(kt.WithSkipTenantFilter())
 			if err != nil {
 				lw.mc.errCounter.With(prm.Labels{}).Inc()
 				logs.Errorf("watch event, but get latest cursor failed, retry later, err: %v, rid: %s", err, kt.Rid)
@@ -118,7 +118,7 @@ func (lw *loopWatch) loop() {
 		}
 
 		// for now, watched events and consumed them success, then update the event cursor.
-		if err := lw.ds.event.RecordCursor(kt, lastCursor); err != nil {
+		if err := lw.ds.event.RecordCursor(kt.WithSkipTenantFilter(), lastCursor); err != nil {
 			lw.mc.errCounter.With(prm.Labels{}).Inc()
 			logs.Errorf("record the last cursor: %d failed, will try later, err: %v, rid: %s", lastCursor, err, kt.Rid)
 			time.Sleep(time.Second)
@@ -186,7 +186,7 @@ func (lw *loopWatch) doOneStep(kt *kit.Kit, start uint32, limit uint, lagSeconds
 		return start, false, true
 	}
 
-	details, _, err := lw.ds.event.List(kt, start, opt)
+	details, _, err := lw.ds.event.List(kt.WithSkipTenantFilter(), start, opt)
 	if err != nil {
 		logs.Errorf("list event failed, err: %v, rid: %s", err, kt.Rid)
 		return start, false, true

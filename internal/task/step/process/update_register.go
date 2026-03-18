@@ -23,6 +23,7 @@ import (
 
 // ValidateOperateStep 验证更新托管进程操作步骤
 func ValidateOperateStep(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -45,6 +46,7 @@ func ValidateOperateStep(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(setp.SetPayload(process.UpdateRegisterPayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -62,6 +64,7 @@ func ValidateOperateStep(
 
 // StopProcessStep xxx
 func StopProcessStep(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -78,6 +81,7 @@ func StopProcessStep(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(setp.SetPayload(process.UpdateRegisterPayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -92,6 +96,7 @@ func StopProcessStep(
 
 // RegisterProcessStep xxx
 func RegisterProcessStep(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -108,6 +113,7 @@ func RegisterProcessStep(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(setp.SetPayload(process.UpdateRegisterPayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -122,6 +128,7 @@ func RegisterProcessStep(
 
 // StartProcessStep xxx
 func StartProcessStep(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -138,6 +145,7 @@ func StartProcessStep(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(setp.SetPayload(process.UpdateRegisterPayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -152,6 +160,7 @@ func StartProcessStep(
 
 // OperationCompletedStep xxx
 func OperationCompletedStep(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -168,6 +177,7 @@ func OperationCompletedStep(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(setp.SetPayload(process.UpdateRegisterPayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,

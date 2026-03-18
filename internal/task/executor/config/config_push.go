@@ -82,6 +82,7 @@ func NewPushConfigExecutor(dao dao.Set, gseService *gse.Service, cmdbService bkc
 
 // PushConfigPayload 配置下发 payload
 type PushConfigPayload struct {
+	TenantID     string
 	BizID        uint32
 	BatchID      uint32
 	OperateType  table.ConfigOperateType
@@ -102,11 +103,14 @@ func (e *PushConfigExecutor) ValidatePushConfig(c *istep.Context) error {
 // ReleaseConfig implements istep.Step.
 // ReleaseConfig 通过脚本方式下发配置
 func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
-	kt := kit.New()
 	payload := &PushConfigPayload{}
 	if err := c.GetPayload(payload); err != nil {
 		return err
 	}
+
+	kt := kit.New()
+	kt.TenantID = payload.TenantID
+	kt.Ctx = kt.InternalRpcCtx()
 
 	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
@@ -234,18 +238,20 @@ func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("get payload failed: %w", err)
 	}
 
-	kit := kit.New()
-	kit.BizID = payload.BizID
-	kit.User = payload.OperatorUser
+	kt := kit.New()
+	kt.TenantID = payload.TenantID
+	kt.Ctx = kt.InternalRpcCtx()
+	kt.BizID = payload.BizID
+	kt.User = payload.OperatorUser
 
 	isSuccess := cbErr == nil
-	// 更新批次状态
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kit, payload.BatchID, isSuccess); err != nil {
+	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
 		return fmt.Errorf("increment completed count failed, batch: %d, err: %w", payload.BatchID, err)
 	}
 
 	// 统一推送事件
 	e.AfterCallbackNotify(c.Context(), common.CallbackNotify{
+		TenantID: payload.TenantID,
 		BizID:    payload.BizID,
 		BatchID:  payload.BatchID,
 		Operator: payload.OperatorUser,
@@ -271,16 +277,16 @@ func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 			GenerateTaskID:   c.GetTaskID(),
 			Md5:              tools.ByteMD5([]byte(cfg.ConfigContent)),
 			Content:          cfg.ConfigContent,
-			TenantID:         "",
+			TenantID:         payload.TenantID,
 		},
 		Revision: &table.Revision{
-			Creator:   kit.User,
-			Reviser:   kit.User,
+			Creator:   kt.User,
+			Reviser:   kt.User,
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
 	}
-	if err := e.Dao.ConfigInstance().Upsert(kit, instance); err != nil {
+	if err := e.Dao.ConfigInstance().Upsert(kt, instance); err != nil {
 		return fmt.Errorf("upsert config instance failed: %w", err)
 	}
 
@@ -380,9 +386,10 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 		payload.BatchID, payload.BizID, cfg.ConfigInstanceKey)
 
 	kt := kit.New()
+	kt.TenantID = payload.TenantID
+	kt.Ctx = kt.InternalRpcCtx()
 	kt.BizID = payload.BizID
 
-	// 渲染完整文件路径（路径+文件名）
 	fullPath, err := renderFullPath(commonPayload)
 	if err != nil {
 		logs.Errorf("[PushConfig STEP]: render full path failed: %v", err)

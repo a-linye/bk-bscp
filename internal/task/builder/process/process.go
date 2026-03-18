@@ -27,6 +27,7 @@ import (
 // OperateTask task operate
 type OperateTask struct {
 	*common.Builder
+	tenantID                  string
 	bizID                     uint32
 	batchID                   uint32
 	processID                 uint32
@@ -43,6 +44,7 @@ type OperateTask struct {
 // NewoperateTask 创建一个 operate 任务
 func NewOperateTask(
 	dao dao.Set,
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -57,6 +59,7 @@ func NewOperateTask(
 ) types.TaskBuilder {
 	return &OperateTask{
 		Builder:                   common.NewBuilder(dao),
+		tenantID:                  tenantID,
 		bizID:                     bizID,
 		batchID:                   batchID,
 		processID:                 processID,
@@ -74,7 +77,7 @@ func NewOperateTask(
 // FinalizeTask implements types.TaskBuilder.
 func (t *OperateTask) FinalizeTask(task *types.Task) error {
 	// 设置通用进程信息（包括原始状态）
-	if err := t.CommonProcessFinalize(task, t.bizID, t.processID, t.processInstanceID); err != nil {
+	if err := t.CommonProcessFinalize(task, t.tenantID, t.bizID, t.processID, t.processInstanceID); err != nil {
 		return err
 	}
 
@@ -91,6 +94,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		// TODO：这里可以增加时间间隔判断，比如cmdb这条数据更新时间再1min以内则不用判断
 		// 校验操作是否合法
 		processStep.ValidateOperateProcess(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -103,6 +107,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 		),
 		// 对比CMDB进程配置
 		processStep.CompareWithCMDBProcessInfo(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -115,6 +120,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 
 		// 对比GSE进程状态
 		processStep.CompareWithGSEProcessStatus(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -126,6 +132,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 
 		// 对比GSE进程配置
 		processStep.CompareWithGSEProcessConfig(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -137,6 +144,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 
 		// 执行进程操作
 		processStep.OperateProcess(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -149,6 +157,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 
 		// 进程操作完成，更新进程实例状态
 		processStep.FinalizeOperateProcess(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,

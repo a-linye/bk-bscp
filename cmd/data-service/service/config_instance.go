@@ -1082,7 +1082,8 @@ func createBatch(dao dao.Set, kt *kit.Kit, bizID uint32, srcBatch *table.TaskBat
 
 	batch := &table.TaskBatch{
 		Attachment: &table.TaskBatchAttachment{
-			BizID: bizID,
+			TenantID: kt.TenantID,
+			BizID:    bizID,
 		},
 		Spec: &table.TaskBatchSpec{
 			TaskObject: table.TaskObjectConfigFile,
@@ -1172,6 +1173,7 @@ func dispatchTasks(
 		taskObj, err := task.NewByTaskBuilder(
 			config.NewPushConfigTask(
 				dao,
+				kt.TenantID,
 				bizID,
 				batchID,
 				table.ConfigOperateType(table.TaskActionConfigPublish),
@@ -1562,7 +1564,7 @@ func (s *Service) runConfigTask(kt *kit.Kit, bizID uint32, ctgs []*pbcin.ConfigT
 
 	now := time.Now()
 	batch := &table.TaskBatch{
-		Attachment: &table.TaskBatchAttachment{BizID: bizID},
+		Attachment: &table.TaskBatchAttachment{TenantID: kt.TenantID, BizID: bizID},
 		Spec: &table.TaskBatchSpec{
 			TaskObject: table.TaskObjectConfigFile,
 			TaskAction: action,
@@ -1621,6 +1623,7 @@ func (s *Service) runConfigTask(kt *kit.Kit, bizID uint32, ctgs []*pbcin.ConfigT
 
 		opts := common.ConfigTaskOptions{
 			Dao:                s.dao,
+			TenantID:           kt.TenantID,
 			BizID:              bizID,
 			BatchID:            batchID,
 			ConfigTemplateID:   info.configTemplateID,

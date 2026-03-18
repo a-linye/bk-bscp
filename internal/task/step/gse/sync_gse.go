@@ -48,13 +48,15 @@ func SyncGseStatus(tenantID string, bizID uint32, opType gse.OpType) *types.Step
 }
 
 // ProcessStateSync 同步 gse 进程和托管状态
-func ProcessStateSync(bizID uint32, process *table.Process, processInstances []*table.ProcessInstance) *types.Step {
+func ProcessStateSync(tenantID string, bizID uint32, process *table.Process,
+	processInstances []*table.ProcessInstance) *types.Step {
 
 	syncCmdb := types.NewStep("process-state-sync-task", processStateSync.ProcessStateSync.String()).
 		SetAlias("process-state-sync").
 		SetMaxExecution(maxExecutionTime)
 
 	lo.Must0(syncCmdb.SetPayload(processStateSync.ProcessStateSyncPayload{
+		TenantID:         tenantID,
 		BizID:            bizID,
 		Process:          process,
 		ProcessInstances: processInstances,

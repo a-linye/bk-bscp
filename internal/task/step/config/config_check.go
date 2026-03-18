@@ -22,6 +22,7 @@ import (
 
 // CheckConfigMD5 检查MD5
 func CheckConfigMD5(
+	tenantID string,
 	bizID, batchID, configTemplateID uint32,
 	configTemplateName string,
 	operateType table.ConfigOperateType,
@@ -41,6 +42,7 @@ func CheckConfigMD5(
 		SetMaxTries(0)
 
 	lo.Must0(step.SetPayload(config.CheckConfigPayload{
+		TenantID:           tenantID,
 		BizID:              bizID,
 		BatchID:            batchID,
 		ConfigTemplateID:   configTemplateID,
@@ -57,7 +59,7 @@ func CheckConfigMD5(
 }
 
 // FetchConfigContent 获取文件内容
-func FetchConfigContent(bizID, batchID, configTemplateID uint32,
+func FetchConfigContent(tenantID string, bizID, batchID, configTemplateID uint32,
 	configTemplateName string,
 	operateType table.ConfigOperateType,
 	operatorUser string,
@@ -74,6 +76,7 @@ func FetchConfigContent(bizID, batchID, configTemplateID uint32,
 		SetMaxTries(0)
 
 	lo.Must0(step.SetPayload(config.CheckConfigPayload{
+		TenantID:           tenantID,
 		BizID:              bizID,
 		BatchID:            batchID,
 		ConfigTemplateID:   configTemplateID,

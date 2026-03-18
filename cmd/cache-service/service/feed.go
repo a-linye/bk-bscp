@@ -205,7 +205,7 @@ func (s *Service) GetCredential(ctx context.Context, req *pbcs.GetCredentialReq)
 func (s *Service) GetCurrentCursorReminder(ctx context.Context, _ *pbbase.EmptyReq) (*pbcs.CurrentCursorReminderResp,
 	error) {
 
-	kt := kit.FromGrpcContext(ctx)
+	kt := kit.FromGrpcContext(ctx).WithSkipTenantFilter()
 	cursor, err := s.dao.Event().LatestCursor(kt)
 	if err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func (s *Service) GetCurrentCursorReminder(ctx context.Context, _ *pbbase.EmptyR
 
 // ListEventsMeta list event metas with filter
 func (s *Service) ListEventsMeta(ctx context.Context, req *pbcs.ListEventsReq) (*pbcs.ListEventsResp, error) {
-	kt := kit.FromGrpcContext(ctx)
+	kt := kit.FromGrpcContext(ctx).WithSkipTenantFilter()
 	if req.Page == nil {
 		return nil, errors.New("page is null")
 	}
@@ -286,7 +286,7 @@ func (s *Service) GetAgentBiz(ctx context.Context, req *pbcs.GetAgentBizReq) (*p
 		return nil, errf.New(errf.InvalidParameter, "invalid agent id")
 	}
 
-	kt := kit.FromGrpcContext(ctx)
+	kt := kit.FromGrpcContext(ctx).WithSkipTenantFilter()
 
 	// Query BizHost table by agentID
 	bizHost, err := s.dao.BizHost().GetByAgentID(kt, req.AgentId)

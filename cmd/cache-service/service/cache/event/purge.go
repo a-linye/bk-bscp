@@ -69,7 +69,7 @@ func (p *purger) purge() {
 
 		logs.Infof("start purge history event, rid: %s", kt.Rid)
 
-		if err := p.ds.event.Purge(kt, 14); err != nil {
+		if err := p.ds.event.Purge(kt.WithSkipTenantFilter(), 14); err != nil {
 			logs.Errorf("purge events failed, err: %v", err)
 			time.Sleep(sleepTime)
 			continue

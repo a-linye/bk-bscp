@@ -173,33 +173,34 @@ func (s *RepoSyncer) syncAll(kt *kit.Kit) {
 	// we think the file count would not be too large for every biz, eg:<100000
 	// so, we directly retrieve all file signatures under one biz from the db
 	// this syncs biz serially (one by one) , and sync files under every biz concurrently
+	skipKt := kt.WithSkipTenantFilter()
 	for _, bizID := range bizs {
 		var allSigns []string
 		var normalSigns, releasedNormalSigns, tmplSigns, releasedTmplSigns []string
 		var err error
 		// 未发版的普通配置项
-		if normalSigns, err = s.set.Content().ListAllCISigns(kt, bizID); err != nil {
+		if normalSigns, err = s.set.Content().ListAllCISigns(skipKt, bizID); err != nil {
 			logs.Errorf("list normal ci signs failed, err: %v, rid: %s", err, kt.Rid)
 		} else {
 			allSigns = append(allSigns, normalSigns...)
 		}
 
 		// 已发版的普通配置项
-		if releasedNormalSigns, err = s.set.ReleasedCI().ListAllCISigns(kt, bizID); err != nil {
+		if releasedNormalSigns, err = s.set.ReleasedCI().ListAllCISigns(skipKt, bizID); err != nil {
 			logs.Errorf("list released normal ci signs failed, err: %v, rid: %s", err, kt.Rid)
 		} else {
 			allSigns = append(allSigns, releasedNormalSigns...)
 		}
 
 		// 未发版的模版配置项
-		if tmplSigns, err = s.set.TemplateRevision().ListAllCISigns(kt, bizID); err != nil {
+		if tmplSigns, err = s.set.TemplateRevision().ListAllCISigns(skipKt, bizID); err != nil {
 			logs.Errorf("list template ci signs failed, err: %v, rid: %s", err, kt.Rid)
 		} else {
 			allSigns = append(allSigns, tmplSigns...)
 		}
 
 		// 已发版的模版配置项
-		if releasedTmplSigns, err = s.set.ReleasedAppTemplate().ListAllCISigns(kt, bizID); err != nil {
+		if releasedTmplSigns, err = s.set.ReleasedAppTemplate().ListAllCISigns(skipKt, bizID); err != nil {
 			logs.Errorf("list released template ci signs failed, err: %v, rid: %s", err, kt.Rid)
 		} else {
 			allSigns = append(allSigns, releasedTmplSigns...)

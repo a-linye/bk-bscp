@@ -528,7 +528,8 @@ func createTaskBatch(kt *kit.Kit, dao dao.Set, operateType string, environment s
 
 	batchID, err := dao.TaskBatch().Create(kt, &table.TaskBatch{
 		Attachment: &table.TaskBatchAttachment{
-			BizID: kt.BizID,
+			TenantID: kt.TenantID,
+			BizID:    kt.BizID,
 		},
 		Spec: taskBatchSpec,
 		Revision: &table.Revision{
@@ -632,6 +633,7 @@ func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManage
 		// 构建任务（finalOpType 已确定，不再是 Delete）
 		taskObj, err := buildProcessTask(
 			dao,
+			kt.TenantID,
 			bizID,
 			batchID,
 			item.instance.Attachment.ProcessID,
@@ -672,14 +674,17 @@ func resolveOperateType(operateType table.ProcessOperateType, status table.Proce
 }
 
 // buildProcessTask 构建进程操作任务
-func buildProcessTask(dao dao.Set, bizID, batchID, procID, instID uint32, operateType table.ProcessOperateType,
-	user, taskType string, ccSyncStatus table.CCSyncStatus, originalManaged table.ProcessManagedStatus, originalStatus table.ProcessStatus,
+func buildProcessTask(dao dao.Set, tenantID string, bizID, batchID, procID, instID uint32,
+	operateType table.ProcessOperateType,
+	user, taskType string, ccSyncStatus table.CCSyncStatus, originalManaged table.ProcessManagedStatus,
+	originalStatus table.ProcessStatus,
 	enableRestart bool) (*taskTypes.Task, error) {
 
 	if operateType == table.UpdateRegisterProcessOperate {
 		return task.NewByTaskBuilder(
 			processBuilder.NewUpdateRegisterTask(
 				dao,
+				tenantID,
 				bizID,
 				batchID,
 				procID,
@@ -696,6 +701,7 @@ func buildProcessTask(dao dao.Set, bizID, batchID, procID, instID uint32, operat
 	return task.NewByTaskBuilder(
 		processBuilder.NewOperateTask(
 			dao,
+			tenantID,
 			bizID,
 			batchID,
 			procID,

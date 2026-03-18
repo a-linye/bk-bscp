@@ -27,6 +27,7 @@ import (
 // UpdateRegisterTask 更新托管任务
 type UpdateRegisterTask struct {
 	*common.Builder
+	tenantID                  string
 	bizID                     uint32
 	batchID                   uint32
 	processID                 uint32
@@ -42,6 +43,7 @@ type UpdateRegisterTask struct {
 // NewUpdateRegisterTask 创建一个更新托管任务
 func NewUpdateRegisterTask(
 	dao dao.Set,
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -54,6 +56,7 @@ func NewUpdateRegisterTask(
 ) types.TaskBuilder {
 	return &UpdateRegisterTask{
 		Builder:                   common.NewBuilder(dao),
+		tenantID:                  tenantID,
 		bizID:                     bizID,
 		batchID:                   batchID,
 		processID:                 processID,
@@ -70,7 +73,7 @@ func NewUpdateRegisterTask(
 // FinalizeTask implements types.TaskBuilder.
 func (t *UpdateRegisterTask) FinalizeTask(task *types.Task) error {
 	// 设置通用进程信息（包括原始状态）
-	if err := t.CommonProcessFinalize(task, t.bizID, t.processID, t.processInstanceID); err != nil {
+	if err := t.CommonProcessFinalize(task, t.tenantID, t.bizID, t.processID, t.processInstanceID); err != nil {
 		return err
 	}
 
@@ -86,6 +89,7 @@ func (t *UpdateRegisterTask) Steps() ([]*types.Step, error) {
 	// 1. 校验操作（必选）
 	steps = append(steps,
 		processStep.ValidateOperateStep(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -102,6 +106,7 @@ func (t *UpdateRegisterTask) Steps() ([]*types.Step, error) {
 	// 2. 更新托管信息（必选）
 	steps = append(steps,
 		processStep.RegisterProcessStep(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,
@@ -117,6 +122,7 @@ func (t *UpdateRegisterTask) Steps() ([]*types.Step, error) {
 		// Stop 旧进程
 		steps = append(steps,
 			processStep.StopProcessStep(
+				t.tenantID,
 				t.bizID,
 				t.batchID,
 				t.processID,
@@ -132,6 +138,7 @@ func (t *UpdateRegisterTask) Steps() ([]*types.Step, error) {
 	if t.enableProcessRestart {
 		steps = append(steps,
 			processStep.StartProcessStep(
+				t.tenantID,
 				t.bizID,
 				t.batchID,
 				t.processID,
@@ -146,6 +153,7 @@ func (t *UpdateRegisterTask) Steps() ([]*types.Step, error) {
 	// 3. 进程操作完成（必选）
 	steps = append(steps,
 		processStep.OperationCompletedStep(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.processID,

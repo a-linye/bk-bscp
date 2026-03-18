@@ -109,8 +109,10 @@ func (c *cmdbResourceWatcher) watchCMDBResourcesByTenant(kt *kit.Kit) {
 		}
 
 		for _, tenant := range tenants {
-			kt.TenantID = tenant.ID
-			c.watchResourcesForTenant(kt)
+			tenantKit := *kt
+			tenantKit.TenantID = tenant.ID
+			tenantKit.Ctx = tenantKit.InternalRpcCtx()
+			c.watchResourcesForTenant(&tenantKit)
 		}
 		return
 	}
@@ -258,8 +260,12 @@ func groupProcessEventsByBiz(events []bkcmdb.BkEventObj) map[int][]bkcmdb.Proces
 func (c *cmdbResourceWatcher) dispatchProcessStateSyncTasks(res *cmdb.SyncProcessResult) {
 	for _, item := range res.Items {
 		bizID := item.Process.Attachment.BizID
+		tenantID := ""
+		if item.Process != nil && item.Process.Attachment != nil {
+			tenantID = item.Process.Attachment.TenantID
+		}
 		taskObj, err := task.NewByTaskBuilder(
-			gse.NewProcessStateSyncTask(c.dao, bizID, item.Process, item.Instances),
+			gse.NewProcessStateSyncTask(c.dao, tenantID, bizID, item.Process, item.Instances),
 		)
 		if err != nil {
 			logs.Errorf("[CMDB][ProcessSync] create gse task failed, bizID=%d, err=%v", bizID, err)

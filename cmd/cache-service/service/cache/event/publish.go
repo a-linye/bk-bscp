@@ -104,7 +104,7 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 		zrems[v.Key] = append(zrems[v.Key], fmt.Sprintf("%d", k))
 	}
 
-	strategies, err := cm.set.Strategy().GetStrategyByIDs(kt, strategyIds)
+	strategies, err := cm.set.Strategy().GetStrategyByIDs(kt.WithSkipTenantFilter(), strategyIds)
 	if err != nil {
 		logs.Errorf("get strategy by ids failed, err: %s, rid: %s", err.Error(), kt.Rid)
 		return
@@ -151,9 +151,10 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 					opt.All = true
 				}
 
-				kt.User = v.Revision.Creator
-				kt.TenantID = v.Attachment.TenantID
-				err = cm.set.Publish().UpsertPublishWithTx(kt, tx, &opt, v)
+			kt.User = v.Revision.Creator
+			kt.TenantID = v.Attachment.TenantID
+			kt.Ctx = kt.InternalRpcCtx()
+			err = cm.set.Publish().UpsertPublishWithTx(kt, tx, &opt, v)
 				if err != nil {
 					logs.Errorf("update publish with tx failed, err: %s, rid: %s", err.Error(), kt.Rid)
 					return

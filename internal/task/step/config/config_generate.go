@@ -24,7 +24,8 @@ import (
 )
 
 // GenerateConfig xxx
-func GenerateConfig(bizID, batchID, configTemplateID uint32, configTemplateName string, operateType table.ConfigOperateType,
+func GenerateConfig(tenantID string, bizID, batchID, configTemplateID uint32, configTemplateName string,
+	operateType table.ConfigOperateType,
 	operatorUser string, template *table.Template, templateRevision *table.TemplateRevision, process *table.Process,
 	processInstance *table.ProcessInstance, generateConfigTimeout time.Duration) *types.Step {
 	logs.V(3).Infof("generate config: bizID: %d, configTemplateID: %d, processAlias: %s, moduleInstSeq: %d, operateType: %s",
@@ -35,6 +36,7 @@ func GenerateConfig(bizID, batchID, configTemplateID uint32, configTemplateName 
 		SetMaxExecution(generateConfigTimeout).
 		SetMaxTries(0)
 	lo.Must0(generate.SetPayload(config.GenerateConfigPayload{
+		TenantID:           tenantID,
 		BizID:              bizID,
 		BatchID:            batchID,
 		ConfigTemplateID:   configTemplateID,

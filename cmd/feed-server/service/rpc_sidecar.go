@@ -133,6 +133,10 @@ func (s *Service) Watch(swm *pbfs.SideWatchMeta, fws pbfs.Upstream_WatchServer) 
 		return status.Error(codes.PermissionDenied, "no permission to access bscp server")
 	}
 
+	if err := s.bll.AppCache().EnsureTenantID(im.Kit, im.Meta.BizID); err != nil {
+		return status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
+
 	// parse the payload according the different api version.
 	payload := new(sfs.SideWatchPayload)
 	if err := jsoni.Unmarshal(swm.Payload, payload); err != nil {
@@ -192,6 +196,10 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 
 	if !authorized {
 		return nil, status.Errorf(codes.PermissionDenied, "no permission to access bscp server")
+	}
+
+	if err = s.bll.AppCache().EnsureTenantID(im.Kit, im.Meta.BizID); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	clientMetricData := make(map[uint32]*sfs.ClientMetricData)
@@ -340,6 +348,10 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 
 	if req.AppMeta == nil {
 		return nil, status.Error(codes.InvalidArgument, "app meta is empty")
+	}
+
+	if err = s.bll.AppCache().EnsureTenantID(im.Kit, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, req.GetAppMeta().App)
@@ -492,6 +504,11 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
+	if err = s.bll.AppCache().EnsureTenantID(im.Kit, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
+
 	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "get app meta failed, %s", err.Error())
@@ -546,6 +563,10 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 	credential := getCredential(ctx)
 	if !credential.MatchApp(req.AppMeta.App) {
 		return nil, status.Errorf(codes.PermissionDenied, "not have app %s permission", req.AppMeta.App)
+	}
+
+	if err := s.bll.AppCache().EnsureTenantID(kt, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.AppMeta.App)
@@ -633,6 +654,10 @@ func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbf
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
 
+	if err := s.bll.AppCache().EnsureTenantID(kt, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
+
 	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -692,6 +717,9 @@ func isNotFoundErr(err error) bool {
 // ListApps 获取服务列表
 func (s *Service) ListApps(ctx context.Context, req *pbfs.ListAppsReq) (*pbfs.ListAppsResp, error) {
 	kt := kit.FromGrpcContext(ctx)
+	if err := s.bll.AppCache().EnsureTenantID(kt, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
 	resp, err := s.bll.AppCache().ListApps(kt, &pbcs.ListAppsReq{BizId: req.BizId})
 	if err != nil {
 		return nil, err
@@ -725,6 +753,10 @@ func (s *Service) ListApps(ctx context.Context, req *pbfs.ListAppsReq) (*pbfs.Li
 // AsyncDownload 异步 p2p 下载，文件名为 sha256
 func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq) (*pbfs.AsyncDownloadResp, error) {
 	kit := kit.FromGrpcContext(ctx)
+
+	if err := s.bll.AppCache().EnsureTenantID(kit, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
 
 	// 鉴权
 	credential := getCredential(ctx)
@@ -827,6 +859,11 @@ func (s *Service) getAsyncDownloadAgentInfo(ctx context.Context, req *pbfs.Async
 func (s *Service) AsyncDownloadStatus(ctx context.Context, req *pbfs.AsyncDownloadStatusReq) (
 	*pbfs.AsyncDownloadStatusResp, error) {
 	kit := kit.FromGrpcContext(ctx)
+
+	if err := s.bll.AppCache().EnsureTenantID(kit, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
+	}
+
 	// 1.1 从 Redis 获取到任务对应的服务、文件信息，用token鉴权
 	task, err := s.bll.AsyncDownload().GetAsyncDownloadTask(kit, req.BizId, req.TaskId)
 	if err != nil {
@@ -887,6 +924,10 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 
 	if !credential.MatchKv(req.AppMeta.App, req.Key) {
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
+	}
+
+	if err := s.bll.AppCache().EnsureTenantID(kt, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.AppMeta.App)
@@ -966,6 +1007,10 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 
 	if !credential.MatchKv(req.AppMeta.App, req.Key) {
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
+	}
+
+	if err := s.bll.AppCache().EnsureTenantID(kt, req.BizId); err != nil {
+		return nil, status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.GetAppMeta().App)
@@ -1053,6 +1098,10 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
 
 	if req.GetAppMeta() == nil || req.GetAppMeta().App == "" {
 		return status.Error(codes.InvalidArgument, "app_meta is required")
+	}
+
+	if err = s.bll.AppCache().EnsureTenantID(im.Kit, req.BizId); err != nil {
+		return status.Errorf(codes.Aborted, "ensure tenant id failed, %s", err.Error())
 	}
 
 	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, req.GetAppMeta().App)

@@ -82,10 +82,10 @@ type appDao struct {
 	event    Event
 }
 
-// GetDistinctTenantIDs 获取不同租户ID.
+// GetDistinctTenantIDs 获取不同租户ID（跨租户查询，自动跳过租户过滤）.
 func (dao *appDao) GetDistinctTenantIDs(kit *kit.Kit) ([]*table.App, error) {
 	m := dao.genQ.App
-	return dao.genQ.App.WithContext(kit.Ctx).Distinct(m.TenantID).Find()
+	return dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).Distinct(m.TenantID).Find()
 }
 
 // GetOneAppByBiz 通过业务获取其中一个app
@@ -576,10 +576,10 @@ func (dao *appDao) ListAppMetaForCache(kit *kit.Kit, bizID uint32, appIDs []uint
 	return meta, nil
 }
 
-// QueryDistinctBizIDs query distinct business IDs from apps
+// QueryDistinctBizIDs query distinct business IDs from apps（跨租户查询，自动跳过租户过滤）
 func (dao *appDao) QueryDistinctBizIDs(kit *kit.Kit) ([]uint32, error) {
 	m := dao.genQ.App
-	bizIDs, err := dao.genQ.App.WithContext(kit.Ctx).
+	bizIDs, err := dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).
 		Select(m.BizID.Distinct()).
 		Find()
 	if err != nil {

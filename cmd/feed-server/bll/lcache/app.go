@@ -258,6 +258,7 @@ func (ap *App) HasBiz(kt *kit.Kit, bizID uint32) bool {
 			return false
 		}
 
+		kt.TenantID = tenantID
 		return true
 	}
 
@@ -282,6 +283,8 @@ func (ap *App) HasBiz(kt *kit.Kit, bizID uint32) bool {
 		return false
 	}
 
+	kt.TenantID = resp.TenantId
+
 	err = ap.idClient.Set(key, resp.TenantId)
 	if err != nil {
 		logs.Errorf("update biz: %d, tenant id cache failed, err: %v, rid: %s", bizID, err, kt.Rid)
@@ -291,4 +294,30 @@ func (ap *App) HasBiz(kt *kit.Kit, bizID uint32) bool {
 	ap.mc.refreshLagMS.With(prm.Labels{"resource": "tenant_id", "biz": tools.Itoa(bizID)}).Observe(tools.SinceMS(start))
 
 	return len(resp.TenantId) != 0
+}
+
+// EnsureTenantID resolves the tenant ID for the given biz and sets it on the Kit.
+// Uses local gcache first, falls back to cache-service RPC on miss.
+func (ap *App) EnsureTenantID(kt *kit.Kit, bizID uint32) error {
+	if kt.TenantID != "" {
+		return nil
+	}
+	key := fmt.Sprintf("%d-%s", bizID, "tenant-id")
+	val, err := ap.idClient.GetIFPresent(key)
+	if err == nil {
+		if tenantID, ok := val.(string); ok && tenantID != "" {
+			kt.TenantID = tenantID
+			return nil
+		}
+	}
+	resp, err := ap.cs.CS().GetTenantIDByBiz(kt.RpcCtx(), &pbcs.GetTenantIDByBizReq{BizId: bizID})
+	if err != nil {
+		return err
+	}
+	if len(resp.TenantId) == 0 {
+		return fmt.Errorf("biz %d has no tenant id", bizID)
+	}
+	kt.TenantID = resp.TenantId
+	_ = ap.idClient.Set(key, resp.TenantId)
+	return nil
 }
