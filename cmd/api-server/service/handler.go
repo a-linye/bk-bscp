@@ -128,7 +128,8 @@ func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	// set process_config_view feature flag from DB via config-server gRPC
 	featureFlags.ProcessConfigView = false
 	if biz != "" {
-		resp, grpcErr := p.cfgClient.ManageConfigKV(r.Context(),
+		kt := kit.MustGetKit(r.Context())
+		resp, grpcErr := p.cfgClient.ManageConfigKV(kt.RpcCtx(),
 			&pbcs.ManageConfigKVReq{Action: "get", Key: "pcv_biz"})
 		if grpcErr != nil {
 			logs.Errorf("query process config view failed: %v", grpcErr)

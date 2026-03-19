@@ -437,6 +437,7 @@ func (sch *Scheduler) watchRetry() {
 			if err := sch.lc.App.EnsureTenantID(retryKt, one.member.InstSpec.BizID); err != nil {
 				logs.Errorf("ensure tenant id for retry failed, biz: %d, err: %v, rid: %s",
 					one.member.InstSpec.BizID, err, retryKt.Rid)
+				continue
 			}
 			sch.notifyEvent(retryKt, one.cursorID, []*member{one.member})
 		}

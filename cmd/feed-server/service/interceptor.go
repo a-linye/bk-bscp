@@ -90,9 +90,6 @@ func (s *Service) authorize(ctx context.Context, bizID uint32) (context.Context,
 	}
 
 	kt := kit.FromGrpcContext(ctx)
-	if err := s.bll.AppCache().EnsureTenantID(kt, bizID); err != nil {
-		logs.Warnf("ensure tenant id for biz %d failed in authorize: %v, rid: %s", bizID, err, kt.Rid)
-	}
 
 	cred, err := s.bll.Auth().GetCred(kt, bizID, token)
 	if err != nil {
@@ -108,6 +105,39 @@ func (s *Service) authorize(ctx context.Context, bizID uint32) (context.Context,
 	// 获取scope，到下一步处理
 	ctx = withCredential(ctx, cred)
 	return ctx, nil
+}
+
+// FeedEnsureTenantInterceptor extracts biz_id from all requests (new + legacy) and resolves tenant_id.
+func FeedEnsureTenantInterceptor(
+	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+	svc, ok := info.Server.(*Service)
+	if !ok {
+		return handler(ctx, req)
+	}
+
+	bizID, _ := extractBizIDAndApp(req, info.FullMethod)
+	if bizID != 0 {
+		// 将 bizID 写入 context
+		ctx = context.WithValue(ctx, constant.BizIDKey, bizID) //nolint:staticcheck
+		// 用 rpc 请求的 context 构建 kit，此时的 kit 中没有 TenantID
+		kt := kit.FromGrpcContext(ctx)
+		// 通过业务id查询租户id
+		if err := svc.bll.AppCache().EnsureTenantID(kt, bizID); err != nil {
+			logs.Errorf("ensure tenant id failed, biz: %d, method: %s, err: %v", bizID, info.FullMethod, err)
+			// non-fatal: allow handler to proceed, downstream will fail more explicitly if needed
+		}
+
+		// 将 TenantID 写入 incoming metadata，此时的 rpc 请求的 context 中已经包含了 TenantID
+		if kt.TenantID != "" {
+			md, _ := metadata.FromIncomingContext(ctx)
+			md = md.Copy()
+			md.Set(strings.ToLower(constant.BkTenantID), kt.TenantID)
+			ctx = metadata.NewIncomingContext(ctx, md)
+		}
+	}
+
+	return handler(ctx, req)
 }
 
 // FeedUnaryAuthInterceptor feed 鉴权中间件
@@ -238,9 +268,12 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 	if param.BizID != 0 {
 		ctx = context.WithValue(ctx, constant.BizIDKey, param.BizID) //nolint:staticcheck
 
+		// tenant_id is already set by FeedEnsureTenantInterceptor
+		kt := kit.FromGrpcContext(ctx)
+
 		if len(param.AppIDs) == 0 {
 			for _, appName := range param.AppNames {
-				appID, err := svc.bll.AppCache().GetAppID(kit.FromGrpcContext(ctx), param.BizID, appName)
+				appID, err := svc.bll.AppCache().GetAppID(kt, param.BizID, appName)
 				if err != nil {
 					logs.Errorf("get app id failed, err: %v", err)
 					return handler(ctx, req)
@@ -249,7 +282,7 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 			}
 		}
 
-		if err := svc.bll.AppCache().SetAppLastConsumedTime(kit.FromGrpcContext(ctx),
+		if err := svc.bll.AppCache().SetAppLastConsumedTime(kt,
 			param.BizID, param.AppIDs); err != nil {
 			logs.Errorf("set app last consumed time failed, err: %v", err)
 			return handler(ctx, req)
@@ -269,6 +302,55 @@ type wrappedStream struct {
 // Context 覆盖 context
 func (s *wrappedStream) Context() context.Context {
 	return s.ctx
+}
+
+// FeedStreamEnsureTenantInterceptor extracts biz_id from sidecar-meta header and resolves tenant_id for stream RPCs.
+// This is the stream counterpart of FeedEnsureTenantInterceptor.
+func FeedStreamEnsureTenantInterceptor(
+	srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+
+	svc, ok := srv.(*Service)
+	if !ok {
+		return handler(srv, ss)
+	}
+
+	ctx := ss.Context()
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return handler(srv, ss)
+	}
+
+	// bizID 在 sidecar-meta header 里，拦截器阶段就能拿到
+	var metaHeader string
+	if sm := md.Get(constant.SidecarMetaKey); len(sm) != 0 {
+		metaHeader = sm[0]
+	}
+	if metaHeader == "" {
+		return handler(srv, ss)
+	}
+
+	sm := new(sfs.SidecarMetaHeader)
+	if err := jsoni.UnmarshalFromString(metaHeader, sm); err != nil {
+		return handler(srv, ss)
+	}
+
+	if sm.BizID != 0 {
+		ctx = context.WithValue(ctx, constant.BizIDKey, sm.BizID) //nolint:staticcheck
+		kt := kit.FromGrpcContext(ctx)
+		if err := svc.bll.AppCache().EnsureTenantID(kt, sm.BizID); err != nil {
+			logs.Errorf("stream ensure tenant id failed, biz: %d, method: %s, err: %v",
+				sm.BizID, info.FullMethod, err)
+		}
+
+		// 将 TenantID 写入 incoming metadata，下游 ParseFeedIncomingContext 可直接读取
+		if kt.TenantID != "" {
+			md = md.Copy()
+			md.Set(strings.ToLower(constant.BkTenantID), kt.TenantID)
+			ctx = metadata.NewIncomingContext(ctx, md)
+		}
+	}
+
+	return handler(srv, &wrappedStream{ServerStream: ss, ctx: ctx})
 }
 
 // FeedStreamAuthInterceptor feed 鉴权中间件

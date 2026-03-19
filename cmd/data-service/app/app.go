@@ -291,11 +291,13 @@ func (ds *dataService) listenAndServe() error {
 	opts := []grpc.ServerOption{grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.ChainUnaryInterceptor(
 			brpc.LogUnaryServerInterceptor(),
+			brpc.TenantUnaryServerInterceptor(),
 			grpcMetrics.UnaryServerInterceptor(),
 			grpc_recovery.UnaryServerInterceptor(recoveryOpt),
 		),
 		grpc.ChainStreamInterceptor(
 			grpcMetrics.StreamServerInterceptor(),
+			brpc.TenantStreamServerInterceptor(),
 			grpc_recovery.StreamServerInterceptor(recoveryOpt),
 		),
 	}

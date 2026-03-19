@@ -58,9 +58,7 @@ func NewBuilder(dao dao.Set) *Builder {
 // SetCommonProcessParam 设置
 func (builder *Builder) CommonProcessFinalize(task *types.Task, tenantID string,
 	bizID, processID, processInstanceID uint32) error {
-	kt := kit.New()
-	kt.TenantID = tenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(tenantID)
 	process, err := builder.dao.Process().GetByID(kt, bizID, processID)
 	if err != nil {
 		return err

@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 
@@ -84,10 +85,17 @@ func ParseFeedIncomingContext(ctx context.Context) (*IncomingMeta, error) {
 		return nil, fmt.Errorf("invalid sidecar meta, err: %v", err)
 	}
 
+	// 从 metadata 提取 tenantID（由拦截器注入）
+	var tenantID string
+	if tv := md.Get(strings.ToLower(constant.BkTenantID)); len(tv) != 0 {
+		tenantID = tv[0]
+	}
+
 	return &IncomingMeta{
 		Kit: &kit.Kit{
-			Ctx: ctx,
-			Rid: rid,
+			Ctx:      ctx,
+			Rid:      rid,
+			TenantID: tenantID,
 		},
 		Meta: sm,
 	}, nil

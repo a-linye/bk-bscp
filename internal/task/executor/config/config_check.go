@@ -82,9 +82,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return err
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
 	logs.Infof("[CheckConfigMD5 STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
@@ -272,9 +270,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return nil
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
 	fullPath, err := renderFullPath(commonPayload)
@@ -391,9 +387,7 @@ func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("get payload failed: %w", err)
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 
 	isSuccess := cbErr == nil
 	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {

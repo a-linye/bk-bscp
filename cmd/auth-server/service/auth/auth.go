@@ -433,7 +433,7 @@ func (a *Auth) getInstIDNameMap(kt *kit.Kit, resTypeIDsMap map[client.TypeID][]s
 				if err != nil {
 					return nil, err
 				}
-				app, err := a.ds.GetAppByID(kt.Ctx, &pbds.GetAppByIDReq{AppId: uint32(i)})
+				app, err := a.ds.GetAppByID(kt.RpcCtx(), &pbds.GetAppByIDReq{AppId: uint32(i)})
 				if err != nil {
 					return nil, err
 				}

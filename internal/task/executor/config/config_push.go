@@ -108,9 +108,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		return err
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 
 	commonPayload := &common.TaskPayload{}
 	if err := c.GetCommonPayload(commonPayload); err != nil {
@@ -238,9 +236,7 @@ func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("get payload failed: %w", err)
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 	kt.User = payload.OperatorUser
 
@@ -385,9 +381,7 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	logs.Infof("[PushConfig STEP]: push config for batch %d, biz_id: %d, config_key: %s",
 		payload.BatchID, payload.BizID, cfg.ConfigInstanceKey)
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
 	fullPath, err := renderFullPath(commonPayload)

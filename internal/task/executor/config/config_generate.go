@@ -107,9 +107,7 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 		return err
 	}
 
-	kt := kit.New()
-	kt.TenantID = generatePayload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(generatePayload.TenantID)
 
 	logs.Infof("[GenerateConfig STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
 		generatePayload.BizID, generatePayload.BatchID, generatePayload.ConfigTemplateID,
@@ -277,9 +275,7 @@ func (e *GenerateConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("[ConfigGenerateCallback]: get payload failed: %w", err)
 	}
 
-	kt := kit.New()
-	kt.TenantID = payload.TenantID
-	kt.Ctx = kt.InternalRpcCtx()
+	kt := kit.NewWithTenant(payload.TenantID)
 
 	isSuccess := cbErr == nil
 	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {

@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -80,10 +81,16 @@ func beforeQuery(db *gorm.DB) {
 
 	kt := kit.FromGrpcContext(db.Statement.Context)
 
+	if cc.G().FeatureFlags.EnableMultiTenantMode && kt.TenantID == "" {
+		_ = db.AddError(fmt.Errorf("tenant_id is required in multi-tenant mode, table: %s, rid: %s",
+			db.Statement.Table, kt.Rid))
+		return
+	}
+
 	var tenantExpr clause.Expression
-	if kt.TenantID == "" {
+	if kt.TenantID == "" || kt.TenantID == constant.DefaultTenantID {
 		// 兼容旧数据（空字符串）和新数据（default）
-		tenantExpr = clause.IN{Column: qualifiedTenantCol, Values: []interface{}{"default", ""}}
+		tenantExpr = clause.IN{Column: qualifiedTenantCol, Values: []interface{}{constant.DefaultTenantID, ""}}
 	} else {
 		tenantExpr = clause.Eq{Column: qualifiedTenantCol, Value: kt.TenantID}
 	}
@@ -122,8 +129,17 @@ func beforeAnyOp(db *gorm.DB) {
 		return
 	}
 	kit := kit.FromGrpcContext(db.Statement.Context)
-	if kit.TenantID == "" || db.Statement.Schema == nil {
+	if db.Statement.Schema == nil {
 		return
+	}
+	tenantID := kit.TenantID
+	if tenantID == "" {
+		if cc.G().FeatureFlags.EnableMultiTenantMode {
+			_ = db.AddError(fmt.Errorf("tenant_id is required for write in multi-tenant mode, table: %s, rid: %s",
+				db.Statement.Table, kit.Rid))
+			return
+		}
+		tenantID = constant.DefaultTenantID
 	}
 	rv := db.Statement.ReflectValue
 	switch rv.Kind() {
@@ -133,12 +149,12 @@ func beforeAnyOp(db *gorm.DB) {
 			if item.Kind() == reflect.Ptr {
 				item = item.Elem()
 			}
-			applyKitFields(db, item, kit.TenantID)
+			applyKitFields(db, item, tenantID)
 		}
 	case reflect.Ptr:
-		applyKitFields(db, rv.Elem(), kit.TenantID)
+		applyKitFields(db, rv.Elem(), tenantID)
 	case reflect.Struct:
-		applyKitFields(db, rv, kit.TenantID)
+		applyKitFields(db, rv, tenantID)
 	}
 }
 

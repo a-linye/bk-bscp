@@ -146,6 +146,7 @@ type ReleasedKvMeta struct {
 
 // AsyncDownloadJob defines async download job.
 type AsyncDownloadJob struct {
+	TenantID           string                                             `json:"tenant_id"`
 	BizID              uint32                                             `json:"biz_id"`
 	AppID              uint32                                             `json:"app_id"`
 	JobID              string                                             `json:"job_id"`

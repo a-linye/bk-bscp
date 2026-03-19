@@ -24,6 +24,7 @@ import (
 
 	clientset "github.com/TencentBlueKing/bk-bscp/cmd/feed-server/bll/client-set"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -101,9 +102,10 @@ func (ap *App) RemoveCache(kt *kit.Kit, bizID uint32, appName string) {
 	_, _ = ap.cs.CS().GetAppID(kt.RpcCtx(), opt)
 }
 
-// ListApps 获取App列表, 不缓存，直接透传请求
+// ListApps 获取App列表, 不缓存，直接透传请求。
 func (ap *App) ListApps(kt *kit.Kit, req *pbcs.ListAppsReq) (*pbcs.ListAppsResp, error) {
-	return ap.cs.CS().ListApps(kt.Ctx, req)
+	// 使用 RpcCtx()，将 TenantID 等写入 outgoing metadata 传递给 cache-service
+	return ap.cs.CS().ListApps(kt.RpcCtx(), req)
 }
 
 // GetAppID get app id by app name.
@@ -231,7 +233,7 @@ func (ap *App) collectHitRate() {
 
 // SetAppLastConsumedTime 设置服务拉取时间
 func (ap *App) SetAppLastConsumedTime(kt *kit.Kit, bizID uint32, appIDs []uint32) error {
-	if _, err := ap.cs.CS().SetAppLastConsumedTime(kt.Ctx, &pbcs.SetAppLastConsumedTimeReq{
+	if _, err := ap.cs.CS().SetAppLastConsumedTime(kt.RpcCtx(), &pbcs.SetAppLastConsumedTimeReq{
 		BizId:  bizID,
 		AppIds: appIDs,
 	}); err != nil {
@@ -314,10 +316,11 @@ func (ap *App) EnsureTenantID(kt *kit.Kit, bizID uint32) error {
 	if err != nil {
 		return err
 	}
-	if len(resp.TenantId) == 0 {
-		return fmt.Errorf("biz %d has no tenant id", bizID)
+	tenantID := resp.TenantId
+	if tenantID == "" {
+		tenantID = constant.DefaultTenantID
 	}
-	kt.TenantID = resp.TenantId
+	kt.TenantID = tenantID
 	_ = ap.idClient.Set(key, resp.TenantId)
 	return nil
 }

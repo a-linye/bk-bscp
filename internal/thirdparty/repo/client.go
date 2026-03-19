@@ -102,15 +102,18 @@ func (c *Client) buildHeaders(ctx context.Context) http.Header {
 	return headers
 }
 
-func (c *Client) buildProject(ctx context.Context) string {
+func (c *Client) buildProject(ctx context.Context) (string, error) {
 	kit := kit.MustGetKit(ctx)
 
 	// 仅多租户模式下, bkrepo项目格式{tenantID}.{projectID}
-	if cc.G().FeatureFlags.EnableMultiTenantMode && kit.TenantID != "" {
-		return fmt.Sprintf("%s.%s", kit.TenantID, c.config.BkRepo.Project)
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		if kit.TenantID == "" {
+			return "", fmt.Errorf("tenant_id is required for bkrepo project in multi-tenant mode")
+		}
+		return fmt.Sprintf("%s.%s", kit.TenantID, c.config.BkRepo.Project), nil
 	}
 
-	return c.config.BkRepo.Project
+	return c.config.BkRepo.Project, nil
 }
 
 // IsProjectExist judge repo bscp project already exist.
@@ -219,9 +222,14 @@ func (c *Client) DeleteRepo(ctx context.Context, bizID uint32, forced bool) erro
 		return err
 	}
 
+	project, err := c.buildProject(ctx)
+	if err != nil {
+		return err
+	}
+
 	resp := c.client.Delete().
 		WithContext(ctx).
-		SubResourcef("/repository/api/repo/delete/%s/%s", c.buildProject(ctx), repoName).
+		SubResourcef("/repository/api/repo/delete/%s/%s", project, repoName).
 		WithParam("forced", strconv.FormatBool(forced)).
 		WithHeaders(c.buildHeaders(ctx)).
 		Do()

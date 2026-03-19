@@ -1100,7 +1100,7 @@ func (s *Service) setPublishTime(kt *kit.Kit, pshID uint32, req *pbds.SubmitPubl
 			return err
 		}
 
-		_, err = s.cs.SetPublishTime(kt.Ctx, &pbcs.SetPublishTimeReq{
+		_, err = s.cs.SetPublishTime(kt.RpcCtx(), &pbcs.SetPublishTimeReq{
 			BizId:       req.BizId,
 			StrategyId:  pshID,
 			PublishTime: publishTime.Unix(),

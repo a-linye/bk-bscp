@@ -28,6 +28,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/internal/space"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
@@ -51,6 +52,10 @@ type RepoSyncer struct {
 	spaceMgr *space.Manager
 	state    serviced.Service
 	metric   *metric
+
+	// bizTenantMap caches biz_id → tenant_id mapping, refreshed on each syncAll cycle.
+	// Used by syncIncremental to avoid per-message DB lookup.
+	bizTenantMap sync.Map
 }
 
 // Run runs the repo syncer
@@ -146,10 +151,63 @@ var (
 
 const failedLimit = 100
 
+// refreshBizTenantMap loads biz_id → tenant_id mapping from DB in batch and caches it.
+// Called at the start of each syncAll cycle to keep the mapping fresh.
+func (s *RepoSyncer) refreshBizTenantMap(kt *kit.Kit) {
+	if !cc.G().FeatureFlags.EnableMultiTenantMode {
+		return
+	}
+	bizTenantMap, err := s.set.App().ListBizTenantMap(kt)
+	if err != nil {
+		logs.Errorf("refresh biz tenant map failed, err: %v, rid: %s", err, kt.Rid)
+		return
+	}
+	// clear old entries and store new ones
+	s.bizTenantMap.Range(func(key, _ interface{}) bool {
+		s.bizTenantMap.Delete(key)
+		return true
+	})
+	for bizID, tenantID := range bizTenantMap {
+		if tenantID == "" {
+			tenantID = constant.DefaultTenantID
+		}
+		s.bizTenantMap.Store(bizID, tenantID)
+	}
+	logs.Infof("refreshed biz tenant map, total %d entries, rid: %s", len(bizTenantMap), kt.Rid)
+}
+
+// resolveTenantID resolves the TenantID for a given bizID.
+// It first checks the in-memory cache (populated by syncAll), then falls back to a DB query.
+func (s *RepoSyncer) resolveTenantID(kt *kit.Kit, bizID uint32) string {
+	if !cc.G().FeatureFlags.EnableMultiTenantMode {
+		return ""
+	}
+	// try cache first
+	if val, ok := s.bizTenantMap.Load(bizID); ok {
+		return val.(string)
+	}
+
+	app, err := s.set.App().GetOneAppByBiz(kt.WithSkipTenantFilter(), bizID)
+	if err != nil {
+		logs.Warnf("resolve tenant_id for biz %d failed, err: %v, rid: %s", bizID, err, kt.Rid)
+		return constant.DefaultTenantID
+	}
+	tenantID := app.Spec.TenantID
+	if tenantID == "" {
+		tenantID = constant.DefaultTenantID
+	}
+	// cache for future use
+	s.bizTenantMap.Store(bizID, tenantID)
+	return tenantID
+}
+
 // syncAll syncs all files from master to slave repo
 func (s *RepoSyncer) syncAll(kt *kit.Kit) {
 	logs.Infof("start to sync all repo files")
 	start := time.Now()
+
+	// refresh biz→tenant mapping at the start of each full sync cycle
+	s.refreshBizTenantMap(kt)
 
 	// clear related data for every sync cycle
 	stats = make([]syncStat, 0)
@@ -231,6 +289,9 @@ func (s *RepoSyncer) syncOneBiz(kt *kit.Kit, bizID uint32, signs []string) {
 	var nofiles []string
 	var mu sync.Mutex
 
+	// resolve tenant_id for bkrepo project path in multi-tenant mode
+	tenantID := s.resolveTenantID(kt, bizID)
+
 	// sync files concurrently
 	g, _ := errgroup.WithContext(context.Background())
 	g.SetLimit(10)
@@ -242,6 +303,7 @@ func (s *RepoSyncer) syncOneBiz(kt *kit.Kit, bizID uint32, signs []string) {
 			}
 			kt2 := kt.Clone()
 			kt2.BizID = bizID
+			kt2.TenantID = tenantID
 			isSkip, err := syncMgr.Sync(kt2, sign)
 			if err != nil {
 				logs.Errorf("sync file sign %s for biz %d failed, err: %v, rid: %s", sign, bizID, err, kt2.Rid)
@@ -350,6 +412,7 @@ func (s *RepoSyncer) syncIncremental(kt *kit.Kit) {
 
 				// sync the file with the specific bizID and signature
 				kt2.BizID = bizID
+				kt2.TenantID = s.resolveTenantID(kt2, bizID)
 				if _, err = syncMgr.Sync(kt2, sign); err != nil {
 					logs.Errorf("sync file failed, err: %v, rid: %s", err, kt2.Rid)
 					// if failed for no file in master, continue and not to retry it

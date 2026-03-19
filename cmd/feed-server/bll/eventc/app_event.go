@@ -70,6 +70,7 @@ func (ae *appEvent) AddSidecar(currentRelease uint32, sn uint64, subSpec *Subscr
 	if err := ae.sch.lc.App.EnsureTenantID(kt, subSpec.InstSpec.BizID); err != nil {
 		logs.Errorf("ensure tenant id failed for first match, biz: %d, err: %v, rid: %s",
 			subSpec.InstSpec.BizID, err, kt.Rid)
+		return err
 	}
 	matchedRelease, matchedCursor, err := ae.doFirstMatch(kt, subSpec)
 	if err != nil {
@@ -158,6 +159,7 @@ func (ae *appEvent) eventHandler(events []*types.EventMeta) {
 		if err := ae.sch.lc.App.EnsureTenantID(kt, ae.bizID); err != nil {
 			logs.Errorf("ensure tenant id failed for event handler, biz: %d, err: %v, rid: %s",
 				ae.bizID, err, kt.Rid)
+			continue
 		}
 		switch one.Spec.Resource {
 		case table.Publish:

@@ -110,8 +110,12 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 		return
 	}
 
-	var manulStrategies []uint32
-	var publishStrategies []uint32
+	// 按 TenantID 分组: manualStrategies 和 publishStrategies
+	type tenantGroup struct {
+		manualIDs  []uint32
+		publishIDs []uint32
+	}
+	tenantGroups := make(map[string]*tenantGroup)
 
 	tx := cm.set.GenQuery().Begin()
 	defer func() {
@@ -123,10 +127,15 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 	for _, v := range strategies {
 		// 类型必须是定时上线
 		if v.Spec.PublishType == table.Scheduled {
+			tenantID := v.Attachment.TenantID
+			if _, ok := tenantGroups[tenantID]; !ok {
+				tenantGroups[tenantID] = &tenantGroup{}
+			}
+			group := tenantGroups[tenantID]
 
 			// 刚好到上线时间未审批的情况，更新为手动上线
 			if v.Spec.PublishStatus == table.PendingApproval {
-				manulStrategies = append(manulStrategies, v.ID)
+				group.manualIDs = append(group.manualIDs, v.ID)
 				continue
 			}
 
@@ -134,11 +143,11 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 			if v.Spec.PublishStatus == table.PendingPublish {
 				// 需要审批的更新为手动上线
 				if v.Spec.FinalApprovalTime.Unix() > publishInfos[v.ID].PublishTime && v.Spec.Approver != "" {
-					manulStrategies = append(manulStrategies, v.ID)
+					group.manualIDs = append(group.manualIDs, v.ID)
 					continue
 				}
 				// 刚好要上线，以及因环境问题刚好要上线没上线
-				publishStrategies = append(publishStrategies, v.ID)
+				group.publishIDs = append(group.publishIDs, v.ID)
 
 				opt := types.PublishOption{
 					BizID:     v.Attachment.BizID,
@@ -151,44 +160,48 @@ func (cm *Publish) updateStrategy(kt *kit.Kit) {
 					opt.All = true
 				}
 
-			kt.User = v.Revision.Creator
-			kt.TenantID = v.Attachment.TenantID
-			kt.Ctx = kt.InternalRpcCtx()
-			err = cm.set.Publish().UpsertPublishWithTx(kt, tx, &opt, v)
+				tkt := kit.NewWithTenant(tenantID)
+				tkt.User = v.Revision.Creator
+				err = cm.set.Publish().UpsertPublishWithTx(tkt, tx, &opt, v)
 				if err != nil {
-					logs.Errorf("update publish with tx failed, err: %s, rid: %s", err.Error(), kt.Rid)
+					logs.Errorf("update publish with tx failed, err: %s, rid: %s", err.Error(), tkt.Rid)
 					return
 				}
 			}
 		}
 	}
 
-	err = cm.set.Strategy().UpdateByIDs(kt, tx, manulStrategies, map[string]interface{}{
-		"publish_type":        table.Manually,
-		"final_approval_time": time.Now().UTC(),
-	})
-	if err != nil {
-		logs.Errorf("update strategy by ids manually failed, err: %s, rid: %s", err.Error(), kt.Rid)
-		return
-	}
+	// 按租户分组执行 UpdateByIDs，确保每次操作的 kit 携带正确的 TenantID
+	for tenantID, group := range tenantGroups {
+		tkt := kit.NewWithTenant(tenantID)
 
-	err = cm.set.Strategy().UpdateByIDs(kt, tx, publishStrategies, map[string]interface{}{
-		"publish_status":      table.AlreadyPublish,
-		"pub_state":           table.Publishing,
-		"final_approval_time": time.Now().UTC(),
-	})
-	if err != nil {
-		logs.Errorf("update strategy by ids already publish failed, err: %s, rid: %s", err.Error(), kt.Rid)
-		return
-	}
+		err = cm.set.Strategy().UpdateByIDs(tkt, tx, group.manualIDs, map[string]interface{}{
+			"publish_type":        table.Manually,
+			"final_approval_time": time.Now().UTC(),
+		})
+		if err != nil {
+			logs.Errorf("update strategy by ids manually failed, err: %s, rid: %s", err.Error(), tkt.Rid)
+			return
+		}
 
-	// update audit details
-	err = cm.set.AuditDao().UpdateByStrategyIDs(kt, tx, publishStrategies, map[string]interface{}{
-		"status": table.AlreadyPublish,
-	})
-	if err != nil {
-		logs.Errorf("update audit by strategy ids failed, err: %s, rid: %s", err.Error(), kt.Rid)
-		return
+		err = cm.set.Strategy().UpdateByIDs(tkt, tx, group.publishIDs, map[string]interface{}{
+			"publish_status":      table.AlreadyPublish,
+			"pub_state":           table.Publishing,
+			"final_approval_time": time.Now().UTC(),
+		})
+		if err != nil {
+			logs.Errorf("update strategy by ids already publish failed, err: %s, rid: %s", err.Error(), tkt.Rid)
+			return
+		}
+
+		// update audit details
+		err = cm.set.AuditDao().UpdateByStrategyIDs(tkt, tx, group.publishIDs, map[string]interface{}{
+			"status": table.AlreadyPublish,
+		})
+		if err != nil {
+			logs.Errorf("update audit by strategy ids failed, err: %s, rid: %s", err.Error(), tkt.Rid)
+			return
+		}
 	}
 
 	if err = tx.Commit(); err != nil {

@@ -302,3 +302,46 @@ internal/iam/auth/middleware.go            (Dev 环境支持 tenant_id header)
 3. **`excludedTables` 维护**：`clients` 和 `client_events` 表不参与租户过滤，新增表时需评估是否加入排除列表
 4. **`EnsureTenantID` 性能**：该方法在 feed-server 的每次请求中被调用，但通过本地 gcache + Redis 两级缓存，实际 DB 查询极少
 5. **唯一索引调整**：部分表的唯一索引需要加入 `tenant_id` 字段（如 `template_spaces` 的 `idx_tenantID_bizID_name`），迁移时可能因重复数据导致冲突，需手动处理
+
+## 八、Phase 0 防御基建 (已实施)
+
+在核心链路修复完毕后，新增了防御安全网，防止未来新增代码遗漏 TenantID 导致跨租户数据泄漏。
+
+### 8.1 GORM 回调严格模式
+
+**文件**: `internal/dal/dao/set_tenant_id.go`
+
+- `beforeQuery`: 多租户模式下 TenantID 为空时 `db.AddError()` 直接报错，阻止无租户查询
+- `beforeAnyOp`: 多租户模式下 TenantID 为空时 `db.AddError()` 直接报错，阻止无租户写入
+- 保留 `excludedTables` 白名单和 `WithSkipTenantFilter()` 跳过逻辑不变
+
+### 8.2 bkrepo `buildProject()` 防御
+
+**文件**: `internal/dal/repository/bkrepo.go`, `internal/thirdparty/repo/client.go`
+
+- `buildProject` 签名从 `string` 改为 `(string, error)`
+- 多租户模式下 TenantID 为空返回 error 而非静默回退到共享 project
+- 适配了全部 9 个调用点（bkrepo.go 8 处 + client.go 1 处）
+
+### 8.3 gRPC TenantID 校验拦截器
+
+**新增文件**: `internal/runtime/brpc/tenant_interceptor.go`
+
+- `TenantUnaryServerInterceptor`: 校验 Unary RPC 请求 metadata 中的 `x-bk-tenant-id`
+- `TenantStreamServerInterceptor`: 校验 Stream RPC 请求 metadata 中的 `x-bk-tenant-id`
+- 仅在 `EnableMultiTenantMode` 开启时生效
+- 已注册到 4 个内部服务（data-service、config-server、cache-service、auth-server）
+- 插入位置在 `LogUnaryServerInterceptor` 之后，保留日志记录能力
+
+### 8.4 变更文件清单
+
+| 文件 | 改动类型 |
+|------|---------|
+| `internal/dal/dao/set_tenant_id.go` | 修改: beforeQuery + beforeAnyOp 添加多租户 error |
+| `internal/dal/repository/bkrepo.go` | 修改: buildProject 返回 (string, error) + 8 个调用点适配 |
+| `internal/thirdparty/repo/client.go` | 修改: buildProject 返回 (string, error) + 1 个调用点适配 |
+| `internal/runtime/brpc/tenant_interceptor.go` | **新增**: Unary + Stream 拦截器 |
+| `cmd/data-service/app/app.go` | 修改: 注册拦截器 |
+| `cmd/config-server/app/app.go` | 修改: 注册拦截器 |
+| `cmd/cache-service/app/app.go` | 修改: 注册拦截器 |
+| `cmd/auth-server/app/app.go` | 修改: 注册拦截器 |

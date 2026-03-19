@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/cache-service/service/cache/keys"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -333,7 +334,12 @@ func (c *client) refreshTenantIDCache(kit *kit.Kit, bizID uint32) (string, error
 		return "", err
 	}
 
-	b, err := jsoni.Marshal(app.Spec.TenantID)
+	tenantID := app.Spec.TenantID
+	if tenantID == "" {
+		tenantID = constant.DefaultTenantID
+	}
+
+	b, err := jsoni.Marshal(tenantID)
 	if err != nil {
 		return "", err
 	}
@@ -347,5 +353,5 @@ func (c *client) refreshTenantIDCache(kit *kit.Kit, bizID uint32) (string, error
 
 	c.mc.cacheItemByteSize.With(prm.Labels{"rsc": tenantID, "biz": tools.Itoa(bizID)}).Observe(float64(len(b)))
 
-	return app.Spec.TenantID, nil
+	return tenantID, nil
 }

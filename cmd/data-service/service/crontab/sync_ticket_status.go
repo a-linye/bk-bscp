@@ -114,8 +114,9 @@ func (c *SyncTicketStatus) processTicket(kit *kit.Kit, strategy *table.Strategy)
 	// 获取单据状态，只处理已结束的单据
 	kit.TenantID = strategy.Attachment.TenantID
 	kit.User = strategy.Revision.Creator
+	kit.Ctx = kit.InternalRpcCtx()
 
-	ticksetStatus, err := c.itsm.GetTicketStatus(kit.InternalRpcCtx(), api.GetTicketStatusReq{
+	ticksetStatus, err := c.itsm.GetTicketStatus(kit.Ctx, api.GetTicketStatusReq{
 		TicketID: strategy.Spec.ItsmTicketSn,
 	})
 	if err != nil {
@@ -159,7 +160,7 @@ func (c *SyncTicketStatus) handleApprove(kit *kit.Kit, strategy *table.Strategy)
 	}
 
 	// 调用ITSM获取审批结果
-	approveResult, err := c.itsm.GetApproveResult(kit.InternalRpcCtx(), api.GetApproveResultReq{
+	approveResult, err := c.itsm.GetApproveResult(kit.Ctx, api.GetApproveResultReq{
 		TicketID:    strategy.Spec.ItsmTicketSn,
 		ActivityKey: activeKey,
 		StateID:     strategy.Spec.ItsmTicketStateID,
@@ -187,7 +188,7 @@ func (c *SyncTicketStatus) handleApprove(kit *kit.Kit, strategy *table.Strategy)
 	}
 
 	logs.Infof("itsm approve req: %v", approveReq)
-	_, err = c.srv.Approve(kit.InternalRpcCtx(), approveReq)
+	_, err = c.srv.Approve(kit.Ctx, approveReq)
 	if err != nil {
 		logs.Errorf("approve failed, err=%v, rid=%s", err, kit.Rid)
 		return err
