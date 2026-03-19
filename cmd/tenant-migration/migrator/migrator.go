@@ -300,11 +300,12 @@ func (m *Migrator) PrintCleanupReport(result *FullCleanupResult) {
 	fmt.Println(strings.Repeat("=", 60))
 }
 
-// PrintReport prints the migration report to stdout
+// PrintReport prints a concise migration summary to stdout.
+// If there are failed records, full details are written to a JSON log file.
 func (m *Migrator) PrintReport(report *MigrationReport) {
-	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("\n" + strings.Repeat("=", 70))
 	fmt.Println("MIGRATION REPORT")
-	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println(strings.Repeat("=", 70))
 	fmt.Printf("Start Time:  %s\n", report.StartTime.Format(time.RFC3339))
 	fmt.Printf("End Time:    %s\n", report.EndTime.Format(time.RFC3339))
 	fmt.Printf("Duration:    %v\n", report.Duration)
@@ -313,20 +314,21 @@ func (m *Migrator) PrintReport(report *MigrationReport) {
 
 	if len(report.TableResults) > 0 {
 		fmt.Println("MySQL Migration Results:")
-		fmt.Println(strings.Repeat("-", 60))
-		fmt.Printf("%-35s %10s %10s %8s\n", "Table", "Source", "Migrated", "Status")
-		fmt.Println(strings.Repeat("-", 60))
+		fmt.Println(strings.Repeat("-", 70))
+		fmt.Printf("%-35s %10s %10s %8s %8s\n", "Table", "Source", "Migrated", "Failed", "Status")
+		fmt.Println(strings.Repeat("-", 70))
 
 		for _, tr := range report.TableResults {
-			fmt.Printf("%-35s %10d %10d %8s\n",
-				tr.TableName, tr.SourceCount, tr.MigratedCount, boolToStatus(tr.Success))
+			fmt.Printf("%-35s %10d %10d %8d %8s\n",
+				tr.TableName, tr.SourceCount, tr.MigratedCount,
+				tr.ErrorCount, boolToStatus(tr.Success))
 		}
 		fmt.Println()
 	}
 
 	if report.VaultResults != nil {
 		fmt.Println("Vault Migration Results:")
-		fmt.Println(strings.Repeat("-", 60))
+		fmt.Println(strings.Repeat("-", 70))
 		fmt.Printf("KV Records:          %d migrated of %d\n",
 			report.VaultResults.MigratedKvs, report.VaultResults.KvCount)
 		fmt.Printf("Released KV Records: %d migrated of %d\n",
@@ -337,14 +339,73 @@ func (m *Migrator) PrintReport(report *MigrationReport) {
 
 	if len(report.Errors) > 0 {
 		fmt.Println("Errors:")
-		fmt.Println(strings.Repeat("-", 60))
+		fmt.Println(strings.Repeat("-", 70))
 		for _, err := range report.Errors {
 			fmt.Printf("  - %s\n", err)
 		}
 		fmt.Println()
 	}
 
-	fmt.Println(strings.Repeat("=", 60))
+	// Write failed rows to log file if any
+	if m.mysqlMigrator.HasFailedRows() {
+		logDir := m.buildLogDir()
+		logFile, err := m.mysqlMigrator.WriteFailedRowsLog(logDir)
+		if err != nil {
+			log.Printf("Warning: failed to write error log: %v", err)
+		} else if logFile != "" {
+			fmt.Printf("  >> Failed records detail saved to: %s\n\n", logFile)
+		}
+	}
+
+	fmt.Println(strings.Repeat("=", 70))
+}
+
+// ExistingDataItem describes a table with existing data in the target database
+type ExistingDataItem struct {
+	Table string
+	Count int64
+}
+
+// CheckTargetData checks if the target database already has data for the configured biz_ids.
+// Returns a list of tables with existing record counts (empty if no data found).
+func (m *Migrator) CheckTargetData() []ExistingDataItem {
+	if !m.cfg.Migration.HasBizFilter() {
+		return nil
+	}
+
+	var result []ExistingDataItem
+	coreLevel1Tables := []string{"applications", "template_spaces", "groups", "hooks", "credentials"}
+
+	for _, table := range coreLevel1Tables {
+		var count int64
+		err := m.mysqlMigrator.targetDB.Table(table).
+			Where("biz_id IN ?", m.cfg.Migration.BizIDs).
+			Count(&count).Error
+		if err != nil {
+			log.Printf("Warning: failed to check target table %s: %v", table, err)
+			continue
+		}
+		if count > 0 {
+			result = append(result, ExistingDataItem{Table: table, Count: count})
+		}
+	}
+	return result
+}
+
+// buildLogDir returns the log directory path based on biz_ids filter.
+// e.g. logs/biz_100_200/ or logs/all/
+func (m *Migrator) buildLogDir() string {
+	var bizDir string
+	if m.cfg.Migration.HasBizFilter() {
+		parts := make([]string, 0, len(m.cfg.Migration.BizIDs))
+		for _, id := range m.cfg.Migration.BizIDs {
+			parts = append(parts, fmt.Sprintf("%d", id))
+		}
+		bizDir = "biz_" + strings.Join(parts, "_")
+	} else {
+		bizDir = "all"
+	}
+	return fmt.Sprintf("logs/%s", bizDir)
 }
 
 func boolToStatus(success bool) string {

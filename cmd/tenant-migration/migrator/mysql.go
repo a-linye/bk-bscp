@@ -13,8 +13,10 @@
 package migrator
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -24,12 +26,23 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/cmd/tenant-migration/config"
 )
 
+// FailedRow records a single row that failed during migration
+type FailedRow struct {
+	Table    string                 `json:"table"`
+	SourceID uint32                 `json:"source_id"`
+	NewID    uint32                 `json:"new_id,omitempty"`
+	BizID    uint32                 `json:"biz_id"`
+	Error    string                 `json:"error"`
+	Data     map[string]interface{} `json:"data"`
+}
+
 // MySQLMigrator handles MySQL data migration
 type MySQLMigrator struct {
-	cfg      *config.Config
-	sourceDB *gorm.DB
-	targetDB *gorm.DB
-	idMapper *IDMapper
+	cfg        *config.Config
+	sourceDB   *gorm.DB
+	targetDB   *gorm.DB
+	idMapper   *IDMapper
+	failedRows []FailedRow
 }
 
 // NewMySQLMigrator creates a new MySQLMigrator instance
@@ -48,6 +61,12 @@ func NewMySQLMigrator(cfg *config.Config) (*MySQLMigrator, error) {
 	sqlDB.SetMaxOpenConns(int(cfg.Source.MySQL.MaxOpenConn))
 	sqlDB.SetMaxIdleConns(int(cfg.Source.MySQL.MaxIdleConn))
 
+	err = sqlDB.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("source database is unreachable: %w", err)
+	}
+	log.Println("Source MySQL connection OK")
+
 	// Connect to target database
 	targetDB, err := gorm.Open(mysql.Open(cfg.Target.MySQL.DSN()),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Warn)})
@@ -61,6 +80,12 @@ func NewMySQLMigrator(cfg *config.Config) (*MySQLMigrator, error) {
 	}
 	sqlDB.SetMaxOpenConns(int(cfg.Target.MySQL.MaxOpenConn))
 	sqlDB.SetMaxIdleConns(int(cfg.Target.MySQL.MaxIdleConn))
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("target database is unreachable: %w", err)
+	}
+	log.Println("Target MySQL connection OK")
 
 	return &MySQLMigrator{
 		cfg:      cfg,
@@ -215,7 +240,9 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 			newID, err := m.getNextID(tableName)
 			if err != nil {
 				result.ErrorCount++
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to get next ID: %v", err))
+				errMsg := fmt.Sprintf("failed to get next ID: %v", err)
+				result.Errors = append(result.Errors, errMsg)
+				m.logFailedRow(tableName, sourceID, 0, row, errMsg)
 				if !m.cfg.Migration.ContinueOnError {
 					result.Success = false
 					break
@@ -232,12 +259,42 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 			// Convert foreign keys using ID mapper
 			if err := m.convertForeignKeys(row, meta); err != nil {
 				result.ErrorCount++
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to convert foreign keys (sourceID=%d): %v", sourceID, err))
+				errMsg := fmt.Sprintf("failed to convert foreign keys (sourceID=%d): %v", sourceID, err)
+				result.Errors = append(result.Errors, errMsg)
+				m.logFailedRow(tableName, sourceID, newID, row, errMsg)
 				if !m.cfg.Migration.ContinueOnError {
 					result.Success = false
 					break
 				}
 				continue
+			}
+
+			// Convert JSON array foreign keys (e.g. template_ids in template_sets)
+			if err := m.convertJSONArrayFKs(row, meta); err != nil {
+				result.ErrorCount++
+				errMsg := fmt.Sprintf("failed to convert JSON array FKs (sourceID=%d): %v", sourceID, err)
+				result.Errors = append(result.Errors, errMsg)
+				m.logFailedRow(tableName, sourceID, newID, row, errMsg)
+				if !m.cfg.Migration.ContinueOnError {
+					result.Success = false
+					break
+				}
+				continue
+			}
+
+			// Convert complex bindings JSON in app_template_bindings
+			if tableName == "app_template_bindings" {
+				if err := m.convertBindingsJSON(row); err != nil {
+					result.ErrorCount++
+					errMsg := fmt.Sprintf("failed to convert bindings JSON (sourceID=%d): %v", sourceID, err)
+					result.Errors = append(result.Errors, errMsg)
+					m.logFailedRow(tableName, sourceID, newID, row, errMsg)
+					if !m.cfg.Migration.ContinueOnError {
+						result.Success = false
+						break
+					}
+					continue
+				}
 			}
 
 			// Fill tenant_id if the column exists
@@ -251,7 +308,9 @@ func (m *MySQLMigrator) migrateTable(tableName string) TableMigrationResult {
 			// Insert into target database
 			if err := m.targetDB.Table(tableName).Create(row).Error; err != nil {
 				result.ErrorCount++
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to insert row (sourceID=%d, newID=%d): %v", sourceID, newID, err))
+				errMsg := fmt.Sprintf("failed to insert row (sourceID=%d, newID=%d): %v", sourceID, newID, err)
+				result.Errors = append(result.Errors, errMsg)
+				m.logFailedRow(tableName, sourceID, newID, row, errMsg)
 				if !m.cfg.Migration.ContinueOnError {
 					result.Success = false
 					break
@@ -360,6 +419,197 @@ func (m *MySQLMigrator) convertForeignKeys(row map[string]interface{}, meta Tabl
 		row[fkColumn] = targetFK
 	}
 	return nil
+}
+
+// convertJSONArrayFKs converts ID values inside JSON array columns using ID mapper
+func (m *MySQLMigrator) convertJSONArrayFKs(row map[string]interface{}, meta TableMeta) error {
+	if len(meta.JSONArrayFKs) == 0 {
+		return nil
+	}
+
+	for jsonCol, refTable := range meta.JSONArrayFKs {
+		rawVal, ok := row[jsonCol]
+		if !ok || rawVal == nil {
+			continue
+		}
+
+		sourceIDs, err := parseJSONUint32Array(rawVal)
+		if err != nil {
+			return fmt.Errorf("failed to parse JSON array column %s: %w", jsonCol, err)
+		}
+
+		if len(sourceIDs) == 0 {
+			continue
+		}
+
+		targetIDs := make([]uint32, 0, len(sourceIDs))
+		for _, sid := range sourceIDs {
+			if sid == 0 {
+				targetIDs = append(targetIDs, 0)
+				continue
+			}
+			tid := m.idMapper.Get(refTable, sid)
+			if tid == 0 {
+				return fmt.Errorf("JSON array column %s: source ID %d references %s, but no mapping found",
+					jsonCol, sid, refTable)
+			}
+			targetIDs = append(targetIDs, tid)
+		}
+
+		data, err := json.Marshal(targetIDs)
+		if err != nil {
+			return fmt.Errorf("failed to marshal converted IDs for column %s: %w", jsonCol, err)
+		}
+		row[jsonCol] = string(data)
+	}
+	return nil
+}
+
+// convertBindingsJSON converts IDs inside the complex bindings JSON column of app_template_bindings.
+// The structure is: [{"template_set_id": N, "template_revisions": [{"template_id": N, "template_revision_id": N, "is_latest": bool}]}]
+func (m *MySQLMigrator) convertBindingsJSON(row map[string]interface{}) error {
+	rawVal, ok := row["bindings"]
+	if !ok || rawVal == nil {
+		return nil
+	}
+
+	rawBytes, err := toJSONBytes(rawVal)
+	if err != nil {
+		return fmt.Errorf("failed to read bindings column: %w", err)
+	}
+
+	var bindings []map[string]interface{}
+	if err := json.Unmarshal(rawBytes, &bindings); err != nil {
+		return fmt.Errorf("failed to parse bindings JSON: %w", err)
+	}
+
+	for i, binding := range bindings {
+		if tsID, ok := binding["template_set_id"]; ok && tsID != nil {
+			sourceID := jsonNumberToUint32(tsID)
+			if sourceID != 0 {
+				targetID := m.idMapper.Get("template_sets", sourceID)
+				if targetID == 0 {
+					return fmt.Errorf("bindings[%d].template_set_id=%d: no mapping found in template_sets", i, sourceID)
+				}
+				binding["template_set_id"] = targetID
+			}
+		}
+
+		rawRevisions, ok := binding["template_revisions"]
+		if !ok || rawRevisions == nil {
+			continue
+		}
+
+		revisions, ok := rawRevisions.([]interface{})
+		if !ok {
+			continue
+		}
+
+		for j, rawRev := range revisions {
+			rev, ok := rawRev.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if tmplID, ok := rev["template_id"]; ok && tmplID != nil {
+				sourceID := jsonNumberToUint32(tmplID)
+				if sourceID != 0 {
+					targetID := m.idMapper.Get("templates", sourceID)
+					if targetID == 0 {
+						return fmt.Errorf("bindings[%d].template_revisions[%d].template_id=%d: no mapping found in templates",
+							i, j, sourceID)
+					}
+					rev["template_id"] = targetID
+				}
+			}
+
+			if trID, ok := rev["template_revision_id"]; ok && trID != nil {
+				sourceID := jsonNumberToUint32(trID)
+				if sourceID != 0 {
+					targetID := m.idMapper.Get("template_revisions", sourceID)
+					if targetID == 0 {
+						return fmt.Errorf(
+							"bindings[%d].template_revisions[%d].template_revision_id=%d: no mapping found in template_revisions",
+							i, j, sourceID)
+					}
+					rev["template_revision_id"] = targetID
+				}
+			}
+		}
+	}
+
+	data, err := json.Marshal(bindings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal converted bindings: %w", err)
+	}
+	row["bindings"] = string(data)
+	return nil
+}
+
+// parseJSONUint32Array parses a raw DB value ([]byte or string) as a JSON array of uint32
+func parseJSONUint32Array(val interface{}) ([]uint32, error) {
+	rawBytes, err := toJSONBytes(val)
+	if err != nil {
+		return nil, err
+	}
+
+	var numbers []json.Number
+	if err := json.Unmarshal(rawBytes, &numbers); err != nil {
+		var floats []float64
+		if err2 := json.Unmarshal(rawBytes, &floats); err2 != nil {
+			return nil, fmt.Errorf("cannot parse as number array: %w", err)
+		}
+		result := make([]uint32, len(floats))
+		for i, f := range floats {
+			result[i] = uint32(f)
+		}
+		return result, nil
+	}
+
+	result := make([]uint32, len(numbers))
+	for i, n := range numbers {
+		v, err := n.Int64()
+		if err != nil {
+			return nil, fmt.Errorf("invalid number at index %d: %w", i, err)
+		}
+		result[i] = uint32(v)
+	}
+	return result, nil
+}
+
+// toJSONBytes converts a raw DB value to JSON bytes
+func toJSONBytes(val interface{}) ([]byte, error) {
+	switch v := val.(type) {
+	case []byte:
+		return v, nil
+	case string:
+		return []byte(v), nil
+	default:
+		data, err := json.Marshal(val)
+		if err != nil {
+			return nil, fmt.Errorf("unsupported type %T for JSON conversion", val)
+		}
+		return data, nil
+	}
+}
+
+// jsonNumberToUint32 converts a JSON-deserialized number value to uint32
+func jsonNumberToUint32(val interface{}) uint32 {
+	switch v := val.(type) {
+	case float64:
+		return uint32(v)
+	case json.Number:
+		n, _ := v.Int64()
+		return uint32(n)
+	case int64:
+		return uint32(v)
+	case uint32:
+		return v
+	case uint64:
+		return uint32(v)
+	default:
+		return 0
+	}
 }
 
 // hasTenantIDColumn checks if a table has tenant_id column
@@ -533,6 +783,83 @@ type CleanupResult struct {
 	TableResults []TableCleanupResult
 	Duration     time.Duration
 	Success      bool
+}
+
+// logFailedRow collects a failed row for later file output
+func (m *MySQLMigrator) logFailedRow(tableName string, sourceID, newID uint32, row map[string]interface{}, errMsg string) {
+	bizID := m.getUint32FromRow(row, "biz_id")
+
+	rowCopy := make(map[string]interface{}, len(row))
+	for k, v := range row {
+		rowCopy[k] = v
+	}
+
+	m.failedRows = append(m.failedRows, FailedRow{
+		Table:    tableName,
+		SourceID: sourceID,
+		NewID:    newID,
+		BizID:    bizID,
+		Error:    errMsg,
+		Data:     rowCopy,
+	})
+}
+
+// HasFailedRows returns true if there are any collected failed rows
+func (m *MySQLMigrator) HasFailedRows() bool {
+	return len(m.failedRows) > 0
+}
+
+// WriteFailedRowsLog writes all collected failed rows to a JSON log file, grouped by biz_id.
+// logDir specifies the directory (e.g. "logs/biz_100_200"), file is named migrate_<timestamp>.json.
+func (m *MySQLMigrator) WriteFailedRowsLog(logDir string) (string, error) {
+	if len(m.failedRows) == 0 {
+		return "", nil
+	}
+
+	grouped := make(map[uint32][]FailedRow)
+	for _, r := range m.failedRows {
+		grouped[r.BizID] = append(grouped[r.BizID], r)
+	}
+
+	type bizFailedRows struct {
+		BizID      uint32      `json:"biz_id"`
+		Count      int         `json:"count"`
+		FailedRows []FailedRow `json:"failed_rows"`
+	}
+
+	output := struct {
+		Timestamp   string          `json:"timestamp"`
+		TotalFailed int             `json:"total_failed"`
+		Businesses  []bizFailedRows `json:"businesses"`
+	}{
+		Timestamp:   time.Now().Format(time.RFC3339),
+		TotalFailed: len(m.failedRows),
+	}
+
+	for bizID, rows := range grouped {
+		output.Businesses = append(output.Businesses, bizFailedRows{
+			BizID:      bizID,
+			Count:      len(rows),
+			FailedRows: rows,
+		})
+	}
+
+	data, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal failed rows: %w", err)
+	}
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create log directory %s: %w", logDir, err)
+	}
+
+	filename := fmt.Sprintf("migrate_%s.json", time.Now().Format("20060102_150405"))
+	fullPath := logDir + "/" + filename
+	if err := os.WriteFile(fullPath, data, 0644); err != nil {
+		return "", fmt.Errorf("failed to write failed rows log: %w", err)
+	}
+
+	return fullPath, nil
 }
 
 // TableCleanupResult contains the result of cleaning up a single table

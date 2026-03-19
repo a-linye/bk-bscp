@@ -92,6 +92,45 @@ func NewVaultMigrator(cfg *config.Config, sourceDB, targetDB *gorm.DB) (*VaultMi
 	}, nil
 }
 
+// checkConnectivity verifies that both source and target Vault instances are reachable and the tokens are valid
+func (m *VaultMigrator) checkConnectivity() error {
+	log.Println("Checking Vault connectivity...")
+
+	// Check source Vault
+	sourceHealth, err := m.sourceVault.Sys().Health()
+	if err != nil {
+		return fmt.Errorf("source Vault is unreachable at %s: %w", m.cfg.Source.Vault.Address, err)
+	}
+	if sourceHealth.Sealed {
+		return fmt.Errorf("source Vault at %s is sealed", m.cfg.Source.Vault.Address)
+	}
+
+	// Verify source token by looking up self
+	_, err = m.sourceVault.Auth().Token().LookupSelf()
+	if err != nil {
+		return fmt.Errorf("source Vault token is invalid: %w", err)
+	}
+	log.Printf("  Source Vault OK (%s)", m.cfg.Source.Vault.Address)
+
+	// Check target Vault
+	targetHealth, err := m.targetVault.Sys().Health()
+	if err != nil {
+		return fmt.Errorf("target Vault is unreachable at %s: %w", m.cfg.Target.Vault.Address, err)
+	}
+	if targetHealth.Sealed {
+		return fmt.Errorf("target Vault at %s is sealed", m.cfg.Target.Vault.Address)
+	}
+
+	// Verify target token by looking up self
+	_, err = m.targetVault.Auth().Token().LookupSelf()
+	if err != nil {
+		return fmt.Errorf("target Vault token is invalid: %w", err)
+	}
+	log.Printf("  Target Vault OK (%s)", m.cfg.Target.Vault.Address)
+
+	return nil
+}
+
 // SetIDMapper sets the ID mapper from MySQL migration
 // This must be called before Migrate() when using incremental migration
 func (m *VaultMigrator) SetIDMapper(mapper *IDMapper) {
@@ -100,6 +139,10 @@ func (m *VaultMigrator) SetIDMapper(mapper *IDMapper) {
 
 // Migrate performs the Vault KV data migration with ID mapping support
 func (m *VaultMigrator) Migrate() (*VaultMigrationResult, error) {
+	if err := m.checkConnectivity(); err != nil {
+		return nil, fmt.Errorf("vault connectivity check failed: %w", err)
+	}
+
 	startTime := time.Now()
 	result := &VaultMigrationResult{
 		Success: true,
@@ -371,6 +414,10 @@ type VaultCleanupResult struct {
 // Uses source database to get KV records (since target DB may not have data yet)
 // If biz_id filter is configured, only deletes KVs for those businesses
 func (m *VaultMigrator) CleanupTarget() (*VaultCleanupResult, error) {
+	if err := m.checkConnectivity(); err != nil {
+		return nil, fmt.Errorf("vault connectivity check failed: %w", err)
+	}
+
 	startTime := time.Now()
 	result := &VaultCleanupResult{
 		Success: true,

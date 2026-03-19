@@ -14,10 +14,11 @@ package migrator
 
 // TableMeta defines the migration metadata for a table
 type TableMeta struct {
-	Name        string            // Table name
-	IDColumn    string            // ID column name (default "id")
-	ForeignKeys map[string]string // Foreign key column -> referenced table name
-	HasBizID    bool              // Whether the table has biz_id column for filtering
+	Name         string            // Table name
+	IDColumn     string            // ID column name (default "id")
+	ForeignKeys  map[string]string // Foreign key column -> referenced table name
+	JSONArrayFKs map[string]string // JSON array column -> referenced table name (e.g. template_ids -> templates)
+	HasBizID     bool              // Whether the table has biz_id column for filtering
 }
 
 // TableMetas defines metadata for all 29 core tables
@@ -85,6 +86,9 @@ var TableMetas = map[string]TableMeta{
 		HasBizID: true,
 		ForeignKeys: map[string]string{
 			"template_space_id": "template_spaces",
+		},
+		JSONArrayFKs: map[string]string{
+			"template_ids": "templates",
 		},
 	},
 	"templates": {
@@ -232,6 +236,13 @@ var TableMetas = map[string]TableMeta{
 		ForeignKeys: map[string]string{
 			"app_id": "applications",
 		},
+		JSONArrayFKs: map[string]string{
+			"template_space_ids":    "template_spaces",
+			"template_set_ids":     "template_sets",
+			"template_ids":         "templates",
+			"template_revision_ids": "template_revisions",
+			"latest_template_ids":  "templates",
+		},
 	},
 	"app_template_variables": {
 		Name:     "app_template_variables",
@@ -319,8 +330,8 @@ func TablesInInsertOrder() []string {
 		"config_items",
 		"releases",
 		"strategy_sets",
-		"template_sets",
 		"templates",
+		"template_sets",
 		"hook_revisions",
 		"credential_scopes",
 		"group_app_binds",
