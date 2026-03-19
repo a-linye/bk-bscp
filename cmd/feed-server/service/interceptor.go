@@ -89,7 +89,12 @@ func (s *Service) authorize(ctx context.Context, bizID uint32) (context.Context,
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	cred, err := s.bll.Auth().GetCred(kit.FromGrpcContext(ctx), bizID, token)
+	kt := kit.FromGrpcContext(ctx)
+	if err := s.bll.AppCache().EnsureTenantID(kt, bizID); err != nil {
+		logs.Warnf("ensure tenant id for biz %d failed in authorize: %v, rid: %s", bizID, err, kt.Rid)
+	}
+
+	cred, err := s.bll.Auth().GetCred(kt, bizID, token)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, err
