@@ -82,7 +82,7 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 	}
 
 	validator := NewValidator(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
-	scanner := NewScanner(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB)
+	scanner := NewScanner(cfg, mysqlMigrator.sourceDB, mysqlMigrator.targetDB, vaultMigrator)
 
 	return &Migrator{
 		cfg:           cfg,
@@ -186,31 +186,21 @@ type FullCleanupResult struct {
 	Success     bool
 }
 
-// Cleanup clears migrated data from target database and Vault
-// If biz_id filter is configured (--biz-ids), only clears data for those businesses
-// This should be run before migration to ensure clean state for the target business
+// Cleanup clears migrated data from target database and Vault.
+// If biz_id filter is configured (--biz-ids), only clears data for those businesses.
+// Vault cleanup runs FIRST because it reads target DB records to construct correct Vault paths;
+// MySQL cleanup runs SECOND so that target DB records are still available for Vault path lookup.
 func (m *Migrator) Cleanup() (*FullCleanupResult, error) {
 	startTime := time.Now()
 	result := &FullCleanupResult{
 		Success: true,
 	}
 
-	log.Println("Starting full cleanup (MySQL + Vault)...")
+	log.Println("Starting full cleanup (Vault + MySQL)...")
 
-	// Step 1: Cleanup MySQL
-	log.Println("Step 1/2: MySQL cleanup...")
-	mysqlResult, err := m.mysqlMigrator.CleanupTarget()
-	result.MySQLResult = mysqlResult
-	if err != nil {
-		result.Success = false
-		log.Printf("MySQL cleanup failed: %v", err)
-	} else if !mysqlResult.Success {
-		result.Success = false
-	}
-
-	// Step 2: Cleanup Vault (if configured)
+	// Step 1: Cleanup Vault FIRST (reads target DB to get mapped IDs for Vault paths)
 	if m.vaultMigrator != nil {
-		log.Println("Step 2/2: Vault cleanup...")
+		log.Println("Step 1/2: Vault cleanup...")
 		vaultResult, err := m.vaultMigrator.CleanupTarget()
 		result.VaultResult = vaultResult
 		if err != nil {
@@ -220,7 +210,18 @@ func (m *Migrator) Cleanup() (*FullCleanupResult, error) {
 			result.Success = false
 		}
 	} else {
-		log.Println("Step 2/2: Vault cleanup skipped (not configured)")
+		log.Println("Step 1/2: Vault cleanup skipped (not configured)")
+	}
+
+	// Step 2: Cleanup MySQL SECOND (after Vault has read the records it needs)
+	log.Println("Step 2/2: MySQL cleanup...")
+	mysqlResult, err := m.mysqlMigrator.CleanupTarget()
+	result.MySQLResult = mysqlResult
+	if err != nil {
+		result.Success = false
+		log.Printf("MySQL cleanup failed: %v", err)
+	} else if !mysqlResult.Success {
+		result.Success = false
 	}
 
 	result.Duration = time.Since(startTime)

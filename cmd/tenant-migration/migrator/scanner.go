@@ -25,9 +25,10 @@ import (
 
 // Scanner handles asset scanning for source and target databases
 type Scanner struct {
-	cfg      *config.Config
-	sourceDB *gorm.DB
-	targetDB *gorm.DB
+	cfg           *config.Config
+	sourceDB      *gorm.DB
+	targetDB      *gorm.DB
+	vaultMigrator *VaultMigrator
 }
 
 // ScanReport contains the complete scan results
@@ -70,6 +71,7 @@ type VaultScanSummary struct {
 	SourceReleasedKvCount int64
 	TargetKvCount         int64
 	TargetReleasedKvCount int64
+	VaultDirect           *VaultDirectScanResult
 }
 
 // ScanComparison contains comparison statistics
@@ -83,11 +85,12 @@ type ScanComparison struct {
 }
 
 // NewScanner creates a new Scanner instance
-func NewScanner(cfg *config.Config, sourceDB, targetDB *gorm.DB) *Scanner {
+func NewScanner(cfg *config.Config, sourceDB, targetDB *gorm.DB, vaultMigrator *VaultMigrator) *Scanner {
 	return &Scanner{
-		cfg:      cfg,
-		sourceDB: sourceDB,
-		targetDB: targetDB,
+		cfg:           cfg,
+		sourceDB:      sourceDB,
+		targetDB:      targetDB,
+		vaultMigrator: vaultMigrator,
 	}
 }
 
@@ -177,6 +180,16 @@ func (s *Scanner) scanTables(tables []string, mode string) (*ScanReport, error) 
 	// Scan Vault if configured
 	if s.cfg.Source.Vault.Address != "" || s.cfg.Target.Vault.Address != "" {
 		report.VaultSummary = s.scanVaultFromDB()
+
+		if s.vaultMigrator != nil {
+			log.Println("Scanning Vault directly...")
+			vaultDirect, err := s.vaultMigrator.ScanVault()
+			if err != nil {
+				log.Printf("Warning: Vault direct scan failed: %v", err)
+			} else {
+				report.VaultSummary.VaultDirect = vaultDirect
+			}
+		}
 	}
 
 	report.EndTime = time.Now()
@@ -413,7 +426,7 @@ func (s *Scanner) PrintReport(report *ScanReport) {
 
 	// Vault summary
 	if report.VaultSummary != nil {
-		fmt.Println("VAULT KV SUMMARY")
+		fmt.Println("VAULT KV SUMMARY (Database)")
 		fmt.Println(strings.Repeat("-", 80))
 		fmt.Printf("%-35s %12s %12s\n", "", "Source", "Target")
 		fmt.Printf("%-35s %12d %12d\n", "Unreleased KVs (kvs table)",
@@ -421,6 +434,49 @@ func (s *Scanner) PrintReport(report *ScanReport) {
 		fmt.Printf("%-35s %12d %12d\n", "Released KVs (released_kvs table)",
 			report.VaultSummary.SourceReleasedKvCount, report.VaultSummary.TargetReleasedKvCount)
 		fmt.Println()
+
+		if report.VaultSummary.VaultDirect != nil {
+			vd := report.VaultSummary.VaultDirect
+			fmt.Println("VAULT DIRECT VERIFICATION (DB records vs Vault)")
+			fmt.Println(strings.Repeat("-", 80))
+
+			printVaultScanTable := func(label string, scans []BizVaultScan) {
+				fmt.Printf("  %s:\n", label)
+				if len(scans) == 0 {
+					fmt.Println("    No DB records to probe")
+					return
+				}
+				fmt.Printf("    %-12s %8s %8s %8s %8s %8s\n",
+					"Biz", "KV(DB)", "KV(V)", "RKV(DB)", "RKV(V)", "Status")
+				fmt.Printf("    %s\n", strings.Repeat("-", 60))
+				for _, scan := range scans {
+					status := "OK"
+					if scan.KvDB != scan.KvVault || scan.RKvDB != scan.RKvVault {
+						status = "MISMATCH"
+					}
+					fmt.Printf("    %-12d %8d %8d %8d %8d %8s\n",
+						scan.BizID, scan.KvDB, scan.KvVault, scan.RKvDB, scan.RKvVault, status)
+				}
+				fmt.Printf("    %s\n", strings.Repeat("-", 60))
+				fmt.Printf("    %-12s %8d %8d %8d %8d\n", "Total",
+					totalKvDB(scans), totalKvVault(scans),
+					totalRKvDB(scans), totalRKvVault(scans))
+			}
+
+			printVaultScanTable("Source Vault", vd.SourceBizScans)
+			fmt.Println()
+			printVaultScanTable("Target Vault", vd.TargetBizScans)
+
+			fmt.Printf("\n  Scan Duration: %v\n", vd.Duration)
+
+			if len(vd.Errors) > 0 {
+				fmt.Println("  Errors:")
+				for _, e := range vd.Errors {
+					fmt.Printf("    - %s\n", e)
+				}
+			}
+			fmt.Println()
+		}
 	}
 
 	// Comparison summary

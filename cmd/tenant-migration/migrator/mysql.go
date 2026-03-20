@@ -413,12 +413,37 @@ func (m *MySQLMigrator) convertForeignKeys(row map[string]interface{}, meta Tabl
 		// Look up the target ID from the mapper
 		targetFK := m.idMapper.Get(refTable, sourceFK)
 		if targetFK == 0 {
+			if meta.OptionalFKs[fkColumn] {
+				virtualID, err := m.getOrCreateVirtualID(refTable, sourceFK)
+				if err != nil {
+					return fmt.Errorf("failed to generate virtual ID for optional FK %s=%d: %w",
+						fkColumn, sourceFK, err)
+				}
+				row[fkColumn] = virtualID
+				continue
+			}
 			return fmt.Errorf("foreign key %s=%d references %s, but no mapping found (referenced table may not have been migrated yet)",
 				fkColumn, sourceFK, refTable)
 		}
 		row[fkColumn] = targetFK
 	}
 	return nil
+}
+
+// getOrCreateVirtualID generates a virtual ID for a deleted record.
+// If a virtual ID was already generated for this source ID, it returns the same one.
+func (m *MySQLMigrator) getOrCreateVirtualID(refTable string, sourceID uint32) (uint32, error) {
+	if existingID := m.idMapper.Get(refTable, sourceID); existingID != 0 {
+		return existingID, nil
+	}
+
+	newID, err := m.getNextID(refTable)
+	if err != nil {
+		return 0, err
+	}
+
+	m.idMapper.Set(refTable, sourceID, newID)
+	return newID, nil
 }
 
 // convertJSONArrayFKs converts ID values inside JSON array columns using ID mapper
@@ -479,8 +504,8 @@ func (m *MySQLMigrator) convertBindingsJSON(row map[string]interface{}) error {
 	}
 
 	var bindings []map[string]interface{}
-	if err := json.Unmarshal(rawBytes, &bindings); err != nil {
-		return fmt.Errorf("failed to parse bindings JSON: %w", err)
+	if unmarshalErr := json.Unmarshal(rawBytes, &bindings); unmarshalErr != nil {
+		return fmt.Errorf("failed to parse bindings JSON: %w", unmarshalErr)
 	}
 
 	for i, binding := range bindings {
