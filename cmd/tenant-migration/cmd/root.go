@@ -176,7 +176,7 @@ The --biz-ids flag is required to explicitly specify which businesses to migrate
 			fmt.Printf("About to migrate data for biz_ids %v\n", cfg.Migration.BizIDs)
 			fmt.Print("Continue? [y/N]: ")
 			var confirm string
-			if _, err := fmt.Scanln(&confirm); err != nil || (confirm != "y" && confirm != "Y") {
+			if _, scanErr := fmt.Scanln(&confirm); scanErr != nil || (confirm != "y" && confirm != "Y") {
 				fmt.Println("Migration canceled.")
 				return
 			}
