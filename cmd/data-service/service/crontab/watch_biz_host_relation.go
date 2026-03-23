@@ -139,8 +139,10 @@ func (w *WatchBizHostRelation) watchBizHostByTenant(kt *kit.Kit) {
 			if app.Spec.TenantID == "" {
 				continue
 			}
-			kt.TenantID = app.Spec.TenantID
-			w.watchBizHost(kt)
+			tenantKit := *kt
+			tenantKit.TenantID = app.Spec.TenantID
+			tenantKit.Ctx = tenantKit.InternalRpcCtx()
+			w.watchBizHost(&tenantKit)
 		}
 		return
 	}
@@ -377,8 +379,7 @@ func (w *WatchBizHostRelation) verifyHostBizRelation(kt *kit.Kit, bizID int, hos
 // This function gets the latest cursor from CMDB and updates it to config table
 func InitBizHostCursor(tenantID string, set dao.Set, cmdbService bkcmdb.Service, timeAgo int64) error {
 	logs.Infof("start init biz host cursor for tenant: %s", tenantID)
-	kt := kit.New()
-	kt.TenantID = tenantID
+	kt := kit.NewWithTenant(tenantID)
 	ctx, cancel := context.WithTimeout(kt.Ctx, 10*time.Minute)
 	defer cancel()
 	kt.Ctx = ctx

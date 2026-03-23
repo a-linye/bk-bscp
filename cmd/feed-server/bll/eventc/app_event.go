@@ -67,6 +67,11 @@ func (ae *appEvent) AddSidecar(currentRelease uint32, sn uint64, subSpec *Subscr
 	}()
 
 	kt := kit.New()
+	if err := ae.sch.lc.App.EnsureTenantID(kt, subSpec.InstSpec.BizID); err != nil {
+		logs.Errorf("ensure tenant id failed for first match, biz: %d, err: %v, rid: %s",
+			subSpec.InstSpec.BizID, err, kt.Rid)
+		return err
+	}
 	matchedRelease, matchedCursor, err := ae.doFirstMatch(kt, subSpec)
 	if err != nil {
 		return err
@@ -151,6 +156,11 @@ func (ae *appEvent) eventHandler(events []*types.EventMeta) {
 	for _, one := range events {
 
 		kt := kit.New()
+		if err := ae.sch.lc.App.EnsureTenantID(kt, ae.bizID); err != nil {
+			logs.Errorf("ensure tenant id failed for event handler, biz: %d, err: %v, rid: %s",
+				ae.bizID, err, kt.Rid)
+			continue
+		}
 		switch one.Spec.Resource {
 		case table.Publish:
 			logs.Infof("start do biz: %d, app: %d publish broadcast to all instances, event id: %d, rid: %s", ae.bizID,

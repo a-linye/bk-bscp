@@ -37,6 +37,40 @@ type consumer struct {
 	op  dao.Set
 }
 
+// ensureTenantID returns a Kit with TenantID set. It prefers the provided tenantID
+// (typically from event.Attachment.TenantID), falls back to DB lookup by bizID if empty.
+func (c *consumer) ensureTenantID(kt *kit.Kit, bizID uint32, tenantID string) *kit.Kit {
+	if tenantID != "" {
+		clone := kt.Clone()
+		clone.TenantID = tenantID
+		clone.Ctx = clone.InternalRpcCtx()
+		return clone
+	}
+	if kt.TenantID != "" {
+		return kt
+	}
+	app, err := c.op.App().GetOneAppByBiz(kt.WithSkipTenantFilter(), bizID)
+	if err != nil {
+		logs.Errorf("resolve tenant id for biz %d failed: %v, rid: %s", bizID, err, kt.Rid)
+		return kt
+	}
+	clone := kt.Clone()
+	clone.TenantID = app.Spec.TenantID
+	clone.Ctx = clone.InternalRpcCtx()
+	return clone
+}
+
+// extractBizTenantID builds a bizID → tenantID mapping from events.
+func extractBizTenantID(events []*table.Event) map[uint32]string {
+	m := make(map[uint32]string)
+	for _, e := range events {
+		if e.Attachment.TenantID != "" {
+			m[e.Attachment.BizID] = e.Attachment.TenantID
+		}
+	}
+	return m
+}
+
 // consume the events.
 func (c *consumer) consume(kt *kit.Kit, es []*table.Event) (needRetry bool) {
 	if len(es) == 0 {
@@ -130,6 +164,7 @@ func (c *consumer) refreshAllCache(kt *kit.Kit, events []*table.Event) error {
 	for _, one := range events {
 		appBizID[one.Attachment.AppID] = one.Attachment.BizID
 	}
+	bizTenantID := extractBizTenantID(events)
 
 	// step1: refresh app meta cache.
 	if err := c.refreshAppMetaCache(kt, events); err != nil {
@@ -137,17 +172,17 @@ func (c *consumer) refreshAllCache(kt *kit.Kit, events []*table.Event) error {
 	}
 
 	// step2: refresh released group cache.
-	releaseBizID, err := c.cacheReleasedGroup(kt, appBizID)
+	releaseBizID, err := c.cacheReleasedGroup(kt, appBizID, bizTenantID)
 	if err != nil {
 		return err
 	}
 
 	// step3: refresh rci and rkv cache.
-	err = c.cacheReleasedCI(kt, releaseBizID)
+	err = c.cacheReleasedCI(kt, releaseBizID, bizTenantID)
 	if err != nil {
 		return err
 	}
-	err = c.cacheReleasedKv(kt, releaseBizID)
+	err = c.cacheReleasedKv(kt, releaseBizID, bizTenantID)
 	if err != nil {
 		return err
 	}
@@ -262,14 +297,17 @@ func (c *consumer) deleteCredentialCache(kt *kit.Kit, events []*table.Event) err
 }
 
 // cacheReleasedCI cache the all publish related release's configure items.
-func (c *consumer) cacheReleasedCI(kt *kit.Kit, releaseBizID map[uint32]uint32) error {
+func (c *consumer) cacheReleasedCI(kt *kit.Kit, releaseBizID map[uint32]uint32,
+	bizTenantID map[uint32]string) error {
+
 	reminder := make(map[uint32][]uint32, 0)
 	for rlID, bizID := range releaseBizID {
 		reminder[bizID] = append(reminder[bizID], rlID)
 	}
 
 	for bizID, releaseIDs := range reminder {
-		releasedCI, err := c.op.ReleasedCI().ListAllByReleaseIDs(kt, releaseIDs, bizID)
+		bizKit := c.ensureTenantID(kt, bizID, bizTenantID[bizID])
+		releasedCI, err := c.op.ReleasedCI().ListAllByReleaseIDs(bizKit, releaseIDs, bizID)
 		if err != nil {
 			logs.Errorf("list released ci failed, bizID: %d, releaseIDs: %v, err: %v, rid: %s", bizID, releaseIDs,
 				err, kt.Rid)
@@ -283,7 +321,7 @@ func (c *consumer) cacheReleasedCI(kt *kit.Kit, releaseBizID map[uint32]uint32) 
 		}
 
 		var releases []*table.Release
-		releases, err = c.op.Release().ListAllByIDs(kt, releaseIDs, bizID)
+		releases, err = c.op.Release().ListAllByIDs(bizKit, releaseIDs, bizID)
 		if err != nil {
 			logs.Errorf("list releases by ids failed, bizID: %d, releaseIDs: %v, err: %v, rid: %s", bizID, releaseIDs,
 				err, kt.Rid)
@@ -334,7 +372,9 @@ func (c *consumer) cacheReleasedCI(kt *kit.Kit, releaseBizID map[uint32]uint32) 
 }
 
 // cacheReleasedKv cache the all publish related release's kvs.
-func (c *consumer) cacheReleasedKv(kt *kit.Kit, releaseBizID map[uint32]uint32) error {
+func (c *consumer) cacheReleasedKv(kt *kit.Kit, releaseBizID map[uint32]uint32,
+	bizTenantID map[uint32]string) error {
+
 	reminder := make(map[uint32][]uint32, 0)
 	for rlID, bizID := range releaseBizID {
 		// remove useless revision info
@@ -342,7 +382,8 @@ func (c *consumer) cacheReleasedKv(kt *kit.Kit, releaseBizID map[uint32]uint32) 
 	}
 
 	for bizID, releaseIDs := range reminder {
-		releasedKv, err := c.op.ReleasedKv().ListAllByReleaseIDs(kt, releaseIDs, bizID)
+		bizKit := c.ensureTenantID(kt, bizID, bizTenantID[bizID])
+		releasedKv, err := c.op.ReleasedKv().ListAllByReleaseIDs(bizKit, releaseIDs, bizID)
 		if err != nil {
 			logs.Errorf("list released kv failed, bizID: %d, releaseIDs: %v, err: %v, rid: %s", bizID,
 				releaseIDs, err, kt.Rid)
@@ -390,7 +431,9 @@ func (c *consumer) cacheReleasedKv(kt *kit.Kit, releaseBizID map[uint32]uint32) 
 }
 
 // cacheReleasedGroup cache the all released's group.
-func (c *consumer) cacheReleasedGroup(kt *kit.Kit, appBizID map[uint32]uint32) (map[uint32]uint32, error) {
+func (c *consumer) cacheReleasedGroup(kt *kit.Kit, appBizID map[uint32]uint32,
+	bizTenantID map[uint32]string) (map[uint32]uint32, error) {
+
 	pipe := make(chan struct{}, MaxCacheConcurrent)
 	releaseBizID := newReleaseBizID()
 	wg := sync.WaitGroup{}
@@ -408,7 +451,7 @@ func (c *consumer) cacheReleasedGroup(kt *kit.Kit, appBizID map[uint32]uint32) (
 
 			// in the namespace mode, an app has at most for 200 strategies,
 			// so we get strategies with app one by one.
-			rlID, err := c.cacheOneReleasedGroup(kt, bizID, appID)
+			rlID, err := c.cacheOneReleasedGroup(kt, bizID, appID, bizTenantID[bizID])
 			if err != nil {
 				hitErr = err
 				return
@@ -428,8 +471,9 @@ func (c *consumer) cacheReleasedGroup(kt *kit.Kit, appBizID map[uint32]uint32) (
 }
 
 // cacheOneReleasedGroup cache one released group.
-func (c *consumer) cacheOneReleasedGroup(kt *kit.Kit, bizID, appID uint32) (map[uint32]uint32, error) {
-	groups, err := c.op.ReleasedGroup().ListAllByAppID(kt, appID, bizID)
+func (c *consumer) cacheOneReleasedGroup(kt *kit.Kit, bizID, appID uint32, tenantID string) (map[uint32]uint32, error) {
+	bizKit := c.ensureTenantID(kt, bizID, tenantID)
+	groups, err := c.op.ReleasedGroup().ListAllByAppID(bizKit, appID, bizID)
 	if err != nil {
 		logs.Errorf("get biz: %d, app: %d all the released groups failed, err: %v, rid: %s", bizID, appID, err, kt.Rid)
 		return nil, err
@@ -461,6 +505,7 @@ func (c *consumer) refreshAppMetaCache(kt *kit.Kit, events []*table.Event) error
 		return nil
 	}
 
+	bizTenantID := extractBizTenantID(events)
 	bizApps := make(map[uint32][]uint32, 0)
 	for _, event := range events {
 		list, exist := bizApps[event.Attachment.BizID]
@@ -474,7 +519,7 @@ func (c *consumer) refreshAppMetaCache(kt *kit.Kit, events []*table.Event) error
 
 	var hitErr error
 	for bizID, appIDs := range bizApps {
-		if err := c.refreshOneBizAppMetaCache(kt, bizID, appIDs); err != nil {
+		if err := c.refreshOneBizAppMetaCache(kt, bizID, appIDs, bizTenantID[bizID]); err != nil {
 			logs.Errorf("refresh one biz app meta cache failed, err: %v, rid: %s", err, kt.Rid)
 			hitErr = err
 			continue
@@ -488,8 +533,9 @@ func (c *consumer) refreshAppMetaCache(kt *kit.Kit, events []*table.Event) error
 	return nil
 }
 
-func (c *consumer) refreshOneBizAppMetaCache(kt *kit.Kit, bizID uint32, appIDs []uint32) error {
-	metaMap, err := c.op.App().ListAppMetaForCache(kt, bizID, appIDs)
+func (c *consumer) refreshOneBizAppMetaCache(kt *kit.Kit, bizID uint32, appIDs []uint32, tenantID string) error {
+	bizKit := c.ensureTenantID(kt, bizID, tenantID)
+	metaMap, err := c.op.App().ListAppMetaForCache(bizKit, bizID, appIDs)
 	if err != nil {
 		return err
 	}
@@ -519,7 +565,8 @@ func (c *consumer) refreshCredentialCache(kt *kit.Kit, events []*table.Event) er
 	}
 
 	for _, event := range events {
-		cred, err := c.op.Credential().GetByCredentialString(kt, event.Attachment.BizID, event.Spec.ResourceUid)
+		bizKit := c.ensureTenantID(kt, event.Attachment.BizID, event.Attachment.TenantID)
+		cred, err := c.op.Credential().GetByCredentialString(bizKit, event.Attachment.BizID, event.Spec.ResourceUid)
 		if err != nil {
 			// 已经删除的忽略
 			if errors.Is(err, dao.ErrRecordNotFound) {
@@ -527,7 +574,7 @@ func (c *consumer) refreshCredentialCache(kt *kit.Kit, events []*table.Event) er
 			}
 			return err
 		}
-		details, _, err := c.op.CredentialScope().Get(kt, cred.ID, cred.Attachment.BizID)
+		details, _, err := c.op.CredentialScope().Get(bizKit, cred.ID, cred.Attachment.BizID)
 		if err != nil {
 			// 已经删除的忽略
 			if errors.Is(err, dao.ErrRecordNotFound) {

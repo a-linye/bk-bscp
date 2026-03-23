@@ -48,6 +48,7 @@ type processStateSyncExecutor struct {
 
 // ProcessStateSyncPayload 进程状态同步任务的输入数据
 type ProcessStateSyncPayload struct {
+	TenantID         string
 	BizID            uint32
 	Process          *table.Process
 	ProcessInstances []*table.ProcessInstance
@@ -60,8 +61,8 @@ func (p *processStateSyncExecutor) ProcessStateSync(c *istep.Context) error {
 		return err
 	}
 
-	tenantID := ""
-	if payload.Process != nil && payload.Process.Attachment != nil {
+	tenantID := payload.TenantID
+	if tenantID == "" && payload.Process != nil && payload.Process.Attachment != nil {
 		tenantID = payload.Process.Attachment.TenantID
 	}
 	gseService := gse.NewSyncGESService(tenantID, int(payload.BizID), p.gseSvc, p.dao)
@@ -82,7 +83,7 @@ func (p *processStateSyncExecutor) ProcessStateSync(c *istep.Context) error {
 
 	// 1. 批量更新实例状态字段（只更新 status, managed_status, status_updated_at，避免覆盖 ModuleInstSeq）
 	if len(procInsts) > 0 {
-		kt := kit.New()
+		kt := kit.NewWithTenant(tenantID)
 		for _, inst := range procInsts {
 			if err := p.dao.ProcessInstance().UpdateSelectedFieldsWithTx(kt, tx, inst.Attachment.BizID,
 				map[string]any{
@@ -98,7 +99,7 @@ func (p *processStateSyncExecutor) ProcessStateSync(c *istep.Context) error {
 	}
 
 	// 2. Process 更新进程状态同步时间
-	if err := p.dao.Process().UpdateProcessStateSyncedAtTx(kit.New(), tx, proc.Attachment.BizID, proc.ID,
+	if err := p.dao.Process().UpdateProcessStateSyncedAtTx(kit.NewWithTenant(tenantID), tx, proc.Attachment.BizID, proc.ID,
 		proc.Spec.ProcessStateSyncedAt); err != nil {
 		logs.Errorf("[SyncSingleBiz ERROR] biz %d: update processes failed, err=%v", payload.BizID, err)
 		return err

@@ -32,6 +32,7 @@ const (
 
 // ValidateOperateProcess 校验操作是否合法
 func ValidateOperateProcess(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -50,6 +51,7 @@ func ValidateOperateProcess(
 		SetMaxExecution(MaxExecutionTime).
 		SetMaxTries(0) // 校验操作是否合法，不需要重试
 	lo.Must0(validate.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -65,6 +67,7 @@ func ValidateOperateProcess(
 
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
 func CompareWithCMDBProcessInfo(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -84,6 +87,7 @@ func CompareWithCMDBProcessInfo(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -99,6 +103,7 @@ func CompareWithCMDBProcessInfo(
 
 // CompareWithGSEProcessStatus 对比GSE进程状态
 func CompareWithGSEProcessStatus(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -117,6 +122,7 @@ func CompareWithGSEProcessStatus(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -131,6 +137,7 @@ func CompareWithGSEProcessStatus(
 
 // CompareWithGSEProcessConfig 对比GSE进程配置
 func CompareWithGSEProcessConfig(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -149,6 +156,7 @@ func CompareWithGSEProcessConfig(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(compare.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -163,6 +171,7 @@ func CompareWithGSEProcessConfig(
 
 // OperateProcess 进程操作
 func OperateProcess(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -181,6 +190,7 @@ func OperateProcess(
 		SetMaxTries(0) // 进程操作只操作一次，避免重复操作
 
 	lo.Must0(operate.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,
@@ -195,6 +205,7 @@ func OperateProcess(
 
 // FinalizeOperateProcess 进程操作完成
 func FinalizeOperateProcess(
+	tenantID string,
 	bizID uint32,
 	batchID uint32,
 	processID uint32,
@@ -213,6 +224,7 @@ func FinalizeOperateProcess(
 		SetMaxTries(MaxTries)
 
 	lo.Must0(finalize.SetPayload(process.OperatePayload{
+		TenantID:                  tenantID,
 		BizID:                     bizID,
 		BatchID:                   batchID,
 		ProcessID:                 processID,

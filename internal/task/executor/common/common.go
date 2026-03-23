@@ -670,6 +670,7 @@ func (e *Executor) sendCallbackPushEvent(ctx context.Context, content pushConten
 
 // CallbackNotify 回调通知
 type CallbackNotify struct {
+	TenantID string
 	BizID    uint32
 	BatchID  uint32
 	Operator string
@@ -678,8 +679,7 @@ type CallbackNotify struct {
 
 // AfterCallbackNotify 任务回调后通知
 func (e *Executor) AfterCallbackNotify(ctx context.Context, notify CallbackNotify) {
-	// 注意：这里不返回 error，避免影响 Callback 主流程
-	task, err := e.Dao.TaskBatch().GetByID(kit.New(), notify.BatchID)
+	task, err := e.Dao.TaskBatch().GetByID(kit.NewWithTenant(notify.TenantID), notify.BatchID)
 	if err != nil {
 		logs.Errorf("[AfterCallbackNotify] get task batch failed, batchID=%d, err=%v",
 			notify.BatchID, err)

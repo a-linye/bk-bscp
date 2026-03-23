@@ -96,6 +96,10 @@ const (
 	// DefaultTmplSetMemo is default template set memo
 	DefaultTmplSetMemo = "当前空间下的所有模版"
 
+	// SkipTenantFilterKey marks a context that should bypass automatic tenant_id filtering,
+	// used for cross-tenant lookups such as resolving tenant by biz ID.
+	SkipTenantFilterKey = "X-BSCP-Skip-Tenant-Filter"
+
 	// DefaultLanguage is default language
 	DefaultLanguage = "zh-cn"
 	// DefaultTenantID is default tenant id

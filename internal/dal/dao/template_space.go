@@ -321,7 +321,7 @@ func (dao *templateSpaceDao) Delete(kit *kit.Kit, g *table.TemplateSpace) error 
 // GetAllBizs get all bizs of template spaces.
 func (dao *templateSpaceDao) GetAllBizs(kit *kit.Kit) ([]uint32, error) {
 	m := dao.genQ.TemplateSpace
-	q := dao.genQ.TemplateSpace.WithContext(kit.Ctx)
+	q := dao.genQ.TemplateSpace.WithContext(kit.WithSkipTenantFilter().Ctx)
 	var bizIDs []uint32
 
 	if err := q.Distinct(m.BizID).Pluck(m.BizID, &bizIDs); err != nil {

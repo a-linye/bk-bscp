@@ -38,6 +38,15 @@ func New() *Kit {
 	}
 }
 
+// NewWithTenant creates a Kit pre-populated with the given TenantID and
+// a context that already carries the tenant metadata (via InternalRpcCtx).
+func NewWithTenant(tenantID string) *Kit {
+	kt := New()
+	kt.TenantID = tenantID
+	kt.Ctx = kt.InternalRpcCtx()
+	return kt
+}
+
 var (
 	lowRidKey         = strings.ToLower(constant.RidKey)
 	lowLangKey        = strings.ToLower(constant.LangKey)
@@ -201,6 +210,15 @@ func (c *Kit) Clone() *Kit {
 	}
 }
 
+// WithSkipTenantFilter returns a cloned Kit whose context carries the skip-tenant-filter flag,
+// so that the GORM tenant_id callback will not inject any tenant_id condition.
+// Use this only for cross-tenant lookups (e.g. resolving tenant by biz ID).
+func (c *Kit) WithSkipTenantFilter() *Kit {
+	clone := c.Clone()
+	clone.Ctx = context.WithValue(clone.Ctx, constant.SkipTenantFilterKey, true)
+	return clone
+}
+
 // GetKitForRepoTmpl get a kit for repo template operations
 func (c *Kit) GetKitForRepoTmpl(tmplSpaceID uint32) *Kit {
 	c2 := c.Clone()
@@ -253,7 +271,7 @@ func (c *Kit) InternalRpcCtx() context.Context {
 
 // CtxWithTimeoutMS create a new context with basic info and timout configuration.
 func (c *Kit) CtxWithTimeoutMS(timeoutMS int) context.CancelFunc {
-	ctx := context.WithValue(context.TODO(), constant.RidKey, c.Rid) //nolint
+	ctx := context.WithValue(c.Ctx, constant.RidKey, c.Rid) //nolint
 	var cancel context.CancelFunc
 	c.Ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
 	return cancel

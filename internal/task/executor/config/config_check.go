@@ -61,6 +61,7 @@ func NewCheckConfigExecutor(dao dao.Set, gseService *gse.Service, cmdbService bk
 
 // CheckConfigPayload check config step payload
 type CheckConfigPayload struct {
+	TenantID           string
 	BizID              uint32
 	BatchID            uint32
 	ConfigTemplateID   uint32
@@ -81,7 +82,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		return err
 	}
 
-	kt := kit.New()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
 	logs.Infof("[CheckConfigMD5 STEP]: start, biz_id=%d, batch_id=%d, template_id=%d, template_name=%s",
@@ -269,7 +270,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		return nil
 	}
 
-	kt := kit.New()
+	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
 	fullPath, err := renderFullPath(commonPayload)
@@ -386,15 +387,16 @@ func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 		return fmt.Errorf("get payload failed: %w", err)
 	}
 
-	// 更新 TaskBatch 状态
+	kt := kit.NewWithTenant(payload.TenantID)
+
 	isSuccess := cbErr == nil
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kit.New(), payload.BatchID, isSuccess); err != nil {
+	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
 		return fmt.Errorf("increment completed count failed, batchID: %d, err: %w",
 			payload.BatchID, err)
 	}
 
-	// 统一推送事件
 	e.AfterCallbackNotify(c.Context(), common.CallbackNotify{
+		TenantID: payload.TenantID,
 		BizID:    payload.BizID,
 		BatchID:  payload.BatchID,
 		Operator: payload.OperatorUser,

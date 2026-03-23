@@ -134,8 +134,10 @@ func (c *SyncBizHost) SyncBizHost(kt *kit.Kit) {
 			if app.Spec.TenantID == "" {
 				continue
 			}
-			kt.TenantID = app.Spec.TenantID
-			c.syncBizHostByTenant(kt)
+			tenantKit := *kt
+			tenantKit.TenantID = app.Spec.TenantID
+			tenantKit.Ctx = tenantKit.InternalRpcCtx()
+			c.syncBizHostByTenant(&tenantKit)
 		}
 		return
 	}

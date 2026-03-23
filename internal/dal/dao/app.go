@@ -65,6 +65,8 @@ type App interface {
 	GetOneAppByBiz(kit *kit.Kit, bizID uint32) (*table.App, error)
 	// 获取不同租户ID
 	GetDistinctTenantIDs(kit *kit.Kit) ([]*table.App, error)
+	// ListBizTenantMap 批量获取 biz_id → tenant_id 映射（跨租户查询）
+	ListBizTenantMap(kit *kit.Kit) (map[uint32]string, error)
 	// CreateWithTx one app instance with transaction.
 	CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, app *table.App) (uint32, error)
 	// QueryDistinctBizIDs query distinct business IDs from apps
@@ -82,10 +84,28 @@ type appDao struct {
 	event    Event
 }
 
-// GetDistinctTenantIDs 获取不同租户ID.
+// GetDistinctTenantIDs 获取不同租户ID（跨租户查询，自动跳过租户过滤）.
 func (dao *appDao) GetDistinctTenantIDs(kit *kit.Kit) ([]*table.App, error) {
 	m := dao.genQ.App
-	return dao.genQ.App.WithContext(kit.Ctx).Distinct(m.TenantID).Find()
+	return dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).Distinct(m.TenantID).Find()
+}
+
+// ListBizTenantMap 批量获取所有 biz_id → tenant_id 映射
+// 使用 SkipTenantFilter 做跨租户查询，通过 SELECT DISTINCT biz_id, tenant_id 获取映射。
+func (dao *appDao) ListBizTenantMap(kit *kit.Kit) (map[uint32]string, error) {
+	m := dao.genQ.App
+	apps, err := dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).
+		Select(m.BizID, m.TenantID).
+		Distinct(m.BizID, m.TenantID).
+		Find()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint32]string, len(apps))
+	for _, app := range apps {
+		result[app.BizID] = app.Spec.TenantID
+	}
+	return result, nil
 }
 
 // GetOneAppByBiz 通过业务获取其中一个app
@@ -97,8 +117,7 @@ func (dao *appDao) GetOneAppByBiz(kit *kit.Kit, bizID uint32) (*table.App, error
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 
-	// 租户ID不能为空
-	detail, err := q.Where(m.BizID.Eq(bizID), m.TenantID.Neq("")).Take()
+	detail, err := q.Where(m.BizID.Eq(bizID)).Take()
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +177,11 @@ func (dao *appDao) CountApps(kit *kit.Kit, bizList []uint32, search *structpb.St
 }
 
 // BatchUpdateLastConsumedTime 批量更新最后一次拉取时间
+// 注意: 该方法由 cache-service 定时任务调用，使用 kit.New() 无租户上下文，
+// 因此使用 WithSkipTenantFilter 跳过租户过滤，按主键 ID 更新不存在跨租户风险。
 func (dao *appDao) BatchUpdateLastConsumedTime(kit *kit.Kit, appIDs []uint32) error {
 	m := dao.genQ.App
-	_, err := dao.genQ.App.WithContext(kit.Ctx).
+	_, err := dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).
 		Where(m.ID.In(appIDs...)).
 		Update(m.LastConsumedTime, time.Now().UTC())
 	if err != nil {
@@ -576,10 +597,10 @@ func (dao *appDao) ListAppMetaForCache(kit *kit.Kit, bizID uint32, appIDs []uint
 	return meta, nil
 }
 
-// QueryDistinctBizIDs query distinct business IDs from apps
+// QueryDistinctBizIDs query distinct business IDs from apps（跨租户查询，自动跳过租户过滤）
 func (dao *appDao) QueryDistinctBizIDs(kit *kit.Kit) ([]uint32, error) {
 	m := dao.genQ.App
-	bizIDs, err := dao.genQ.App.WithContext(kit.Ctx).
+	bizIDs, err := dao.genQ.App.WithContext(kit.WithSkipTenantFilter().Ctx).
 		Select(m.BizID.Distinct()).
 		Find()
 	if err != nil {

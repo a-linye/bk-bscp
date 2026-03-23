@@ -492,6 +492,7 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
 	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "get app meta failed, %s", err.Error())
@@ -516,8 +517,6 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 
 	// 生成下载链接
 	im.Kit.BizID = req.BizId
-	// 带上租户ID
-	im.Kit.TenantID = app.TenantID
 	downloadLink, err := s.provider.DownloadLink(im.Kit, req.FileMeta.CommitSpec.Content.Signature, fetchLimit)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "generate temp download url failed, %s", err.Error())
@@ -756,7 +755,7 @@ func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq)
 
 	// 验证agentID是否属于指定的业务
 	if err = s.verifyAgentBelongsToBiz(
-		ctx,
+		kit,
 		clientAgentID,
 		req.BizId,
 		req.FileMeta.ConfigItemAttachment.AppId,
@@ -827,6 +826,7 @@ func (s *Service) getAsyncDownloadAgentInfo(ctx context.Context, req *pbfs.Async
 func (s *Service) AsyncDownloadStatus(ctx context.Context, req *pbfs.AsyncDownloadStatusReq) (
 	*pbfs.AsyncDownloadStatusResp, error) {
 	kit := kit.FromGrpcContext(ctx)
+
 	// 1.1 从 Redis 获取到任务对应的服务、文件信息，用token鉴权
 	task, err := s.bll.AsyncDownload().GetAsyncDownloadTask(kit, req.BizId, req.TaskId)
 	if err != nil {
@@ -1140,7 +1140,7 @@ func (s *Service) handleResourceUsageMetrics(bizID uint32, appName string, resou
 
 // verifyAgentBelongsToBiz 验证 agent 是否属于指定的业务
 // nolint
-func (s *Service) verifyAgentBelongsToBiz(ctx context.Context, agentID string, bizID uint32, appID uint32, appName string) error {
+func (s *Service) verifyAgentBelongsToBiz(kt *kit.Kit, agentID string, bizID uint32, appID uint32, appName string) error {
 	if agentID == "" {
 		logs.Warnf("verify agent id belongs to biz, agentID is empty, appID: %d, appName: %s", appID, appName)
 		return nil
@@ -1158,7 +1158,7 @@ func (s *Service) verifyAgentBelongsToBiz(ctx context.Context, agentID string, b
 	getAgentBizReq := &pbcs.GetAgentBizReq{
 		AgentId: agentID,
 	}
-	getAgentBizResp, err := s.bll.Client().CS().GetAgentBiz(ctx, getAgentBizReq)
+	getAgentBizResp, err := s.bll.Client().CS().GetAgentBiz(kt.RpcCtx(), getAgentBizReq)
 	// 查询一次，但是不判断结果，只用作日志记录
 	if !verifyAgentIDBelongs.Enabled {
 		if err != nil {
@@ -1188,7 +1188,7 @@ func (s *Service) verifyAgentBelongsToBiz(ctx context.Context, agentID string, b
 		logs.Warnf("get agent biz %s, trying CMDB fallback, agent: %s", fallbackReason, agentID)
 
 		// 验证 agent 是否属于当前业务
-		if err = s.validateAgentIsInBiz(ctx, agentID, bizID); err != nil {
+		if err = s.validateAgentIsInBiz(kt.Ctx, agentID, bizID); err != nil {
 			logs.Errorf("validate agent belongs to biz failed, use cmdb fallback, %s", err.Error())
 			return err
 		}

@@ -180,11 +180,13 @@ func (cs *cacheService) listenAndServe() error {
 		// add bscp unary interceptor and standard grpc server metrics interceptor.
 		grpc.ChainUnaryInterceptor(
 			brpc.LogUnaryServerInterceptor(),
+			brpc.TenantUnaryServerInterceptor(),
 			grpcMetrics.UnaryServerInterceptor(),
 			grpc_recovery.UnaryServerInterceptor(recoveryOpt),
 		),
 		grpc.ChainStreamInterceptor(
 			grpcMetrics.StreamServerInterceptor(),
+			brpc.TenantStreamServerInterceptor(),
 			grpc_recovery.StreamServerInterceptor(recoveryOpt),
 		),
 		grpc.ReadBufferSize(8 * 1024 * 1024),

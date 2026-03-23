@@ -28,6 +28,7 @@ import (
 func NewCheckConfigTask(opts common.ConfigTaskOptions) types.TaskBuilder {
 	return &checkConfigTask{
 		Builder:            common.NewBuilder(opts.Dao),
+		tenantID:           opts.TenantID,
 		bizID:              opts.BizID,
 		batchID:            opts.BatchID,
 		configTemplateID:   opts.ConfigTemplateID,
@@ -43,6 +44,7 @@ func NewCheckConfigTask(opts common.ConfigTaskOptions) types.TaskBuilder {
 
 type checkConfigTask struct {
 	*common.Builder
+	tenantID           string
 	bizID              uint32
 	batchID            uint32
 	configTemplateID   uint32
@@ -80,6 +82,7 @@ func (c *checkConfigTask) Steps() ([]*types.Step, error) {
 	return []*types.Step{
 		// Step 1：计算 & 比对 md5
 		configStep.CheckConfigMD5(
+			c.tenantID,
 			c.bizID,
 			c.batchID,
 			c.configTemplateID,
@@ -92,7 +95,7 @@ func (c *checkConfigTask) Steps() ([]*types.Step, error) {
 			c.processInstance,
 		),
 		// Step 2：仅在 md5 不一致时获取文件内容
-		configStep.FetchConfigContent(c.bizID,
+		configStep.FetchConfigContent(c.tenantID, c.bizID,
 			c.batchID,
 			c.configTemplateID,
 			c.configTemplateName,

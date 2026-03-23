@@ -333,6 +333,11 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.bll.AppCache().EnsureTenantID(kt, uint32(bizID)); err != nil {
+		render.Render(w, r, rest.BadRequest(fmt.Errorf("ensure tenant id for biz %d failed: %v", bizID, err)))
+		return
+	}
+
 	appID, err := s.bll.AppCache().GetAppID(kt, uint32(bizID), appName)
 	if err != nil {
 		render.Render(w, r, rest.BadRequest(fmt.Errorf("get app id failed, err: %v", err)))

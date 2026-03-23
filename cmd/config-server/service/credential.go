@@ -211,7 +211,7 @@ func (s *Service) CheckCredentialName(ctx context.Context, req *pbcs.CheckCreden
 		return nil, err
 	}
 
-	credential, err := s.client.DS.CheckCredentialName(grpcKit.Ctx, &pbds.CheckCredentialNameReq{
+	credential, err := s.client.DS.CheckCredentialName(grpcKit.RpcCtx(), &pbds.CheckCredentialNameReq{
 		BizId:          req.BizId,
 		CredentialName: req.CredentialName,
 	})

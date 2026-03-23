@@ -125,9 +125,6 @@ func (c *client) getReleasedKvFromCache(kt *kit.Kit, bizID, releaseID uint32) (s
 
 // refreshReleasedKvCache get a release's all the kv and cached them.
 func (c *client) refreshReleasedKvCache(kt *kit.Kit, bizID uint32, releaseID uint32) (string, error) {
-	cancel := kt.CtxWithTimeoutMS(500)
-	defer cancel()
-
 	releasedKvs, err := c.op.ReleasedKv().ListAllByReleaseIDs(kt, []uint32{releaseID}, bizID)
 	if err != nil {
 		logs.Errorf("get biz: %d release: %d Kv from db failed, err: %v, rid: %s", bizID, releaseID, err, kt.Rid)

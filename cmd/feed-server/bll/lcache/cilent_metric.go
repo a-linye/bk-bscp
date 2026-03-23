@@ -34,7 +34,7 @@ type ClientMetric struct {
 
 // Set tore client metric data into redis queues
 func (cm *ClientMetric) Set(kt *kit.Kit, bizID, appID uint32, payload []byte) error {
-	_, err := cm.cs.CS().SetClientMetric(kt.Ctx, &pbcs.SetClientMetricReq{
+	_, err := cm.cs.CS().SetClientMetric(kt.RpcCtx(), &pbcs.SetClientMetricReq{
 		BizId:   bizID,
 		AppId:   appID,
 		Payload: payload,

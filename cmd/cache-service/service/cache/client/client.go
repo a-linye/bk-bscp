@@ -14,8 +14,8 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/cache-service/service/cache/keys"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/bedis"
@@ -80,6 +80,17 @@ type client struct {
 
 // RefreshAppCache refresh app related cache
 func (c *client) RefreshAppCache(kt *kit.Kit, bizID uint32, appID uint32) error {
+	// 通过 bizID 反查租户ID，确保后续 DB 查询使用正确的租户过滤
+	if kt.TenantID == "" {
+		app, err := c.op.App().GetOneAppByBiz(kt.WithSkipTenantFilter(), bizID)
+		if err != nil {
+			return fmt.Errorf("resolve tenant id for biz %d failed: %w", bizID, err)
+		}
+		kt = kt.Clone()
+		kt.TenantID = app.Spec.TenantID
+		kt.Ctx = kt.InternalRpcCtx()
+	}
+
 	_, err := c.refreshAppMetaCache(kt, bizID, appID)
 	if err != nil {
 		logs.Errorf("refresh app meta cache failed, err: %v, rid: %s", err, kt.Rid)
@@ -98,18 +109,19 @@ func (c *client) RefreshAppCache(kt *kit.Kit, bizID uint32, appID uint32) error 
 		logs.Errorf("unmarshal groups %s failed, err: %v, rid: %s", groupsJs, err, kt.Rid)
 		return err
 	}
-	kt.Ctx = context.TODO()
+	// 保留租户信息的基础上下文，每次迭代重置超时时不丢失租户元数据
+	baseCtx := kt.InternalRpcCtx()
 	done := make(map[uint32]bool)
 	for _, group := range releaseGroups {
 		if done[group.ReleaseID] {
 			continue
 		}
+		kt.Ctx = baseCtx
 		if _, err = c.refreshReleasedCICache(kt, bizID, group.ReleaseID); err != nil {
 			logs.Errorf("refresh released ci cache failed, err: %v, rid: %s", err, kt.Rid)
 			return err
 		}
 		done[group.ReleaseID] = true
-		kt.Ctx = context.TODO()
 	}
 
 	return nil

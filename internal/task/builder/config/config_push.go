@@ -27,6 +27,7 @@ import (
 
 type PushConfigTask struct {
 	*common.Builder
+	tenantID            string
 	bizID               uint32
 	batchID             uint32
 	operateType         table.ConfigOperateType
@@ -35,10 +36,12 @@ type PushConfigTask struct {
 }
 
 // NewPushConfigTask creates a config push task builder.
-func NewPushConfigTask(dao dao.Set, bizID uint32, batchID uint32, operateType table.ConfigOperateType, operatorUser string,
+func NewPushConfigTask(dao dao.Set, tenantID string, bizID uint32, batchID uint32,
+	operateType table.ConfigOperateType, operatorUser string,
 	generateTaskPayload *executorCommon.TaskPayload) types.TaskBuilder {
 	return &PushConfigTask{
 		Builder:             common.NewBuilder(dao),
+		tenantID:            tenantID,
 		bizID:               bizID,
 		batchID:             batchID,
 		operateType:         operateType,
@@ -65,6 +68,7 @@ func (t *PushConfigTask) Steps() ([]*types.Step, error) {
 	steps := []*types.Step{
 		// 1. 验证步骤
 		configStep.ValidatePushConfig(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.operateType,
@@ -72,7 +76,7 @@ func (t *PushConfigTask) Steps() ([]*types.Step, error) {
 			t.generateTaskPayload,
 		),
 		// 2. 发布配置步骤
-		configStep.ReleaseConfig(t.bizID,
+		configStep.ReleaseConfig(t.tenantID, t.bizID,
 			t.batchID,
 			t.operateType,
 			t.operatorUser,

@@ -31,6 +31,7 @@ const defaultGenerateConfigTimeout = 2 * time.Minute
 // GenerateConfigTask task generate config
 type GenerateConfigTask struct {
 	*common.Builder
+	tenantID           string
 	bizID              uint32
 	batchID            uint32
 	configTemplateID   uint32
@@ -48,6 +49,7 @@ type GenerateConfigTask struct {
 func NewConfigGenerateTask(opts common.ConfigTaskOptions) types.TaskBuilder {
 	return &GenerateConfigTask{
 		Builder:            common.NewBuilder(opts.Dao),
+		tenantID:           opts.TenantID,
 		bizID:              opts.BizID,
 		batchID:            opts.BatchID,
 		configTemplateID:   opts.ConfigTemplateID,
@@ -88,6 +90,7 @@ func (t *GenerateConfigTask) Steps() ([]*types.Step, error) {
 	}
 	return []*types.Step{
 		config.GenerateConfig(
+			t.tenantID,
 			t.bizID,
 			t.batchID,
 			t.configTemplateID,

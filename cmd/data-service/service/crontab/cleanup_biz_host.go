@@ -118,8 +118,10 @@ func (c *CleanupBizHost) cleanupBizHostByTenant(kt *kit.Kit) {
 			if app.Spec.TenantID == "" {
 				continue
 			}
-			kt.TenantID = app.Spec.TenantID
-			c.cleanupBizHost(kt)
+			tenantKit := *kt
+			tenantKit.TenantID = app.Spec.TenantID
+			tenantKit.Ctx = tenantKit.InternalRpcCtx()
+			c.cleanupBizHost(&tenantKit)
 		}
 		return
 	}

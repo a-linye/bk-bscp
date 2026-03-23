@@ -118,13 +118,16 @@ func (a authorizer) initKitWithCookie(r *http.Request, k *kit.Kit, multiErr *mul
 }
 
 // initKitWithDevEnv Dev环境, 可以设置环境变量鉴权
-func (a authorizer) initKitWithDevEnv(_ *http.Request, k *kit.Kit, _ *multierror.Error) bool {
+func (a authorizer) initKitWithDevEnv(r *http.Request, k *kit.Kit, _ *multierror.Error) bool {
 	user := os.Getenv("BK_USER_FOR_TEST")
 	appCode := os.Getenv("BK_APP_CODE_FOR_TEST")
 
 	if user != "" && appCode != "" {
 		k.User = user
 		k.AppCode = appCode
+		if tenantID := r.Header.Get(constant.BkTenantID); tenantID != "" {
+			k.TenantID = tenantID
+		}
 		return true
 	}
 

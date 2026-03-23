@@ -250,6 +250,7 @@ func (ad *Service) upsertAsyncDownloadJob(kt *kit.Kit, bizID, appID uint32, file
 	jobID := fmt.Sprintf("AsyncDownloadJob:%d:%d:%s:%s", bizID, appID,
 		path.Join(filePath, fileName), time.Now().Format("20060102150405"))
 	job := &types.AsyncDownloadJob{
+		TenantID:      kt.TenantID,
 		JobID:         jobID,
 		BizID:         bizID,
 		AppID:         appID,

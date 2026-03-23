@@ -31,6 +31,10 @@ func (s *Service) ListFileAppLatestReleaseMetaRest(r *http.Request) (interface{}
 		return nil, err
 	}
 
+	if err := s.bll.AppCache().EnsureTenantID(kt, opt.BizId); err != nil {
+		return nil, err
+	}
+
 	res := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Release, Action: meta.Find}, BizID: opt.BizId}
 	authorized, err := s.bll.Auth().Authorize(kt, res)
 	if err != nil {

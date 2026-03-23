@@ -74,6 +74,7 @@ func NewUpdateRegisterExecutor(gseService *gse.Service, cmdbService bkcmdb.Servi
 
 // UpdateRegisterPayload 进程操作负载
 type UpdateRegisterPayload struct {
+	TenantID                  string
 	BizID                     uint32
 	BatchID                   uint32 // 任务批次ID，用于 Callback 更新批次状态
 	OperateType               table.ProcessOperateType
@@ -115,7 +116,7 @@ func (u *UpdateRegisterExecutor) ValidateOperateStep(c *istep.Context) error {
 
 	if len(processInfo) == 0 {
 		tx := u.Dao.GenQuery().Begin()
-		err = cmdb.MarkProcessDeletedAndCleanInstancesTx(kit.New(), u.Dao, tx, payload.BizID, []uint32{payload.ProcessID})
+		err = cmdb.MarkProcessDeletedAndCleanInstancesTx(kit.NewWithTenant(payload.TenantID), u.Dao, tx, payload.BizID, []uint32{payload.ProcessID})
 		if err != nil {
 			logs.Errorf("[CompareWithCMDBProcessInfo STEP]: delete stopped/unmanaged failed for bizID=%d, processIDs=%v: %v",
 				payload.BizID, payload.ProcessID, err)
@@ -320,7 +321,7 @@ func (u *UpdateRegisterExecutor) OperationCompletedStep(c *istep.Context) error 
 
 	// 更新进程实例状态字段
 	m := u.Dao.GenQuery().ProcessInstance
-	if err = u.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+	if err = u.Dao.ProcessInstance().UpdateSelectedFields(kit.NewWithTenant(payload.TenantID), payload.BizID, map[string]any{
 		"status":            processStatus,
 		"managed_status":    managedStatus,
 		"status_updated_at": time.Now(),
@@ -346,7 +347,7 @@ func (u *UpdateRegisterExecutor) getGSEProcessStatus(
 		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: get common payload failed: %w", err)
 	}
 	// 查询进程信息
-	process, err := u.Dao.Process().GetByID(kit.New(), bizID, payload.ProcessID)
+	process, err := u.Dao.Process().GetByID(kit.NewWithTenant(payload.TenantID), bizID, payload.ProcessID)
 	if err != nil {
 		return "", "", fmt.Errorf("[getGSEProcessStatus STEP]: failed to get process: %w", err)
 	}
@@ -442,12 +443,12 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 	// 更新 TaskBatch 的完成计数
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		if _, err := u.Dao.TaskBatch().IncrementCompletedCount(kit.New(), payload.BatchID, isSuccess); err != nil {
+		if _, err := u.Dao.TaskBatch().IncrementCompletedCount(kit.NewWithTenant(payload.TenantID), payload.BatchID, isSuccess); err != nil {
 			logs.Errorf("[UpdateRegisterCallback CALLBACK]: failed to increment completed count, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
 		}
 
-		snapshot, err := u.updateBatchExtraDataWithLock(payload.BatchID, registerProcessSuccessDelta(cbErr))
+		snapshot, err := u.updateBatchExtraDataWithLock(payload.TenantID, payload.BatchID, registerProcessSuccessDelta(cbErr))
 		if err != nil {
 			logs.Errorf("update batch extra data failed, batchID=%d, err=%v",
 				payload.BatchID, err)
@@ -463,7 +464,7 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 					"source_data":    commonPayload.ProcessPayload.ConfigData,
 				}
 				if errU := u.Dao.Process().UpdateSelectedFields(
-					kit.New(),
+					kit.NewWithTenant(payload.TenantID),
 					payload.BizID,
 					updateFields,
 					u.Dao.GenQuery().Process.ID.Eq(payload.ProcessID),
@@ -482,6 +483,7 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 
 		// 统一推送事件
 		u.AfterCallbackNotify(c.Context(), common.CallbackNotify{
+			TenantID: payload.TenantID,
 			BizID:    payload.BizID,
 			BatchID:  payload.BatchID,
 			Operator: payload.OperateUser,
@@ -515,7 +517,7 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	// 更新进程实例状态
 	m := u.Dao.GenQuery().ProcessInstance
-	if err = u.Dao.ProcessInstance().UpdateSelectedFields(kit.New(), payload.BizID, map[string]any{
+	if err = u.Dao.ProcessInstance().UpdateSelectedFields(kit.NewWithTenant(payload.TenantID), payload.BizID, map[string]any{
 		"status":            processStatus,
 		"managed_status":    managedStatus,
 		"status_updated_at": time.Now(),
@@ -542,7 +544,7 @@ type BatchConfigDecisionSnapshot struct {
 }
 
 // updateBatchExtraDataWithLock 更新任务批次的 ExtraData（RegisterProcess.SuccessCount），并发安全
-func (u *UpdateRegisterExecutor) updateBatchExtraDataWithLock(batchID uint32, delta uint32) (
+func (u *UpdateRegisterExecutor) updateBatchExtraDataWithLock(tenantID string, batchID uint32, delta uint32) (
 	*BatchConfigDecisionSnapshot, error) {
 
 	if delta == 0 {
@@ -553,8 +555,9 @@ func (u *UpdateRegisterExecutor) updateBatchExtraDataWithLock(batchID uint32, de
 
 	defer u.RedLock.Release(keys.ResKind.BatchID(batchID))
 
-	// 1. 重新从 DB 读
-	task, err := u.Dao.TaskBatch().GetByID(kit.New(), batchID)
+	kt := kit.NewWithTenant(tenantID)
+
+	task, err := u.Dao.TaskBatch().GetByID(kt, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +582,7 @@ func (u *UpdateRegisterExecutor) updateBatchExtraDataWithLock(batchID uint32, de
 	}
 
 	// 4. 写回 DB
-	if err := u.Dao.TaskBatch().UpdateExtraData(kit.New(), batchID, string(raw)); err != nil {
+	if err := u.Dao.TaskBatch().UpdateExtraData(kt, batchID, string(raw)); err != nil {
 		return nil, err
 	}
 

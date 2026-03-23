@@ -71,6 +71,7 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 	kt := kit.FromGrpcContext(ctx)
 	if s.tenantID != "" {
 		kt.TenantID = s.tenantID
+		kt.Ctx = kt.InternalRpcCtx()
 	}
 	logs.Infof("[SyncSingleBiz][Start] bizID=%d tenantID=%s", s.bizID, s.tenantID)
 
@@ -475,6 +476,7 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 
 	kt := kit.New()
 	kt.TenantID = s.tenantID
+	kt.Ctx = kt.InternalRpcCtx()
 	tx := s.dao.GenQuery().Begin()
 	res, err := SyncProcessData(kt, s.dao, tx, uint32(s.bizID), nil, processBatch)
 	if err != nil {
@@ -514,6 +516,7 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 
 	kt := kit.New()
 	kt.TenantID = s.tenantID
+	kt.Ctx = kt.InternalRpcCtx()
 
 	// 1. 构建 newProcesses（来自事件）
 	newProcesses := make([]*table.Process, 0, len(processes))

@@ -56,10 +56,10 @@ func NewBuilder(dao dao.Set) *Builder {
 }
 
 // SetCommonProcessParam 设置
-func (builder *Builder) CommonProcessFinalize(task *types.Task, bizID, processID, processInstanceID uint32) error {
-	// 从db主动获取进行信息组装payload
-	kit := kit.New()
-	process, err := builder.dao.Process().GetByID(kit, bizID, processID)
+func (builder *Builder) CommonProcessFinalize(task *types.Task, tenantID string,
+	bizID, processID, processInstanceID uint32) error {
+	kt := kit.NewWithTenant(tenantID)
+	process, err := builder.dao.Process().GetByID(kt, bizID, processID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (builder *Builder) CommonProcessFinalize(task *types.Task, bizID, processID
 		return fmt.Errorf("no process found for biz %d", bizID)
 	}
 
-	inst, err := builder.dao.ProcessInstance().GetByID(kit, bizID, processInstanceID)
+	inst, err := builder.dao.ProcessInstance().GetByID(kt, bizID, processInstanceID)
 	if err != nil {
 		return err
 	}
@@ -96,6 +96,7 @@ func (builder *Builder) CommonProcessFinalize(task *types.Task, bizID, processID
 // ConfigTaskOptions 配置生成和配置检查共用
 type ConfigTaskOptions struct {
 	Dao                dao.Set
+	TenantID           string
 	BizID              uint32
 	BatchID            uint32
 	ConfigTemplateID   uint32

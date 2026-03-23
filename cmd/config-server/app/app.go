@@ -126,6 +126,7 @@ func (ds *configServer) listenAndServe() error {
 	opts := []grpc.ServerOption{grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.ChainUnaryInterceptor(
 			brpc.LogUnaryServerInterceptor(),
+			brpc.TenantUnaryServerInterceptor(),
 			brpc.GrpcServerHandledTotalInterceptor(),
 			grpcMetrics.UnaryServerInterceptor(),
 			grpc_recovery.UnaryServerInterceptor(recoveryOpt),
@@ -133,6 +134,7 @@ func (ds *configServer) listenAndServe() error {
 		),
 		grpc.ChainStreamInterceptor(
 			grpcMetrics.StreamServerInterceptor(),
+			brpc.TenantStreamServerInterceptor(),
 			grpc_recovery.StreamServerInterceptor(recoveryOpt),
 		),
 	}
