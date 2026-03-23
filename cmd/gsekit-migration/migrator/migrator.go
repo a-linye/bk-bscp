@@ -28,12 +28,13 @@ import (
 
 // Migrator orchestrates the GSEKit to BSCP data migration
 type Migrator struct {
-	cfg        *config.Config
-	sourceDB   *gorm.DB
-	targetDB   *gorm.DB
-	idGen      *IDGenerator
-	cmdbClient CMDBClient
-	uploader   ContentUploader
+	cfg          *config.Config
+	sourceDB     *gorm.DB
+	targetDB     *gorm.DB
+	idGen        *IDGenerator
+	cmdbClient   CMDBClient
+	gsekitClient GSEKitClient
+	uploader     ContentUploader
 
 	// ID mapping tables
 	processIDMap        map[uint32]uint32               // ccProcessID → newProcessID
@@ -87,6 +88,13 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 	log.Println("CMDB: using real client")
 	cmdbClient := NewRealCMDBClient(&cfg.CMDB)
 
+	// Create GSEKit client (optional, only needed for compare-render)
+	var gsekitClient GSEKitClient
+	if cfg.GSEKit.Endpoint != "" {
+		gsekitClient = NewGSEKitClient(&cfg.GSEKit)
+		log.Println("GSEKit: preview client initialized")
+	}
+
 	// Create content uploader (BKREPO or S3/COS based on config)
 	// BKREPO project naming uses tenantID only in multi-tenant mode ({tenantID}.{project}).
 	// In single-tenant mode, the BKREPO project name has no tenant prefix, so pass empty tenantID.
@@ -108,6 +116,7 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		targetDB:            targetDB,
 		idGen:               idGen,
 		cmdbClient:          cmdbClient,
+		gsekitClient:        gsekitClient,
 		uploader:            uploader,
 		processIDMap:        make(map[uint32]uint32),
 		configTemplateIDMap: make(map[uint32]uint32),

@@ -29,6 +29,7 @@ type Config struct {
 	Target     TargetConfig     `yaml:"target"`
 	Repository RepositoryConfig `yaml:"repository"`
 	CMDB       CMDBConfig       `yaml:"cmdb"`
+	GSEKit     GSEKitConfig     `yaml:"gsekit"`
 	Log        LogConfig        `yaml:"log"`
 }
 
@@ -110,6 +111,14 @@ type CMDBConfig struct {
 	AppCode   string `yaml:"app_code"`
 	AppSecret string `yaml:"app_secret"`
 	Username  string `yaml:"username"`
+}
+
+// GSEKitConfig contains GSEKit API Gateway configuration (for compare-render)
+type GSEKitConfig struct {
+	Endpoint  string `yaml:"endpoint"`
+	AppCode   string `yaml:"app_code"`
+	AppSecret string `yaml:"app_secret"`
+	BkTicket  string `yaml:"bk_ticket"`
 }
 
 // LogConfig contains logging configuration

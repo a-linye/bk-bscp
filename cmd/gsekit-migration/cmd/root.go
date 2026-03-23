@@ -384,9 +384,10 @@ func init() {
 
 	compareRenderCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to compare (overrides config)")
-	compareRenderCmd.Flags().StringVarP(&compareRenderOutput, "output", "o", "",
-		"Output file path for JSON report (default: stdout only)")
-	compareRenderCmd.Flags().BoolVar(&compareRenderShowDiff, "show-diff", false,
+	compareRenderCmd.Flags().StringVarP(&compareRenderOutput, "output", "o",
+		fmt.Sprintf("compare-render-report-%s.json", time.Now().Format("20060102-150405")),
+		"Output file path for JSON report")
+	compareRenderCmd.Flags().BoolVar(&compareRenderShowDiff, "show-diff", true,
 		"Show unified diff for mismatched instances")
 	compareRenderCmd.Flags().IntVar(&compareRenderDiffCtxLines, "diff-context-lines", 3,
 		"Number of context lines in diff output")

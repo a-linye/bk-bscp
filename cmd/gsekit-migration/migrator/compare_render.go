@@ -84,6 +84,10 @@ func (m *Migrator) CompareRender(opts CompareRenderOptions) (*CompareRenderRepor
 	ctx := context.Background()
 	report := &CompareRenderReport{Success: true}
 
+	if m.gsekitClient == nil {
+		return nil, fmt.Errorf("gsekit config is required for compare-render (set gsekit.endpoint in config)")
+	}
+
 	cc.SetG(cc.GlobalSettings{
 		FeatureFlags: cc.FeatureFlags{EnableMultiTenantMode: false},
 	})
@@ -165,10 +169,16 @@ func (m *Migrator) compareRenderForBiz(
 		return bizReport, nil
 	}
 
-	// Step 3: Fetch bindings and resolve each template to a process
-	templateProcessMap, err := m.resolveTemplateProcesses(bizID, templateVersionMap)
-	if err != nil {
-		return nil, fmt.Errorf("resolve template processes for biz %d failed: %w", bizID, err)
+	// Step 3: Resolve each template to a bound process
+	templateProcessMap := make(map[int64]int64)
+	for configTemplateID := range templateVersionMap {
+		processID, err := m.resolveTemplateProcess(bizID, configTemplateID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve process for template %d failed: %w", configTemplateID, err)
+		}
+		if processID > 0 {
+			templateProcessMap[configTemplateID] = processID
+		}
 	}
 
 	// Step 4: Collect unique process IDs, batch fetch processes and instances
@@ -304,11 +314,8 @@ func (m *Migrator) compareRenderForBiz(
 		})
 
 		// --- GSEKit side: call preview API ---
-		// TODO: 调用 GSEKit 配置模版预览接口获取渲染结果
-		// gsekitRendered, gsekitRenderErr = m.gsekitClient.PreviewConfigTemplate(
-		//     ctx, bizID, configTemplateID, tv.Version.ConfigVersionID, processID, inst.InstID)
-		gsekitRendered := ""
-		var gsekitRenderErr error
+		gsekitRendered, gsekitRenderErr := m.gsekitClient.PreviewConfigTemplate(
+			ctx, bizID, string(tv.Version.Content), processID)
 
 		if gsekitRenderErr != nil {
 			bizReport.RenderFailed++
@@ -389,64 +396,37 @@ func (m *Migrator) compareRenderForBiz(
 	return bizReport, nil
 }
 
-// resolveTemplateProcesses finds one bound process for each template via the binding table.
-// For INSTANCE bindings, process_object_id is the bk_process_id directly.
-// For TEMPLATE bindings, process_object_id is process_template_id, and we
-// resolve it to an actual bk_process_id by querying gsekit_process.
-func (m *Migrator) resolveTemplateProcesses(
-	bizID uint32,
-	templateVersionMap map[int64]*templateWithVersion,
-) (map[int64]int64, error) {
+// resolveTemplateProcess finds one bound process for a template via the binding table.
+// Priority: INSTANCE binding (direct bk_process_id) > TEMPLATE binding (find first
+// process with matching process_template_id).
+// Returns 0 if no bound process is found.
+func (m *Migrator) resolveTemplateProcess(bizID uint32, configTemplateID int64) (int64, error) {
 	var bindings []GSEKitConfigTemplateBindingRelationship
-	if err := m.sourceDB.Where("bk_biz_id = ?", bizID).Find(&bindings).Error; err != nil {
-		return nil, fmt.Errorf("fetch bindings for biz %d failed: %w", bizID, err)
+	if err := m.sourceDB.Where("config_template_id = ? AND bk_biz_id = ?", configTemplateID, bizID).
+		Find(&bindings).Error; err != nil {
+		return 0, fmt.Errorf("fetch bindings for template %d failed: %w", configTemplateID, err)
 	}
 
-	// Collect process_template_ids from TEMPLATE-type bindings to resolve
-	var procTemplateIDs []int64
+	// Prefer INSTANCE binding (direct process ID)
+	for _, b := range bindings {
+		if b.ProcessObjectType == "INSTANCE" {
+			return b.ProcessObjectID, nil
+		}
+	}
+
+	// Fallback to TEMPLATE binding: find first process with matching process_template_id
 	for _, b := range bindings {
 		if b.ProcessObjectType == "TEMPLATE" {
-			procTemplateIDs = append(procTemplateIDs, b.ProcessObjectID)
-		}
-	}
-
-	// Resolve process_template_id → first bk_process_id
-	procTemplateToProcess := make(map[int64]int64)
-	if len(procTemplateIDs) > 0 {
-		var procs []GSEKitProcess
-		if err := m.sourceDB.Where("process_template_id IN ? AND bk_biz_id = ?",
-			uniqueInt64(procTemplateIDs), bizID).
-			Order("bk_process_id ASC").
-			Find(&procs).Error; err != nil {
-			return nil, fmt.Errorf("resolve process template IDs failed: %w", err)
-		}
-		for _, p := range procs {
-			if _, exists := procTemplateToProcess[p.ProcessTemplateID]; !exists {
-				procTemplateToProcess[p.ProcessTemplateID] = p.BkProcessID
+			var proc GSEKitProcess
+			err := m.sourceDB.Where("process_template_id = ? AND bk_biz_id = ?", b.ProcessObjectID, bizID).
+				Order("bk_process_id ASC").First(&proc).Error
+			if err == nil {
+				return proc.BkProcessID, nil
 			}
 		}
 	}
 
-	// Build configTemplateID → bk_process_id (pick first binding per template)
-	result := make(map[int64]int64)
-	for _, b := range bindings {
-		if _, exists := templateVersionMap[b.ConfigTemplateID]; !exists {
-			continue
-		}
-		if _, exists := result[b.ConfigTemplateID]; exists {
-			continue
-		}
-		switch b.ProcessObjectType {
-		case "INSTANCE":
-			result[b.ConfigTemplateID] = b.ProcessObjectID
-		case "TEMPLATE":
-			if pid, ok := procTemplateToProcess[b.ProcessObjectID]; ok {
-				result[b.ConfigTemplateID] = pid
-			}
-		}
-	}
-
-	return result, nil
+	return 0, nil
 }
 
 // batchFetchProcesses fetches process records by bk_process_id list.

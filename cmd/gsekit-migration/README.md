@@ -46,6 +46,12 @@ cmdb:
   app_secret: "xxx"
   username: "admin"
 
+gsekit:                       # 仅 compare-render 命令需要
+  endpoint: "https://bk-gsekit.apigw.o.woa.com/prod"
+  app_code: "bk-bscp"
+  app_secret: "xxx"
+  bk_ticket: "xxx"            # 用户登录态 ticket
+
 log:
   level: "info"              # 日志级别: debug / info / warn / error
 ```
@@ -59,6 +65,7 @@ log:
 | `target.mysql` | BSCP 目标数据库连接信息 |
 | `repository` | 配置文件内容存储后端（BK-Repo 或 S3/COS），用于上传配置模板内容 |
 | `cmdb` | CMDB API 配置，用于查询进程关联的主机信息 |
+| `gsekit` | GSEKit API 网关配置，仅 `compare-render` 命令使用。`bk_ticket` 为用户登录态 |
 
 ---
 
@@ -208,3 +215,98 @@ Tables:
 - 清洗操作**仅删除目标库（BSCP）中的数据**，不会影响源库（GSEKit）数据。
 - 清洗操作不可逆，执行前请确认业务 ID 无误。未使用 `-f` 参数时，工具会进行交互式确认。
 - 清洗操作仅删除数据库记录，不会清理已上传到制品库（BK-Repo / S3）的配置文件内容。
+
+---
+
+## 3. 渲染对比命令 (`compare-render`)
+
+对比 BSCP 渲染引擎与 GSEKit 预览 API 的渲染结果，验证迁移后模板渲染一致性。
+
+### 工作原理
+
+对于每个配置模板，工具执行以下流程：
+
+1. 查询模板的最新已发布版本（非草稿）
+2. 通过绑定关系表查找模板关联的进程（优先 INSTANCE 直接绑定，其次 TEMPLATE 绑定）
+3. 获取该进程的第一个实例（按主键 ID 升序，与 GSEKit `ProcessInst.get_single_inst()` 一致）
+4. 分别调用 **GSEKit 预览 API** 和 **BSCP Mako 渲染引擎** 渲染模板
+5. 对比两者输出，记录差异
+
+### 前置要求
+
+- 配置文件中需要填写 `gsekit` 段的 API 网关配置
+- `bk_ticket` 为用户登录态 ticket，可从浏览器 Cookie 中获取
+- 需要配置 `cmdb` 段用于获取进程上下文（集群名、模块名、主机 IP 等）
+- 需要配置 `source.mysql` 用于读取 GSEKit 源数据
+
+### 命令格式
+
+```bash
+gsekit-migration compare-render -c <配置文件路径> [选项]
+```
+
+### 可用选项
+
+| 选项 | 说明 |
+|---|---|
+| `-c, --config` | 配置文件路径（必填） |
+| `--biz-ids` | 逗号分隔的业务 ID 列表，覆盖配置文件中的 `biz_ids` |
+| `-o, --output` | JSON 报告输出文件路径，默认 `compare-render-report-<YYYYMMDD-HHMMSS>.json`（带时间戳，不会覆盖历史报告） |
+| `--show-diff` | 显示不一致模板的 unified diff，默认开启 |
+| `--diff-context-lines` | diff 上下文行数，默认 3 |
+| `--render-timeout` | 单次渲染超时时间，默认 `30s` |
+
+### 使用示例
+
+```bash
+# 对比指定业务的渲染结果（默认开启 diff 显示并输出 JSON 报告）
+gsekit-migration compare-render -c etc/migration.yaml --biz-ids 100148
+
+# 关闭 diff 显示
+gsekit-migration compare-render -c etc/migration.yaml --biz-ids 100148 --show-diff=false
+
+# 指定报告输出路径
+gsekit-migration compare-render -c etc/migration.yaml --biz-ids 100148 -o my-report.json
+
+# 调整渲染超时时间
+gsekit-migration compare-render -c etc/migration.yaml --render-timeout 60s
+```
+
+### 执行结果
+
+对比完成后输出报告：
+
+```
+========== Compare Render Report ==========
+Status: SUCCESS
+
+Biz 100148:
+  Total:         42
+  Matched:       40
+  Mismatched:    1
+  Render Failed: 0
+  Skipped:       1
+
+  Differences (1):
+    - Template 123/nginx.conf (version=456, process=22445554): content_mismatch
+=============================================
+```
+
+### 结果字段说明
+
+| 字段 | 说明 |
+|---|---|
+| `Total` | 参与对比的模板总数 |
+| `Matched` | 渲染结果一致的模板数 |
+| `Mismatched` | 渲染结果不一致的模板数 |
+| `Render Failed` | 渲染失败的模板数（GSEKit 或 BSCP 渲染出错） |
+| `Skipped` | 跳过的模板数（无绑定进程或无进程实例） |
+
+### 差异原因分类
+
+| Reason | 说明 |
+|---|---|
+| `content_mismatch` | GSEKit 和 BSCP 渲染结果不一致 |
+| `render_error` | BSCP 渲染引擎执行失败 |
+| `gsekit_render_error` | GSEKit 预览 API 返回错误 |
+| `ginclude_expand_error` | BSCP 侧 Ginclude 指令展开失败 |
