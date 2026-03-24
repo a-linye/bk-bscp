@@ -289,6 +289,23 @@ var TableMetas = map[string]TableMeta{
 	},
 }
 
+// RuntimeCleanupTables returns tables that are skipped during migration but should
+// still be cleaned during cleanup. These tables accumulate runtime data (audits,
+// events, client records, etc.) in the target environment after migration.
+func RuntimeCleanupTables() []string {
+	return []string{
+		"audits",
+		"events",
+		"published_strategy_histories",
+		"current_released_instances",
+		"clients",
+		"client_events",
+		"client_querys",
+		"archived_apps",
+		"biz_hosts",
+	}
+}
+
 // TablesInCleanupOrder returns tables in reverse dependency order (for deletion)
 // Delete dependent tables first, then base tables
 func TablesInCleanupOrder() []string {
