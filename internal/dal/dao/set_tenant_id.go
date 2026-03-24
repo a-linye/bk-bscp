@@ -34,9 +34,15 @@ var excludedTables = map[string]struct{}{
 // 注册回调
 func registerCallbacks(db *gorm.DB) {
 	_ = db.Callback().Create().Before("gorm:create").Register("set_tenant_id", beforeAnyOp)
-	_ = db.Callback().Update().Before("gorm:update").Register("set_tenant_id", beforeAnyOp)
+	_ = db.Callback().Update().Before("gorm:update").Register("set_tenant_id", beforeUpdate)
 	_ = db.Callback().Delete().Before("gorm:delete").Register("set_tenant_id", beforeQuery)
 	_ = db.Callback().Query().Before("gorm:query").Register("set_tenant_id", beforeQuery)
+}
+
+// 更新前置操作：设置字段值 + 添加 WHERE 过滤条件
+func beforeUpdate(db *gorm.DB) {
+	beforeAnyOp(db)
+	beforeQuery(db)
 }
 
 // 查询前置操作，有 TenantID 字段，就自动加条件

@@ -669,6 +669,12 @@ func createNewIndexes(tx *gorm.DB) error {
 			Unique:    false,
 		},
 		{
+			Table:     "strategies",
+			IndexName: "idx_tenantID_releaseID",
+			Fields:    []indexField{{"tenant_id", 0}, {"release_id", 0}},
+			Unique:    false,
+		},
+		{
 			Table:     "strategy_sets",
 			IndexName: "idx_tenantID_appID_name",
 			Fields:    []indexField{{"tenant_id", 0}, {"app_id", 0}, {"name", 0}},
@@ -784,7 +790,7 @@ func dropNewIndexes(tx *gorm.DB) error {
 		"released_kvs":                    {"tenantID_relID_key", "idx_tenantID_bizID_appID_ID"},
 		"releases":                        {"idx_tenantID_bizID_appID_name", "idx_tenantID_bizID_appID"},
 		"resource_locks":                  {"idx_tenantID_bizID_resType_resKey"},
-		"strategies":                      {"idx_tenantID_bizID_appID"},
+		"strategies":                      {"idx_tenantID_bizID_appID", "idx_tenantID_releaseID"},
 		"strategy_sets": {"idx_tenantID_appID_name", "idx_tenantID_bizID_id",
 			"idx_tenantID_bizID_appID"},
 		"template_revisions": {"idx_tenantID_bizID_tempID_revName"},
