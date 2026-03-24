@@ -581,7 +581,7 @@ func createNewIndexes(tx *gorm.DB) error {
 		{
 			Table:     "kvs",
 			IndexName: "idx_tenantID_bizID_appID_key_kvState",
-			Fields:    []indexField{{"tenant_id", 0}, {"key", 0}, {"kv_state", 0}, {"biz_id", 0}, {"app_id", 0}},
+			Fields:    []indexField{{"tenant_id", 0}, {"biz_id", 0}, {"app_id", 0}, {"key", 0}, {"kv_state", 0}},
 			Unique:    true,
 		},
 		{
@@ -635,7 +635,7 @@ func createNewIndexes(tx *gorm.DB) error {
 		{
 			Table:     "released_kvs",
 			IndexName: "tenantID_relID_key",
-			Fields:    []indexField{{"tenant_id", 0}, {"key", 0}, {"release_id", 0}},
+			Fields:    []indexField{{"tenant_id", 0}, {"release_id", 0}, {"key", 0}},
 			Unique:    true,
 		},
 		{
