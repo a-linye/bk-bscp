@@ -16,7 +16,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 
 	vault "github.com/openbao/openbao/api/v2"
@@ -539,11 +538,11 @@ type VaultDirectScanResult struct {
 
 // BizVaultScan contains per-biz DB record count vs Vault existence count
 type BizVaultScan struct {
-	BizID         uint32
-	KvDB          int64
-	KvVault       int64
-	RKvDB         int64
-	RKvVault      int64
+	BizID    uint32
+	KvDB     int64
+	KvVault  int64
+	RKvDB    int64
+	RKvVault int64
 }
 
 // TotalKvDB returns total unreleased KV DB count across all biz scans
@@ -706,9 +705,12 @@ func bizMapToSortedSlice(m map[uint32]*BizVaultScan) []BizVaultScan {
 	for _, s := range m {
 		scans = append(scans, *s)
 	}
-	sort.Slice(scans, func(i, j int) bool {
-		return scans[i].BizID < scans[j].BizID
-	})
+	for i := 0; i < len(scans)-1; i++ {
+		for j := i + 1; j < len(scans); j++ {
+			if scans[i].BizID > scans[j].BizID {
+				scans[i], scans[j] = scans[j], scans[i]
+			}
+		}
+	}
 	return scans
 }
-
