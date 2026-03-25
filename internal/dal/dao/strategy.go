@@ -76,8 +76,29 @@ func (dao *strategyDao) ListStrategyByItsm(kit *kit.Kit) ([]*table.Strategy, err
 // ListStrategyByReleasesIDs list strategy by ReleasesIDs.
 func (dao *strategyDao) ListStrategyByReleasesIDs(kit *kit.Kit, releasesIDs []uint32) ([]*table.Strategy, error) {
 	m := dao.genQ.Strategy
-	subQuery := m.WithContext(kit.Ctx).Select(m.ID.Max()).Where(m.ReleaseID.In(releasesIDs...)).Group(m.ReleaseID)
-	return m.WithContext(kit.Ctx).Where(m.WithContext(kit.Ctx).Columns(m.ID).In(subQuery)).Find()
+
+	type Result struct {
+		MaxID uint32 `gorm:"column:max_id"`
+	}
+	var results []Result
+	if err := m.WithContext(kit.Ctx).
+		Select(m.ID.Max().As("max_id")).
+		Where(m.ReleaseID.In(releasesIDs...)).
+		Group(m.ReleaseID).
+		Scan(&results); err != nil {
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]uint32, 0, len(results))
+	for _, r := range results {
+		ids = append(ids, r.MaxID)
+	}
+
+	return m.WithContext(kit.Ctx).Where(m.ID.In(ids...)).Find()
 }
 
 // UpdateByID update strategy kv by id
