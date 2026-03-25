@@ -663,6 +663,36 @@ func (m *MySQLMigrator) hasColumn(tableName, columnName, database string) bool {
 	return count > 0
 }
 
+// detectBizIDColumn returns the biz ID column name for a table in the target database.
+// Most tables use "biz_id", but some (e.g. biz_hosts) use "bk_biz_id".
+// Returns empty string if the table doesn't exist or has no biz ID column.
+func (m *MySQLMigrator) detectBizIDColumn(tableName string) string {
+	if !m.tableExists(tableName, m.cfg.Target.MySQL.Database) {
+		return ""
+	}
+	if m.hasColumn(tableName, "biz_id", m.cfg.Target.MySQL.Database) {
+		return "biz_id"
+	}
+	if m.hasColumn(tableName, "bk_biz_id", m.cfg.Target.MySQL.Database) {
+		return "bk_biz_id"
+	}
+	return ""
+}
+
+// tableExists checks if a table exists in the specified database
+func (m *MySQLMigrator) tableExists(tableName, database string) bool {
+	var count int64
+	query := `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?`
+	db := m.sourceDB
+	if database == m.cfg.Target.MySQL.Database {
+		db = m.targetDB
+	}
+	if err := db.Raw(query, database, tableName).Scan(&count).Error; err != nil {
+		return false
+	}
+	return count > 0
+}
+
 // handleSpecialCases handles special type conversions and transformations
 func (m *MySQLMigrator) handleSpecialCases(tableName string, row map[string]interface{}) {
 	if tableName == "strategies" {
@@ -675,6 +705,8 @@ func (m *MySQLMigrator) handleSpecialCases(tableName string, row map[string]inte
 				row["itsm_ticket_state_id"] = fmt.Sprintf("%.0f", v)
 			}
 		}
+
+		m.clearItsmFields(row)
 	}
 
 	// KV tables version reset:
@@ -683,6 +715,35 @@ func (m *MySQLMigrator) handleSpecialCases(tableName string, row map[string]inte
 	if tableName == "kvs" || tableName == "released_kvs" {
 		row["version"] = uint32(1)
 	}
+}
+
+// clearItsmFields handles ITSM ticket fields for strategies during cross-environment migration.
+//
+// Only pending strategies need processing. Completed strategies (already_publish, rejected_approval,
+// etc.) are left untouched because:
+//   - The UI does not display ITSM fields for these statuses (approveStatus = -1).
+//   - Preserving the original approval record is harmless and keeps audit traceability.
+//
+// Pending strategies (pending_approval / pending_publish) are set to "revoked_publish" because:
+//  1. The source ITSM ticket SN, callback URL, and workflow config do not work in the target env.
+//  2. Keeping "pending_approval" without a real ITSM ticket would block new publishes
+//     (SubmitPublishApprove rejects when an existing strategy is pending).
+//  3. The UI would show a confusing "pending" spinner with no approval link.
+//  4. "revoked_publish" is transient in the UI (disappears on page refresh) and does not
+//     block new publish operations, allowing users to re-submit in the new environment.
+func (m *MySQLMigrator) clearItsmFields(row map[string]interface{}) {
+	publishStatus, _ := row["publish_status"].(string)
+	if publishStatus != "pending_approval" && publishStatus != "pending_publish" {
+		return
+	}
+
+	row["publish_status"] = "revoked_publish"
+	row["approver_progress"] = ""
+	row["itsm_ticket_type"] = ""
+	row["itsm_ticket_url"] = ""
+	row["itsm_ticket_sn"] = ""
+	row["itsm_ticket_status"] = ""
+	row["itsm_ticket_state_id"] = ""
 }
 
 // GetSourceDB returns the source database connection
@@ -718,16 +779,12 @@ func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 		}
 	}()
 
-	// Use proper cleanup order
-	cleanupTables := TablesInCleanupOrder()
-
 	log.Println("Cleaning up target database...")
 
-	for _, tableName := range cleanupTables {
-		if m.cfg.ShouldSkipTable(tableName) {
-			continue
-		}
-
+	// Step 1: Clean runtime tables (audits, events, clients, etc.)
+	// These are not migrated but accumulate data in the target env and must be cleaned per biz_id.
+	log.Println("  Cleaning runtime tables...")
+	for _, tableName := range RuntimeCleanupTables() {
 		tableResult := m.cleanupTable(tableName)
 		result.TableResults = append(result.TableResults, tableResult)
 
@@ -735,6 +792,26 @@ func (m *MySQLMigrator) CleanupTarget() (*CleanupResult, error) {
 			result.Success = false
 			if !m.cfg.Migration.ContinueOnError {
 				break
+			}
+		}
+	}
+
+	// Step 2: Clean core migration tables in reverse dependency order
+	if result.Success || m.cfg.Migration.ContinueOnError {
+		log.Println("  Cleaning core tables...")
+		for _, tableName := range TablesInCleanupOrder() {
+			if m.cfg.ShouldSkipTable(tableName) {
+				continue
+			}
+
+			tableResult := m.cleanupTable(tableName)
+			result.TableResults = append(result.TableResults, tableResult)
+
+			if !tableResult.Success {
+				result.Success = false
+				if !m.cfg.Migration.ContinueOnError {
+					break
+				}
 			}
 		}
 	}
@@ -753,14 +830,19 @@ func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 		Success:   true,
 	}
 
-	// Check if table has biz_id column for filtering
-	hasBizID := m.hasColumn(tableName, "biz_id", m.cfg.Target.MySQL.Database)
+	if !m.tableExists(tableName, m.cfg.Target.MySQL.Database) {
+		log.Printf("  Table %s does not exist, skipping", tableName)
+		return result
+	}
+
+	// Detect the biz ID column name: most tables use "biz_id", biz_hosts uses "bk_biz_id"
+	bizIDColumn := m.detectBizIDColumn(tableName)
 	hasBizFilter := m.cfg.Migration.HasBizFilter()
 
 	// Build base query with biz_id filter if applicable
 	baseQuery := m.targetDB.Table(tableName)
-	if hasBizID && hasBizFilter {
-		baseQuery = baseQuery.Where("biz_id IN ?", m.cfg.Migration.BizIDs)
+	if bizIDColumn != "" && hasBizFilter {
+		baseQuery = baseQuery.Where(bizIDColumn+" IN ?", m.cfg.Migration.BizIDs)
 	}
 
 	// Count records before deletion
@@ -773,19 +855,20 @@ func (m *MySQLMigrator) cleanupTable(tableName string) TableCleanupResult {
 	result.DeletedCount = count
 
 	if count == 0 {
-		log.Printf("  Table %s is empty (or no matching biz_id), skipping", tableName)
+		log.Printf("  Table %s is empty (or no matching records), skipping", tableName)
 		return result
 	}
 
 	// Delete records
-	if hasBizID && hasBizFilter {
-		// Delete only records matching the biz_id filter
-		if err := m.targetDB.Table(tableName).Where("biz_id IN ?", m.cfg.Migration.BizIDs).Delete(nil).Error; err != nil {
+	if bizIDColumn != "" && hasBizFilter {
+		if err := m.targetDB.Table(tableName).Where(bizIDColumn+" IN ?", m.cfg.Migration.BizIDs).
+			Delete(nil).Error; err != nil {
 			result.Error = fmt.Sprintf("failed to delete records: %v", err)
 			result.Success = false
 			return result
 		}
-		log.Printf("  Deleted %d records from table %s (biz_id filter: %v)", count, tableName, m.cfg.Migration.BizIDs)
+		log.Printf("  Deleted %d records from table %s (%s filter: %v)",
+			count, tableName, bizIDColumn, m.cfg.Migration.BizIDs)
 	} else {
 		// Delete all records using TRUNCATE for better performance
 		// Use backticks to handle reserved keywords like 'groups'
