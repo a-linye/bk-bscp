@@ -1666,15 +1666,10 @@
           "type": "string"
         },
         "fileMode": {
-          "description": "文件模式",
-          "type": "string",
-          "default": "unix"
-        },
-        "fileName": {
-          "description": "文件名",
+          "description": "目标平台: win、unix",
           "type": "string"
         },
-        "filePath": {
+        "fullPath": {
           "description": "文件路径",
           "type": "string"
         },
@@ -1684,14 +1679,6 @@
         },
         "md5": {
           "description": "文件md5",
-          "type": "string"
-        },
-        "memo": {
-          "description": "配置模版描述",
-          "type": "string"
-        },
-        "name": {
-          "description": "配置模版名称",
           "type": "string"
         },
         "privilege": {
@@ -1704,6 +1691,14 @@
         },
         "sign": {
           "description": "文件sha256",
+          "type": "string"
+        },
+        "templateMemo": {
+          "description": "配置模版描述",
+          "type": "string"
+        },
+        "templateName": {
+          "description": "配置模版名称",
           "type": "string"
         },
         "templateSpaceId": {
@@ -2004,7 +1999,7 @@
           "$ref": "#/definitions/pbprocOperateRange"
         },
         "operateType": {
-          "description": "操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register",
+          "description": "操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register、delete",
           "type": "string"
         },
         "processIds": {
@@ -2015,10 +2010,13 @@
             "format": "int64"
           }
         },
-        "processInstanceId": {
+        "processInstanceIds": {
           "description": "进程实例ID",
-          "type": "integer",
-          "format": "int64"
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
         }
       }
     },
@@ -2087,9 +2085,12 @@
           "type": "string"
         },
         "fileMode": {
-          "description": "文件模式",
-          "type": "string",
-          "default": "unix"
+          "description": "目标平台: win、unix",
+          "type": "string"
+        },
+        "fullPath": {
+          "description": "文件路径",
+          "type": "string"
         },
         "highlightStyle": {
           "description": "高亮风格",
@@ -2097,14 +2098,6 @@
         },
         "md5": {
           "description": "文件md5",
-          "type": "string"
-        },
-        "memo": {
-          "description": "配置模版描述",
-          "type": "string"
-        },
-        "name": {
-          "description": "配置模版名称",
           "type": "string"
         },
         "privilege": {
@@ -2121,6 +2114,10 @@
         },
         "sign": {
           "description": "文件sha256",
+          "type": "string"
+        },
+        "templateName": {
+          "description": "配置模版名称",
           "type": "string"
         },
         "user": {
@@ -2751,7 +2748,7 @@
     },
     "pbctBindTemplate": {
       "type": "object",
-      "title": "BindTemplate xxx",
+      "title": "BindTemplate",
       "properties": {
         "byteSize": {
           "description": "文件大小",
@@ -2783,11 +2780,7 @@
           "type": "string",
           "default": "unix"
         },
-        "fileName": {
-          "description": "文件名",
-          "type": "string"
-        },
-        "filePath": {
+        "fullPath": {
           "description": "文件路径",
           "type": "string"
         },
@@ -2797,14 +2790,6 @@
         },
         "md5": {
           "description": "文件md5",
-          "type": "string"
-        },
-        "memo": {
-          "description": "配置模版描述",
-          "type": "string"
-        },
-        "name": {
-          "description": "配置模版名称",
           "type": "string"
         },
         "privilege": {
@@ -2817,6 +2802,14 @@
         },
         "sign": {
           "description": "文件sha256",
+          "type": "string"
+        },
+        "templateMemo": {
+          "description": "配置模版描述",
+          "type": "string"
+        },
+        "templateName": {
+          "description": "配置模版名称",
           "type": "string"
         },
         "templateSetName": {
@@ -2899,6 +2892,12 @@
           "type": "integer",
           "format": "int64"
         },
+        "isConfigReleased": {
+          "type": "boolean"
+        },
+        "isProcBound": {
+          "type": "boolean"
+        },
         "revision": {
           "$ref": "#/definitions/pbbaseRevision"
         },
@@ -2947,15 +2946,15 @@
       "type": "object",
       "title": "ConfigTemplateSpec source resource reference: pkg/dal/table/config_template.go",
       "properties": {
-        "fileName": {
-          "description": "文件名",
+        "fullPath": {
+          "description": "文件路径",
           "type": "string"
         },
         "highlightStyle": {
           "description": "语法高亮",
           "type": "string"
         },
-        "name": {
+        "templateName": {
           "description": "配置模版名称",
           "type": "string"
         }

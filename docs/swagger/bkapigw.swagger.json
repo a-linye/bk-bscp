@@ -1459,19 +1459,15 @@
     "ConfigCreateConfigTemplateBody": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "配置模版名称"
-        },
-        "fileName": {
-          "type": "string",
-          "description": "文件名"
-        },
-        "filePath": {
+        "fullPath": {
           "type": "string",
           "description": "文件路径"
         },
-        "memo": {
+        "templateName": {
+          "type": "string",
+          "description": "配置模版名称"
+        },
+        "templateMemo": {
           "type": "string",
           "description": "配置模版描述"
         },
@@ -1514,8 +1510,7 @@
         },
         "fileMode": {
           "type": "string",
-          "default": "unix",
-          "description": "文件模式"
+          "description": "目标平台: win、unix"
         },
         "templateSpaceId": {
           "type": "integer",
@@ -1807,14 +1802,17 @@
           },
           "description": "进程ID"
         },
-        "processInstanceId": {
-          "type": "integer",
-          "format": "int64",
+        "processInstanceIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
           "description": "进程实例ID"
         },
         "operateType": {
           "type": "string",
-          "description": "操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register"
+          "description": "操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register、delete"
         },
         "enableProcessRestart": {
           "type": "boolean",
@@ -1880,13 +1878,17 @@
     "ConfigUpdateConfigTemplateBody": {
       "type": "object",
       "properties": {
-        "name": {
+        "fullPath": {
+          "type": "string",
+          "description": "文件路径"
+        },
+        "templateName": {
           "type": "string",
           "description": "配置模版名称"
         },
-        "memo": {
+        "revisionMemo": {
           "type": "string",
-          "description": "配置模版描述"
+          "description": "配置模版版本描述"
         },
         "revisionName": {
           "type": "string",
@@ -1927,12 +1929,7 @@
         },
         "fileMode": {
           "type": "string",
-          "default": "unix",
-          "description": "文件模式"
-        },
-        "revisionMemo": {
-          "type": "string",
-          "description": "配置模版版本描述"
+          "description": "目标平台: win、unix"
         }
       }
     },
@@ -2563,15 +2560,15 @@
           "type": "string",
           "description": "模板套餐名称"
         },
-        "fileName": {
-          "type": "string",
-          "description": "文件名"
-        },
-        "filePath": {
+        "fullPath": {
           "type": "string",
           "description": "文件路径"
         },
-        "memo": {
+        "templateName": {
+          "type": "string",
+          "description": "配置模版名称"
+        },
+        "templateMemo": {
           "type": "string",
           "description": "配置模版描述"
         },
@@ -2632,13 +2629,9 @@
             "format": "int64"
           },
           "description": "关联cc中未通过服务模板创建的进程实例ID"
-        },
-        "name": {
-          "type": "string",
-          "description": "配置模版名称"
         }
       },
-      "title": "BindTemplate xxx"
+      "title": "BindTemplate"
     },
     "pbctBizTopoNode": {
       "type": "object",
@@ -2706,6 +2699,12 @@
         },
         "revision": {
           "$ref": "#/definitions/pbbaseRevision"
+        },
+        "isProcBound": {
+          "type": "boolean"
+        },
+        "isConfigReleased": {
+          "type": "boolean"
         }
       },
       "title": "ConfigTemplate source resource reference: pkg/dal/table/config_template.go"
@@ -2749,13 +2748,13 @@
     "pbctConfigTemplateSpec": {
       "type": "object",
       "properties": {
-        "name": {
+        "templateName": {
           "type": "string",
           "description": "配置模版名称"
         },
-        "fileName": {
+        "fullPath": {
           "type": "string",
-          "description": "文件名"
+          "description": "文件路径"
         },
         "highlightStyle": {
           "type": "string",

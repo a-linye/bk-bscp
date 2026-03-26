@@ -454,16 +454,15 @@ POST /api/v1/config/biz_id/{bizId}/config_template
 | bizId | int64 (formatted integer) | ✓ | 业务ID |
 | byteSize | uint64 (formatted string) |  | 文件大小 |
 | charset | string |  | 文件编码 |
-| fileMode | string |  | 文件模式 |
-| fileName | string |  | 文件名 |
-| filePath | string |  | 文件路径 |
+| fileMode | string |  | 目标平台: win、unix |
+| fullPath | string |  | 文件路径 |
 | highlightStyle | string |  | 高亮风格 |
 | md5 | string |  | 文件md5 |
-| memo | string |  | 配置模版描述 |
-| name | string |  | 配置模版名称 |
 | privilege | string |  | 文件权限 |
 | revisionName | string |  | 模板文件版本号 |
 | sign | string |  | 文件sha256 |
+| templateMemo | string |  | 配置模版描述 |
+| templateName | string |  | 配置模版名称 |
 | templateSpaceId | int64 (formatted integer) |  | 模板空间ID |
 | user | string |  | 用户权限名 |
 | userGroup | string |  | 用户组权限名 |
@@ -483,15 +482,14 @@ Content-Type: application/json
   "byteSize": "",
   "charset": "",
   "fileMode": "",
-  "fileName": "",
-  "filePath": "",
+  "fullPath": "",
   "highlightStyle": "",
   "md5": "",
-  "memo": "",
-  "name": "",
   "privilege": "",
   "revisionName": "",
   "sign": "",
+  "templateMemo": "",
+  "templateName": "",
   "templateSpaceId": 0,
   "user": "",
   "userGroup": ""
@@ -1039,9 +1037,9 @@ POST /api/v1/config/biz_id/{bizId}/process/operate
 | bizId | int64 (formatted integer) | ✓ | 业务ID |
 | enableProcessRestart | boolean |  | 是否启停进程：默认为false，只有操作类型是update_register才有效 |
 | operateRange | [PbprocOperateRange](#pbproc-operate-range) |  |  |
-| operateType | string |  | 操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register |
+| operateType | string |  | 操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register、delete |
 | processIds | []int64 (formatted integer) |  | 进程ID |
-| processInstanceId | int64 (formatted integer) |  | 进程实例ID |
+| processInstanceIds | []int64 (formatted integer) |  | 进程实例ID |
 
 #### 输出参数
 
@@ -1074,7 +1072,9 @@ Content-Type: application/json
   "processIds": [
     {}
   ],
-  "processInstanceId": 0
+  "processInstanceIds": [
+    {}
+  ]
 }
 ```
 
@@ -1382,15 +1382,15 @@ PUT /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}
 | configTemplateId | int64 (formatted integer) | ✓ | 配置模版ID |
 | byteSize | uint64 (formatted string) |  | 文件大小 |
 | charset | string |  | 文件编码 |
-| fileMode | string |  | 文件模式 |
+| fileMode | string |  | 目标平台: win、unix |
+| fullPath | string |  | 文件路径 |
 | highlightStyle | string |  | 高亮风格 |
 | md5 | string |  | 文件md5 |
-| memo | string |  | 配置模版描述 |
-| name | string |  | 配置模版名称 |
 | privilege | string |  | 文件权限 |
 | revisionMemo | string |  | 配置模版版本描述 |
 | revisionName | string |  | 模板文件版本号 |
 | sign | string |  | 文件sha256 |
+| templateName | string |  | 配置模版名称 |
 | user | string |  | 用户权限名 |
 | userGroup | string |  | 用户组权限名 |
 
@@ -1409,14 +1409,14 @@ Content-Type: application/json
   "byteSize": "",
   "charset": "",
   "fileMode": "",
+  "fullPath": "",
   "highlightStyle": "",
   "md5": "",
-  "memo": "",
-  "name": "",
   "privilege": "",
   "revisionMemo": "",
   "revisionName": "",
   "sign": "",
+  "templateName": "",
   "user": "",
   "userGroup": ""
 }
@@ -1730,16 +1730,15 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | byteSize | uint64 (formatted string)| `string` |  | | 文件大小 |  |
 | charset | string| `string` |  | | 文件编码 |  |
-| fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
-| fileName | string| `string` |  | | 文件名 |  |
-| filePath | string| `string` |  | | 文件路径 |  |
+| fileMode | string| `string` |  | | 目标平台: win、unix |  |
+| fullPath | string| `string` |  | | 文件路径 |  |
 | highlightStyle | string| `string` |  | | 高亮风格 |  |
 | md5 | string| `string` |  | | 文件md5 |  |
-| memo | string| `string` |  | | 配置模版描述 |  |
-| name | string| `string` |  | | 配置模版名称 |  |
 | privilege | string| `string` |  | | 文件权限 |  |
 | revisionName | string| `string` |  | | 模板文件版本号 |  |
 | sign | string| `string` |  | | 文件sha256 |  |
+| templateMemo | string| `string` |  | | 配置模版描述 |  |
+| templateName | string| `string` |  | | 配置模版名称 |  |
 | templateSpaceId | int64 (formatted integer)| `int64` |  | | 模板空间ID |  |
 | user | string| `string` |  | | 用户权限名 |  |
 | userGroup | string| `string` |  | | 用户组权限名 |  |
@@ -1904,9 +1903,9 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | enableProcessRestart | boolean| `bool` |  | | 是否启停进程：默认为false，只有操作类型是update_register才有效 |  |
 | operateRange | [PbprocOperateRange](#pbproc-operate-range)| `PbprocOperateRange` |  | |  |  |
-| operateType | string| `string` |  | | 操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register |  |
+| operateType | string| `string` |  | | 操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register、delete |  |
 | processIds | []int64 (formatted integer)| `[]int64` |  | | 进程ID |  |
-| processInstanceId | int64 (formatted integer)| `int64` |  | | 进程实例ID |  |
+| processInstanceIds | []int64 (formatted integer)| `[]int64` |  | | 进程实例ID |  |
 
 
 
@@ -1966,15 +1965,15 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | byteSize | uint64 (formatted string)| `string` |  | | 文件大小 |  |
 | charset | string| `string` |  | | 文件编码 |  |
-| fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
+| fileMode | string| `string` |  | | 目标平台: win、unix |  |
+| fullPath | string| `string` |  | | 文件路径 |  |
 | highlightStyle | string| `string` |  | | 高亮风格 |  |
 | md5 | string| `string` |  | | 文件md5 |  |
-| memo | string| `string` |  | | 配置模版描述 |  |
-| name | string| `string` |  | | 配置模版名称 |  |
 | privilege | string| `string` |  | | 文件权限 |  |
 | revisionMemo | string| `string` |  | | 配置模版版本描述 |  |
 | revisionName | string| `string` |  | | 模板文件版本号 |  |
 | sign | string| `string` |  | | 文件sha256 |  |
+| templateName | string| `string` |  | | 配置模版名称 |  |
 | user | string| `string` |  | | 用户权限名 |  |
 | userGroup | string| `string` |  | | 用户组权限名 |  |
 
@@ -2629,15 +2628,14 @@ Content-Type: application/json
 | ccTemplateProcessIds | []int64 (formatted integer)| `[]int64` |  | | 关联cc服务模版下的模板进程ID |  |
 | charset | string| `string` |  | | 文件编码 |  |
 | fileMode | string| `string` |  | `"unix"`| 文件模式 |  |
-| fileName | string| `string` |  | | 文件名 |  |
-| filePath | string| `string` |  | | 文件路径 |  |
+| fullPath | string| `string` |  | | 文件路径 |  |
 | highlightStyle | string| `string` |  | | 高亮风格 |  |
 | md5 | string| `string` |  | | 文件md5 |  |
-| memo | string| `string` |  | | 配置模版描述 |  |
-| name | string| `string` |  | | 配置模版名称 |  |
 | privilege | string| `string` |  | | 文件权限 |  |
 | revisionName | string| `string` |  | | 模板文件版本号 |  |
 | sign | string| `string` |  | | 文件sha256 |  |
+| templateMemo | string| `string` |  | | 配置模版描述 |  |
+| templateName | string| `string` |  | | 配置模版名称 |  |
 | templateSetName | string| `string` |  | | 模板套餐名称 |  |
 | templateSpaceName | string| `string` |  | | 模板空间名称 |  |
 | user | string| `string` |  | | 用户权限名 |  |
@@ -2681,6 +2679,8 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | attachment | [PbctConfigTemplateAttachment](#pbct-config-template-attachment)| `PbctConfigTemplateAttachment` |  | |  |  |
 | id | int64 (formatted integer)| `int64` |  | | 配置模板ID |  |
+| isConfigReleased | boolean| `bool` |  | |  |  |
+| isProcBound | boolean| `bool` |  | |  |  |
 | revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
 | spec | [PbctConfigTemplateSpec](#pbct-config-template-spec)| `PbctConfigTemplateSpec` |  | |  |  |
 
@@ -2716,9 +2716,9 @@ Content-Type: application/json
 
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
-| fileName | string| `string` |  | | 文件名 |  |
+| fullPath | string| `string` |  | | 文件路径 |  |
 | highlightStyle | string| `string` |  | | 语法高亮 |  |
-| name | string| `string` |  | | 配置模版名称 |  |
+| templateName | string| `string` |  | | 配置模版名称 |  |
 
 
 
