@@ -14,10 +14,12 @@ package migrator
 
 // TableMeta defines the migration metadata for a table
 type TableMeta struct {
-	Name        string            // Table name
-	IDColumn    string            // ID column name (default "id")
-	ForeignKeys map[string]string // Foreign key column -> referenced table name
-	HasBizID    bool              // Whether the table has biz_id column for filtering
+	Name         string            // Table name
+	IDColumn     string            // ID column name (default "id")
+	ForeignKeys  map[string]string // Foreign key column -> referenced table name
+	JSONArrayFKs map[string]string // JSON array column -> referenced table name (e.g. template_ids -> templates)
+	OptionalFKs  map[string]bool   // FK columns that allow soft failure: generate virtual ID when mapping not found
+	HasBizID     bool              // Whether the table has biz_id column for filtering
 }
 
 // TableMetas defines metadata for all 29 core tables
@@ -86,6 +88,10 @@ var TableMetas = map[string]TableMeta{
 		ForeignKeys: map[string]string{
 			"template_space_id": "template_spaces",
 		},
+		JSONArrayFKs: map[string]string{
+			"template_ids": "templates",
+			"bound_apps":   "applications",
+		},
 	},
 	"templates": {
 		Name:     "templates",
@@ -134,6 +140,10 @@ var TableMetas = map[string]TableMeta{
 		ForeignKeys: map[string]string{
 			"app_id":         "applications",
 			"config_item_id": "config_items",
+			"content_id":     "contents",
+		},
+		OptionalFKs: map[string]bool{
+			"config_item_id": true,
 		},
 	},
 	"contents": {
@@ -143,6 +153,9 @@ var TableMetas = map[string]TableMeta{
 		ForeignKeys: map[string]string{
 			"app_id":         "applications",
 			"config_item_id": "config_items",
+		},
+		OptionalFKs: map[string]bool{
+			"config_item_id": true,
 		},
 	},
 	"strategies": {
@@ -183,6 +196,10 @@ var TableMetas = map[string]TableMeta{
 			"release_id":     "releases",
 			"commit_id":      "commits",
 			"config_item_id": "config_items",
+			"content_id":     "contents",
+		},
+		OptionalFKs: map[string]bool{
+			"config_item_id": true,
 		},
 	},
 	"released_groups": {
@@ -232,6 +249,13 @@ var TableMetas = map[string]TableMeta{
 		ForeignKeys: map[string]string{
 			"app_id": "applications",
 		},
+		JSONArrayFKs: map[string]string{
+			"template_space_ids":    "template_spaces",
+			"template_set_ids":      "template_sets",
+			"template_ids":          "templates",
+			"template_revision_ids": "template_revisions",
+			"latest_template_ids":   "templates",
+		},
 	},
 	"app_template_variables": {
 		Name:     "app_template_variables",
@@ -246,8 +270,12 @@ var TableMetas = map[string]TableMeta{
 		IDColumn: "id",
 		HasBizID: true,
 		ForeignKeys: map[string]string{
-			"app_id":     "applications",
-			"release_id": "releases",
+			"app_id":               "applications",
+			"release_id":           "releases",
+			"template_space_id":    "template_spaces",
+			"template_set_id":      "template_sets",
+			"template_id":          "templates",
+			"template_revision_id": "template_revisions",
 		},
 	},
 	"released_app_template_variables": {
@@ -278,8 +306,8 @@ func TablesInCleanupOrder() []string {
 		"kvs",
 		"current_published_strategies",
 		"strategies",
-		"contents",
 		"commits",
+		"contents",
 
 		// Level 2
 		"group_app_binds",
@@ -319,15 +347,15 @@ func TablesInInsertOrder() []string {
 		"config_items",
 		"releases",
 		"strategy_sets",
-		"template_sets",
 		"templates",
+		"template_sets",
 		"hook_revisions",
 		"credential_scopes",
 		"group_app_binds",
 
 		// Level 3 (depends on Level 1 and Level 2)
-		"commits",
 		"contents",
+		"commits",
 		"strategies",
 		"current_published_strategies",
 		"kvs",
