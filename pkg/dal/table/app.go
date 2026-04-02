@@ -275,6 +275,7 @@ type ArchivedApp struct {
 	ID        uint32    `json:"id" gorm:"primaryKey"`
 	BizID     uint32    `json:"biz_id" gorm:"column:biz_id"`
 	AppID     uint32    `json:"app_id" gorm:"column:app_id"`
+	TenantID  string    `json:"tenant_id" gorm:"column:tenant_id"`
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at"`
 }
 
