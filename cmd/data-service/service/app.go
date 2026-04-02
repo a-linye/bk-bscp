@@ -449,9 +449,9 @@ func (s *Service) validateBizExist(kt *kit.Kit, bizID uint32) error {
 // BatchUpdateLastConsumedTime 批量更新最后一次拉取时间
 func (s *Service) BatchUpdateLastConsumedTime(ctx context.Context, req *pbds.BatchUpdateLastConsumedTimeReq) (
 	*pbds.BatchUpdateLastConsumedTimeResp, error) {
-	kit := kit.FromGrpcContext(ctx)
+	kt := kit.FromGrpcContext(ctx)
 
-	err := s.dao.App().BatchUpdateLastConsumedTime(kit, req.GetAppIds())
+	err := s.dao.App().BatchUpdateLastConsumedTime(kt.WithSkipTenantFilter(), req.GetAppIds())
 	if err != nil {
 		return nil, err
 	}

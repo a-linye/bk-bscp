@@ -31,7 +31,6 @@ import (
 //   - GetCurrentCursorReminder: global event cursor, not tenant-scoped
 //   - ListEventsMeta: global event list, server-side uses WithSkipTenantFilter
 //   - GetTenantIDByBiz: reverse-lookup tenant from biz_id (chicken-egg problem)
-//   - BatchUpsertClientMetrics: clients/client_events tables are excluded from tenant filter
 //   - BatchUpdateLastConsumedTime: system-level batch update, server-side uses WithSkipTenantFilter
 //   - GetAuthConf: bootstrap config (login/ESB/CMDB), read from static config, not tenant-scoped
 //   - GetUserInfo: cookie-based login exchanges token for user info (including tenant_id), caller does not yet know tenant_id
@@ -40,7 +39,6 @@ var tenantExemptMethods = map[string]struct{}{
 	"/pbcs.Cache/GetCurrentCursorReminder":   {},
 	"/pbcs.Cache/ListEventsMeta":             {},
 	"/pbcs.Cache/GetTenantIDByBiz":           {},
-	"/pbds.Data/BatchUpsertClientMetrics":    {},
 	"/pbds.Data/BatchUpdateLastConsumedTime": {},
 	"/pbas.Auth/GetAuthConf":                 {},
 	"/pbas.Auth/GetUserInfo":                 {},

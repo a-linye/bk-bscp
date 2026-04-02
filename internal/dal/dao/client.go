@@ -853,7 +853,7 @@ func (dao *clientDao) UpsertHeartbeat(kit *kit.Kit, tx *gen.QueryTx, data []*tab
 
 	q := tx.Client.WithContext(kit.Ctx)
 	return q.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}},
+		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"online_status", "last_heartbeat_time", "client_version", "ip", "annotations",
 			"release_change_status", "labels",
@@ -868,7 +868,7 @@ func (dao *clientDao) UpsertVersionChange(kit *kit.Kit, tx *gen.QueryTx, data []
 
 	q := tx.Client.WithContext(kit.Ctx)
 	return q.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}},
+		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"online_status", "last_heartbeat_time", "client_version", "client_type", "ip", "labels", "annotations",
 			"current_release_id", "target_release_id", "specific_failed_reason",

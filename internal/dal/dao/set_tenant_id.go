@@ -27,8 +27,8 @@ import (
 
 // 设置不需要 TenantID 的表
 var excludedTables = map[string]struct{}{
-	"clients":       {},
-	"client_events": {},
+	"configs":       {},
+	"id_generators": {},
 }
 
 // 注册回调
@@ -132,6 +132,10 @@ func hasTenantIDExpr(exprs []clause.Expression, qualifiedCol string) bool {
 // 新增和编辑前置操作
 func beforeAnyOp(db *gorm.DB) {
 	if _, excluded := excludedTables[db.Statement.Table]; excluded {
+		return
+	}
+	// 部分接口写入、更新允许跳过租户过滤
+	if skip, ok := db.Statement.Context.Value(constant.SkipTenantFilterKey).(bool); ok && skip {
 		return
 	}
 	kit := kit.FromGrpcContext(db.Statement.Context)

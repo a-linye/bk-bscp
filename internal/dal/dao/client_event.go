@@ -254,7 +254,8 @@ func (dao *clientEventDao) UpsertHeartbeat(kit *kit.Kit, tx *gen.QueryTx, data [
 			{Name: "biz_id"},
 			{Name: "app_id"},
 			{Name: "uid"},
-			{Name: "cursor_id"}},
+			{Name: "cursor_id"},
+			{Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"download_file_size", "download_file_num", "release_change_status",
 		}),
@@ -270,7 +271,8 @@ func (dao *clientEventDao) UpsertVersionChange(kit *kit.Kit, tx *gen.QueryTx, da
 			{Name: "biz_id"},
 			{Name: "app_id"},
 			{Name: "uid"},
-			{Name: "cursor_id"}},
+			{Name: "cursor_id"},
+			{Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"client_mode", "original_release_id", "target_release_id", "start_time", "end_time",
 			"release_change_status", "release_change_failed_reason", "failed_detail_reason",

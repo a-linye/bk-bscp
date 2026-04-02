@@ -81,6 +81,9 @@ func (c *ClientOnlineState) syncClientOnlineState(kt *kit.Kit) {
 	defer func() {
 		c.mutex.Unlock()
 	}()
+
+	kt = kt.WithSkipTenantFilter()
+
 	heartbeatTime := time.Now().Add(-60 * time.Second)
 	onlineStatus := "online"
 	var page uint32
