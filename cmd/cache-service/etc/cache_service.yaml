@@ -60,6 +60,11 @@ sharding:
     qps: 500
     burst: 500
 
+# 特性配置
+featureFlags:
+  # 是否开启多租户模式，默认 false
+  enableMultiTenantMode: false
+
 # defines all the redisCluster related settings
 redisCluster:
   # mode is redis mode, support options: standalone, cluster, default is standalone mode(standalone if not set)

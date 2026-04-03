@@ -555,10 +555,16 @@ func (dao *appDao) archiveApp(kit *kit.Kit, tx *gen.QueryTx, g *table.App) error
 		return err
 	}
 
+	tenantID := ""
+	if g.Spec != nil {
+		tenantID = g.Spec.TenantID
+	}
+
 	archivedApp := &table.ArchivedApp{
-		ID:    id,
-		AppID: g.ID,
-		BizID: g.BizID,
+		ID:       id,
+		AppID:    g.ID,
+		BizID:    g.BizID,
+		TenantID: tenantID,
 	}
 
 	q := tx.ArchivedApp.WithContext(kit.Ctx)

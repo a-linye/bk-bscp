@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	// MaxExecutionTime 最大执行时间
-	MaxExecutionTime = 30 * time.Second
+	// MaxExecutionTime 进程任务单步最大执行时间（含模板渲染与 GSE 调用）
+	MaxExecutionTime = 3 * time.Minute
 	// MaxTries 最大重试次数
 	MaxTries = 3
 )

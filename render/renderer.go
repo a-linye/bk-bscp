@@ -91,7 +91,7 @@ func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 	r := &Renderer{
 		uvPath:     "uv", // default to uv in PATH
 		scriptPath: defaultScriptPath,
-		timeout:    30 * time.Second, // default 30s timeout
+		timeout:    60 * time.Second,
 	}
 
 	// Apply options

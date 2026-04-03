@@ -20,10 +20,12 @@ import (
 	"time"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/cache-service/service/cache/client"
+	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/bedis"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/shutdown"
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbclient "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/client"
@@ -146,6 +148,7 @@ func (cm *ClientMetric) getClientMetricList(kt *kit.Kit, key string, listLen int
 // 处理 client metric 数据
 // client 表是按照 业务+服务+客户端 维度：数据做聚合
 // client event 表是按照 业务+服务+客户端+客户端模式+事件ID 维度：数据做聚合
+// nolint:funlen
 func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) error {
 	clientData := []*pbclient.Client{}
 	clientEventData := []*pbce.ClientEvent{}
@@ -222,12 +225,75 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 		clientEventData = append(clientEventData, v)
 	}
 
-	if err := cm.op.BatchUpsertClientMetrics(kt, clientData, clientEventData); err != nil {
-		logs.Errorf("batch upsert client metrics failed, rid: %s, err: %s", kt.Rid, err.Error())
-		return err
+	var bizTenantMap map[uint32]string
+	var err error
+	if cc.G().FeatureFlags.EnableMultiTenantMode {
+		bizTenantMap, err = cm.buildBizTenantMapMultiTenant(kt, clientData)
+		if err != nil {
+			logs.Errorf("build biz tenant map multi tenant failed, rid: %s, err: %s", kt.Rid, err.Error())
+			return err
+		}
+	} else {
+		kt = kt.Clone()
+		kt.TenantID = constant.DefaultTenantID
+		kt.Ctx = kt.RpcCtx()
+		bizTenantMap = buildBizTenantMapDefaultTenant(clientData)
+	}
+
+	tenantClients := make(map[string][]*pbclient.Client)
+	for _, item := range clientData {
+		tid := bizTenantMap[item.Attachment.BizId]
+		tenantClients[tid] = append(tenantClients[tid], item)
+	}
+	tenantEvents := make(map[string][]*pbce.ClientEvent)
+	for _, item := range clientEventData {
+		tid := bizTenantMap[item.Attachment.BizId]
+		tenantEvents[tid] = append(tenantEvents[tid], item)
+	}
+
+	for tenantID, clients := range tenantClients {
+		tkt := kt.Clone()
+		tkt.TenantID = tenantID
+		tkt.Ctx = tkt.RpcCtx()
+		if err := cm.op.BatchUpsertClientMetrics(tkt, clients, tenantEvents[tenantID]); err != nil {
+			logs.Errorf("batch upsert client metrics for tenant %s failed, rid: %s, err: %s",
+				tenantID, kt.Rid, err.Error())
+			return err
+		}
 	}
 
 	return nil
+}
+
+// buildBizTenantMapMultiTenant 按 bizID 解析租户
+func (cm *ClientMetric) buildBizTenantMapMultiTenant(kt *kit.Kit, clientData []*pbclient.Client) (map[uint32]string, error) {
+	bizTenantMap := make(map[uint32]string)
+	for _, item := range clientData {
+		bizID := item.Attachment.BizId
+		if _, ok := bizTenantMap[bizID]; ok {
+			continue
+		}
+		tenantID, err := cm.op.GetTenantIDByBiz(kt, bizID, false)
+		if err != nil {
+			logs.Errorf("resolve tenant id for biz %d failed, rid: %s, err: %s", bizID, kt.Rid, err.Error())
+			return nil, err
+		}
+		bizTenantMap[bizID] = tenantID
+	}
+	return bizTenantMap, nil
+}
+
+// buildBizTenantMapDefaultTenant 单租户模式：所有 biz 统一映射到默认租户。
+func buildBizTenantMapDefaultTenant(clientData []*pbclient.Client) map[uint32]string {
+	m := make(map[uint32]string)
+	for _, item := range clientData {
+		bizID := item.Attachment.BizId
+		if _, ok := m[bizID]; ok {
+			continue
+		}
+		m[bizID] = constant.DefaultTenantID
+	}
+	return m
 }
 
 // matchKeys xxx
