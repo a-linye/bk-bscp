@@ -36,8 +36,10 @@ type ProcessContext struct {
 	Scope           string                 `json:"Scope"`
 	FuncID          string                 `json:"FuncID"`
 	ModuleInstSeq   int                    `json:"ModuleInstSeq"`
+	ModuleInstSeq0  int                    `json:"ModuleInstSeq0"`
 	InstID0         int                    `json:"InstID0"`
 	HostInstSeq     int                    `json:"HostInstSeq"`
+	HostInstSeq0    int                    `json:"HostInstSeq0"`
 	LocalInstID0    int                    `json:"LocalInstID0"`
 	BkSetName       string                 `json:"bk_set_name"`
 	BkModuleName    string                 `json:"bk_module_name"`
