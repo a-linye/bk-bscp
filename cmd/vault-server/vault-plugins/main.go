@@ -23,6 +23,8 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/cmd/vault-server/vault-plugins/service"
 )
 
+// sadsa
+
 func main() {
 	apiClientMeta := &api.PluginAPIClientMeta{}
 	logger := hclog.New(&hclog.LoggerOptions{Name: "bcs-bscp-vault-plugin"})
