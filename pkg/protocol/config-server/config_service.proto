@@ -91,6 +91,9 @@ service Config {
     option (google.api.http) = {
       post: "/api/v1/config/list/app/app/biz_id/{biz_id}"
       body: "*"
+      additional_bindings {
+        get: "/api/v1/config/list/app/app/biz_id/{biz_id}"
+      }
     };
   }
   // 克隆服务
@@ -233,6 +236,10 @@ service Config {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/"
             "kvs"
       body: "*"
+      additional_bindings {
+        get: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/"
+             "kvs"
+      }
     };
   }
   // 列出所有已发布的配置项
