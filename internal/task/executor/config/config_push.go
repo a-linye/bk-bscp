@@ -55,7 +55,8 @@ const (
 // CallbackName push config callback name
 const CallbackName istep.CallbackName = "Callback"
 
-const scriptTimeoutSec = 3600
+// scriptTimeoutSec 脚本执行超时时间
+const scriptTimeoutSec = 180
 
 // PushConfigExecutor 配置下发执行器
 type PushConfigExecutor struct {

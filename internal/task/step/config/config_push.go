@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	// MaxExecutionTime 最大执行时间
-	MaxExecutionTime = 30 * time.Second
+	// MaxExecutionTime 最大执行时间，需大于 common.scriptPollTimeout(240s)
+	MaxExecutionTime = 300 * time.Second
 )
 
 // ValidatePushConfig 验证配置下发步骤

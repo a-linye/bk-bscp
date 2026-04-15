@@ -236,16 +236,21 @@ if exist "!TARGET_PATH!" (
     echo [INFO] 目标文件不存在，跳过备份。
 )
 
-REM 5. 写入配置文件（base64 解码）
+REM 5. 写入配置文件（base64 解码），使用唯一临时文件名避免并发冲突
 if exist "%%TARGET_PATH%%" del /f "%%TARGET_PATH%%"
-echo %s > "%%TEMP%%\bscp_tmp.b64"
-certutil -decode "%%TEMP%%\bscp_tmp.b64" "%%TARGET_PATH%%"
-if !ERRORLEVEL! neq 0 (
-    echo DECODE_FAILED
-    del "%%TEMP%%\bscp_tmp.b64"
+set "BSCP_TMP=%%TEMP%%\bscp_%%RANDOM%%_%%TIME:~6,2%%%%TIME:~9,2%%.b64"
+echo %s > "!BSCP_TMP!"
+if not exist "!BSCP_TMP!" (
+    echo WRITE_TMP_FAILED
     exit /b 1
 )
-del "%%TEMP%%\bscp_tmp.b64"
+certutil -decode "!BSCP_TMP!" "%%TARGET_PATH%%"
+if !ERRORLEVEL! neq 0 (
+    echo DECODE_FAILED
+    del "!BSCP_TMP!" 2>nul
+    exit /b 1
+)
+del "!BSCP_TMP!" 2>nul
 
 REM 6. 设置权限
 icacls "%%TARGET_PATH%%" /setowner "%s" >nul 2>&1
