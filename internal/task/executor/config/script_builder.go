@@ -192,10 +192,10 @@ if not exist "%%TARGET_DIR%%" mkdir "%%TARGET_DIR%%"
 if exist "!TARGET_PATH!" (
     echo [INFO] 发现原文件，准备备份...
 
-    REM 获取时间戳（修复 Go 反引号问题）
-    for /f "delims=" %%i in (
+    REM 获取时间戳
+    for /f "delims=" %%%%i in (
         'powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmss"'
-    ) do set "STAMP=%%i"
+    ) do set "STAMP=%%%%i"
 
     echo [INFO] 时间戳: !STAMP!
 
@@ -210,7 +210,7 @@ if exist "!TARGET_PATH!" (
 
     REM 3. 统计备份数量
     set /a COUNT=0
-    for /f "delims=" %%f in (
+    for /f "delims=" %%%%f in (
         'dir /b /o:d "!TARGET_DIR!!TARGET_NAME!.*.bak" 2^>nul'
     ) do set /a COUNT+=1
 
@@ -222,12 +222,12 @@ if exist "!TARGET_PATH!" (
         echo [INFO] 需删除最旧备份数: !DEL_COUNT!
 
         set /a IDX=0
-        for /f "delims=" %%f in (
+        for /f "delims=" %%%%f in (
             'dir /b /o:d "!TARGET_DIR!!TARGET_NAME!.*.bak" 2^>nul'
         ) do (
             if !IDX! lss !DEL_COUNT! (
-                echo [CLEAN] 删除旧备份: %%f
-                del /f /q "!TARGET_DIR!%%f" >nul 2>&1
+                echo [CLEAN] 删除旧备份: %%%%f
+                del /f /q "!TARGET_DIR!%%%%f" >nul 2>&1
                 set /a IDX+=1
             )
         )
@@ -236,16 +236,27 @@ if exist "!TARGET_PATH!" (
     echo [INFO] 目标文件不存在，跳过备份。
 )
 
-REM 5. 写入配置文件（base64 解码）
-if exist "%%TARGET_PATH%%" del /f "%%TARGET_PATH%%"
-echo %s > "%%TEMP%%\bscp_tmp.b64"
-certutil -decode "%%TEMP%%\bscp_tmp.b64" "%%TARGET_PATH%%"
-if !ERRORLEVEL! neq 0 (
-    echo DECODE_FAILED
-    del "%%TEMP%%\bscp_tmp.b64"
+REM 5. 写入配置文件（base64 解码），用目标文件名隔离临时文件避免并发碰撞
+set "BSCP_TMP=%%TEMP%%\bscp_!TARGET_NAME!_%%RANDOM%%.b64"
+set "BSCP_OUT=%%TEMP%%\bscp_!TARGET_NAME!_%%RANDOM%%.out"
+echo %s > "!BSCP_TMP!"
+if not exist "!BSCP_TMP!" (
+    echo WRITE_TMP_FAILED
     exit /b 1
 )
-del "%%TEMP%%\bscp_tmp.b64"
+certutil -decode "!BSCP_TMP!" "!BSCP_OUT!"
+if !ERRORLEVEL! neq 0 (
+    echo DECODE_FAILED
+    del "!BSCP_TMP!" 2>nul
+    del "!BSCP_OUT!" 2>nul
+    exit /b 1
+)
+del "!BSCP_TMP!" 2>nul
+move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul || (
+    echo MOVE_FAILED
+    del "!BSCP_OUT!" 2>nul
+    exit /b 1
+)
 
 REM 6. 设置权限
 icacls "%%TARGET_PATH%%" /setowner "%s" >nul 2>&1
