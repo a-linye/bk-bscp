@@ -55,9 +55,6 @@ const (
 // CallbackName push config callback name
 const CallbackName istep.CallbackName = "Callback"
 
-// scriptTimeoutSec 脚本执行超时时间
-const scriptTimeoutSec = 180
-
 // PushConfigExecutor 配置下发执行器
 type PushConfigExecutor struct {
 	*common.Executor
@@ -73,6 +70,7 @@ func NewPushConfigExecutor(dao dao.Set, gseService *gse.Service, cmdbService bkc
 			Dao:         dao,
 			GseService:  gseService,
 			GseConf:     cc.G().GSE,
+			TaskConf:    cc.G().TaskFramework,
 			CMDBService: cmdbService,
 			PM:          pm,
 		},
@@ -171,7 +169,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 			{ScriptName: scriptName, ScriptStoreDir: storeDir, ScriptContent: script},
 		},
 		AtomicTasks: []gse.AtomicTask{
-			{Command: command, AtomicTaskID: 0, TimeoutSeconds: scriptTimeoutSec},
+			{Command: command, AtomicTaskID: 0, TimeoutSeconds: e.TaskConf.ScriptExecution.TimeoutSec},
 		},
 		AtomicTasksRelations: []gse.AtomicTaskRelation{
 			{AtomicTaskID: 0, AtomicTaskIDIdx: []int{}},

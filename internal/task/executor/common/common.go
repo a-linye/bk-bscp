@@ -35,17 +35,6 @@ import (
 )
 
 const (
-	// scriptPollTimeout 脚本执行轮询总超时
-	scriptPollTimeout = 240 * time.Second
-	// interval 脚本执行轮询间隔
-	interval = 2 * time.Second
-
-	// procOperateInterval 用户发起的进程操作轮询间隔
-	procOperateInterval = 3 * time.Second
-	// procOperateMaxRetries 用户发起的进程操作允许的 115 最大重试次数
-	// 配合 procOperateInterval=3s，总等待约 3 分钟
-	procOperateMaxRetries = 60
-
 	dimBizName  = "biz_name"
 	dimTaskID   = "task_id"
 	dimOperator = "operator"
@@ -133,7 +122,9 @@ type Executor struct {
 	// GseConf GSE 运行时配置
 	// 包含 GSE 服务地址、鉴权信息等静态配置
 	GseConf cc.GSE
-	RedLock *lock.RedisLock
+	// TaskConf 异步任务框架时间控制配置
+	TaskConf cc.TaskFramework
+	RedLock  *lock.RedisLock
 }
 
 // TaskPayload 公用的配置，作为任务快照，方便进行获取以及对比
@@ -251,12 +242,12 @@ func (e *Executor) WaitProcOperateTaskFinish(
 			inProgressCount++
 			if inProgressCount%10 == 1 {
 				logs.Infof("WaitTaskFinish task %s in progress, retry=%d/%d",
-					gseTaskID, inProgressCount, procOperateMaxRetries)
+					gseTaskID, inProgressCount, e.TaskConf.ProcessPoll.MaxRetries)
 			}
 
-			if inProgressCount >= procOperateMaxRetries {
+			if inProgressCount >= e.TaskConf.ProcessPoll.MaxRetries {
 				logs.Warnf("WaitTaskFinish task %s exceeded max retries (%d), errorCode=%d, errorMsg=%s",
-					gseTaskID, procOperateMaxRetries,
+					gseTaskID, e.TaskConf.ProcessPoll.MaxRetries,
 					procResult.ErrorCode, procResult.ErrorMsg)
 				return task.ErrEndLoop
 			}
@@ -269,7 +260,7 @@ func (e *Executor) WaitProcOperateTaskFinish(
 			gseTaskID, procResult.ErrorCode, inProgressCount)
 		return task.ErrEndLoop
 
-	}, task.LoopInterval(procOperateInterval))
+	}, task.LoopInterval(e.TaskConf.ProcessPoll.PollInterval))
 
 	if err != nil {
 		logs.Errorf("WaitTaskFinish error, gseTaskID %s, err=%+v", gseTaskID, err)
@@ -333,7 +324,7 @@ func (e *Executor) WaitExecuteScriptFinish(ctx context.Context, gseTaskID, bkAge
 
 	var result *gse.ExecuteScriptResult
 
-	pollCtx, cancel := context.WithTimeout(ctx, scriptPollTimeout)
+	pollCtx, cancel := context.WithTimeout(ctx, e.TaskConf.ScriptExecution.PollTimeout)
 	defer cancel()
 
 	err := task.LoopDoFunc(pollCtx, func() error {
@@ -376,7 +367,7 @@ func (e *Executor) WaitExecuteScriptFinish(ctx context.Context, gseTaskID, bkAge
 
 		logs.Infof("WaitExecuteScriptFinish task %s finished", gseTaskID)
 		return task.ErrEndLoop
-	}, task.LoopInterval(interval))
+	}, task.LoopInterval(e.TaskConf.ScriptExecution.PollInterval))
 
 	if err != nil {
 		return nil, fmt.Errorf("get execute script result failed, taskID=%s, err=%v", gseTaskID, err)
