@@ -13,7 +13,6 @@
 package components
 
 import (
-	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
@@ -70,11 +69,9 @@ func initThirdPartyMetric() *tpMetric {
 func recordResponseMetrics(resp *resty.Response) {
 	m := initThirdPartyMetric()
 
-	rawURL := resp.Request.RawRequest.URL.String()
-	component := extractComponent(rawURL)
+	component, caller := resolveComponentAndCaller()
 	method := resp.Request.Method
 	status := statusGroup(resp.StatusCode())
-	caller := getCallerFromStack()
 
 	m.requestsTotal.WithLabelValues(component, method, status, caller).Inc()
 	m.requestDuration.WithLabelValues(component, method, caller).Observe(float64(resp.Time().Milliseconds()))
@@ -84,30 +81,84 @@ func recordResponseMetrics(resp *resty.Response) {
 func recordErrorMetrics(req *resty.Request) {
 	m := initThirdPartyMetric()
 
-	rawURL := req.RawRequest.URL.String()
-	component := extractComponent(rawURL)
+	component, caller := resolveComponentAndCaller()
 	method := req.Method
-	caller := getCallerFromStack()
 
 	m.requestsTotal.WithLabelValues(component, method, "error", caller).Inc()
 }
 
-// knownComponents maps URL host keywords to component names.
-var knownComponents = []string{"cmdb", "gse", "itsm", "bcs", "paas", "user", "notice", "push", "nodeman"}
+const (
+	unknownComponent = "unknown"
+	unknownCaller    = "unknown"
 
-// extractComponent identifies the third-party component from a request URL.
-func extractComponent(rawURL string) string {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "unknown"
+	// componentsPkgPrefix 是 internal/components 下子包的完整路径前缀，
+	// 用于从调用栈 frame.Function 中识别出是哪个组件发起的请求。
+	componentsPkgPrefix = "github.com/TencentBlueKing/bk-bscp/internal/components/"
+)
+
+// extractComponentFromFrame 从调用栈 frame.Function 中提取组件名，
+// 即 internal/components 下第一级子包的包名。
+//
+// 例如:
+//
+//	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb.(*CMDBService).doRequest"
+//	  -> "bkcmdb"
+//	"github.com/TencentBlueKing/bk-bscp/internal/components/itsm/v4.CreateTicket"
+//	  -> "itsm"
+func extractComponentFromFrame(funcName string) (string, bool) {
+	if !strings.HasPrefix(funcName, componentsPkgPrefix) {
+		return "", false
 	}
-	host := strings.ToLower(u.Hostname())
-	for _, keyword := range knownComponents {
-		if strings.Contains(host, keyword) {
-			return keyword
+	rest := funcName[len(componentsPkgPrefix):]
+
+	// 取到包边界：'/' 表示更深一级子包（如 itsm/v4），'.' 表示包内函数。
+	end := len(rest)
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == '/' || rest[i] == '.' {
+			end = i
+			break
 		}
 	}
-	return host
+	if end == 0 {
+		return "", false
+	}
+	return rest[:end], true
+}
+
+// resolveComponentAndCaller 在同一次调用栈回溯里同时解析出 component 和 caller：
+//   - component: 第一个属于 internal/components/<子包> 的 frame 所对应的组件名
+//   - caller:    第一个跳过 resty + components 根 + 底层 HTTP wrapper 之后的 frame 的短函数名
+func resolveComponentAndCaller() (component, caller string) {
+	component = unknownComponent
+	caller = unknownCaller
+
+	pcs := make([]uintptr, 20)
+	// 跳过 runtime.Callers 自身 + 当前函数 + 调用者（recordXxxMetrics）
+	n := runtime.Callers(3, pcs)
+	if n == 0 {
+		return component, caller
+	}
+
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		frame, more := frames.Next()
+
+		if component == unknownComponent {
+			if c, ok := extractComponentFromFrame(frame.Function); ok {
+				component = c
+			}
+		}
+		if caller == unknownCaller && !shouldSkipFrame(frame.Function) {
+			caller = extractShortFuncName(frame.Function)
+		}
+
+		if component != unknownComponent && caller != unknownCaller {
+			return component, caller
+		}
+		if !more {
+			return component, caller
+		}
+	}
 }
 
 // statusGroup converts an HTTP status code to a group label (2xx, 3xx, 4xx, 5xx).
@@ -132,33 +183,21 @@ var skipPrefixes = []string{
 	"github.com/TencentBlueKing/bk-bscp/internal/components.",
 }
 
-// getCallerFromStack walks the call stack to find the business caller
-// that initiated the third-party API request.
-func getCallerFromStack() string {
-	pcs := make([]uintptr, 20)
-	n := runtime.Callers(3, pcs)
-	if n == 0 {
-		return "unknown"
-	}
-	frames := runtime.CallersFrames(pcs[:n])
-	for {
-		frame, more := frames.Next()
-		if shouldSkipFrame(frame.Function) {
-			if !more {
-				break
-			}
-			continue
-		}
-		return extractShortFuncName(frame.Function)
-	}
-	return "unknown"
+// skipFuncSuffixes 用于跳过组件包内的「底层 HTTP 封装函数」。
+var skipFuncSuffixes = []string{
+	".doRequest",
+	".ItsmRequest",
 }
 
-// shouldSkipFrame returns true if the frame belongs to resty internals or
-// the components package itself.
+// shouldSkipFrame returns true if the frame belongs to resty internals,
 func shouldSkipFrame(funcName string) bool {
 	for _, prefix := range skipPrefixes {
 		if strings.Contains(funcName, prefix) {
+			return true
+		}
+	}
+	for _, suffix := range skipFuncSuffixes {
+		if strings.HasSuffix(funcName, suffix) {
 			return true
 		}
 	}
