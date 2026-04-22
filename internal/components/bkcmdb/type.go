@@ -777,6 +777,7 @@ type HostPropertyRule struct {
 // HostPropertyOperator 主机属性操作符常量
 const (
 	HostPropertyOperatorEqual = "equal"
+	HostPropertyOperatorIn    = "in"
 )
 
 // HostPropertyCondition 主机属性条件常量
