@@ -173,7 +173,11 @@ func restyAfterResponseHook(c *resty.Client, r *resty.Response) error {
 }
 
 func restyBeforeRequestHook(c *resty.Client, r *resty.Request) error {
-	component := resolveComponent()
+	component, caller := resolveComponentAndCaller()
+
+	ctx := withComponentCaller(r.RawRequest.Context(), component, caller)
+	r.SetContext(ctx)
+
 	if limiter := GetComponentLimiter(); limiter != nil && component != unknownComponent {
 		if err := limiter.Acquire(r.RawRequest.Context(), component); err != nil {
 			return err
