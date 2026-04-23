@@ -161,6 +161,11 @@ func resolveComponentAndCaller() (component, caller string) {
 	}
 }
 
+func resolveComponent() string {
+	component, _ := resolveComponentAndCaller()
+	return component
+}
+
 // statusGroup converts an HTTP status code to a group label (2xx, 3xx, 4xx, 5xx).
 func statusGroup(code int) string {
 	switch {

@@ -173,6 +173,12 @@ func restyAfterResponseHook(c *resty.Client, r *resty.Response) error {
 }
 
 func restyBeforeRequestHook(c *resty.Client, r *resty.Request) error {
+	component := resolveComponent()
+	if limiter := GetComponentLimiter(); limiter != nil && component != unknownComponent {
+		if err := limiter.Acquire(r.RawRequest.Context(), component); err != nil {
+			return err
+		}
+	}
 	klog.Infof("[%s] REQ: %s", RequestIDValue(r.RawRequest.Context()), restyReqToCurl(r))
 	SetRequestIDHeaderValue(r.RawRequest, RequestIDValue(r.RawRequest.Context()))
 	return nil

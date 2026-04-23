@@ -36,6 +36,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	pushmanager "github.com/TencentBlueKing/bk-bscp/internal/components/push_manager"
+	componentratelimit "github.com/TencentBlueKing/bk-bscp/internal/components/ratelimit"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/bedis"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/repository"
@@ -122,6 +123,10 @@ func (ds *dataService) prepare(opt *options.Option) error {
 	logs.InitLogger(cc.DataService().Log.Logs())
 
 	logs.Infof("load settings from config file success.")
+
+	if err := componentratelimit.Setup(cc.DataServiceName); err != nil {
+		return fmt.Errorf("setup component rate limit failed, err: %v", err)
+	}
 
 	// init metrics
 	metrics.InitMetrics(net.JoinHostPort(cc.DataService().Network.BindIP,

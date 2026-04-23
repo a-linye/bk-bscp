@@ -29,6 +29,7 @@ import (
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/options"
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/service"
+	componentratelimit "github.com/TencentBlueKing/bk-bscp/internal/components/ratelimit"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/brpc"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/ctl"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/ctl/cmd"
@@ -87,6 +88,10 @@ func (as *authService) prepare(opt *options.Option) error {
 	logs.InitLogger(cc.AuthServer().Log.Logs())
 
 	logs.Infof("load settings from config file success.")
+
+	if err := componentratelimit.Setup(cc.AuthServerName); err != nil {
+		return fmt.Errorf("setup component rate limit failed, err: %v", err)
+	}
 
 	// init metrics
 	metrics.InitMetrics(net.JoinHostPort(cc.AuthServer().Network.BindIP,
