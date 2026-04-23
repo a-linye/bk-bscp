@@ -1420,6 +1420,10 @@ func (c ComponentRateLimit) validate() error {
 		return nil
 	}
 
+	if err := c.RedisCluster.validate(); err != nil {
+		return fmt.Errorf("component rate limit redis: %w", err)
+	}
+
 	if c.WindowSeconds == 0 {
 		return errors.New("component rate limit windowSeconds must be greater than 0")
 	}

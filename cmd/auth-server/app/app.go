@@ -89,13 +89,13 @@ func (as *authService) prepare(opt *options.Option) error {
 
 	logs.Infof("load settings from config file success.")
 
-	if err := componentratelimit.Setup(cc.AuthServerName); err != nil {
-		return fmt.Errorf("setup component rate limit failed, err: %v", err)
-	}
-
 	// init metrics
 	metrics.InitMetrics(net.JoinHostPort(cc.AuthServer().Network.BindIP,
 		strconv.Itoa(int(cc.AuthServer().Network.RpcPort))))
+
+	if err := componentratelimit.Setup(cc.AuthServerName); err != nil {
+		return fmt.Errorf("setup component rate limit failed, err: %v", err)
+	}
 
 	etcdOpt, err := cc.AuthServer().Service.Etcd.ToConfig()
 	if err != nil {

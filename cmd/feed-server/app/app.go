@@ -90,13 +90,13 @@ func (fs *feedServer) prepare(opt *options.Option) error {
 	logs.Infof("load settings from config file success.")
 	logs.Infof("current service name: %s", opt.Name)
 
-	if err := componentratelimit.Setup(cc.FeedServerName); err != nil {
-		return fmt.Errorf("setup component rate limit failed, err: %v", err)
-	}
-
 	// init metrics
 	metrics.InitMetrics(net.JoinHostPort(cc.FeedServer().Network.BindIP,
 		strconv.Itoa(int(cc.FeedServer().Network.RpcPort))))
+
+	if err := componentratelimit.Setup(cc.FeedServerName); err != nil {
+		return fmt.Errorf("setup component rate limit failed, err: %v", err)
+	}
 
 	etcdOpt, err := cc.FeedServer().Service.Etcd.ToConfig()
 	if err != nil {

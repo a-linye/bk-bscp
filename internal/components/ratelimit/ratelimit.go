@@ -112,12 +112,19 @@ func NewRedisLimiter(cfg cc.ComponentRateLimit, redisClient bedis.Client) (*fixe
 // Acquire 尝试获取限流许可。超限时延迟等待到下一个窗口重试，最多等待 maxWaitSeconds。
 func (l *fixedWindowLimiter) Acquire(ctx context.Context, component string) error {
 	if l == nil || !l.cfg.Enabled {
+		logs.Infof("component rate limit not enabled, component=%s", component)
 		return nil
 	}
 
 	rule, ok := l.cfg.Components[component]
 	if !ok || !rule.Enabled || rule.Limit == 0 {
+		logs.Infof("component rate limit not enabled, component=%s", component)
 		return nil
+	}
+
+	if ctx.Err() != nil {
+		logs.Warnf("rate limit skip component=%s, context already expired: %v", component, ctx.Err())
+		return ctx.Err()
 	}
 
 	maxWait := time.Duration(l.cfg.MaxWaitSeconds) * time.Second
@@ -159,6 +166,13 @@ func (l *fixedWindowLimiter) Acquire(ctx context.Context, component string) erro
 			case <-timer.C:
 				continue
 			}
+		}
+
+		// 区分 context 过期和 Redis 真正异常
+		if waitCtx.Err() != nil {
+			l.metric.acquireTotal.WithLabelValues(component, "timeout").Inc()
+			logs.Warnf("rate limit context expired component=%s, err: %v", component, waitCtx.Err())
+			return waitCtx.Err()
 		}
 
 		// Redis 异常
