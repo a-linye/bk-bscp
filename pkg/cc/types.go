@@ -1379,12 +1379,13 @@ type RateLimiter struct {
 
 // ComponentRateLimit defines component-level outbound request throttling.
 type ComponentRateLimit struct {
-	Enabled       bool                             `yaml:"enabled"`
-	FailOpen      *bool                            `yaml:"failOpen"`
-	WindowSeconds uint                             `yaml:"windowSeconds"`
-	KeyTTLSeconds uint                             `yaml:"keyTTLSeconds"`
-	RedisCluster  RedisCluster                     `yaml:"redisCluster"`
-	Components    map[string]ComponentRateLimitRule `yaml:"components"`
+	Enabled        bool                             `yaml:"enabled"`
+	FailOpen       *bool                            `yaml:"failOpen"`
+	WindowSeconds  uint                             `yaml:"windowSeconds"`
+	KeyTTLSeconds  uint                             `yaml:"keyTTLSeconds"`
+	MaxWaitSeconds uint                             `yaml:"maxWaitSeconds"`
+	RedisCluster   RedisCluster                     `yaml:"redisCluster"`
+	Components     map[string]ComponentRateLimitRule `yaml:"components"`
 }
 
 // ComponentRateLimitRule defines rate limit options for one component.
@@ -1404,6 +1405,9 @@ func (c *ComponentRateLimit) trySetDefault() {
 	}
 	if c.KeyTTLSeconds == 0 {
 		c.KeyTTLSeconds = c.WindowSeconds + 2
+	}
+	if c.MaxWaitSeconds == 0 {
+		c.MaxWaitSeconds = 10
 	}
 	if c.Components == nil {
 		c.Components = make(map[string]ComponentRateLimitRule)
