@@ -113,6 +113,21 @@ func (bs *bedis) SetNX(ctx context.Context, key string, value interface{}, ttlSe
 	return bs.client.SetNX(ctx, key, value, time.Duration(ttlSeconds)*time.Second).Result()
 }
 
+// Incr atomically increments a key and returns the new value.
+func (bs *bedis) Incr(ctx context.Context, key string) (int64, error) {
+	start := time.Now()
+	value, err := bs.client.Incr(ctx, key).Result()
+	if err != nil {
+		bs.mc.errCounter.With(prm.Labels{"cmd": "incr"}).Inc()
+		return 0, err
+	}
+
+	bs.logSlowCmd(ctx, key, time.Since(start))
+	bs.mc.cmdLagMS.With(prm.Labels{"cmd": "incr"}).Observe(float64(time.Since(start).Milliseconds()))
+
+	return value, nil
+}
+
 // Get a key's value.
 func (bs *bedis) Get(ctx context.Context, key string) (string, error) {
 
@@ -410,7 +425,7 @@ func (bs *bedis) Expire(ctx context.Context, key string, ttlSeconds int, mode Ex
 		}
 	}
 
-	if err := bs.client.Do(ctx, args).Err(); err != nil {
+	if err := bs.client.Do(ctx, args...).Err(); err != nil {
 		bs.mc.errCounter.With(prm.Labels{"cmd": "expire"}).Inc()
 		return err
 	}

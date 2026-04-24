@@ -1377,6 +1377,81 @@ type RateLimiter struct {
 	IP              BasicRL `yaml:"ip"`
 }
 
+// ComponentRateLimit defines component-level outbound request throttling.
+type ComponentRateLimit struct {
+	Enabled        bool                             `yaml:"enabled"`
+	FailOpen       *bool                            `yaml:"failOpen"`
+	WindowSeconds  uint                             `yaml:"windowSeconds"`
+	KeyTTLSeconds  uint                             `yaml:"keyTTLSeconds"`
+	MaxWaitSeconds uint                             `yaml:"maxWaitSeconds"`
+	RedisCluster   RedisCluster                     `yaml:"redisCluster"`
+	Components     map[string]ComponentRateLimitRule `yaml:"components"`
+}
+
+// ComponentRateLimitRule defines rate limit options for one component.
+type ComponentRateLimitRule struct {
+	Enabled bool `yaml:"enabled"`
+	Limit   uint `yaml:"limit"`
+}
+
+// trySetDefault sets defaults for component-level throttling.
+func (c *ComponentRateLimit) trySetDefault() {
+	if c.FailOpen == nil {
+		failOpen := true
+		c.FailOpen = &failOpen
+	}
+	if c.WindowSeconds == 0 {
+		c.WindowSeconds = 1
+	}
+	if c.KeyTTLSeconds == 0 {
+		c.KeyTTLSeconds = c.WindowSeconds + 2
+	}
+	if c.MaxWaitSeconds == 0 {
+		c.MaxWaitSeconds = 10
+	}
+	if c.Components == nil {
+		c.Components = make(map[string]ComponentRateLimitRule)
+	}
+}
+
+// validate component-level throttling configuration.
+func (c ComponentRateLimit) validate() error {
+	if !c.Enabled {
+		return nil
+	}
+
+	if err := c.RedisCluster.validate(); err != nil {
+		return fmt.Errorf("component rate limit redis: %w", err)
+	}
+
+	if c.WindowSeconds == 0 {
+		return errors.New("component rate limit windowSeconds must be greater than 0")
+	}
+	if c.KeyTTLSeconds == 0 {
+		return errors.New("component rate limit keyTTLSeconds must be greater than 0")
+	}
+	if c.KeyTTLSeconds < c.WindowSeconds {
+		return errors.New("component rate limit keyTTLSeconds must be greater than or equal to windowSeconds")
+	}
+	for component, rule := range c.Components {
+		if !rule.Enabled {
+			continue
+		}
+		if rule.Limit == 0 {
+			return fmt.Errorf("component rate limit %s limit must be greater than 0", component)
+		}
+	}
+	return nil
+}
+
+// FailOpenEnabled returns whether runtime errors should fail open.
+func (c ComponentRateLimit) FailOpenEnabled() bool {
+	if c.FailOpen == nil {
+		return true
+	}
+	return *c.FailOpen
+}
+
 // metrics 上报时过滤的业务名单
 type Metric struct {
 	BlacklistBizIDs []uint32 `yaml:"blacklistBizIds"`
@@ -1426,8 +1501,8 @@ func (rl RateLimiter) validate() error {
 
 	for bizID, l := range rl.Biz.Spec {
 		if l.Burst < l.Limit {
-			return fmt.Errorf("invalid rateLimiter.biz.spec.%d.burst value %d, "+
-				"should >= rateLimiter.biz.spec.%d.limit value %d", bizID, l.Burst, bizID, l.Limit)
+			return fmt.Errorf("invalid rateLimiter.biz.spec.%s.burst value %d, "+
+				"should >= rateLimiter.biz.spec.%s.limit value %d", bizID, l.Burst, bizID, l.Limit)
 		}
 	}
 
