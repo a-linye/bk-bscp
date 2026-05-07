@@ -19945,7 +19945,7 @@
         },
         "environment": {
           "type": "string",
-          "description": "环境类型(production/staging等)"
+          "description": "环境类型(1:测试, 2:体验, 3:正式)"
         },
         "alias": {
           "type": "string",

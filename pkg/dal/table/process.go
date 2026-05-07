@@ -98,7 +98,7 @@ type ProcessSpec struct {
 	SetName              string       `gorm:"column:set_name" json:"set_name"`                               // 集群
 	ModuleName           string       `gorm:"column:module_name" json:"module_name"`                         // 模块
 	ServiceName          string       `gorm:"column:service_name" json:"service_name"`                       // 服务实例名称
-	Environment          string       `gorm:"column:environment" json:"environment"`                         // 环境类型(production/staging等)
+	Environment          string       `gorm:"column:environment" json:"environment"`                         // 环境类型(1:测试, 2:体验, 3:正式)
 	Alias                string       `gorm:"column:alias" json:"alias"`                                     // 进程别名
 	InnerIP              string       `gorm:"column:inner_ip" json:"inner_ip"`                               // 内网IP
 	InnerIPV6            string       `gorm:"column:inner_ip_v6" json:"inner_ip_v6"`                         // 内网IPv6
