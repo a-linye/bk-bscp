@@ -18,11 +18,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/gsekit-migration/config"
 )
+
+// gsekitRenderCooldown is the mandatory delay after each GSEKit render call
+// to avoid overloading the preview API.
+const gsekitRenderCooldown = 300 * time.Millisecond
 
 // GSEKitClient defines the interface for GSEKit API operations.
 type GSEKitClient interface {
@@ -66,6 +71,11 @@ type gsekitBaseResp struct {
 func (c *realGSEKitClient) PreviewConfigTemplate(
 	ctx context.Context, bizID uint32, content string, bkProcessID int64,
 ) (string, error) {
+	defer func() {
+		log.Printf("  [GSEKit] render cooldown %v", gsekitRenderCooldown)
+		time.Sleep(gsekitRenderCooldown)
+	}()
+
 	url := fmt.Sprintf("%s/api/%d/config_version/preview/", c.cfg.Endpoint, bizID)
 
 	reqBody := map[string]interface{}{
