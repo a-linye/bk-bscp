@@ -27,7 +27,7 @@ message ProcessSpec {
   string service_name = 3
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务实例名称" }];
   string environment = 4
-      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境类型(production/staging等)" }];
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境类型(1:测试, 2:体验, 3:正式)" }];
   string alias = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程别名" }];
   string inner_ip = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "内网IP" }];
   string cc_sync_status = 7 [

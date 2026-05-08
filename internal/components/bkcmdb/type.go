@@ -1038,7 +1038,7 @@ type ProcessRelatedInfoItem struct {
 // ProcessSetInfo 集群信息
 type ProcessSetInfo struct {
 	BkSetID   int64  `json:"bk_set_id"`   // 集群ID
-	BkSetEnv  string `json:"bk_set_env"`  // 环境类型: "3"(测试), "1"(正式) 等
+	BkSetEnv  string `json:"bk_set_env"`  // 环境类型: 1-测试, 2-体验, 3-正式
 	BkSetName string `json:"bk_set_name"` // 集群名称
 }
 
