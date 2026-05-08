@@ -292,6 +292,82 @@
       }
     },
     "/api/v1/config/list/app/app/biz_id/{bizId}": {
+      "get": {
+        "summary": "按 space 查询 app 信息",
+        "operationId": "Config_ListAppsBySpaceRest2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListAppsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "start",
+            "description": "当前页码",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "limit",
+            "description": "每页条数",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "all",
+            "description": "是否获取所有",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "topIds",
+            "description": "需要置顶ID",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "configType",
+            "description": "服务类型：文件型=file, 键值型=kv",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "search",
+            "description": "搜索条件",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      },
       "post": {
         "summary": "按 space 查询 app 信息",
         "operationId": "Config_ListAppsBySpaceRest",
@@ -1130,6 +1206,115 @@
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs": {
+      "get": {
+        "summary": "获取已生成版本键值配置项列表",
+        "operationId": "Config_ListReleasedKvs2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListReleasedKvsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "releaseId",
+            "description": "服务版本ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "start",
+            "description": "当前页码",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "limit",
+            "description": "每页条数",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "all",
+            "description": "是否获取所有",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "kvType",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      },
       "post": {
         "summary": "获取已生成版本键值配置项列表",
         "operationId": "Config_ListReleasedKvs",
@@ -9676,7 +9861,7 @@
       }
     },
     "/api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId}": {
-      "get": {
+      "post": {
         "summary": "根据服务模板查询模板进程列表",
         "operationId": "Config_ProcessTemplate",
         "responses": {
@@ -9709,6 +9894,14 @@
             "required": true,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigProcessTemplateBody"
+            }
           }
         ],
         "tags": [
@@ -13098,6 +13291,19 @@
           "type": "integer",
           "format": "int64",
           "description": "模块下的递增ID序号(未提供则默认渲染序列号最小的实例)"
+        }
+      }
+    },
+    "ConfigProcessTemplateBody": {
+      "type": "object",
+      "properties": {
+        "processTemplateIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "进程模板ID列表"
         }
       }
     },
@@ -19058,6 +19264,14 @@
           "type": "integer",
           "format": "int64",
           "title": "进程数量"
+        },
+        "processTemplateIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": "进程模板ID列表"
         }
       },
       "title": "BizTopoNode 业务拓扑节点信息"
@@ -19269,6 +19483,14 @@
           "type": "integer",
           "format": "int64",
           "title": "进程数量"
+        },
+        "processTemplateIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": "进程模板ID列表"
         }
       },
       "title": "ServiceTemplate 服务模板信息"
@@ -21180,6 +21402,9 @@
         },
         "revision": {
           "$ref": "#/definitions/pbbaseCreatedRevision"
+        },
+        "isProcBound": {
+          "type": "boolean"
         }
       },
       "title": "Template source resource reference: pkg/dal/table/template_revision.go"
