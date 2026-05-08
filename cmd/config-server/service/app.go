@@ -179,19 +179,6 @@ func (s *Service) GetApp(ctx context.Context, req *pbcs.GetAppReq) (*pbapp.App, 
 func (s *Service) GetAppByName(ctx context.Context, req *pbcs.GetAppByNameReq) (*pbapp.App, error) {
 	kt := kit.FromGrpcContext(ctx)
 
-	// nolint
-	// TODO: 暂不鉴权
-	// resp := new(pbapp.App)
-
-	// res := []*meta.ResourceAttribute{
-	// 	{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
-	// 	{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: req.AppId}, BizID: req.BizId},
-	// }
-	// err := s.authorizer.AuthorizeWithApplyDetail(kt, res...)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	r := &pbds.GetAppByNameReq{
 		BizId:   req.BizId,
 		AppName: req.AppName,
@@ -199,6 +186,14 @@ func (s *Service) GetAppByName(ctx context.Context, req *pbcs.GetAppByNameReq) (
 	rp, err := s.client.DS.GetAppByName(kt.RpcCtx(), r)
 	if err != nil {
 		logs.Errorf("list apps failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: rp.Id}, BizID: req.BizId},
+	}
+	if err := s.authorizer.Authorize(kt, res...); err != nil {
 		return nil, err
 	}
 

@@ -544,6 +544,11 @@ func (s *Service) ListConfigItemCount(ctx context.Context, req *pbcs.ListConfigI
 	res := []*meta.ResourceAttribute{
 		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
 	}
+	for _, appID := range req.AppId {
+		res = append(res, &meta.ResourceAttribute{
+			Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: appID}, BizID: req.BizId,
+		})
+	}
 	err := s.authorizer.Authorize(grpcKit, res...)
 	if err != nil {
 		return nil, err
@@ -571,6 +576,7 @@ func (s *Service) ListConfigItemByTuple(ctx context.Context, req *pbcs.ListConfi
 	grpcKit := kit.FromGrpcContext(ctx)
 	res := []*meta.ResourceAttribute{
 		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: req.AppId}, BizID: req.BizId},
 	}
 	err := s.authorizer.Authorize(grpcKit, res...)
 	if err != nil {
@@ -659,6 +665,8 @@ func (s *Service) CompareConfigItemConflicts(ctx context.Context, req *pbcs.Comp
 
 	res := []*meta.ResourceAttribute{
 		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: req.AppId}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: req.OtherAppId}, BizID: req.BizId},
 	}
 
 	if err := s.authorizer.Authorize(grpcKit, res...); err != nil {
@@ -727,6 +735,7 @@ func (s *Service) GetTemplateAndNonTemplateCICount(ctx context.Context, req *pbc
 
 	res := []*meta.ResourceAttribute{
 		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: req.AppId}, BizID: req.BizId},
 	}
 
 	if err := s.authorizer.Authorize(grpcKit, res...); err != nil {
