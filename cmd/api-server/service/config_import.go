@@ -44,6 +44,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/meta"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
 	pbci "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/config-item"
@@ -283,6 +284,15 @@ func (c *configImport) ConfigFileImport(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	kt.AppID = uint32(appId)
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: kt.BizID},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.Update, ResourceID: kt.AppID}, BizID: kt.BizID},
+	}
+	if err := c.authorizer.Authorize(kt, res...); err != nil {
+		_ = render.Render(w, r, rest.GRPCErr(err))
+		return
+	}
 
 	fileName := chi.URLParam(r, "filename")
 

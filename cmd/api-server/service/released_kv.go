@@ -29,6 +29,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/meta"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
@@ -125,6 +126,16 @@ func (m *kvService) Export(w http.ResponseWriter, r *http.Request) {
 		_ = render.Render(w, r, rest.BadRequest(errors.New("validation parameter fail")))
 		return
 	}
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: kt.BizID},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: uint32(appId)}, BizID: kt.BizID},
+	}
+	if err := m.authorizer.Authorize(kt, res...); err != nil {
+		_ = render.Render(w, r, rest.GRPCErr(err))
+		return
+	}
+
 	format := r.URL.Query().Get("format")
 	releaseIDStr := chi.URLParam(r, "release_id")
 	releaseID, _ := strconv.Atoi(releaseIDStr)

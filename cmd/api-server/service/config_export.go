@@ -32,6 +32,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/meta"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
 	pbtr "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/template-revision"
@@ -73,6 +74,16 @@ func (c *configExport) ConfigFileExport(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	kt.AppID = uint32(appId)
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: kt.BizID},
+		{Basic: meta.Basic{Type: meta.App, Action: meta.View, ResourceID: kt.AppID}, BizID: kt.BizID},
+	}
+	if err := c.authorizer.Authorize(kt, res...); err != nil {
+		_ = render.Render(w, r, rest.GRPCErr(err))
+		return
+	}
+
 	releaseIDStr := chi.URLParam(r, "release_id")
 	releaseID, _ := strconv.Atoi(releaseIDStr)
 

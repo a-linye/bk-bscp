@@ -9,6 +9,7 @@ __debug_bin*
 build
 .envrc
 scripts/benchmark/bench*.js
+vendor/
 ### PreCI ###
 .codecc
 build.yml
