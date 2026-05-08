@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/TencentBlueKing/bk-bscp/cmd/gsekit-migration/config"
 )
 
@@ -143,9 +145,13 @@ type cmdbBaseResp struct {
 
 // ----- Real CMDB client implementation -----
 
+// cmdbMaxQPS is the strict upper bound for CMDB API requests per second.
+const cmdbMaxQPS = 29
+
 type realCMDBClient struct {
-	cfg    *config.CMDBConfig
-	client *http.Client
+	cfg     *config.CMDBConfig
+	client  *http.Client
+	limiter *rate.Limiter
 }
 
 // NewRealCMDBClient creates a real CMDB client.
@@ -155,10 +161,15 @@ func NewRealCMDBClient(cfg *config.CMDBConfig) CMDBClient {
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		limiter: rate.NewLimiter(rate.Limit(cmdbMaxQPS), 1),
 	}
 }
 
 func (c *realCMDBClient) doRequest(ctx context.Context, url string, body interface{}, result interface{}) error {
+	if err := c.limiter.Wait(ctx); err != nil {
+		return fmt.Errorf("CMDB rate limiter wait: %w", err)
+	}
+
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
