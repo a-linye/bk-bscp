@@ -267,7 +267,7 @@ func (c *configImport) TemplateConfigFileImport(w http.ResponseWriter, r *http.R
 }
 
 // ConfigFileImport Import config file
-// nolint:funlen
+// nolint:funlen,gocyclo
 func (c *configImport) ConfigFileImport(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	kt := kit.MustGetKit(r.Context())
