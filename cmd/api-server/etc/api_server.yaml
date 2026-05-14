@@ -17,6 +17,11 @@ network:
     # the password to decrypt the certificate.
     password:
 
+# CORS 允许的 Origin 白名单，填写前端页面的访问域名（即 ui 服务的 web.host），
+# 不在白名单内的 Origin 不允许跨域携带凭据。
+# corsAllowedOrigins:
+#   - http://bscp.example.com
+
 # defines all the repo related settings.
 repository:
   # defines storage type s3 , bkRepo
