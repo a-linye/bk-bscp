@@ -21,6 +21,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/audit"
 	"github.com/TencentBlueKing/bk-bscp/internal/rest/view"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/handler"
+	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 )
 
 // routers return router config handler
@@ -31,7 +32,7 @@ func (p *proxy) routers() http.Handler {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(handler.CORS)
+	r.Use(handler.CORS(cc.ApiServer().CORSAllowedOrigins))
 	r.Use(audit.Audit)
 	// r.Use(middleware.Timeout(60 * time.Second))
 

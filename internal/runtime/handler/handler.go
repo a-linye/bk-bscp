@@ -120,48 +120,55 @@ func ReverseProxyHandler(name, prefix, remoteURL string) http.Handler {
 	}
 }
 
-// CORS 跨域
-func CORS(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-
-		// cors 处理
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-		}
-
-		allowHeaders := []string{
-			"Origin",
-			"Content-Length",
-			"Content-Type",
-			"X-Requested-With",
-			"X-Bkapi-File-Content-Id",
-			"X-Bkapi-File-Content-Overwrite",
-			"X-Bscp-App-Id",
-			"X-Bscp-Template-Space-Id",
-			"X-Bscp-Unzip",
-			"X-Bscp-Upload-Id",
-			"X-Bscp-Part-Num",
-			"X-Bscp-Operate-Way",
-			"x-bkapi-Tenant-Id",
-		}
-		w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowHeaders, ","))
-
-		allowMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-		w.Header().Set("Access-Control-Allow-Methods", strings.Join(allowMethods, ","))
-
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
+// CORS 返回带 Origin 白名单校验的 CORS 中间件。
+// allowedOrigins 为空时拒绝所有跨域请求（不设置 CORS 响应头）。
+func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[strings.TrimRight(o, "/")] = struct{}{}
 	}
-	return http.HandlerFunc(fn)
+
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+
+			if origin != "" {
+				if _, ok := allowed[origin]; ok {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Vary", "Origin")
+
+					allowHeaders := []string{
+						"Origin",
+						"Content-Length",
+						"Content-Type",
+						"X-Requested-With",
+						"X-Bkapi-File-Content-Id",
+						"X-Bkapi-File-Content-Overwrite",
+						"X-Bscp-App-Id",
+						"X-Bscp-Template-Space-Id",
+						"X-Bscp-Unzip",
+						"X-Bscp-Upload-Id",
+						"X-Bscp-Part-Num",
+						"X-Bscp-Operate-Way",
+						"x-bkapi-Tenant-Id",
+					}
+					w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowHeaders, ","))
+
+					allowMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+					w.Header().Set("Access-Control-Allow-Methods", strings.Join(allowMethods, ","))
+				}
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+	}
 }
 
 // RequestIdGenerator request_id

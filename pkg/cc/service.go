@@ -111,6 +111,7 @@ type ApiServerSetting struct {
 	ApiGateway         ApiGateway         `yaml:"apiGateway"`
 	FeatureFlags       FeatureFlags       `yaml:"featureFlags"`
 	ComponentRateLimit ComponentRateLimit `yaml:"componentRateLimit"`
+	CORSAllowedOrigins []string           `yaml:"corsAllowedOrigins"`
 }
 
 // trySetFlagBindIP try set flag bind ip.
