@@ -239,6 +239,7 @@ type StrategySpec struct {
 	ItsmTicketSn      string        `db:"itsm_ticket_sn" json:"itsm_ticket_sn" gorm:"column:itsm_ticket_sn"`
 	ItsmTicketStatus  string        `db:"itsm_ticket_status" json:"itsm_ticket_status" gorm:"column:itsm_ticket_status"`
 	ItsmTicketStateID string        `db:"itsm_ticket_state_id" json:"itsm_ticket_state_id" gorm:"column:itsm_ticket_state_id"` // nolint
+	ItsmCallbackToken string        `db:"itsm_callback_token" json:"itsm_callback_token" gorm:"column:itsm_callback_token"`
 }
 
 // ValidateCreate validate strategy spec when it is created.

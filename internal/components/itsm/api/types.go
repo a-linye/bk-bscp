@@ -56,6 +56,8 @@ type CreateTicketData struct {
 	ID        int    `json:"id"`
 	TicketURL string `json:"ticket_url"`
 	StateID   string `json:"state_id"`
+	// CallbackToken 由 BSCP 生成，用于校验 ITSM 回调来源，不来自 ITSM 响应
+	CallbackToken string `json:"-"`
 }
 
 // CommonResp xxx
