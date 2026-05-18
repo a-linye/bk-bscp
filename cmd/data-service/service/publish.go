@@ -29,6 +29,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -182,6 +183,7 @@ func (s *Service) SubmitPublishApprove(
 			"itsm_ticket_sn":       ticketData.SN,
 			"itsm_ticket_status":   constant.ItsmTicketStatusCreated,
 			"itsm_ticket_state_id": ticketData.StateID,
+			"itsm_callback_token":  ticketData.CallbackToken,
 		})
 
 		if err != nil {
@@ -586,6 +588,7 @@ func (s *Service) GenerateReleaseAndPublish(ctx context.Context, req *pbds.Gener
 			"itsm_ticket_sn":       ticketData.SN,
 			"itsm_ticket_status":   constant.ItsmTicketStatusCreated,
 			"itsm_ticket_state_id": ticketData.StateID,
+			"itsm_callback_token":  ticketData.CallbackToken,
 		})
 
 		if err != nil {
@@ -1026,6 +1029,7 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 	}
 	callbackUrl := cc.DataService().ITSM.BscpGateway + "/api/v1/config/biz_id/%d/app_id/%d/release_id/%d/approval_callback"
 	callbackUrl = fmt.Sprintf(callbackUrl, app.BizID, app.ID, releaseID)
+	callbackToken := uuid.UUID()
 	createTicketReq := api.CreateTicketReq{
 		WorkFlowKey: workFlowKey.Value,
 		Fields:      fields,
@@ -1034,8 +1038,9 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 			"state_processors": map[string]any{itsmSign.Value: app.Spec.Approver},
 		},
 		// v4 需要ActivityKey 用于获取任务ID
-		ActivityKey: itsmSign.Value,
-		CallbackUrl: callbackUrl,
+		ActivityKey:   itsmSign.Value,
+		CallbackUrl:   callbackUrl,
+		CallbackToken: callbackToken,
 	}
 
 	useV2 := !cc.DataService().ITSM.EnableV4
@@ -1054,6 +1059,7 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 	if useV2 {
 		resp.StateID = itsmSign.Value
 	}
+	resp.CallbackToken = callbackToken
 	return resp, nil
 }
 
@@ -1251,6 +1257,13 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallba
 	}
 	if matchedStrategy == nil {
 		result.Message = "ticket id not match"
+		return result, nil
+	}
+	// 校验 callback_token 防止伪造回调；兼容存量数据（token 为空时跳过校验）
+	if matchedStrategy.Spec.ItsmCallbackToken != "" && matchedStrategy.Spec.ItsmCallbackToken != req.CallbackToken {
+		result.Result = false
+		result.Message = "invalid callback token"
+		logs.Warnf("approval callback token mismatch for ticket %s, rid=%s", req.Ticket.Id, kit.Rid)
 		return result, nil
 	}
 	// 非created状态，表明都已经被处理过了
