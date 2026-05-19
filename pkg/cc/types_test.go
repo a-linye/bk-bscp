@@ -81,3 +81,62 @@ func TestWatchCmdbResourceCanBeEnabled(t *testing.T) {
 		t.Fatalf("expected watchCmdbResource to be enabled when configured true")
 	}
 }
+
+func TestFeatureFlagsTrySetDefault_TenantModeDefaults(t *testing.T) {
+	var ff FeatureFlags
+	ff.trySetDefault()
+
+	if ff.TenantMode != TenantModeSingle {
+		t.Fatalf("TenantMode = %q, want %q", ff.TenantMode, TenantModeSingle)
+	}
+	if ff.EnableMultiTenantMode {
+		t.Fatalf("EnableMultiTenantMode should remain false when EnableTenantMode is false")
+	}
+}
+
+func TestFeatureFlagsTrySetDefault_EnableTenantModeDerives(t *testing.T) {
+	ff := FeatureFlags{EnableTenantMode: true}
+	ff.trySetDefault()
+
+	if !ff.EnableMultiTenantMode {
+		t.Fatalf("EnableMultiTenantMode should be true when EnableTenantMode is true")
+	}
+	if ff.TenantMode != TenantModeSingle {
+		t.Fatalf("TenantMode = %q, want %q", ff.TenantMode, TenantModeSingle)
+	}
+}
+
+func TestFeatureFlagsTrySetDefault_ExplicitMultiMode(t *testing.T) {
+	ff := FeatureFlags{EnableTenantMode: true, TenantMode: TenantModeMulti}
+	ff.trySetDefault()
+
+	if !ff.EnableMultiTenantMode {
+		t.Fatalf("EnableMultiTenantMode should be true when EnableTenantMode is true")
+	}
+	if ff.TenantMode != TenantModeMulti {
+		t.Fatalf("TenantMode = %q, want %q", ff.TenantMode, TenantModeMulti)
+	}
+}
+
+func TestFeatureFlagsValidate_InvalidTenantMode(t *testing.T) {
+	ff := FeatureFlags{EnableTenantMode: true, TenantMode: "invalid"}
+	if err := ff.validate(); err == nil {
+		t.Fatalf("expected error for invalid TenantMode, got nil")
+	}
+}
+
+func TestFeatureFlagsValidate_ValidTenantModes(t *testing.T) {
+	for _, mode := range []TenantMode{TenantModeSingle, TenantModeMulti} {
+		ff := FeatureFlags{EnableTenantMode: true, TenantMode: mode}
+		if err := ff.validate(); err != nil {
+			t.Fatalf("unexpected error for TenantMode %q: %v", mode, err)
+		}
+	}
+}
+
+func TestFeatureFlagsValidate_DisabledTenantModeSkipsCheck(t *testing.T) {
+	ff := FeatureFlags{EnableTenantMode: false, TenantMode: "whatever"}
+	if err := ff.validate(); err != nil {
+		t.Fatalf("expected no error when EnableTenantMode is false, got: %v", err)
+	}
+}

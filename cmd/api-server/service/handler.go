@@ -77,6 +77,10 @@ type FeatureFlags struct {
 	ResourceLimit cc.ResourceLimit `json:"RESOURCE_LIMIT"`
 	// TrpcGoPlugin trpc go plugin
 	TrpcGoPlugin TrpcGoPlugin `json:"TRPC_GO_PLUGIN"`
+	// EnableTenantMode 是否开启租户模式
+	EnableTenantMode bool `json:"ENABLE_TENANT_MODE"`
+	// TenantMode 租户模式
+	TenantMode string `json:"TENANT_MODE"`
 	// EnableMultiTenantMode 是否开启多租户模式
 	EnableMultiTenantMode bool `json:"ENABLE_MULTI_TENANT_MODE"`
 	// ProcessConfigView 进程与配置管理是否可见
@@ -123,6 +127,8 @@ func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	featureFlags.TrpcGoPlugin = TrpcGoPlugin(cc.ApiServer().FeatureFlags.TrpcGoPlugin)
+	featureFlags.EnableTenantMode = cc.ApiServer().FeatureFlags.EnableTenantMode
+	featureFlags.TenantMode = string(cc.ApiServer().FeatureFlags.TenantMode)
 	featureFlags.EnableMultiTenantMode = cc.ApiServer().FeatureFlags.EnableMultiTenantMode
 
 	// set process_config_view feature flag from DB via config-server gRPC

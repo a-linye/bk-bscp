@@ -96,7 +96,7 @@ func (c *bkrepoClient) SyncManager() *SyncManager {
 
 func (c *bkrepoClient) buildProject(kt *kit.Kit) (string, error) {
 	// 仅多租户模式下, bkrepo项目格式{tenantID}.{projectID}
-	if cc.G().FeatureFlags.EnableMultiTenantMode {
+	if cc.G().FeatureFlags.EnableTenantMode && cc.G().FeatureFlags.TenantMode == cc.TenantModeMulti {
 		if kt.TenantID == "" {
 			return "", fmt.Errorf("tenant_id is required for bkrepo project in multi-tenant mode")
 		}
