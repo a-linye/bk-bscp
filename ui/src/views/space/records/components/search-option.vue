@@ -130,7 +130,7 @@
 
   const getMenuList = async (item: ISearchMenuItem, keyword: string) => {
     if (!item) return searchData.value;
-    if (item.async && keyword && spaceFeatureFlags.value.ENABLE_MULTI_TENANT_MODE) {
+    if (item.async && keyword && spaceFeatureFlags.value.ENABLE_TENANT_MODE) {
       const res = await getUserList(keyword);
       return res.map((user: ITenantUser) => {
         return {
