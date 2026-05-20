@@ -126,6 +126,10 @@ sharding:
 
 # 特性配置
 featureFlags:
+  # 是否开启租户模式，默认 false
+  enableTenantMode: false
+  # 租户模式，可选值 single/multi，默认 single
+  tenantMode: single
   # 业务展示白名单
   BIZ_VIEW:
     # 全局默认配置(优先级低于业务级配置)，默认为true（展示）

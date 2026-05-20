@@ -106,7 +106,7 @@ func (c *Client) buildProject(ctx context.Context) (string, error) {
 	kit := kit.MustGetKit(ctx)
 
 	// 仅多租户模式下, bkrepo项目格式{tenantID}.{projectID}
-	if cc.G().FeatureFlags.EnableMultiTenantMode {
+	if cc.G().FeatureFlags.EnableTenantMode && cc.G().FeatureFlags.TenantMode == cc.TenantModeMulti {
 		if kit.TenantID == "" {
 			return "", fmt.Errorf("tenant_id is required for bkrepo project in multi-tenant mode")
 		}

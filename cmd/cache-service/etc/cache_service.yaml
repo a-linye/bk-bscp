@@ -62,8 +62,10 @@ sharding:
 
 # 特性配置
 featureFlags:
-  # 是否开启多租户模式，默认 false
-  enableMultiTenantMode: false
+  # 是否开启租户模式，默认 false
+  enableTenantMode: false
+  # 租户模式，可选值 single/multi，默认 single
+  tenantMode: single
 
 # defines all the redisCluster related settings
 redisCluster:

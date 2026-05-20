@@ -87,7 +87,7 @@
   const getMenuList = async (item: ISearchMenuItem, keyword: string) => {
     // 处理searchSelect唯一选择失效
     if (!item) return data.value.filter((item) => !searchValue.value.find((value) => value.id === item.id));
-    if (item.async && keyword && spaceFeatureFlags.value.ENABLE_MULTI_TENANT_MODE) {
+    if (item.async && keyword && spaceFeatureFlags.value.ENABLE_TENANT_MODE) {
       const res = await getUserList(keyword);
       return res.map((user: ITenantUser) => {
         return {

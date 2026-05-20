@@ -1,7 +1,7 @@
 <template>
   <!-- 多选模式 -->
   <BkUserSelector
-    v-if="spaceFeatureFlags.ENABLE_MULTI_TENANT_MODE"
+    v-if="spaceFeatureFlags.ENABLE_TENANT_MODE"
     :model-value="modelValue"
     :api-base-url="api"
     :tenant-id="tenantId"
@@ -49,7 +49,7 @@
 
 
   onBeforeMount(() => {
-    if (spaceFeatureFlags.value.ENABLE_MULTI_TENANT_MODE) {
+    if (spaceFeatureFlags.value.ENABLE_TENANT_MODE) {
       api.value = `${(window as any).USER_MAN_HOST}`;
     } else {
       api.value = `${(window as any).USER_MAN_HOST}/fs_list_users/?app_code=bk-magicbox&page_size=1000&page=1`;

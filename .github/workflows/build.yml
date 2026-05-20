@@ -15,6 +15,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # embed.go 引用了 ui/dist，创建占位文件使编译通过
+      - name: create ui/dist placeholder
+        run: |
+          mkdir -p ui/dist
+          echo '{}' > ui/dist/config.json
+          touch ui/dist/index.html ui/dist/403.html
+
       # 编译项目
       - name: build go project
         run: |

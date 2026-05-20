@@ -1,5 +1,5 @@
 <template>
-  <bk-user-display-name v-if="spaceFeatureFlags.ENABLE_MULTI_TENANT_MODE" :user-id="name"></bk-user-display-name>
+  <bk-user-display-name v-if="spaceFeatureFlags.ENABLE_TENANT_MODE" :user-id="name"></bk-user-display-name>
   <span v-else>{{ name }}</span>
 </template>
 

@@ -40,10 +40,24 @@ const (
 	RedisClusterMode = "cluster"
 )
 
+// TenantMode 租户模式
+type TenantMode string
+
+const (
+	// TenantModeSingle 单租户模式
+	TenantModeSingle TenantMode = "single"
+	// TenantModeMulti 多租户模式
+	TenantModeMulti TenantMode = "multi"
+)
+
 // FeatureFlags 特性配置
 type FeatureFlags struct {
-	// EnableMultiTenantMode 是否开启多租户模式
-	EnableMultiTenantMode bool `json:"enableMultiTenantMode" yaml:"enableMultiTenantMode"`
+	// EnableTenantMode 是否开启租户模式，默认 false
+	EnableTenantMode bool `json:"enableTenantMode" yaml:"enableTenantMode"`
+	// TenantMode 租户模式，可选值 single/multi，默认 single
+	TenantMode TenantMode `json:"tenantMode" yaml:"tenantMode"`
+	// EnableMultiTenantMode 内部字段，由 trySetDefault 根据 EnableTenantMode 自动推导，不对外暴露
+	EnableMultiTenantMode bool `json:"-" yaml:"-"`
 	// BizView 业务白名单
 	BizView FeatureBizView `json:"biz_view" yaml:"BIZ_VIEW"`
 	// ResourceLimit 业务资源限制
@@ -87,6 +101,15 @@ type ResourceLimit struct {
 
 // validate if the feature resource limit is valid or not.
 func (f FeatureFlags) validate() error {
+	if f.EnableTenantMode {
+		switch f.TenantMode {
+		case TenantModeSingle, TenantModeMulti:
+		default:
+			return fmt.Errorf("invalid featureFlags.tenantMode value %q, must be %q or %q",
+				f.TenantMode, TenantModeSingle, TenantModeMulti)
+		}
+	}
+
 	for bizID := range f.BizView.Spec {
 		if _, err := strconv.Atoi(bizID); err != nil {
 			return fmt.Errorf("invalid featureFlags.BIZ_VIEW.spec.{bizID} value %s, "+
@@ -121,6 +144,14 @@ const (
 
 // trySetDefault try set the default value of feature flag
 func (f *FeatureFlags) trySetDefault() {
+	if f.TenantMode == "" {
+		f.TenantMode = TenantModeSingle
+	}
+
+	if f.EnableTenantMode {
+		f.EnableMultiTenantMode = true
+	}
+
 	if f.BizView.Default == nil {
 		bizView := DefaultBizView
 		f.BizView.Default = &bizView
