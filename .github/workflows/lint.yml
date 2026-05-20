@@ -21,6 +21,13 @@ jobs:
         with:
           modules: .
 
+      # embed.go 引用了 ui/dist，创建占位文件使 typecheck 通过
+      - name: create ui/dist placeholder
+        run: |
+          mkdir -p ui/dist
+          echo '{}' > ui/dist/config.json
+          touch ui/dist/index.html ui/dist/403.html
+
       # 运行代码风格检查 (golangci-lint)
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
