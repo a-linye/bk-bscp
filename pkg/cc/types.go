@@ -56,8 +56,8 @@ type FeatureFlags struct {
 	EnableTenantMode bool `json:"enableTenantMode" yaml:"enableTenantMode"`
 	// TenantMode 租户模式，可选值 single/multi，默认 single
 	TenantMode TenantMode `json:"tenantMode" yaml:"tenantMode"`
-	// EnableMultiTenantMode 是否开启多租户模式（当 EnableTenantMode 为 true 时始终为 true）
-	EnableMultiTenantMode bool `json:"enableMultiTenantMode" yaml:"enableMultiTenantMode"`
+	// EnableMultiTenantMode 内部字段，由 trySetDefault 根据 EnableTenantMode 自动推导，不对外暴露
+	EnableMultiTenantMode bool `json:"-" yaml:"-"`
 	// BizView 业务白名单
 	BizView FeatureBizView `json:"biz_view" yaml:"BIZ_VIEW"`
 	// ResourceLimit 业务资源限制
