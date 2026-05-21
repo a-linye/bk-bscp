@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	createTicketPath  = "/itsm/create_ticket/"
-	approveTicketPath = "/itsm/approve/"
+	createTicketPath  = "/v2/itsm/create_ticket/"
+	approveTicketPath = "/v2/itsm/approve/"
 )
 
 // CreateTicketResp itsm create ticket resp

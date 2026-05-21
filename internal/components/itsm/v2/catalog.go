@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	createCatalogPath = "/itsm/create_service_catalog/"
-	getCatalogsPath   = "/itsm/get_service_catalogs/"
+	createCatalogPath = "/v2/itsm/create_service_catalog/"
+	getCatalogsPath   = "/v2/itsm/get_service_catalogs/"
 )
 
 // CreateCatalogReq 创建服务目录请求
