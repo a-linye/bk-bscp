@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	operateTicketPath = "/itsm/operate_ticket/"
+	operateTicketPath = "/v2/itsm/operate_ticket/"
 )
 
 // OperateTicketResp itsm operate ticket resp

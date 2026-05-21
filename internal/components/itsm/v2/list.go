@@ -26,10 +26,10 @@ import (
 )
 
 var (
-	listTicketsPath          = "/itsm/get_tickets/"
-	getTicketStatusPath      = "/itsm/get_ticket_status/"
-	getApproveNodeResultPath = "/itsm/get_approve_node_result/"
-	getTicketLogsPath        = "/itsm/get_ticket_logs/"
+	listTicketsPath          = "/v2/itsm/get_tickets/"
+	getTicketStatusPath      = "/v2/itsm/get_ticket_status/"
+	getApproveNodeResultPath = "/v2/itsm/get_approve_node_result/"
+	getTicketLogsPath        = "/v2/itsm/get_ticket_logs/"
 )
 
 // ListTicketsReq xxx

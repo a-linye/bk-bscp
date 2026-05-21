@@ -26,11 +26,11 @@ import (
 )
 
 var (
-	getServiceDetailPath  = "/itsm/get_service_detail/"
-	getWorkflowDetailPath = "/itsm/get_workflow_detail/"
-	listServicesPath      = "/itsm/get_services/"
-	importServicePath     = "/itsm/import_service/"
-	updateServicePath     = "/itsm/update_service/"
+	getServiceDetailPath  = "/v2/itsm/get_service_detail/"
+	getWorkflowDetailPath = "/v2/itsm/get_workflow_detail/"
+	listServicesPath      = "/v2/itsm/get_services/"
+	importServicePath     = "/v2/itsm/import_service/"
+	updateServicePath     = "/v2/itsm/update_service/"
 )
 
 // ListServicesResp itsm list services resp
