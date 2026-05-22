@@ -37,15 +37,6 @@
           <span>{{ getKvDataType(row) }}</span>
         </template>
       </vxe-column>
-      <vxe-column :title="$t('上线审批')" width="100">
-        <template #default="{ row }">
-          <bk-tag
-            :theme="row.spec.is_approve ? 'success' : ''"
-            v-bk-tooltips="{ content: getApproveContent(row), disabled: !row.spec.is_approve, placement: 'right' }">
-            {{ row.spec.is_approve ? $t('启用') : $t('关闭') }}
-          </bk-tag>
-        </template>
-      </vxe-column>
       <vxe-column field="revision.creator" :title="$t('创建人')" width="123" >
         <template #default="{ row }">
           <user-name :name="row.revision.creator"/>
@@ -141,11 +132,6 @@
       return t('敏感信息');
     }
     return row.spec.data_type || '--';
-  };
-
-  const getApproveContent = (row: IAppItem) => {
-    const type = row.spec.approve_type === 'or_sign' ? t('或签') : t('会签');
-    return `${t('审批人')}: ${row.spec.approver}\n${t('审批方式')}: ${type}`;
   };
 
   const handleJump = (id: number, name: string) => {

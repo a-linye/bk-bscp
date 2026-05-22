@@ -21,26 +21,6 @@
         <bk-form-item v-if="serviceData!.spec.config_type !== 'file'" :label="t('配置格式限制')">
           {{ serviceFormat }}
         </bk-form-item>
-        <bk-form-item>
-          <template #label>
-            <div :class="{ 'offset-y': serviceData!.spec.is_approve }">
-              {{ t('上线审批') }}
-            </div>
-          </template>
-          <ul class="approval-info" v-if="serviceData!.spec.is_approve">
-            <li class="approval-li">
-              <div class="approval-hd">{{ t('指定审批人') }}</div>
-              <div class="approval-bd">
-                <user-name :name="serviceData!.spec.approver"/>
-              </div>
-            </li>
-            <li class="approval-li">
-              <div class="approval-hd">{{ t('审批方式') }}</div>
-              <div class="approval-bd">{{ serviceData!.spec.approve_type === 'or_sign' ? t('或签') : t('会签') }}</div>
-            </li>
-          </ul>
-          <span v-else>{{ t('未开启') }}</span>
-        </bk-form-item>
         <bk-form-item :label="t('创建人')">
           <user-name :name="serviceData!.revision.creator"/>
         </bk-form-item>
@@ -109,14 +89,13 @@
     config_type: 'file',
     data_type: 'any',
     memo: '',
-    is_approve: true,
+    is_approve: false,
     approver: '',
     approve_type: 'or_sign',
   });
   const serviceData = ref<IAppItem>();
   const pending = ref(false);
   const formCompRef = ref();
-  const selectionsApprover = ref<string[]>([]);
 
   const serviceFormat = computed(() => {
     if (serviceEditForm.value.data_type === 'any') {
@@ -135,20 +114,17 @@
         isFormChange.value = false;
         isViewMode.value = true;
         const { spec } = props.service;
-        const { name, memo, config_type, data_type, alias, is_approve, approver, approve_type } = spec;
+        const { name, memo, config_type, data_type, alias } = spec;
         serviceEditForm.value = {
           name,
           memo,
           config_type,
           data_type,
           alias,
-          is_approve,
-          approver,
-          approve_type,
+          is_approve: false,
+          approver: '',
+          approve_type: 'or_sign',
         };
-        if (approver) {
-          selectionsApprover.value = approver.split(',');
-        }
         serviceData.value = props.service;
       }
     },
@@ -200,9 +176,6 @@
         });
         return;
       }
-    }
-    if (serviceEditForm.value.approver) {
-      selectionsApprover.value = serviceEditForm.value.approver.split(',');
     }
     const data = {
       id,
@@ -294,29 +267,6 @@
     button {
       margin-right: 8px;
       min-width: 88px;
-    }
-  }
-  .offset-y {
-    transform: translateY(10px);
-  }
-  .approval-info {
-    padding: 8px 16px;
-    background-color: #f5f7fa;
-    .approval-li {
-      font-size: 12px;
-      line-height: 20px;
-      & + .approval-li {
-        margin-top: 16px;
-      }
-    }
-    .approval-hd {
-      word-wrap: break-word;
-      word-break: break-all;
-      color: #979ba5;
-    }
-    .approval-bd {
-      margin-top: 4px;
-      color: #313238;
     }
   }
 </style>

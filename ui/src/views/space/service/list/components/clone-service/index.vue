@@ -84,7 +84,7 @@
     config_type: 'file',
     data_type: 'any',
     memo: '',
-    is_approve: true,
+    is_approve: false,
     approver: '',
     approve_type: 'or_sign',
   });
@@ -116,16 +116,16 @@
           ? [{ title: t('填写服务信息') }, { title: t('导入配置项') }, { title: t('导入脚本') }]
           : [{ title: t('填写服务信息') }, { title: t('导入配置项') }];
         const { spec } = props.service;
-        const { name, memo, config_type, data_type, alias, is_approve, approver, approve_type } = spec;
+        const { name, memo, config_type, data_type, alias } = spec;
         serviceEditForm.value = {
           name: `${name}_copy`,
           memo,
           config_type,
           data_type,
           alias: `${alias}_copy`,
-          is_approve,
-          approver,
-          approve_type,
+          is_approve: false,
+          approver: '',
+          approve_type: 'or_sign',
         };
         configList.value = [];
         templateConfigList.value = [];

@@ -190,7 +190,7 @@
       memo: '',
       alias: '',
       data_type: '',
-      is_approve: true,
+      is_approve: false,
       approver: '',
       approve_type: 'or_sign',
     },
