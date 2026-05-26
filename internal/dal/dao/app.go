@@ -483,9 +483,10 @@ func (dao *appDao) DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, g *table.App) err
 	// fire the event with txn to ensure the if save the event failed then the business logic is failed anyway.
 	one := types.Event{
 		Spec: &table.EventSpec{
-			Resource:   table.Application,
-			ResourceID: g.ID,
-			OpType:     table.DeleteOp,
+			Resource:    table.Application,
+			ResourceID:  g.ID,
+			ResourceUid: oldOne.Spec.Name,
+			OpType:      table.DeleteOp,
 		},
 		Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID},
 		Revision:   &table.CreatedRevision{Creator: kit.User},
