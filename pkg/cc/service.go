@@ -205,6 +205,7 @@ func (s *AuthServerSetting) trySetDefault() {
 	s.Network.trySetDefault()
 	s.Service.trySetDefault()
 	s.Log.trySetDefault()
+	s.FeatureFlags.trySetDefault()
 	s.ComponentRateLimit.trySetDefault()
 }
 
@@ -220,6 +221,10 @@ func (s AuthServerSetting) Validate() error {
 	}
 
 	if err := s.IAM.validate(); err != nil {
+		return err
+	}
+
+	if err := s.FeatureFlags.validate(); err != nil {
 		return err
 	}
 
