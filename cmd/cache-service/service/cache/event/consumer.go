@@ -268,13 +268,24 @@ func (c *consumer) consumeDeleteEvent(kt *kit.Kit, events []*table.Event) error 
 func (c *consumer) deleteAppMetaCache(kt *kit.Kit, events []*table.Event) error {
 
 	appKeys := make([]string, 0)
+	appIDKeys := make([]string, 0)
 	for _, one := range events {
 		appKeys = append(appKeys, keys.Key.AppMeta(one.Attachment.BizID, one.Spec.ResourceID))
+		if one.Spec.ResourceUid != "" {
+			appIDKeys = append(appIDKeys, keys.Key.AppID(one.Attachment.BizID, one.Spec.ResourceUid))
+		}
 	}
 
 	if err := c.bds.Delete(kt.Ctx, appKeys...); err != nil {
 		logs.Errorf("delete app meta cache failed, keys: %v, err: %v, rid: %s", appKeys, err, kt.Rid)
 		return err
+	}
+
+	if len(appIDKeys) > 0 {
+		if err := c.bds.Delete(kt.Ctx, appIDKeys...); err != nil {
+			logs.Errorf("delete app id cache failed, keys: %v, err: %v, rid: %s", appIDKeys, err, kt.Rid)
+			return err
+		}
 	}
 
 	return nil

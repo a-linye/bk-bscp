@@ -209,6 +209,11 @@ func (ap *App) delete(appID uint32) {
 	ap.metaClient.Remove(appID)
 }
 
+func (ap *App) deleteByName(bizID uint32, appName string) {
+	key := fmt.Sprintf("%d-%s", bizID, appName)
+	ap.idClient.Remove(key)
+}
+
 func (ap *App) evictRecorder(key interface{}, _ interface{}) {
 	appID, yes := key.(uint32)
 	if !yes {

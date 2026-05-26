@@ -80,6 +80,9 @@ func (c *Cache) Purge(kt *kit.Kit, es []*types.EventMeta) {
 				// ignore app insert event, refresh app meta cache when query app meta.
 			case table.UpdateOp, table.DeleteOp:
 				c.App.delete(one.Attachment.AppID)
+				if one.Spec.ResourceUid != "" {
+					c.App.deleteByName(one.Attachment.BizID, one.Spec.ResourceUid)
+				}
 			default:
 				logs.V(1).Infof("skip app event op, %s, rid: %s", formatEvent(one), kt.Rid)
 				continue
