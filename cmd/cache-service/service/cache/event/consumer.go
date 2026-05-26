@@ -282,6 +282,7 @@ func (c *consumer) deleteAppMetaCache(kt *kit.Kit, events []*table.Event) error 
 	}
 
 	if len(appIDKeys) > 0 {
+		logs.Infof("delete app id cache, keys: %v, rid: %s", appIDKeys, kt.Rid)
 		if err := c.bds.Delete(kt.Ctx, appIDKeys...); err != nil {
 			logs.Errorf("delete app id cache failed, keys: %v, err: %v, rid: %s", appIDKeys, err, kt.Rid)
 			return err
