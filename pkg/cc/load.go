@@ -129,6 +129,10 @@ func loadFromFile(conf []byte) (Setting, error) {
 	}
 	g.TaskFramework.trySetDefault()
 	g.BaseConf.trySetDefault()
+	g.FeatureFlags.trySetDefault()
+	if err := g.FeatureFlags.validate(); err != nil {
+		return nil, fmt.Errorf("validate global featureFlags failed, err: %v", err)
+	}
 	globalSettings = g
 
 	return s, nil
