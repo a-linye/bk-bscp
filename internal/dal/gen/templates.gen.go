@@ -31,6 +31,7 @@ func newTemplate(db *gorm.DB, opts ...gen.DOOption) template {
 	_template.Name = field.NewString(tableName, "name")
 	_template.Path = field.NewString(tableName, "path")
 	_template.Memo = field.NewString(tableName, "memo")
+	_template.ConfigTemplateName = field.NewString(tableName, "config_template_name")
 	_template.BizID = field.NewUint32(tableName, "biz_id")
 	_template.TemplateSpaceID = field.NewUint32(tableName, "template_space_id")
 	_template.TenantID = field.NewString(tableName, "tenant_id")
@@ -47,18 +48,19 @@ func newTemplate(db *gorm.DB, opts ...gen.DOOption) template {
 type template struct {
 	templateDo templateDo
 
-	ALL             field.Asterisk
-	ID              field.Uint32
-	Name            field.String
-	Path            field.String
-	Memo            field.String
-	BizID           field.Uint32
-	TemplateSpaceID field.Uint32
-	TenantID        field.String
-	Creator         field.String
-	Reviser         field.String
-	CreatedAt       field.Time
-	UpdatedAt       field.Time
+	ALL                field.Asterisk
+	ID                 field.Uint32
+	Name               field.String
+	Path               field.String
+	Memo               field.String
+	ConfigTemplateName field.String
+	BizID              field.Uint32
+	TemplateSpaceID    field.Uint32
+	TenantID           field.String
+	Creator            field.String
+	Reviser            field.String
+	CreatedAt          field.Time
+	UpdatedAt          field.Time
 
 	fieldMap map[string]field.Expr
 }
@@ -79,6 +81,7 @@ func (t *template) updateTableName(table string) *template {
 	t.Name = field.NewString(table, "name")
 	t.Path = field.NewString(table, "path")
 	t.Memo = field.NewString(table, "memo")
+	t.ConfigTemplateName = field.NewString(table, "config_template_name")
 	t.BizID = field.NewUint32(table, "biz_id")
 	t.TemplateSpaceID = field.NewUint32(table, "template_space_id")
 	t.TenantID = field.NewString(table, "tenant_id")
@@ -110,11 +113,12 @@ func (t *template) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (t *template) fillFieldMap() {
-	t.fieldMap = make(map[string]field.Expr, 11)
+	t.fieldMap = make(map[string]field.Expr, 12)
 	t.fieldMap["id"] = t.ID
 	t.fieldMap["name"] = t.Name
 	t.fieldMap["path"] = t.Path
 	t.fieldMap["memo"] = t.Memo
+	t.fieldMap["config_template_name"] = t.ConfigTemplateName
 	t.fieldMap["biz_id"] = t.BizID
 	t.fieldMap["template_space_id"] = t.TemplateSpaceID
 	t.fieldMap["tenant_id"] = t.TenantID
