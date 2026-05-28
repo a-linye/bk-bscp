@@ -190,10 +190,10 @@ func (m *Migrator) migrateConfigTemplates() error {
 				absPath, fileName := normalizePathName(tmpl.AbsPath, tmpl.FileName)
 				now := time.Now()
 				if err = m.targetDB.Exec(
-					"INSERT INTO templates (id, name, path, memo, biz_id, template_space_id, tenant_id, "+
-						"creator, reviser, created_at, updated_at) "+
-						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					templateID, fileName, absPath, "",
+					"INSERT INTO templates (id, name, path, memo, config_template_name, biz_id, template_space_id, "+
+						"tenant_id, creator, reviser, created_at, updated_at) "+
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					templateID, fileName, absPath, "", tmpl.TemplateName,
 					bizID, spaceInfo.TemplateSpaceID, m.cfg.Migration.TenantID,
 					creator, reviser, now, now,
 				).Error; err != nil {
