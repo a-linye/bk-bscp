@@ -36,14 +36,24 @@ func mig20260528170000Up(tx *gorm.DB) error {
 		}
 	}
 
-	// 2. Drop old unique index
+	// 2. Backfill config_template_name from config_templates for existing records in config_delivery spaces
+	if err := tx.Exec(
+		"UPDATE `templates` t " +
+			"INNER JOIN `config_templates` ct ON ct.template_id = t.id AND ct.biz_id = t.biz_id " +
+			"INNER JOIN `template_spaces` ts ON ts.id = t.template_space_id AND ts.biz_id = t.biz_id " +
+			"SET t.config_template_name = ct.name " +
+			"WHERE t.config_template_name = '' AND ts.name = 'config_delivery'").Error; err != nil {
+		return err
+	}
+
+	// 3. Drop old unique index
 	if tx.Migrator().HasIndex("templates", "idx_tenantID_bizID_tempSpaID_name_path") {
 		if err := tx.Exec("DROP INDEX `idx_tenantID_bizID_tempSpaID_name_path` ON `templates`").Error; err != nil {
 			return err
 		}
 	}
 
-	// 3. Create new unique index including config_template_name
+	// 4. Create new unique index including config_template_name
 	if !tx.Migrator().HasIndex("templates", "idx_tenantID_bizID_tempSpaID_name_path_ctName") {
 		if err := tx.Exec("CREATE UNIQUE INDEX `idx_tenantID_bizID_tempSpaID_name_path_ctName` " +
 			"ON `templates` (`tenant_id`, `biz_id`, `template_space_id`, `name`(100), `path`(100), " +

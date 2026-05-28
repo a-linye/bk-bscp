@@ -402,34 +402,14 @@ func (s *Service) CreateConfigTemplate(ctx context.Context, req *pbds.CreateConf
 
 	now := time.Now().UTC()
 
-	// 2. 校验同一空间下不能出现相同绝对路径的配置文件且同路径下不能出现同名的文件夹和文件
-	// config_delivery 空间允许不同配置模版使用相同路径，由 DB 唯一索引 (name, path, config_template_name) 保证唯一性
-	if !s.isConfigDeliverySpace(kit, req.GetBizId(), req.GetTemplateSpaceId()) {
-		items, _, err := s.dao.Template().List(kit, req.GetBizId(),
-			req.GetTemplateSpaceId(), &types.BasePage{All: true})
-		if err != nil {
-			return nil, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kit, "list templates failed, err: %v", err))
-		}
-		existingPaths := []string{}
-		for _, v := range items {
-			existingPaths = append(existingPaths, path.Join(v.Spec.Path, v.Spec.Name))
-		}
-
-		if tools.CheckPathConflict(req.GetFullPath(), existingPaths) {
-			return nil, errors.New(i18n.T(kit, "the config file %s already exists in this space and cannot be created again",
-				req.GetFullPath()))
-		}
-	}
-
-	// 3. 通过空间和名称查询套餐
+	// 2. 通过空间和名称查询套餐
 	templateSet, err := s.dao.TemplateSet().GetByUniqueKey(kit, req.GetBizId(), req.GetTemplateSpaceId(), constant.DefaultTmplSetName)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kit, "get template set failed, err: %v", err))
 	}
 
-	// 4. 创建模板和模板版本，并添加至默认套餐中
+	// 3. 创建模板和模板版本，并添加至默认套餐中
 	templateId, err := s.createTemplateAndRevision(kit, tx, req.GetTemplateSpaceId(), templateSet, req, now)
 	if err != nil {
 		logs.Errorf("[ConfigTemplate] createTemplateAndRevision failed, err=%v, rid=%s", err, kit.Rid)
@@ -437,7 +417,7 @@ func (s *Service) CreateConfigTemplate(ctx context.Context, req *pbds.CreateConf
 			i18n.T(kit, "create template and revision failed, err: %v", err))
 	}
 
-	// 5. 创建配置模板
+	// 4. 创建配置模板
 	configTemplate := &table.ConfigTemplate{
 		Spec: &table.ConfigTemplateSpec{
 			Name:           req.GetTemplateName(),
@@ -464,7 +444,7 @@ func (s *Service) CreateConfigTemplate(ctx context.Context, req *pbds.CreateConf
 			i18n.T(kit, "create config template failed, err: %v", err))
 	}
 
-	// 6. 提交事务
+	// 5. 提交事务
 	if e := tx.Commit(); e != nil {
 		logs.Errorf("[ConfigTemplate] commit transaction failed, err: %v, rid: %s", e, kit.Rid)
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
@@ -635,16 +615,6 @@ func (s *Service) getOrCreateDefaultTemplateSet(kit *kit.Kit, bizID, spaceID uin
 	}
 
 	return set, nil
-}
-
-// isConfigDeliverySpace 判断指定模板空间是否为 config_delivery 系统空间。
-// config_delivery 空间允许不同配置模版使用相同文件路径（由 DB 唯一索引中的 config_template_name 区分）。
-func (s *Service) isConfigDeliverySpace(kit *kit.Kit, bizID, templateSpaceID uint32) bool {
-	space, err := s.dao.TemplateSpace().Get(kit, bizID, templateSpaceID)
-	if err != nil {
-		return false
-	}
-	return space.Spec.Name == constant.CONFIG_DELIVERY
 }
 
 // ServiceTemplate implements pbds.DataServer.
