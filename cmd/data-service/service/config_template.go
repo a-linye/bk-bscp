@@ -403,21 +403,23 @@ func (s *Service) CreateConfigTemplate(ctx context.Context, req *pbds.CreateConf
 	now := time.Now().UTC()
 
 	// 2. 校验同一空间下不能出现相同绝对路径的配置文件且同路径下不能出现同名的文件夹和文件
-	items, _, err := s.dao.Template().List(kit, req.GetBizId(),
-		req.GetTemplateSpaceId(), &types.BasePage{All: true})
-	if err != nil {
-		return nil, errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kit, "list templates failed, err: %v", err))
-	}
-	existingPaths := []string{}
-	for _, v := range items {
-		existingPaths = append(existingPaths, path.Join(v.Spec.Path, v.Spec.Name))
-	}
+	// config_delivery 空间允许不同配置模版使用相同路径，由 DB 唯一索引 (name, path, config_template_name) 保证唯一性
+	if !s.isConfigDeliverySpace(kit, req.GetBizId(), req.GetTemplateSpaceId()) {
+		items, _, err := s.dao.Template().List(kit, req.GetBizId(),
+			req.GetTemplateSpaceId(), &types.BasePage{All: true})
+		if err != nil {
+			return nil, errf.Errorf(errf.DBOpFailed, "%s",
+				i18n.T(kit, "list templates failed, err: %v", err))
+		}
+		existingPaths := []string{}
+		for _, v := range items {
+			existingPaths = append(existingPaths, path.Join(v.Spec.Path, v.Spec.Name))
+		}
 
-	// 检测文件路径是否存在冲突
-	if tools.CheckPathConflict(req.GetFullPath(), existingPaths) {
-		return nil, errors.New(i18n.T(kit, "the config file %s already exists in this space and cannot be created again",
-			req.GetFullPath()))
+		if tools.CheckPathConflict(req.GetFullPath(), existingPaths) {
+			return nil, errors.New(i18n.T(kit, "the config file %s already exists in this space and cannot be created again",
+				req.GetFullPath()))
+		}
 	}
 
 	// 3. 通过空间和名称查询套餐
@@ -488,9 +490,10 @@ func (s *Service) createTemplateAndRevision(kit *kit.Kit, tx *gen.QueryTx, templ
 	// 1. 创建模板文件
 	template := &table.Template{
 		Spec: &table.TemplateSpec{
-			Name: fileName,
-			Path: filePath,
-			Memo: req.GetTemplateMemo(),
+			Name:               fileName,
+			Path:               filePath,
+			Memo:               req.GetTemplateMemo(),
+			ConfigTemplateName: req.GetTemplateName(),
 		},
 		Attachment: &table.TemplateAttachment{
 			BizID:           req.GetBizId(),
@@ -632,6 +635,16 @@ func (s *Service) getOrCreateDefaultTemplateSet(kit *kit.Kit, bizID, spaceID uin
 	}
 
 	return set, nil
+}
+
+// isConfigDeliverySpace 判断指定模板空间是否为 config_delivery 系统空间。
+// config_delivery 空间允许不同配置模版使用相同文件路径（由 DB 唯一索引中的 config_template_name 区分）。
+func (s *Service) isConfigDeliverySpace(kit *kit.Kit, bizID, templateSpaceID uint32) bool {
+	space, err := s.dao.TemplateSpace().Get(kit, bizID, templateSpaceID)
+	if err != nil {
+		return false
+	}
+	return space.Spec.Name == constant.CONFIG_DELIVERY
 }
 
 // ServiceTemplate implements pbds.DataServer.
@@ -1065,9 +1078,10 @@ func (s *Service) UpdateConfigTemplate(ctx context.Context, req *pbds.UpdateConf
 	err = s.dao.Template().UpdateWithTx(grpcKit, tx, &table.Template{
 		ID: template.ID,
 		Spec: &table.TemplateSpec{
-			Memo: req.GetRevisionMemo(),
-			Path: filePath,
-			Name: fileName,
+			Memo:               req.GetRevisionMemo(),
+			Path:               filePath,
+			Name:               fileName,
+			ConfigTemplateName: req.GetTemplateName(),
 		},
 		Attachment: template.Attachment,
 		Revision:   template.Revision,
