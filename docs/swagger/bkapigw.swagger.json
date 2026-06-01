@@ -1494,6 +1494,88 @@
           "Config"
         ]
       }
+    },
+    "/api/v1/config/biz_id/{bizId}/process_config_view": {
+      "get": {
+        "summary": "查询指定业务是否开启进程与配置管理可见性",
+        "operationId": "Config_GetProcessConfigView",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Config"
+        ],
+        "x-bk-apigateway-resource": {
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
+        }
+      }
+    },
+    "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
+      "get": {
+        "summary": "查询指定业务是否开启进程与配置管理可见性",
+        "operationId": "Config_GetProcessConfigView2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Config"
+        ],
+        "x-bk-apigateway-resource": {
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
+        }
+      }
     }
   },
   "definitions": {
@@ -2455,6 +2537,15 @@
           "$ref": "#/definitions/pbctBindTemplate"
         }
       }
+    },
+    "pbcsGetProcessConfigViewResp": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "title": "GetProcessConfigViewResp 查询进程与配置管理可见性响应"
     },
     "pbcsGetProcessInstanceTopoResp": {
       "type": "object",

@@ -58,6 +58,13 @@ func (s *Service) ManageConfigKV(ctx context.Context,
 	}
 }
 
+// GetProcessConfigView 查询指定业务是否开启进程与配置管理可见性
+func (s *Service) GetProcessConfigView(_ context.Context,
+	req *pbds.GetProcessConfigViewReq) (*pbds.GetProcessConfigViewResp, error) {
+
+	return &pbds.GetProcessConfigViewResp{Enabled: s.IsProcessConfigViewEnabled(req.BizId)}, nil
+}
+
 func (s *Service) handleConfigKVUpsert(ctx context.Context,
 	req *pbds.ManageConfigKVReq) (*pbds.ManageConfigKVResp, error) {
 

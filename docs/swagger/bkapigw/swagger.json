@@ -1162,6 +1162,47 @@
         }
       }
     },
+    "/api/v1/config/biz_id/{bizId}/process_config_view": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "查询指定业务是否开启进程与配置管理可见性",
+        "operationId": "Config_GetProcessConfigView",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
+        }
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId}": {
       "get": {
         "tags": [
@@ -1664,6 +1705,47 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbcsApproveResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": false,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": false,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
+    "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "查询指定业务是否开启进程与配置管理可见性",
+        "operationId": "Config_GetProcessConfigView2",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
             }
           },
           "default": {
@@ -2733,6 +2815,15 @@
       "properties": {
         "bindTemplate": {
           "$ref": "#/definitions/pbctBindTemplate"
+        }
+      }
+    },
+    "pbcsGetProcessConfigViewResp": {
+      "type": "object",
+      "title": "GetProcessConfigViewResp 查询进程与配置管理可见性响应",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
         }
       }
     },

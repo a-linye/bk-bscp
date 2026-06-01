@@ -366,6 +366,9 @@ service Data {
 
   // configs 表 KV 管理
   rpc ManageConfigKV(ManageConfigKVReq) returns (ManageConfigKVResp) {}
+
+  // 查询指定业务是否开启进程与配置管理可见性
+  rpc GetProcessConfigView(GetProcessConfigViewReq) returns (GetProcessConfigViewResp) {}
 }
 message UpdateCredentialScopesReq {
   uint32 biz_id = 1;
@@ -2759,4 +2762,14 @@ message ConfigKVItem {
 // ManageConfigKVResp 通用 configs 表管理响应
 message ManageConfigKVResp {
   repeated ConfigKVItem items = 1;
+}
+
+// GetProcessConfigViewReq 查询进程与配置管理可见性请求
+message GetProcessConfigViewReq {
+  uint32 biz_id = 1;
+}
+
+// GetProcessConfigViewResp 查询进程与配置管理可见性响应
+message GetProcessConfigViewResp {
+  bool enabled = 1;
 }

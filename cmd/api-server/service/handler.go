@@ -14,7 +14,7 @@ package service
 
 import (
 	"net/http"
-	"strings"
+	"strconv"
 
 	"github.com/go-chi/render"
 
@@ -139,21 +139,16 @@ func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	featureFlags.EnableTenantMode = cc.ApiServer().FeatureFlags.EnableTenantMode
 	featureFlags.TenantMode = string(cc.ApiServer().FeatureFlags.TenantMode)
 
-	// set process_config_view feature flag from DB via config-server gRPC
+	// set process_config_view feature flag via config-server gRPC
 	featureFlags.ProcessConfigView = false
-	if biz != "" {
+	if bizID, err := strconv.ParseUint(biz, 10, 32); err == nil {
 		kt := kit.MustGetKit(r.Context())
-		resp, grpcErr := p.cfgClient.ManageConfigKV(kt.RpcCtx(),
-			&pbcs.ManageConfigKVReq{Action: "get", Key: "pcv_biz"})
+		resp, grpcErr := p.cfgClient.GetProcessConfigView(kt.RpcCtx(),
+			&pbcs.GetProcessConfigViewReq{BizId: uint32(bizID)})
 		if grpcErr != nil {
 			logs.Errorf("query process config view failed: %v", grpcErr)
-		} else if len(resp.Items) > 0 {
-			for _, id := range strings.Split(resp.Items[0].Value, ",") {
-				if strings.TrimSpace(id) == biz {
-					featureFlags.ProcessConfigView = true
-					break
-				}
-			}
+		} else {
+			featureFlags.ProcessConfigView = resp.Enabled
 		}
 	}
 
