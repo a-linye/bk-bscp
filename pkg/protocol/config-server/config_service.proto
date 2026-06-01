@@ -1808,6 +1808,15 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       body: "*"
     };
   }
+
+  // 查询指定业务是否开启进程与配置管理可见性
+  rpc GetProcessConfigView(GetProcessConfigViewReq) returns (GetProcessConfigViewResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
+    option (google.api.http) = {
+      get: "/api/v1/config/process_config_view"
+      additional_bindings { get: "/api/v1/inner/config/process_config_view" }
+    };
+  }
 }
 
 message UpdateCredentialScopeReq {
@@ -5275,4 +5284,14 @@ message ConfigKVItem {
 // ManageConfigKVResp 通用 configs 表管理响应
 message ManageConfigKVResp {
   repeated ConfigKVItem items = 1;
+}
+
+// GetProcessConfigViewReq 查询进程与配置管理可见性请求
+message GetProcessConfigViewReq {
+  uint32 biz_id = 1;
+}
+
+// GetProcessConfigViewResp 查询进程与配置管理可见性响应
+message GetProcessConfigViewResp {
+  bool enabled = 1;
 }

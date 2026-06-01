@@ -241,6 +241,7 @@ const (
 	Config_DeleteConfigTemplate_FullMethodName               = "/pbcs.Config/DeleteConfigTemplate"
 	Config_GetProcessInstanceTopo_FullMethodName             = "/pbcs.Config/GetProcessInstanceTopo"
 	Config_ManageConfigKV_FullMethodName                     = "/pbcs.Config/ManageConfigKV"
+	Config_GetProcessConfigView_FullMethodName               = "/pbcs.Config/GetProcessConfigView"
 )
 
 // ConfigClient is the client API for Config service.
@@ -670,6 +671,8 @@ type ConfigClient interface {
 	GetProcessInstanceTopo(ctx context.Context, in *GetProcessInstanceTopoReq, opts ...grpc.CallOption) (*GetProcessInstanceTopoResp, error)
 	// configs 表 KV 管理
 	ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error)
+	// 查询指定业务是否开启进程与配置管理可见性
+	GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error)
 }
 
 type configClient struct {
@@ -2606,6 +2609,15 @@ func (c *configClient) ManageConfigKV(ctx context.Context, in *ManageConfigKVReq
 	return out, nil
 }
 
+func (c *configClient) GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error) {
+	out := new(GetProcessConfigViewResp)
+	err := c.cc.Invoke(ctx, Config_GetProcessConfigView_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServer is the server API for Config service.
 // All implementations should embed UnimplementedConfigServer
 // for forward compatibility
@@ -3033,6 +3045,8 @@ type ConfigServer interface {
 	GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error)
 	// configs 表 KV 管理
 	ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error)
+	// 查询指定业务是否开启进程与配置管理可见性
+	GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error)
 }
 
 // UnimplementedConfigServer should be embedded to have forward compatible implementations.
@@ -3680,6 +3694,9 @@ func (UnimplementedConfigServer) GetProcessInstanceTopo(context.Context, *GetPro
 }
 func (UnimplementedConfigServer) ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ManageConfigKV not implemented")
+}
+func (UnimplementedConfigServer) GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProcessConfigView not implemented")
 }
 
 // UnsafeConfigServer may be embedded to opt out of forward compatibility for this service.
@@ -7545,6 +7562,24 @@ func _Config_ManageConfigKV_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_GetProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProcessConfigViewReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetProcessConfigView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetProcessConfigView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetProcessConfigView(ctx, req.(*GetProcessConfigViewReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Config_ServiceDesc is the grpc.ServiceDesc for Config service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -8407,6 +8442,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ManageConfigKV",
 			Handler:    _Config_ManageConfigKV_Handler,
+		},
+		{
+			MethodName: "GetProcessConfigView",
+			Handler:    _Config_GetProcessConfigView_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

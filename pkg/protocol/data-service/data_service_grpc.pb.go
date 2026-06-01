@@ -253,6 +253,7 @@ const (
 	Data_OperateGenerateConfig_FullMethodName             = "/pbds.Data/OperateGenerateConfig"
 	Data_GetProcessInstanceTopo_FullMethodName            = "/pbds.Data/GetProcessInstanceTopo"
 	Data_ManageConfigKV_FullMethodName                    = "/pbds.Data/ManageConfigKV"
+	Data_GetProcessConfigView_FullMethodName              = "/pbds.Data/GetProcessConfigView"
 )
 
 // DataClient is the client API for Data service.
@@ -533,6 +534,8 @@ type DataClient interface {
 	GetProcessInstanceTopo(ctx context.Context, in *GetProcessInstanceTopoReq, opts ...grpc.CallOption) (*GetProcessInstanceTopoResp, error)
 	// configs 表 KV 管理
 	ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error)
+	// 查询指定业务是否开启进程与配置管理可见性
+	GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error)
 }
 
 type dataClient struct {
@@ -2532,6 +2535,15 @@ func (c *dataClient) ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, 
 	return out, nil
 }
 
+func (c *dataClient) GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error) {
+	out := new(GetProcessConfigViewResp)
+	err := c.cc.Invoke(ctx, Data_GetProcessConfigView_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataServer is the server API for Data service.
 // All implementations should embed UnimplementedDataServer
 // for forward compatibility
@@ -2810,6 +2822,8 @@ type DataServer interface {
 	GetProcessInstanceTopo(context.Context, *GetProcessInstanceTopoReq) (*GetProcessInstanceTopoResp, error)
 	// configs 表 KV 管理
 	ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error)
+	// 查询指定业务是否开启进程与配置管理可见性
+	GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3478,6 +3492,9 @@ func (UnimplementedDataServer) GetProcessInstanceTopo(context.Context, *GetProce
 }
 func (UnimplementedDataServer) ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ManageConfigKV not implemented")
+}
+func (UnimplementedDataServer) GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProcessConfigView not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -7469,6 +7486,24 @@ func _Data_ManageConfigKV_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_GetProcessConfigView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProcessConfigViewReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetProcessConfigView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetProcessConfigView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetProcessConfigView(ctx, req.(*GetProcessConfigViewReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Data_ServiceDesc is the grpc.ServiceDesc for Data service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -8359,6 +8394,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ManageConfigKV",
 			Handler:    _Data_ManageConfigKV_Handler,
+		},
+		{
+			MethodName: "GetProcessConfigView",
+			Handler:    _Data_GetProcessConfigView_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
