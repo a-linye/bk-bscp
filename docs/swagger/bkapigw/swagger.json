@@ -1162,6 +1162,47 @@
         }
       }
     },
+    "/api/v1/config/biz_id/{bizId}/process_config_view": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "查询指定业务是否开启进程与配置管理可见性",
+        "operationId": "Config_GetProcessConfigView",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
+        }
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId}": {
       "get": {
         "tags": [
@@ -1564,37 +1605,6 @@
         }
       }
     },
-    "/api/v1/config/process_config_view": {
-      "get": {
-        "tags": [
-          "Config"
-        ],
-        "summary": "查询指定业务是否开启进程与配置管理可见性",
-        "operationId": "Config_GetProcessConfigView",
-        "parameters": [
-          {
-            "type": "integer",
-            "format": "int64",
-            "name": "bizId",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/pbcsGetProcessConfigViewResp"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/config/update/strategy/publish/publish/release_id/{releaseId}/app_id/{appId}/biz_id/{bizId}": {
       "post": {
         "tags": [
@@ -1715,7 +1725,7 @@
         }
       }
     },
-    "/api/v1/inner/config/process_config_view": {
+    "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
       "get": {
         "tags": [
           "Config"
@@ -1727,7 +1737,8 @@
             "type": "integer",
             "format": "int64",
             "name": "bizId",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {

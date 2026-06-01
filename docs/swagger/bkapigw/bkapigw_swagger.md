@@ -29,8 +29,8 @@
 | POST | /api/v1/config/biz_id/{bizId}/config_instances/generate | [Config_GenerateConfig](#config-generate-config) | 配置生成 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/publish | [Config_GenerateReleaseAndPublish](#config-generate-release-and-publish) | 生成版本并发布 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_GetConfigTemplate](#config-get-config-template) | 获取配置模板 |
-| GET | /api/v1/config/process_config_view | [Config_GetProcessConfigView](#config-get-process-config-view) | 查询指定业务是否开启进程与配置管理可见性 |
-| GET | /api/v1/inner/config/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
+| GET | /api/v1/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView](#config-get-process-config-view) | 查询指定业务是否开启进程与配置管理可见性 |
+| GET | /api/v1/inner/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance_topo | [Config_GetProcessInstanceTopo](#config-get-process-instance-topo) | 进程实例拓扑 |
 | POST | /api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail | [Config_GetTaskBatchDetail](#config-get-task-batch-detail) | 任务批次详情 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate](#config-list-config-template) | 配置模板列表 |
@@ -868,14 +868,14 @@ Content-Type: application/json
 ### <span id="config-get-process-config-view"></span> 查询指定业务是否开启进程与配置管理可见性 (*Config_GetProcessConfigView*)
 
 ```
-GET /api/v1/config/process_config_view
+GET /api/v1/config/biz_id/{bizId}/process_config_view
 ```
 
 #### 输入参数
 
 | 参数名称 | 类型 | 是否必填 | 描述 |
 |------|--------|------|---------|
-| bizId | int64 (formatted integer) |  |  |
+| bizId | int64 (formatted integer) | ✓ |  |
 
 #### 输出参数
 
@@ -885,7 +885,7 @@ GET /api/v1/config/process_config_view
 #### 输入示例
 
 ```bash
-GET /api/v1/config/process_config_view HTTP/1.1
+GET /api/v1/config/biz_id/{bizId}/process_config_view HTTP/1.1
 Content-Type: application/json
 
 
@@ -900,14 +900,14 @@ Content-Type: application/json
 ### <span id="config-get-process-config-view2"></span> 查询指定业务是否开启进程与配置管理可见性 (*Config_GetProcessConfigView2*)
 
 ```
-GET /api/v1/inner/config/process_config_view
+GET /api/v1/inner/config/biz_id/{bizId}/process_config_view
 ```
 
 #### 输入参数
 
 | 参数名称 | 类型 | 是否必填 | 描述 |
 |------|--------|------|---------|
-| bizId | int64 (formatted integer) |  |  |
+| bizId | int64 (formatted integer) | ✓ |  |
 
 #### 输出参数
 
@@ -917,7 +917,7 @@ GET /api/v1/inner/config/process_config_view
 #### 输入示例
 
 ```bash
-GET /api/v1/inner/config/process_config_view HTTP/1.1
+GET /api/v1/inner/config/biz_id/{bizId}/process_config_view HTTP/1.1
 Content-Type: application/json
 
 

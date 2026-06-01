@@ -139,7 +139,7 @@ func (p *proxy) FeatureFlagsHandler(w http.ResponseWriter, r *http.Request) {
 	featureFlags.EnableTenantMode = cc.ApiServer().FeatureFlags.EnableTenantMode
 	featureFlags.TenantMode = string(cc.ApiServer().FeatureFlags.TenantMode)
 
-	// set process_config_view feature flag via config-server gRPC (read-only, 仅需登录认证)
+	// set process_config_view feature flag via config-server gRPC
 	featureFlags.ProcessConfigView = false
 	if bizID, err := strconv.ParseUint(biz, 10, 32); err == nil {
 		kt := kit.MustGetKit(r.Context())

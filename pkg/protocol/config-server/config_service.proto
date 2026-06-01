@@ -1813,8 +1813,44 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc GetProcessConfigView(GetProcessConfigViewReq) returns (GetProcessConfigViewResp) {
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
-      get: "/api/v1/config/process_config_view"
-      additional_bindings { get: "/api/v1/inner/config/process_config_view" }
+      get: "/api/v1/config/biz_id/{biz_id}/process_config_view"
+      additional_bindings { get: "/api/v1/inner/config/biz_id/{biz_id}/process_config_view" }
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      extensions: {
+        key: "x-bk-apigateway-resource",
+        value: {
+          struct_value: {
+            fields: {
+              key: "isPublic",
+              value: { bool_value: false }
+            },
+            fields: {
+              key: "allowApplyPermission",
+              value: { bool_value: true }
+            },
+            fields: {
+              key: "authConfig",
+              value: {
+                struct_value: {
+                  fields: {
+                    key: "appVerifiedRequired",
+                    value: { bool_value: true }
+                  },
+                  fields: {
+                    key: "userVerifiedRequired",
+                    value: { bool_value: false }
+                  },
+                  fields: {
+                    key: "resourcePermissionRequired",
+                    value: { bool_value: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     };
   }
 }

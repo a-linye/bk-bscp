@@ -374,16 +374,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": false,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approval_callback": {
@@ -1504,7 +1495,7 @@
         ]
       }
     },
-    "/api/v1/config/process_config_view": {
+    "/api/v1/config/biz_id/{bizId}/process_config_view": {
       "get": {
         "summary": "查询指定业务是否开启进程与配置管理可见性",
         "operationId": "Config_GetProcessConfigView",
@@ -1525,18 +1516,27 @@
         "parameters": [
           {
             "name": "bizId",
-            "in": "query",
-            "required": false,
+            "in": "path",
+            "required": true,
             "type": "integer",
             "format": "int64"
           }
         ],
         "tags": [
           "Config"
-        ]
+        ],
+        "x-bk-apigateway-resource": {
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
+        }
       }
     },
-    "/api/v1/inner/config/process_config_view": {
+    "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
       "get": {
         "summary": "查询指定业务是否开启进程与配置管理可见性",
         "operationId": "Config_GetProcessConfigView2",
@@ -1557,8 +1557,8 @@
         "parameters": [
           {
             "name": "bizId",
-            "in": "query",
-            "required": false,
+            "in": "path",
+            "required": true,
             "type": "integer",
             "format": "int64"
           }
@@ -1567,13 +1567,13 @@
           "Config"
         ],
         "x-bk-apigateway-resource": {
-          "isPublic": false,
           "allowApplyPermission": true,
           "authConfig": {
             "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
+            "resourcePermissionRequired": true,
+            "userVerifiedRequired": false
+          },
+          "isPublic": false
         }
       }
     }
