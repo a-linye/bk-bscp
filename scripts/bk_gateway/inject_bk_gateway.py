@@ -5,9 +5,8 @@ import json
 import sys
 
 
-# inner 接口：非公开，需要用户认证
-INNER_EXTENSIONS = {
-    "isPublic": False,
+DEFAULT_EXTENSIONS = {
+    "isPublic": True,
     "allowApplyPermission": True,
     "authConfig": {
         "appVerifiedRequired": True,
@@ -16,16 +15,28 @@ INNER_EXTENSIONS = {
     }
 }
 
-# 非 inner 接口：公开，免用户认证
-PUBLIC_EXTENSIONS = {
-    "isPublic": True,
-    "allowApplyPermission": True,
-    "authConfig": {
-        "appVerifiedRequired": True,
-        "userVerifiedRequired": False,
-        "resourcePermissionRequired": True
+
+def build_inner_extensions(method, path):
+    """为 /inner/ 接口动态构建蓝鲸网关扩展配置，通过 backend.path 将网关路径映射到实际后端路径。"""
+    backend_path = path.replace("/inner/", "/", 1)
+    return {
+        "isPublic": False,
+        "allowApplyPermission": True,
+        "backend": {
+            "type": "HTTP",
+            "method": method,
+            "path": backend_path,
+            "matchSubpath": False,
+            "timeout": 0,
+            "upstreams": {},
+            "transformHeaders": {}
+        },
+        "authConfig": {
+            "appVerifiedRequired": True,
+            "userVerifiedRequired": False,
+            "resourcePermissionRequired": True
+        }
     }
-}
 
 
 def inject_bk_gateway_config(file_path):
@@ -38,26 +49,26 @@ def inject_bk_gateway_config(file_path):
 
     paths = swagger_data.get("paths", {})
     inner_count = 0
-    public_count = 0
+    default_count = 0
 
     for path, path_item in paths.items():
+        is_inner = "/inner/" in path
         for method, method_config in path_item.items():
             if not isinstance(method_config, dict):
                 continue
-            if "/inner/" in path:
-                method_config["x-bk-apigateway-resource"] = INNER_EXTENSIONS
+            if is_inner:
+                method_config["x-bk-apigateway-resource"] = build_inner_extensions(method, path)
                 inner_count += 1
             else:
-                method_config["x-bk-apigateway-resource"] = PUBLIC_EXTENSIONS
-                public_count += 1
+                method_config.setdefault("x-bk-apigateway-resource", DEFAULT_EXTENSIONS)
+                default_count += 1
 
-    total = inner_count + public_count
-    if total > 0:
+    inject_count = inner_count + default_count
+    if inject_count > 0:
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(swagger_data, f, indent=2, ensure_ascii=False)
-            print(f"成功, 已为 {file_path} 注入蓝鲸网关配置: "
-                  f"{inner_count} 个 inner 接口, {public_count} 个公开接口。")
+            print(f"成功, 已为 {file_path} 注入蓝鲸网关配置: inner={inner_count}, default={default_count}。")
         except Exception as e:
             print(f"写入文件失败 [{file_path}]: {e}")
     else:

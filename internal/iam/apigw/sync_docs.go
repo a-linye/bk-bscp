@@ -69,9 +69,9 @@ func ReleaseSwagger(esbOpt cc.Esb, apiGwOpt cc.ApiGateway, language, version str
 		return fmt.Errorf("sync stage failed, err: %s", syncStageResp.Message)
 	}
 
-	// 定义需要同步的 swagger 文件路径
+	// 定义需要同步的 swagger 文件路径（使用 mixin + inject 后的最终产物）
 	swaggerFiles := []string{
-		"swagger/bkapigw.swagger.json",
+		"swagger/bkapigw/swagger.json",
 	}
 
 	// 同步资源和文档导入

@@ -54,16 +54,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/update/app/app/app_id/{id}/biz_id/{bizId}": {
@@ -112,16 +103,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/delete/app/app/app_id/{id}/biz_id/{bizId}": {
@@ -162,16 +144,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}": {
@@ -212,16 +185,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/query/name/{appName}": {
@@ -261,16 +225,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps": {
@@ -333,16 +288,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/list/app/app/biz_id/{bizId}": {
@@ -420,16 +366,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "按 space 查询 app 信息",
@@ -468,16 +405,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/clone_app": {
@@ -518,16 +446,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/create/config_item/config_item/app_id/{appId}/biz_id/{bizId}": {
@@ -576,16 +495,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_items": {
@@ -634,16 +544,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "批量创建或更新文件配置项",
@@ -690,16 +591,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/update/config_item/config_item/config_item_id/{id}/app_id/{appId}/biz_id/{bizId}": {
@@ -756,16 +648,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/delete/config_item/config_item/config_item_id/{id}/app_id/{appId}/biz_id/{bizId}": {
@@ -814,16 +697,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_items/batch_delete": {
@@ -872,16 +746,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/undelete/config_item/config_item/config_item_id/{id}/app_id/{appId}/biz_id/{bizId}": {
@@ -930,16 +795,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/config_items/batch_undelete": {
@@ -988,16 +844,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/undo/config_item/config_item/config_item_id/{id}/app_id/{appId}/biz_id/{bizId}": {
@@ -1046,16 +893,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_items/{configItemId}": {
@@ -1104,16 +942,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items/{configItemId}": {
@@ -1170,16 +999,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items": {
@@ -1236,16 +1056,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/config_item_count/biz_id/{bizId}": {
@@ -1286,16 +1097,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_items/tuple": {
@@ -1344,16 +1146,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs/{key}": {
@@ -1409,16 +1202,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs": {
@@ -1529,16 +1313,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "获取已生成版本键值配置项列表",
@@ -1593,16 +1368,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/published/all": {
@@ -1643,16 +1409,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_hooks": {
@@ -1701,16 +1458,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/create/release/release/app_id/{appId}/biz_id/{bizId}": {
@@ -1759,16 +1507,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases": {
@@ -1847,16 +1586,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName}": {
@@ -1904,16 +1634,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}": {
@@ -1962,16 +1683,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "delete": {
         "summary": "删除服务版本",
@@ -2018,16 +1730,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/deprecate": {
@@ -2076,16 +1779,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/undeprecate": {
@@ -2142,16 +1836,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release/{name}/check": {
@@ -2199,16 +1884,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks": {
@@ -2296,16 +1972,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建脚本",
@@ -2344,16 +2011,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}": {
@@ -2394,16 +2052,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "delete": {
         "summary": "删除脚本",
@@ -2450,16 +2099,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新脚本",
@@ -2506,16 +2146,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/batch_delete": {
@@ -2556,16 +2187,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hook_tags": {
@@ -2598,16 +2220,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/hook_revisions": {
@@ -2656,16 +2269,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/hook_revisions/list": {
@@ -2714,16 +2318,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/hook_revisions/{revisionId}": {
@@ -2772,16 +2367,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "delete": {
         "summary": "删除脚本版本",
@@ -2835,16 +2421,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新脚本版本",
@@ -2899,16 +2476,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/hook_revisions/{revisionId}/publish": {
@@ -2957,16 +2525,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/references": {
@@ -3030,16 +2589,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/hooks/{hookId}/hook_revisions/{revisionId}/references": {
@@ -3111,16 +2661,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/hooks": {
@@ -3169,16 +2710,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces": {
@@ -3248,16 +2780,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建模板空间",
@@ -3296,16 +2819,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}": {
@@ -3346,16 +2860,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新模板空间",
@@ -3402,16 +2907,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/template_spaces/bizs": {
@@ -3434,16 +2930,7 @@
         },
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/template_spaces/default": {
@@ -3476,16 +2963,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/list_by_ids": {
@@ -3525,16 +3003,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates": {
@@ -3598,16 +3067,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建模板",
@@ -3654,16 +3114,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}": {
@@ -3719,16 +3170,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新模板",
@@ -3783,16 +3225,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/list": {
@@ -3841,16 +3274,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/batch_upsert_templates": {
@@ -3899,16 +3323,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_set/{templateSetId}/templates/batch_update_templates_permissions": {
@@ -3965,16 +3380,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_set/{templateSetId}/templates/add_to_template_sets": {
@@ -4031,16 +3437,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/delete_from_template_sets": {
@@ -4089,16 +3486,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/templates/list_by_ids": {
@@ -4139,16 +3527,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/list_not_bound": {
@@ -4197,16 +3576,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/tuple": {
@@ -4255,16 +3625,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/{templateSetId}/templates": {
@@ -4321,16 +3682,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_sets/{templateSetId}/template_revisions": {
@@ -4371,16 +3723,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/template_revisions": {
@@ -4437,16 +3780,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新模板版本",
@@ -4501,16 +3835,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/template_revisions/list": {
@@ -4567,16 +3892,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/templates/{templateId}/template_revisions": {
@@ -4624,16 +3940,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_revisions/list_by_ids": {
@@ -4674,16 +3981,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_revisions/list_names_by_template_ids": {
@@ -4724,16 +4022,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets": {
@@ -4811,16 +4100,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建模板套餐",
@@ -4867,16 +4147,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/{templateSetId}": {
@@ -4932,16 +4203,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新模板套餐",
@@ -4996,16 +4258,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/latest_template_versions": {
@@ -5051,16 +4304,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_sets": {
@@ -5101,16 +4345,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_sets/list_by_ids": {
@@ -5151,16 +4386,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_sets/list_all_of_biz": {
@@ -5201,16 +4427,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings": {
@@ -5251,16 +4468,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建绑定服务的模板(暂无用到)",
@@ -5307,16 +4515,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings/{bindingId}": {
@@ -5365,16 +4564,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新绑定服务的模板",
@@ -5429,16 +4619,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_revisions": {
@@ -5487,16 +4668,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/template_revisions": {
@@ -5553,16 +4725,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/template_revisions/{templateRevisionId}": {
@@ -5619,16 +4782,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings/{bindingId}/template_revisions": {
@@ -5685,16 +4839,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings/{bindingId}/template_sets": {
@@ -5749,16 +4894,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_set/{templateSetId}": {
@@ -5807,16 +4943,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings/conflict_check": {
@@ -5865,16 +4992,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_bindings/import_template_set": {
@@ -5923,16 +5041,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/bound_counts": {
@@ -5981,16 +5090,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/template_revisions/bound_counts": {
@@ -6047,16 +5147,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/bound_counts": {
@@ -6105,16 +5196,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/bound_unnamed_app_details": {
@@ -6200,16 +5282,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/bound_named_app_details": {
@@ -6295,16 +5368,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/bound_template_set_details": {
@@ -6377,16 +5441,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/bound_template_set_details": {
@@ -6457,16 +5512,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/template_revisions/{templateRevisionId}/bound_unnamed_app_details": {
@@ -6560,16 +5606,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/template_revisions/{templateRevisionId}/bound_named_app_details": {
@@ -6663,16 +5700,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/{templateSetId}/bound_unnamed_app_details": {
@@ -6745,16 +5773,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/bound_unnamed_app_details": {
@@ -6825,16 +5844,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/check_template_set_references_apps": {
@@ -6883,16 +5893,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/template_sets/{templateSetId}/bound_named_app_details": {
@@ -6965,16 +5966,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/{templateId}/latest/bound_unnamed_app_details": {
@@ -7047,16 +6039,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables": {
@@ -7097,16 +6080,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables/{templateVariableId}": {
@@ -7147,16 +6121,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新模板变量",
@@ -7203,16 +6168,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables/batch_delete": {
@@ -7253,16 +6209,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables/list": {
@@ -7303,16 +6250,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables/import": {
@@ -7353,16 +6291,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/template_variables/{format}/import": {
@@ -7407,16 +6336,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/extract_template_variables": {
@@ -7457,16 +6377,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_variables_references": {
@@ -7507,16 +6418,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/template_variables_references": {
@@ -7565,16 +6467,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/template_variables": {
@@ -7615,16 +6508,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新未命名服务版本变量",
@@ -7671,16 +6555,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/template_variables": {
@@ -7729,16 +6604,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups": {
@@ -7778,16 +6644,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建分组",
@@ -7826,16 +6683,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups/{groupId}": {
@@ -7876,16 +6724,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新分组",
@@ -7932,16 +6771,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups/batch_delete": {
@@ -7982,16 +6812,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/groups": {
@@ -8032,16 +6853,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups/{groupId}/released_apps": {
@@ -8105,16 +6917,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups/query/name/{groupName}": {
@@ -8154,16 +6957,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/groups/selector/{labelName}": {
@@ -8203,16 +6997,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/update/strategy/publish/publish/release_id/{releaseId}/app_id/{appId}/biz_id/{bizId}": {
@@ -8269,16 +7054,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/publish": {
@@ -8327,16 +7103,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/submit": {
@@ -8393,16 +7160,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approve": {
@@ -8456,16 +7214,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/inner/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approve": {
@@ -8519,16 +7268,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": false,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/approval_callback": {
@@ -8585,16 +7325,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/last/select": {
@@ -8632,16 +7363,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/last/publish": {
@@ -8679,16 +7401,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/release_id/{releaseId}/status": {
@@ -8733,16 +7446,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/audits": {
@@ -8861,16 +7565,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credentials": {
@@ -8948,16 +7643,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建客户端密钥",
@@ -8996,16 +7682,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credential": {
@@ -9046,16 +7723,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新客户端密钥",
@@ -9094,16 +7762,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credential/{credentialName}/check": {
@@ -9143,16 +7802,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credential/{credentialId}/scopes": {
@@ -9193,16 +7843,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credential/{credentialId}/scope": {
@@ -9251,16 +7892,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/credential/scope/preview": {
@@ -9330,16 +7962,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs": {
@@ -9388,16 +8011,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "批量创建或更新键值配置项",
@@ -9444,16 +8058,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key}": {
@@ -9509,16 +8114,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/list": {
@@ -9567,16 +8163,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{id}": {
@@ -9625,16 +8212,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/batch_delete": {
@@ -9683,16 +8261,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key}/undelete": {
@@ -9740,16 +8309,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/batch_undelete": {
@@ -9798,16 +8358,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key}/undo": {
@@ -9855,16 +8406,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{format}/import": {
@@ -9920,16 +8462,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/near_certificate": {
@@ -10002,16 +8535,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients": {
@@ -10060,16 +8584,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/client_events/{clientId}": {
@@ -10126,16 +8641,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/retry": {
@@ -10184,16 +8690,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/client_querys": {
@@ -10265,16 +8762,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "post": {
         "summary": "创建客户端查询条件",
@@ -10321,16 +8809,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/client_querys/{id}": {
@@ -10379,16 +8858,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "更新客户端查询条件",
@@ -10443,16 +8913,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/client_querys/check_exists": {
@@ -10500,16 +8961,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/config_version_statistics": {
@@ -10558,16 +9010,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/pull_trend_statistics": {
@@ -10616,16 +9059,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/pull_statistics": {
@@ -10674,16 +9108,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/label_statistics": {
@@ -10732,16 +9157,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/annotation_statistics": {
@@ -10790,16 +9206,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/version_statistics": {
@@ -10848,16 +9255,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/labels_and_annotations": {
@@ -10906,16 +9304,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/clients/specific_failed_reason": {
@@ -10964,16 +9353,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/config_items/compare_conflicts": {
@@ -11030,16 +9410,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/compare_conflicts": {
@@ -11096,16 +9467,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/apps/{appId}/config_items/count": {
@@ -11146,16 +9508,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process/list": {
@@ -11196,16 +9549,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process/operate": {
@@ -11246,16 +9590,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process/filter_options": {
@@ -11288,16 +9623,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/task_batch/list": {
@@ -11338,16 +9664,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail": {
@@ -11396,16 +9713,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status": {
@@ -11446,16 +9754,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/sync/sync_status": {
@@ -11488,16 +9787,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/task_batch/{batchId}/retry": {
@@ -11546,16 +9836,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/topo": {
@@ -11588,16 +9869,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/service_template": {
@@ -11630,16 +9902,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId}": {
@@ -11688,16 +9951,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/list": {
@@ -11738,16 +9992,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_generate/status": {
@@ -11788,16 +10033,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/preview": {
@@ -11838,16 +10074,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/compare": {
@@ -11888,16 +10115,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/generate": {
@@ -11938,16 +10156,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/check": {
@@ -11988,16 +10197,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/diff/{taskId}": {
@@ -12037,16 +10237,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/view": {
@@ -12111,16 +10302,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/operate": {
@@ -12161,16 +10343,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_instances/push": {
@@ -12211,16 +10384,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/render_task/{taskId}/result": {
@@ -12260,16 +10424,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template/list": {
@@ -12310,16 +10465,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template": {
@@ -12360,16 +10506,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}": {
@@ -12410,16 +10547,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "delete": {
         "summary": "删除配置模板",
@@ -12458,16 +10586,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       },
       "put": {
         "summary": "编辑配置模板",
@@ -12514,16 +10633,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template/variable": {
@@ -12556,16 +10666,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/bind_process_instance": {
@@ -12614,16 +10715,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/preview_bind_process_instance": {
@@ -12664,16 +10756,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId}": {
@@ -12714,16 +10797,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/service_instance/{moduleId}": {
@@ -12764,16 +10838,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process_instance_topo": {
@@ -12806,16 +10871,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/manage_config_kv": {
@@ -12848,16 +10904,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/process_config_view": {
@@ -12889,16 +10936,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     },
     "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
@@ -12930,16 +10968,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "isPublic": false,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
+        ]
       }
     }
   },

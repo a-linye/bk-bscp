@@ -221,7 +221,7 @@ markdown_docs: ${swag} ${swagger} normalize_proto_docs
 	${swagger} validate ./docs/swagger/bkapigw.swagger.json
 	# 合并bkapigw和apiserver的swagger.json
 	$(swagger) mixin ./docs/swagger/bkapigw.swagger.json ./docs/swagger/apiserver/swagger.json -o ./docs/swagger/bkapigw/swagger.json
-	@python3 $(INJECT_SCRIPT) ./docs/swagger/api.swagger.json ./docs/swagger/bkapigw.swagger.json ./docs/swagger/apiserver/swagger.json ./docs/swagger/bkapigw/swagger.json
+	@python3 $(INJECT_SCRIPT) ./docs/swagger/bkapigw/swagger.json
 	${swagger} generate markdown  --output=bkapigw_swagger.md -T ./docs/swagger -f ./docs/swagger/bkapigw/swagger.json -t ./docs/swagger/bkapigw
 
 .PHONY: docs
