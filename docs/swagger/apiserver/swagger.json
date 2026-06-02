@@ -66,6 +66,15 @@
               ]
             }
           }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": false,
+            "resourcePermissionRequired": true
+          }
         }
       }
     },
@@ -123,6 +132,15 @@
                 }
               ]
             }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": false,
+            "resourcePermissionRequired": true
           }
         }
       }
@@ -187,6 +205,15 @@
               ]
             }
           }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": false,
+            "resourcePermissionRequired": true
+          }
         }
       }
     },
@@ -237,7 +264,7 @@
           "allowApplyPermission": true,
           "authConfig": {
             "appVerifiedRequired": true,
-            "userVerifiedRequired": false,
+            "userVerifiedRequired": true,
             "resourcePermissionRequired": true
           }
         }
@@ -256,6 +283,15 @@
             "schema": {
               "type": "string"
             }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": false,
+            "resourcePermissionRequired": true
           }
         }
       }

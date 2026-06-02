@@ -4,6 +4,30 @@
 import json
 import sys
 
+
+# inner 接口：非公开，需要用户认证
+INNER_EXTENSIONS = {
+    "isPublic": False,
+    "allowApplyPermission": True,
+    "authConfig": {
+        "appVerifiedRequired": True,
+        "userVerifiedRequired": True,
+        "resourcePermissionRequired": True
+    }
+}
+
+# 非 inner 接口：公开，免用户认证
+PUBLIC_EXTENSIONS = {
+    "isPublic": True,
+    "allowApplyPermission": True,
+    "authConfig": {
+        "appVerifiedRequired": True,
+        "userVerifiedRequired": False,
+        "resourcePermissionRequired": True
+    }
+}
+
+
 def inject_bk_gateway_config(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -12,39 +36,32 @@ def inject_bk_gateway_config(file_path):
         print(f"读取或解析文件失败 [{file_path}]: {e}")
         return
 
-    # 蓝鲸网关专属配置模板
-    bk_extensions = {
-        "isPublic": False,  # 默认非公开，需管理员授权后才可见
-        "allowApplyPermission": True,  # 允许用户申请权限
-        "authConfig": {
-            "appVerifiedRequired": True,  # 需要应用认证
-            "userVerifiedRequired": False,  # 内部调用免用户校验
-            "resourcePermissionRequired": True  # 需要资源权限校验
-        }
-    }
-
     paths = swagger_data.get("paths", {})
-    inject_count = 0
+    inner_count = 0
+    public_count = 0
 
-    # 遍历所有路径，精准注入
     for path, path_item in paths.items():
-        # 核心判断：只要路由中包含 /inner/
-        if "/inner/" in path:
-            for method, method_config in path_item.items():
-                if isinstance(method_config, dict):
-                    # 注入扩展字段，且不影响该路径下的其他原有属性
-                    method_config["x-bk-apigateway-resource"] = bk_extensions
-                    inject_count += 1
+        for method, method_config in path_item.items():
+            if not isinstance(method_config, dict):
+                continue
+            if "/inner/" in path:
+                method_config["x-bk-apigateway-resource"] = INNER_EXTENSIONS
+                inner_count += 1
+            else:
+                method_config["x-bk-apigateway-resource"] = PUBLIC_EXTENSIONS
+                public_count += 1
 
-    if inject_count > 0:
+    total = inner_count + public_count
+    if total > 0:
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(swagger_data, f, indent=2, ensure_ascii=False)
-            print(f"成功, 已为 {file_path} 中的 {inject_count} 个 inner 接口注入蓝鲸网关配置。")
+            print(f"成功, 已为 {file_path} 注入蓝鲸网关配置: "
+                  f"{inner_count} 个 inner 接口, {public_count} 个公开接口。")
         except Exception as e:
             print(f"写入文件失败 [{file_path}]: {e}")
     else:
-        print(f"未在 {file_path} 中检测到 /inner/ 接口，跳过注入。")
+        print(f"未在 {file_path} 中检测到接口，跳过注入。")
 
 if __name__ == "__main__":
     # 支持从命令行传入多个文件路径

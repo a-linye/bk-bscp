@@ -100,6 +100,13 @@ func (p *proxy) routers() http.Handler {
 		r.Mount("/", p.cfgSvrMux)
 	})
 
+	// inner 接口，供内部服务或蓝鲸网关调用
+	r.Route("/api/v1/inner/config/", func(r chi.Router) {
+		r.Use(p.authorizer.UnifiedAuthentication)
+		r.Use(p.authorizer.BizVerified)
+		r.Mount("/", p.cfgSvrMux)
+	})
+
 	// repo 上传 API, 此处因兼容老版本而保留，后续统一使用新接口
 	r.Route("/api/v1/api/create/content/upload", func(r chi.Router) {
 		r.Use(p.authorizer.UnifiedAuthentication)
