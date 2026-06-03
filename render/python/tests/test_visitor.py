@@ -331,6 +331,30 @@ def evil():
 
         self.assert_unsafe(template)
 
+    def test_function_local_assignment_does_not_clear_outer_module_binding(self):
+        template = """<%
+import json
+
+def helper():
+    json = {}
+    return "ok"
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_function_local_import_does_not_create_outer_module_binding(self):
+        template = """<%
+def helper():
+    import json
+    return json.dumps({"name": "bscp"})
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
     def test_rejects_unsafe_template_function_annotations(self):
         cases = [
             """<%

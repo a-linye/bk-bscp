@@ -290,12 +290,51 @@ class MakoNodeVisitor(ast.NodeVisitor):
         if node.returns is not None:
             self.visit(node.returns)
 
+    def _function_argument_names(self, node):
+        names = set()
+        args = (
+            list(getattr(node.args, "posonlyargs", []))
+            + list(node.args.args)
+            + list(node.args.kwonlyargs)
+        )
+        for arg in args:
+            self._validate_binding_name(arg.arg)
+            names.add(arg.arg)
+
+        for arg in (node.args.vararg, node.args.kwarg):
+            if arg is not None:
+                self._validate_binding_name(arg.arg)
+                names.add(arg.arg)
+
+        return names
+
+    def _collect_function_local_bindings(self, node):
+        names = self._function_argument_names(node)
+        for stmt in node.body:
+            for child in ast.walk(stmt):
+                if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                    names.add(child.id)
+                    continue
+                if isinstance(child, ast.Import):
+                    for alias in child.names:
+                        names.add(alias.asname or alias.name.split(".", 1)[0])
+                    continue
+                if isinstance(child, ast.ImportFrom):
+                    for alias in child.names:
+                        if alias.name != "*":
+                            names.add(alias.asname or alias.name)
+        return names
+
+    def _remove_allowed_bindings(self, names):
+        for name in names:
+            self.allowed_module_bindings.pop(name, None)
+            self.allowed_import_bindings.pop(name, None)
+            self.allowed_template_functions.discard(name)
+
     def _unbind_target(self, target):
         if isinstance(target, ast.Name):
             self._validate_binding_name(target.id)
-            self.allowed_module_bindings.pop(target.id, None)
-            self.allowed_import_bindings.pop(target.id, None)
-            self.allowed_template_functions.discard(target.id)
+            self._remove_allowed_bindings({target.id})
             return
 
         if isinstance(target, (ast.Tuple, ast.List)):
@@ -367,6 +406,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
         self._validate_binding_name(node.name)
         self._visit_function_annotations(node)
+        local_binding_names = self._collect_function_local_bindings(node)
 
         self._function_def_depth += 1
         self.allowed_template_functions.add(node.name)
@@ -376,8 +416,21 @@ class MakoNodeVisitor(ast.NodeVisitor):
             for default in node.args.kw_defaults:
                 if default is not None:
                     self.visit(default)
-            for stmt in node.body:
-                self.visit(stmt)
+
+            outer_module_bindings = self.allowed_module_bindings
+            outer_import_bindings = self.allowed_import_bindings
+            outer_template_functions = self.allowed_template_functions
+            self.allowed_module_bindings = dict(outer_module_bindings)
+            self.allowed_import_bindings = dict(outer_import_bindings)
+            self.allowed_template_functions = set(outer_template_functions)
+            self._remove_allowed_bindings(local_binding_names)
+            try:
+                for stmt in node.body:
+                    self.visit(stmt)
+            finally:
+                self.allowed_module_bindings = outer_module_bindings
+                self.allowed_import_bindings = outer_import_bindings
+                self.allowed_template_functions = outer_template_functions
         finally:
             self._function_def_depth -= 1
 
