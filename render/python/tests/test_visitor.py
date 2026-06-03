@@ -279,6 +279,93 @@ ${idx}:${item}
         self.assertIn("0:x", result)
         self.assertIn("1:y", result)
 
+    def test_allows_template_helper_functions(self):
+        template = """<%
+def getAppId():
+    if this.cc_set.attrib['bk_set_name'] == "prod":
+        return ""
+    return ""
+
+def getMongoInfo():
+    if this.cc_set.attrib['bk_set_name'] == "prod":
+        return "mongodb://g"
+    return "mongodb://gameus"
+%>
+${getAppId()}|${getMongoInfo()}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+
+        this = SimpleNamespace(
+            cc_set=SimpleNamespace(attrib={"bk_set_name": "prod"}),
+        )
+        result = mako_render(template, {"this": this})
+
+        self.assertIn("|mongodb://g", result)
+
+    def test_rejects_nested_template_function_def(self):
+        template = """<%
+def outer():
+    def inner():
+        return 1
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_decorated_template_function_def(self):
+        template = """<%
+def helper():
+    return 1
+
+@decorator
+def wrapped():
+    return 2
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_unsafe_code_inside_template_function(self):
+        template = """<%
+def evil():
+    return open("/etc/passwd").read()
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_unsafe_template_function_annotations(self):
+        cases = [
+            """<%
+def helper(value: open("/etc/passwd").read()):
+    return "ok"
+%>""",
+            """<%
+def helper() -> open("/etc/passwd").read():
+    return "ok"
+%>""",
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
+
+    def test_rejects_call_before_template_function_def(self):
+        template = """${getAppId()}
+<%
+def getAppId():
+    return ""
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_rebound_template_function_name(self):
+        template = """<%
+def getAppId():
+    return "safe"
+getAppId = attacker
+%>
+${getAppId()}"""
+
+        self.assert_unsafe(template)
+
     def test_allows_help_template_safety_check(self):
         from main import HELP_TEMPLATE
 

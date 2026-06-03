@@ -190,7 +190,6 @@ class MakoNodeVisitor(ast.NodeVisitor):
         ast.ClassDef,
         ast.Delete,
         ast.DictComp,
-        ast.FunctionDef,
         ast.GeneratorExp,
         ast.Global,
         ast.Lambda,
@@ -217,6 +216,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self.white_list_filters = set(self.WHITE_LIST_FILTERS)
         self.allowed_module_bindings = {}
         self.allowed_import_bindings = {}
+        self.allowed_template_functions = set()
+        self._function_def_depth = 0
 
     def _reject(self, message):
         raise ForbiddenMakoTemplateException(message)
@@ -273,11 +274,28 @@ class MakoNodeVisitor(ast.NodeVisitor):
         if name not in self.white_list_filters:
             self._reject("发现非法过滤器使用:[{}]，请修改".format(name))
 
+    def _visit_function_annotations(self, node):
+        for arg in (
+            list(getattr(node.args, "posonlyargs", []))
+            + list(node.args.args)
+            + list(node.args.kwonlyargs)
+        ):
+            if arg.annotation is not None:
+                self.visit(arg.annotation)
+
+        for arg in (node.args.vararg, node.args.kwarg):
+            if arg is not None and arg.annotation is not None:
+                self.visit(arg.annotation)
+
+        if node.returns is not None:
+            self.visit(node.returns)
+
     def _unbind_target(self, target):
         if isinstance(target, ast.Name):
             self._validate_binding_name(target.id)
             self.allowed_module_bindings.pop(target.id, None)
             self.allowed_import_bindings.pop(target.id, None)
+            self.allowed_template_functions.discard(target.id)
             return
 
         if isinstance(target, (ast.Tuple, ast.List)):
@@ -324,6 +342,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
                 module_name, member_path = self.allowed_import_bindings[func.id]
                 if not self._is_allowed_module_call_path(module_name, member_path):
                     self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
+            elif func.id in self.allowed_template_functions:
+                pass
             elif func.id not in self.WHITE_LIST_FUNCTIONS:
                 self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
         elif isinstance(func, ast.Attribute):
@@ -338,6 +358,28 @@ class MakoNodeVisitor(ast.NodeVisitor):
         else:
             self._reject("发现非法函数调用:[{}]，请修改".format(func.__class__.__name__))
         self.generic_visit(node)
+
+    def visit_FunctionDef(self, node):
+        """访问顶层模板 helper 函数定义（禁止嵌套 def 与装饰器）"""
+        if node.decorator_list:
+            self._reject("发现非法语法使用:[带装饰器的函数定义]，请修改")
+        if self._function_def_depth > 0:
+            self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
+        self._validate_binding_name(node.name)
+        self._visit_function_annotations(node)
+
+        self._function_def_depth += 1
+        self.allowed_template_functions.add(node.name)
+        try:
+            for default in node.args.defaults:
+                self.visit(default)
+            for default in node.args.kw_defaults:
+                if default is not None:
+                    self.visit(default)
+            for stmt in node.body:
+                self.visit(stmt)
+        finally:
+            self._function_def_depth -= 1
 
     def visit_Assign(self, node):
         """访问赋值节点"""
