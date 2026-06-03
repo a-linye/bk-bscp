@@ -16,6 +16,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,8 @@ var (
 	compareRenderDiffCtxLines    int
 	compareRenderTimeout         time.Duration
 	compareRenderRequestInterval time.Duration
+	compareRenderOutputDir       string
+	compareRenderCreateDir       bool
 )
 
 // rootCmd represents the base command
@@ -346,12 +349,41 @@ process's first instance (matching GSEKit's ProcessInst.get_single_inst()),
 then render via both GSEKit preview API and BSCP Mako renderer, and compare
 the two outputs.
 
-This verifies that BSCP rendering produces identical results before migration.`,
+This verifies that BSCP rendering produces identical results before migration.
+
+Each biz generates an independent report file. Use --output-dir and --create-dir
+to control where the reports are stored.`,
 	PreRunE: requireConfig,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := applyBizIDsFlag(); err != nil {
 			fmt.Printf("Error parsing biz-ids: %v\n", err)
 			os.Exit(1)
+		}
+
+		timestamp := time.Now().Format("20060102-150405")
+
+		// 确定输出目录
+		outputDir := compareRenderOutputDir
+		if compareRenderCreateDir {
+			if outputDir == "" {
+				bizIDStrs := make([]string, 0, len(cfg.Migration.BizIDs))
+				for _, id := range cfg.Migration.BizIDs {
+					bizIDStrs = append(bizIDStrs, strconv.FormatUint(uint64(id), 10))
+				}
+				outputDir = fmt.Sprintf("render-diff-biz_%s-%s",
+					strings.Join(bizIDStrs, "_"), timestamp)
+			}
+			if err := os.MkdirAll(outputDir, 0755); err != nil {
+				fmt.Printf("Error creating output directory %s: %v\n", outputDir, err)
+				os.Exit(1)
+			}
+			fmt.Printf("Output directory: %s\n", outputDir)
+		} else if outputDir != "" {
+			info, err := os.Stat(outputDir)
+			if err != nil || !info.IsDir() {
+				fmt.Printf("Output directory does not exist: %s (use --create-dir to create it)\n", outputDir)
+				os.Exit(1)
+			}
 		}
 
 		m, err := migrator.NewMigrator(cfg)
@@ -377,11 +409,37 @@ This verifies that BSCP rendering produces identical results before migration.`,
 
 		m.PrintCompareRenderReport(report)
 
-		if compareRenderOutput != "" {
-			if err := m.WriteCompareRenderReportJSON(report, compareRenderOutput); err != nil {
-				fmt.Printf("Error writing report: %v\n", err)
-				os.Exit(1)
+		// 每个业务写入独立报告
+		for i := range report.BizReports {
+			bizReport := &report.BizReports[i]
+			status := "success"
+			if bizReport.Mismatched > 0 || bizReport.RenderFailed > 0 {
+				status = "failed"
 			}
+			filename := fmt.Sprintf("biz_%d-%s-%s.json", bizReport.BizID, timestamp, status)
+			if outputDir != "" {
+				filename = filepath.Join(outputDir, filename)
+			}
+			if err := m.WriteBizCompareRenderReportJSON(bizReport, filename); err != nil {
+				fmt.Printf("Error writing biz %d report: %v\n", bizReport.BizID, err)
+			}
+		}
+
+		// 写入汇总报告
+		summaryFile := compareRenderOutput
+		if !cmd.Flags().Changed("output") {
+			summaryStatus := "success"
+			if !report.Success {
+				summaryStatus = "failed"
+			}
+			summaryFile = fmt.Sprintf("summary-%s-%s.json", timestamp, summaryStatus)
+		}
+		if outputDir != "" {
+			summaryFile = filepath.Join(outputDir, summaryFile)
+		}
+		if err := m.WriteCompareRenderReportJSON(report, summaryFile); err != nil {
+			fmt.Printf("Error writing summary report: %v\n", err)
+			os.Exit(1)
 		}
 
 		if !report.Success {
@@ -417,7 +475,7 @@ func init() {
 	_ = compareRenderCmd.MarkFlagRequired("biz-ids")
 	compareRenderCmd.Flags().StringVarP(&compareRenderOutput, "output", "o",
 		fmt.Sprintf("compare-render-report-%s.json", time.Now().Format("20060102-150405")),
-		"Output file path for JSON report")
+		"Output file path for JSON report (default: compare-render-report-biz_{IDs}-{timestamp}.json)")
 	compareRenderCmd.Flags().BoolVar(&compareRenderShowDiff, "show-diff", true,
 		"Show unified diff for mismatched instances")
 	compareRenderCmd.Flags().IntVar(&compareRenderDiffCtxLines, "diff-context-lines", 3,
@@ -426,4 +484,8 @@ func init() {
 		"Timeout for a single render operation")
 	compareRenderCmd.Flags().DurationVar(&compareRenderRequestInterval, "request-interval", 200*time.Millisecond,
 		"Minimum interval between GSEKit preview API requests to avoid overloading")
+	compareRenderCmd.Flags().StringVar(&compareRenderOutputDir, "output-dir", "",
+		"Output directory for per-biz report files (each biz generates an independent report)")
+	compareRenderCmd.Flags().BoolVar(&compareRenderCreateDir, "create-dir", false,
+		"Create output directory if it does not exist; auto-generates a timestamped directory name when --output-dir is not set")
 }

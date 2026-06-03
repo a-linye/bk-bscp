@@ -598,3 +598,16 @@ func (m *Migrator) WriteCompareRenderReportJSON(report *CompareRenderReport, out
 	log.Printf("Report written to %s", outputFile)
 	return nil
 }
+
+// WriteBizCompareRenderReportJSON writes a single biz report as JSON
+func (m *Migrator) WriteBizCompareRenderReportJSON(bizReport *BizCompareReport, outputFile string) error {
+	data, err := json.MarshalIndent(bizReport, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal biz %d report to JSON failed: %w", bizReport.BizID, err)
+	}
+	if err := os.WriteFile(outputFile, data, 0644); err != nil {
+		return fmt.Errorf("write biz %d report to %s failed: %w", bizReport.BizID, outputFile, err)
+	}
+	log.Printf("Biz %d report written to %s", bizReport.BizID, outputFile)
+	return nil
+}
