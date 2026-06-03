@@ -83,7 +83,14 @@ def parse_template_nodes(nodes: List[parsetree.Node], node_visitor: ast.NodeVisi
             pass
         
         if hasattr(node, "nodes"):
-            parse_template_nodes(node.nodes, node_visitor)
+            if isinstance(node, parsetree.ControlLine) and hasattr(node_visitor, "enter_mako_control"):
+                node_visitor.enter_mako_control()
+                try:
+                    parse_template_nodes(node.nodes, node_visitor)
+                finally:
+                    node_visitor.exit_mako_control()
+            else:
+                parse_template_nodes(node.nodes, node_visitor)
 
 
 def check_mako_template_safety(text: str, node_visitor: ast.NodeVisitor = None) -> bool:

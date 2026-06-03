@@ -219,6 +219,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self.allowed_template_functions = set()
         self._function_def_depth = 0
         self._module_template_function_stack = []
+        self._allow_template_function_def_stack = []
+        self._mako_control_depth = 0
 
     def _reject(self, message):
         raise ForbiddenMakoTemplateException(message)
@@ -337,6 +339,38 @@ class MakoNodeVisitor(ast.NodeVisitor):
             return set()
         return self._module_template_function_stack[-1]
 
+    def _statement_binding_names(self, node):
+        names = set()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                names.add(child.id)
+                continue
+            if isinstance(child, ast.Import):
+                for alias in child.names:
+                    names.add(alias.asname or alias.name.split(".", 1)[0])
+                continue
+            if isinstance(child, ast.ImportFrom):
+                for alias in child.names:
+                    if alias.name != "*":
+                        names.add(alias.asname or alias.name)
+                continue
+            if isinstance(child, ast.FunctionDef):
+                names.add(child.name)
+        return names
+
+    def _can_publish_template_function(self):
+        return (
+            self._mako_control_depth == 0
+            and self._allow_template_function_def_stack
+            and self._allow_template_function_def_stack[-1]
+        )
+
+    def enter_mako_control(self):
+        self._mako_control_depth += 1
+
+    def exit_mako_control(self):
+        self._mako_control_depth -= 1
+
     def _unbind_target(self, target):
         if isinstance(target, ast.Name):
             self._validate_binding_name(target.id)
@@ -361,15 +395,25 @@ class MakoNodeVisitor(ast.NodeVisitor):
 
     def visit_Module(self, node):
         template_functions = set()
-        for stmt in node.body:
-            if isinstance(stmt, ast.FunctionDef):
-                self._validate_binding_name(stmt.name)
-                template_functions.add(stmt.name)
+        allow_top_level_helpers = self._mako_control_depth == 0
+        if allow_top_level_helpers:
+            for stmt in node.body:
+                if isinstance(stmt, ast.FunctionDef):
+                    self._validate_binding_name(stmt.name)
+                    template_functions.add(stmt.name)
+                    continue
+                template_functions.difference_update(self._statement_binding_names(stmt))
 
         self._module_template_function_stack.append(template_functions)
         try:
             for stmt in node.body:
-                self.visit(stmt)
+                self._allow_template_function_def_stack.append(
+                    allow_top_level_helpers and isinstance(stmt, ast.FunctionDef)
+                )
+                try:
+                    self.visit(stmt)
+                finally:
+                    self._allow_template_function_def_stack.pop()
         finally:
             self._module_template_function_stack.pop()
 
@@ -422,7 +466,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
         """访问顶层模板 helper 函数定义（禁止嵌套 def 与装饰器）"""
         if node.decorator_list:
             self._reject("发现非法语法使用:[带装饰器的函数定义]，请修改")
-        if self._function_def_depth > 0:
+        if self._function_def_depth > 0 or not self._can_publish_template_function():
             self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
         self._validate_binding_name(node.name)
         self._visit_function_annotations(node)

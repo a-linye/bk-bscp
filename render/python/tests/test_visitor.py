@@ -380,6 +380,52 @@ ${first()}"""
 
         self.assertIn("helper", result)
 
+    def test_rejects_helper_call_to_rebound_later_helper_name(self):
+        template = """<%
+def first():
+    return second()
+
+def second():
+    return "helper"
+
+second = attacker
+%>
+${first()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_defined_inside_mako_if_block(self):
+        template = """% if flag:
+<%
+def helper():
+    return "helper"
+%>
+% endif
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_defined_inside_mako_for_block(self):
+        template = """% for item in items:
+<%
+def helper():
+    return "helper"
+%>
+% endfor
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_defined_inside_python_control_block(self):
+        template = """<%
+if flag:
+    def helper():
+        return "helper"
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
     def test_rejects_unsafe_template_function_annotations(self):
         cases = [
             """<%
