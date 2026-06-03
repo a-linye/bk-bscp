@@ -430,6 +430,32 @@ ${helper()}"""
 
         self.assert_unsafe(template)
 
+    def test_rejects_helper_call_before_later_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+value = helper()
+import json
+%>
+${value}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_helper_call_after_later_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+value = helper()
+%>
+${value}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
     def test_rejects_helper_call_to_rebound_later_helper_name(self):
         template = """<%
 def first():
@@ -441,6 +467,20 @@ def second():
 second = attacker
 %>
 ${first()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_call_before_later_helper_in_same_code_block(self):
+        template = """<%
+def first():
+    return second()
+
+value = first()
+
+def second():
+    return "helper"
+%>
+${value}"""
 
         self.assert_unsafe(template)
 

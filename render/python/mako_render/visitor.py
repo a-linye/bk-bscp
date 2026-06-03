@@ -217,6 +217,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self.allowed_module_bindings = {}
         self.allowed_import_bindings = {}
         self.allowed_template_functions = set()
+        self._template_function_defs = {}
+        self._template_function_call_check_stack = set()
         self._function_def_depth = 0
         self._module_template_function_stack = []
         self._module_allowed_module_binding_stack = []
@@ -381,6 +383,32 @@ class MakoNodeVisitor(ast.NodeVisitor):
         if not self._module_allowed_import_binding_stack:
             return {}
         return self._module_allowed_import_binding_stack[-1]
+
+    def _validate_template_function_current_bindings(self, name):
+        if self._function_def_depth > 0 or name in self._template_function_call_check_stack:
+            return
+        node = self._template_function_defs.get(name)
+        if node is None:
+            return
+
+        outer_module_bindings = self.allowed_module_bindings
+        outer_import_bindings = self.allowed_import_bindings
+        outer_template_functions = self.allowed_template_functions
+        self._template_function_call_check_stack.add(name)
+        self._function_def_depth += 1
+        try:
+            self.allowed_module_bindings = dict(outer_module_bindings)
+            self.allowed_import_bindings = dict(outer_import_bindings)
+            self.allowed_template_functions = set(outer_template_functions)
+            self._remove_allowed_bindings(self._collect_function_local_bindings(node))
+            for stmt in node.body:
+                self.visit(stmt)
+        finally:
+            self.allowed_module_bindings = outer_module_bindings
+            self.allowed_import_bindings = outer_import_bindings
+            self.allowed_template_functions = outer_template_functions
+            self._function_def_depth -= 1
+            self._template_function_call_check_stack.discard(name)
 
     def _statement_binding_names(self, node):
         names = set()
@@ -558,7 +586,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
                 if not self._is_allowed_module_call_path(module_name, member_path):
                     self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
             elif func.id in self.allowed_template_functions:
-                pass
+                self._validate_template_function_current_bindings(func.id)
             elif func.id not in self.WHITE_LIST_FUNCTIONS:
                 self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
         elif isinstance(func, ast.Attribute):
@@ -612,6 +640,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
                 self.allowed_module_bindings = outer_module_bindings
                 self.allowed_import_bindings = outer_import_bindings
                 self.allowed_template_functions = outer_template_functions
+            self._template_function_defs[node.name] = node
         finally:
             self._function_def_depth -= 1
 
