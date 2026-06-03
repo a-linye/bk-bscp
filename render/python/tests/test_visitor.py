@@ -380,6 +380,56 @@ ${first()}"""
 
         self.assertIn("helper", result)
 
+    def test_allows_helper_to_use_later_module_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+%>
+${helper()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_allows_helper_to_use_later_from_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return to_json({"name": "bscp"})
+
+from json import dumps as to_json
+%>
+${helper()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_rejects_helper_later_module_import_rebound_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+json = attacker
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_import_inside_python_control_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+if flag:
+    import json
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
     def test_rejects_helper_call_to_rebound_later_helper_name(self):
         template = """<%
 def first():
@@ -391,6 +441,26 @@ def second():
 second = attacker
 %>
 ${first()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_call_after_later_import_rebinds_helper_name(self):
+        template = """<%
+def json():
+    return "helper"
+
+import json
+%>
+${json()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_module_attr_after_from_import_rebinds_module_name(self):
+        template = """<%
+import json
+from math import sqrt as json
+%>
+${json.dumps({"name": "bscp"})}"""
 
         self.assert_unsafe(template)
 
@@ -413,6 +483,41 @@ def helper():
 %>
 % endfor
 ${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_import_defined_inside_mako_if_block_for_inner_nodes(self):
+        template = """% if flag:
+<%
+import json
+%>
+${json.dumps({"name": "bscp"})}
+% endif"""
+
+        result = mako_render(template, {"flag": True})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_rejects_import_defined_inside_mako_if_block_leaking_out(self):
+        template = """% if flag:
+<%
+import json
+%>
+% endif
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_mako_control_rebind_of_outer_module_binding(self):
+        template = """<%
+import json
+%>
+% if flag:
+<%
+json = attacker
+%>
+% endif
+${json.dumps({"name": "bscp"})}"""
 
         self.assert_unsafe(template)
 

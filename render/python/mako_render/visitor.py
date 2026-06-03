@@ -219,8 +219,11 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self.allowed_template_functions = set()
         self._function_def_depth = 0
         self._module_template_function_stack = []
+        self._module_allowed_module_binding_stack = []
+        self._module_allowed_import_binding_stack = []
         self._allow_template_function_def_stack = []
         self._mako_control_depth = 0
+        self._mako_control_binding_stack = []
 
     def _reject(self, message):
         raise ForbiddenMakoTemplateException(message)
@@ -334,10 +337,50 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self.allowed_import_bindings.pop(name, None)
             self.allowed_template_functions.discard(name)
 
+    def _remove_binding_names(self, names, module_bindings, import_bindings, template_functions):
+        for name in names:
+            module_bindings.pop(name, None)
+            import_bindings.pop(name, None)
+            template_functions.discard(name)
+
+    def _module_import_binding(self, name):
+        module_name = name.name.split(".", 1)[0]
+        if name.name != module_name or module_name not in self.white_list_modules:
+            self._reject("发现非法导入:[{}]，请修改".format(name.name))
+        binding_name = name.asname or module_name
+        self._validate_binding_name(binding_name)
+        return binding_name, module_name
+
+    def _import_from_module_name(self, node):
+        module_name = node.module or ""
+        if node.level != 0 or module_name not in self.white_list_modules:
+            self._reject("发现非法导入:[{}]，请修改".format(node.module or ""))
+        return module_name
+
+    def _from_import_binding(self, module_name, name):
+        if name.name == "*" or name.name.startswith("_"):
+            self._reject("发现非法导入:[{}]，请修改".format(name.name))
+        binding_name = name.asname or name.name
+        member_path = (name.name,)
+        self._validate_binding_name(binding_name)
+        if not self._is_allowed_module_attr_path(module_name, member_path):
+            self._reject("发现非法导入:[{}]，请修改".format(name.name))
+        return binding_name, member_path
+
     def _current_module_template_functions(self):
         if not self._module_template_function_stack:
             return set()
         return self._module_template_function_stack[-1]
+
+    def _current_module_allowed_module_bindings(self):
+        if not self._module_allowed_module_binding_stack:
+            return {}
+        return self._module_allowed_module_binding_stack[-1]
+
+    def _current_module_allowed_import_bindings(self):
+        if not self._module_allowed_import_binding_stack:
+            return {}
+        return self._module_allowed_import_binding_stack[-1]
 
     def _statement_binding_names(self, node):
         names = set()
@@ -365,10 +408,51 @@ class MakoNodeVisitor(ast.NodeVisitor):
             and self._allow_template_function_def_stack[-1]
         )
 
+    def _binding_state_changed_names(self, before):
+        before_module_bindings, before_import_bindings, before_template_functions = before
+        names = (
+            set(before_module_bindings)
+            | set(before_import_bindings)
+            | set(before_template_functions)
+            | set(self.allowed_module_bindings)
+            | set(self.allowed_import_bindings)
+            | set(self.allowed_template_functions)
+        )
+        changed_names = set()
+        for name in names:
+            before_state = (
+                before_module_bindings.get(name),
+                before_import_bindings.get(name),
+                name in before_template_functions,
+            )
+            current_state = (
+                self.allowed_module_bindings.get(name),
+                self.allowed_import_bindings.get(name),
+                name in self.allowed_template_functions,
+            )
+            if before_state != current_state:
+                changed_names.add(name)
+        return changed_names
+
     def enter_mako_control(self):
+        self._mako_control_binding_stack.append(
+            (
+                dict(self.allowed_module_bindings),
+                dict(self.allowed_import_bindings),
+                set(self.allowed_template_functions),
+            )
+        )
         self._mako_control_depth += 1
 
     def exit_mako_control(self):
+        before = self._mako_control_binding_stack.pop()
+        changed_names = self._binding_state_changed_names(before)
+        (
+            self.allowed_module_bindings,
+            self.allowed_import_bindings,
+            self.allowed_template_functions,
+        ) = before
+        self._remove_allowed_bindings(changed_names)
         self._mako_control_depth -= 1
 
     def _unbind_target(self, target):
@@ -395,16 +479,42 @@ class MakoNodeVisitor(ast.NodeVisitor):
 
     def visit_Module(self, node):
         template_functions = set()
+        module_bindings = {}
+        import_bindings = {}
         allow_top_level_helpers = self._mako_control_depth == 0
         if allow_top_level_helpers:
             for stmt in node.body:
                 if isinstance(stmt, ast.FunctionDef):
                     self._validate_binding_name(stmt.name)
+                    self._remove_binding_names(
+                        {stmt.name}, module_bindings, import_bindings, template_functions
+                    )
                     template_functions.add(stmt.name)
                     continue
-                template_functions.difference_update(self._statement_binding_names(stmt))
+                if isinstance(stmt, ast.Import):
+                    for name in stmt.names:
+                        binding_name, module_name = self._module_import_binding(name)
+                        self._remove_binding_names(
+                            {binding_name}, module_bindings, import_bindings, template_functions
+                        )
+                        module_bindings[binding_name] = module_name
+                    continue
+                if isinstance(stmt, ast.ImportFrom):
+                    module_name = self._import_from_module_name(stmt)
+                    for name in stmt.names:
+                        binding_name, member_path = self._from_import_binding(module_name, name)
+                        self._remove_binding_names(
+                            {binding_name}, module_bindings, import_bindings, template_functions
+                        )
+                        import_bindings[binding_name] = (module_name, member_path)
+                    continue
+                self._remove_binding_names(
+                    self._statement_binding_names(stmt), module_bindings, import_bindings, template_functions
+                )
 
         self._module_template_function_stack.append(template_functions)
+        self._module_allowed_module_binding_stack.append(module_bindings)
+        self._module_allowed_import_binding_stack.append(import_bindings)
         try:
             for stmt in node.body:
                 self._allow_template_function_def_stack.append(
@@ -415,6 +525,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
                 finally:
                     self._allow_template_function_def_stack.pop()
         finally:
+            self._module_allowed_import_binding_stack.pop()
+            self._module_allowed_module_binding_stack.pop()
             self._module_template_function_stack.pop()
 
     def visit_Attribute(self, node):
@@ -486,8 +598,12 @@ class MakoNodeVisitor(ast.NodeVisitor):
             outer_import_bindings = self.allowed_import_bindings
             outer_template_functions = self.allowed_template_functions
             self.allowed_module_bindings = dict(outer_module_bindings)
+            self.allowed_module_bindings.update(self._current_module_allowed_module_bindings())
             self.allowed_import_bindings = dict(outer_import_bindings)
-            self.allowed_template_functions = set(outer_template_functions) | self._current_module_template_functions()
+            self.allowed_import_bindings.update(self._current_module_allowed_import_bindings())
+            self.allowed_template_functions = (
+                set(outer_template_functions) | self._current_module_template_functions()
+            )
             self._remove_allowed_bindings(local_binding_names)
             try:
                 for stmt in node.body:
@@ -534,24 +650,14 @@ class MakoNodeVisitor(ast.NodeVisitor):
     def visit_Import(self, node):
         """访问导入节点"""
         for name in node.names:
-            module_name = name.name.split(".", 1)[0]
-            if name.name != module_name or module_name not in self.white_list_modules:
-                self._reject("发现非法导入:[{}]，请修改".format(name.name))
-            binding_name = name.asname or module_name
-            self._validate_binding_name(binding_name)
+            binding_name, module_name = self._module_import_binding(name)
+            self._remove_allowed_bindings({binding_name})
             self.allowed_module_bindings[binding_name] = module_name
 
     def visit_ImportFrom(self, node):
         """访问从模块导入节点"""
-        module_name = node.module or ""
-        if node.level != 0 or module_name not in self.white_list_modules:
-            self._reject("发现非法导入:[{}]，请修改".format(node.module or ""))
+        module_name = self._import_from_module_name(node)
         for name in node.names:
-            if name.name == "*" or name.name.startswith("_"):
-                self._reject("发现非法导入:[{}]，请修改".format(name.name))
-            binding_name = name.asname or name.name
-            member_path = (name.name,)
-            self._validate_binding_name(binding_name)
-            if not self._is_allowed_module_attr_path(module_name, member_path):
-                self._reject("发现非法导入:[{}]，请修改".format(name.name))
+            binding_name, member_path = self._from_import_binding(module_name, name)
+            self._remove_allowed_bindings({binding_name})
             self.allowed_import_bindings[binding_name] = (module_name, member_path)
