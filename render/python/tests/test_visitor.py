@@ -25,7 +25,6 @@ class MakoSafetyTest(unittest.TestCase):
         cases = [
             '${__import__("os").system("id")}',
             '${().__class__.__mro__[1].__subclasses__()}',
-            '${sorted([2, 1])}',
             '${getattr(this, "cc_host", None)}',
             '${open("/etc/passwd").read()}',
             '${open("/etc/passwd").read().replace("a", "b")}',
@@ -605,6 +604,54 @@ getAppId = attacker
 ${getAppId()}"""
 
         self.assert_unsafe(template)
+
+    def test_allows_extended_whitelist_calls(self):
+        cases = [
+            ('${"a,b,c".split(",")}', {}, "a"),
+            ('${"prod".startswith("p")}', {}, "True"),
+            ('${"9".isdigit()}', {}, "True"),
+            ('${"  x  ".strip()}', {}, "x"),
+            ('${sorted([3, 1, 2])}', {}, "1"),
+            ('${len(set([1, 2, 1]))}', {}, "2"),
+        ]
+
+        for template, context, expected in cases:
+            with self.subTest(template=template):
+                self.assertTrue(check_mako_template_safety(template))
+                result = mako_render(template, context)
+                self.assertIn(expected, result)
+
+    def test_allows_append_and_xpath_in_template_helper(self):
+        template = """<%
+def build_items():
+    items = []
+    items.append("a")
+    items.append("b")
+    return items[0] + "," + items[1]
+%>
+${build_items()}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("a,b", result)
+
+        from lxml import etree
+
+        xpath_template = '${this.cc_host.xpath("string(@InnerIP)")}'
+        self.assertTrue(check_mako_template_safety(xpath_template))
+        this = SimpleNamespace(cc_host=etree.Element("Host", InnerIP="127.0.0.1"))
+        result = mako_render(xpath_template, {"this": this})
+        self.assertIn("127.0.0.1", result)
+
+    def test_rejects_unsafe_calls_after_whitelist_extension(self):
+        cases = [
+            '${open("/etc/passwd").read()}',
+            '${"a".endswith("a")}',
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
 
     def test_allows_help_template_safety_check(self):
         from main import HELP_TEMPLATE

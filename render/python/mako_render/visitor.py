@@ -115,6 +115,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
         "min",
         "range",
         "round",
+        "set",
+        "sorted",
         "str",
         "sum",
         "tuple",
@@ -122,13 +124,19 @@ class MakoNodeVisitor(ast.NodeVisitor):
 
     # 业务模板允许调用的方法。
     WHITE_LIST_METHODS = {
+        "append",
         "find",
         "findall",
         "get",
+        "isdigit",
         "items",
         "keys",
         "replace",
+        "split",
+        "startswith",
+        "strip",
         "values",
+        "xpath",
     }
 
     # 业务模板允许访问的数据属性。
