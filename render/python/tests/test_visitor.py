@@ -355,6 +355,31 @@ ${json.dumps({"name": "bscp"})}"""
 
         self.assert_unsafe(template)
 
+    def test_rejects_module_call_after_helper_rebinds_module_name(self):
+        template = """<%
+import json
+
+def json():
+    return "helper"
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_helper_to_call_later_helper_in_same_code_block(self):
+        template = """<%
+def first():
+    return second()
+
+def second():
+    return "helper"
+%>
+${first()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn("helper", result)
+
     def test_rejects_unsafe_template_function_annotations(self):
         cases = [
             """<%

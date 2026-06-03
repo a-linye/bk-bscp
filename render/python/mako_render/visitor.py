@@ -218,6 +218,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self.allowed_import_bindings = {}
         self.allowed_template_functions = set()
         self._function_def_depth = 0
+        self._module_template_function_stack = []
 
     def _reject(self, message):
         raise ForbiddenMakoTemplateException(message)
@@ -331,6 +332,11 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self.allowed_import_bindings.pop(name, None)
             self.allowed_template_functions.discard(name)
 
+    def _current_module_template_functions(self):
+        if not self._module_template_function_stack:
+            return set()
+        return self._module_template_function_stack[-1]
+
     def _unbind_target(self, target):
         if isinstance(target, ast.Name):
             self._validate_binding_name(target.id)
@@ -352,6 +358,20 @@ class MakoNodeVisitor(ast.NodeVisitor):
         if isinstance(node, self.FORBIDDEN_NODE_TYPES):
             self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
         super().generic_visit(node)
+
+    def visit_Module(self, node):
+        template_functions = set()
+        for stmt in node.body:
+            if isinstance(stmt, ast.FunctionDef):
+                self._validate_binding_name(stmt.name)
+                template_functions.add(stmt.name)
+
+        self._module_template_function_stack.append(template_functions)
+        try:
+            for stmt in node.body:
+                self.visit(stmt)
+        finally:
+            self._module_template_function_stack.pop()
 
     def visit_Attribute(self, node):
         """访问属性节点"""
@@ -409,6 +429,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
         local_binding_names = self._collect_function_local_bindings(node)
 
         self._function_def_depth += 1
+        self._remove_allowed_bindings({node.name})
         self.allowed_template_functions.add(node.name)
         try:
             for default in node.args.defaults:
@@ -422,7 +443,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
             outer_template_functions = self.allowed_template_functions
             self.allowed_module_bindings = dict(outer_module_bindings)
             self.allowed_import_bindings = dict(outer_import_bindings)
-            self.allowed_template_functions = set(outer_template_functions)
+            self.allowed_template_functions = set(outer_template_functions) | self._current_module_template_functions()
             self._remove_allowed_bindings(local_binding_names)
             try:
                 for stmt in node.body:
