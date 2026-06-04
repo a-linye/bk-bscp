@@ -38,6 +38,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
             ("datetime",),
             ("datetime", "now"),
             ("datetime", "utcnow"),
+            ("datetime", "strptime"),
             ("timedelta",),
         },
         "json": {
@@ -109,6 +110,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
         "enumerate",
         "float",
         "int",
+        "zip",
         "len",
         "list",
         "max",
@@ -127,16 +129,29 @@ class MakoNodeVisitor(ast.NodeVisitor):
         "append",
         "find",
         "findall",
+        "format",
+        "group",
         "get",
         "isdigit",
         "items",
+        "iteritems",
+        "join",
         "keys",
+        "lstrip",
         "replace",
         "split",
+        "sort",
         "startswith",
+        "strftime",
         "strip",
         "values",
         "xpath",
+    }
+
+    # 仅允许模板显式抛出的异常类型（raise Exception(...) / raise ValueError(...)）。
+    WHITE_LIST_EXCEPTIONS = {
+        "Exception",
+        "ValueError",
     }
 
     # 业务模板允许访问的数据属性。
@@ -201,12 +216,9 @@ class MakoNodeVisitor(ast.NodeVisitor):
         ast.GeneratorExp,
         ast.Global,
         ast.Lambda,
-        ast.ListComp,
         ast.Nonlocal,
         ast.NamedExpr,
-        ast.Raise,
         ast.SetComp,
-        ast.Try,
         ast.With,
         ast.Yield,
         ast.YieldFrom,
@@ -234,6 +246,7 @@ class MakoNodeVisitor(ast.NodeVisitor):
         self._allow_template_function_def_stack = []
         self._mako_control_depth = 0
         self._mako_control_binding_stack = []
+        self._comprehension_depth = 0
 
     def _reject(self, message):
         raise ForbiddenMakoTemplateException(message)
@@ -508,6 +521,37 @@ class MakoNodeVisitor(ast.NodeVisitor):
 
         self._reject("发现非法赋值目标:[{}]，请修改".format(target.__class__.__name__))
 
+    def _validate_subscript_assign_target(self, node):
+        """仅允许对普通变量做下标赋值，禁止改写 this/cc 等对象。"""
+        if not isinstance(node.value, ast.Name):
+            self._reject("发现非法赋值目标:[{}]，请修改".format(node.__class__.__name__))
+        root_name = node.value.id
+        if root_name in ("this", "cc") or root_name in self.allowed_module_bindings:
+            self._reject("发现非法赋值目标:[{}]，请修改".format(node.__class__.__name__))
+        self._validate_binding_name(root_name)
+        if isinstance(node.slice, ast.Slice):
+            if node.slice.lower is not None:
+                self.visit(node.slice.lower)
+            if node.slice.upper is not None:
+                self.visit(node.slice.upper)
+            if node.slice.step is not None:
+                self.visit(node.slice.step)
+            return
+        self.visit(node.slice)
+
+    def _visit_assign_target(self, target):
+        if isinstance(target, ast.Subscript):
+            self._validate_subscript_assign_target(target)
+            return
+        self._unbind_target(target)
+
+    def _validate_raise_exc(self, node):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in self.WHITE_LIST_EXCEPTIONS:
+                self.generic_visit(node)
+                return
+        self._reject("发现非法语法使用:[raise]，请修改")
+
     def generic_visit(self, node):
         if isinstance(node, self.FORBIDDEN_NODE_TYPES):
             self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
@@ -595,6 +639,8 @@ class MakoNodeVisitor(ast.NodeVisitor):
                     self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
             elif func.id in self.allowed_template_functions:
                 self._validate_template_function_current_bindings(func.id)
+            elif func.id in self.WHITE_LIST_EXCEPTIONS:
+                pass
             elif func.id not in self.WHITE_LIST_FUNCTIONS:
                 self._reject("发现非法函数调用:[{}]，请修改".format(func.id))
         elif isinstance(func, ast.Attribute):
@@ -652,11 +698,62 @@ class MakoNodeVisitor(ast.NodeVisitor):
         finally:
             self._function_def_depth -= 1
 
+    def visit_Try(self, node):
+        """允许 try/except，异常处理块仍受常规白名单约束。"""
+        for stmt in node.body:
+            self.visit(stmt)
+        for handler in node.handlers:
+            if handler.type is not None:
+                self.visit(handler.type)
+            for stmt in handler.body:
+                self.visit(stmt)
+        for stmt in node.orelse:
+            self.visit(stmt)
+        for stmt in node.finalbody:
+            self.visit(stmt)
+
+    def visit_Raise(self, node):
+        """仅允许 raise Exception(...) / raise ValueError(...)。"""
+        if node.exc is not None:
+            self._validate_raise_exc(node.exc)
+        if node.cause is not None:
+            self.visit(node.cause)
+
+    def visit_ListComp(self, node):
+        """允许单层列表推导式，禁止嵌套推导。"""
+        if self._comprehension_depth > 0:
+            self._reject("发现非法语法使用:[嵌套ListComp]，请修改")
+        self._comprehension_depth += 1
+        try:
+            for generator in node.generators:
+                self.visit(generator.iter)
+                self._unbind_target(generator.target)
+                for if_node in generator.ifs:
+                    self.visit(if_node)
+            self.visit(node.elt)
+        finally:
+            self._comprehension_depth -= 1
+
+    def visit_GeneratorExp(self, node):
+        """允许单层生成器表达式，规则与 ListComp 一致。"""
+        if self._comprehension_depth > 0:
+            self._reject("发现非法语法使用:[嵌套GeneratorExp]，请修改")
+        self._comprehension_depth += 1
+        try:
+            for generator in node.generators:
+                self.visit(generator.iter)
+                self._unbind_target(generator.target)
+                for if_node in generator.ifs:
+                    self.visit(if_node)
+            self.visit(node.elt)
+        finally:
+            self._comprehension_depth -= 1
+
     def visit_Assign(self, node):
         """访问赋值节点"""
         self.visit(node.value)
         for target in node.targets:
-            self._unbind_target(target)
+            self._visit_assign_target(target)
 
     def visit_AnnAssign(self, node):
         """访问带类型标注的赋值节点"""
@@ -664,11 +761,11 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self.visit(node.annotation)
         if node.value is not None:
             self.visit(node.value)
-        self._unbind_target(node.target)
+        self._visit_assign_target(node.target)
 
     def visit_AugAssign(self, node):
         """访问复合赋值节点"""
-        self._unbind_target(node.target)
+        self._visit_assign_target(node.target)
         self.visit(node.value)
 
     def visit_For(self, node):
