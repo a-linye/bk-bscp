@@ -611,6 +611,10 @@ ${getAppId()}"""
             ('${"prod".startswith("p")}', {}, "True"),
             ('${"9".isdigit()}', {}, "True"),
             ('${"  x  ".strip()}', {}, "x"),
+            ('${"{}{}{}".format("a", "-", "b")}', {}, "a-b"),
+            ('${",".join(["a", "b"])}', {}, "a,b"),
+            ('${"  x".lstrip()}', {}, "x"),
+            ('${list(zip([1, 2], [3, 4]))}', {}, "1"),
             ('${sorted([3, 1, 2])}', {}, "1"),
             ('${len(set([1, 2, 1]))}', {}, "2"),
         ]
@@ -620,6 +624,43 @@ ${getAppId()}"""
                 self.assertTrue(check_mako_template_safety(template))
                 result = mako_render(template, context)
                 self.assertIn(expected, result)
+
+    def test_allows_render_diff_tail_whitelist_calls(self):
+        cases = [
+            (
+                """<%
+import re
+m = re.search(r"(\\d+)", "svr12")
+result = m.group(1) if m else ""
+%>${result}""",
+                {},
+                "12",
+            ),
+            (
+                """<%
+from datetime import datetime
+result = datetime(2020, 1, 1).strftime("%Y-%m-%d")
+%>${result}""",
+                {},
+                "2020-01-01",
+            ),
+            (
+                """<%
+items = [3, 1, 2]
+items.sort()
+result = ",".join([str(x) for x in items])
+%>${result}""",
+                {},
+                "1,2,3",
+            ),
+        ]
+        for template, context, expected in cases:
+            with self.subTest(template=template):
+                self.assertTrue(check_mako_template_safety(template))
+                result = mako_render(template, context)
+                self.assertIn(expected, result)
+
+        self.assertTrue(check_mako_template_safety('<% x = {"a": 1}.items() %>'))
 
     def test_allows_append_and_xpath_in_template_helper(self):
         template = """<%
@@ -647,6 +688,76 @@ ${build_items()}"""
         cases = [
             '${open("/etc/passwd").read()}',
             '${"a".endswith("a")}',
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
+
+    def test_allows_legacy_template_control_flow(self):
+        template = """<%
+def get_prefix(set_name):
+    return '{}-{}'.format("a", "b")
+
+try:
+    value = "ok"
+except:
+    value = "fallback"
+
+items = [x for x in ["a", "b"]]
+config = {}
+config['key'] = value
+%>
+${get_prefix("1001")}|${",".join(items)}|${config['key']}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("a-b", result)
+        self.assertIn("a,b", result)
+        self.assertIn("ok", result)
+
+    def test_allows_datetime_strptime_in_template_helper(self):
+        template = """<%
+from datetime import datetime
+
+def get_opentime(value):
+    return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+
+result = "ok"
+try:
+    result = get_opentime("2020-01-01 00:00:00")
+except ValueError:
+    result = "bad"
+%>
+${result}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("2020-01-01", result)
+
+    def test_allows_raise_exception_in_safety_check_only(self):
+        template = """<%
+raise Exception("need config")
+%>"""
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_rejects_unsafe_try_and_raise_after_control_flow_extension(self):
+        cases = [
+            """<%
+try:
+    open("/etc/passwd").read()
+except:
+    pass
+%>""",
+            """<%
+raise OSError("deny")
+%>""",
+            """<%
+nested = [x for x in [y for y in range(2)]]
+%>""",
+            """<%
+this.cc_set.attrib['k'] = "v"
+%>""",
         ]
 
         for template in cases:
