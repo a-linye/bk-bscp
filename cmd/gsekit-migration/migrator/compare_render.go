@@ -15,9 +15,13 @@ package migrator
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -38,13 +42,16 @@ type CompareRenderReport struct {
 
 // BizCompareReport contains comparison results for a single biz
 type BizCompareReport struct {
-	BizID        uint32              `json:"biz_id"`
-	Total        int                 `json:"total"`
-	Matched      int                 `json:"matched"`
-	Mismatched   int                 `json:"mismatched"`
-	RenderFailed int                 `json:"render_failed"`
-	Skipped      int                 `json:"skipped"`
-	Diffs        []CompareRenderDiff `json:"diffs,omitempty"`
+	BizID                   uint32              `json:"biz_id"`
+	Total                   int                 `json:"total"`
+	Matched                 int                 `json:"matched"`
+	JSONSemanticMatched     int                 `json:"json_semantic_matched"`
+	OrderInsensitiveMatched int                 `json:"order_insensitive_matched"`
+	Mismatched              int                 `json:"mismatched"`
+	RenderFailed            int                 `json:"render_failed"`
+	Ignored                 int                 `json:"ignored"`
+	Skipped                 int                 `json:"skipped"`
+	Diffs                   []CompareRenderDiff `json:"diffs,omitempty"`
 }
 
 // CompareRenderDiff contains details of a single mismatched comparison
@@ -53,10 +60,30 @@ type CompareRenderDiff struct {
 	ConfigVersionID  int64  `json:"config_version_id"`
 	BkProcessID      int64  `json:"bk_process_id"`
 	TemplateName     string `json:"template_name"`
-	Reason           string `json:"reason"` // "content_mismatch" / "render_error" / "gsekit_render_error" / "ginclude_expand_error"
-	ExpectedPreview  string `json:"expected_preview,omitempty"`
-	ActualPreview    string `json:"actual_preview,omitempty"`
-	ErrorMsg         string `json:"error_msg,omitempty"`
+	// Reason values: "content_mismatch", "content_mismatch_json_equivalent",
+	// "content_mismatch_order_insensitive_equivalent", "render_error",
+	// "gsekit_render_error", "ginclude_expand_error".
+	Reason          string                  `json:"reason"`
+	ExpectedPreview string                  `json:"expected_preview,omitempty"`
+	ActualPreview   string                  `json:"actual_preview,omitempty"`
+	ErrorMsg        string                  `json:"error_msg,omitempty"`
+	Artifacts       *CompareRenderArtifacts `json:"artifacts,omitempty"`
+}
+
+// CompareRenderArtifacts records full artifact files for one diff.
+type CompareRenderArtifacts struct {
+	TemplatePath string `json:"template_path,omitempty"`
+	ExpectedPath string `json:"expected_path,omitempty"`
+	ActualPath   string `json:"actual_path,omitempty"`
+	ErrorPath    string `json:"error_path,omitempty"`
+}
+
+type renderComparisonResult struct {
+	Matched                 bool
+	JSONSemanticMatched     bool
+	OrderInsensitiveMatched bool
+	Ignored                 bool
+	Reason                  string
 }
 
 // CompareRenderOptions holds options for compare-render command
@@ -64,8 +91,17 @@ type CompareRenderOptions struct {
 	ShowDiff         bool
 	DiffContextLines int
 	OutputFile       string
+	ArtifactDir      string
 	RenderTimeout    time.Duration
 	RequestInterval  time.Duration
+	IgnoreOrder      bool
+}
+
+type compareRenderArtifactContents struct {
+	Template *string
+	Expected *string
+	Actual   *string
+	Error    *string
 }
 
 // templateWithVersion holds a config template joined with its latest version
@@ -116,7 +152,7 @@ func (m *Migrator) CompareRender(opts CompareRenderOptions) (*CompareRenderRepor
 			return nil, fmt.Errorf("compare render for biz %d failed: %w", bizID, err)
 		}
 
-		if bizReport.Mismatched > 0 || bizReport.RenderFailed > 0 {
+		if bizReport.JSONSemanticMatched > 0 || bizReport.Mismatched > 0 || bizReport.RenderFailed > 0 {
 			report.Success = false
 		}
 
@@ -255,6 +291,7 @@ func (m *Migrator) compareRenderForBiz(
 	for _, configTemplateID := range sortedTemplateIDs {
 		tv := templateVersionMap[configTemplateID]
 		bizReport.Total++
+		rawTemplateContent := string(tv.Version.Content)
 
 		// 跳过没有绑定进程的模板
 		processID, hasBound := templateProcessMap[configTemplateID]
@@ -329,23 +366,24 @@ func (m *Migrator) compareRenderForBiz(
 
 		// --- GSEKit 侧：调用预览 API 渲染模板 ---
 		gsekitRendered, gsekitRenderErr := m.gsekitClient.PreviewConfigTemplate(
-			ctx, bizID, string(tv.Version.Content), processID)
+			ctx, bizID, rawTemplateContent, processID)
 
 		if gsekitRenderErr != nil {
-			bizReport.RenderFailed++
-			bizReport.Diffs = append(bizReport.Diffs, CompareRenderDiff{
+			bizReport.Ignored++
+			diff := CompareRenderDiff{
 				ConfigTemplateID: configTemplateID,
 				ConfigVersionID:  tv.Version.ConfigVersionID,
 				BkProcessID:      processID,
 				TemplateName:     tv.Template.TemplateName,
 				Reason:           "gsekit_render_error",
 				ErrorMsg:         gsekitRenderErr.Error(),
-			})
+			}
+			bizReport.Diffs = append(bizReport.Diffs, diff)
 			continue
 		}
 
 		// --- BSCP 侧：用 Mako 渲染器渲染模板 ---
-		templateContent := string(tv.Version.Content)
+		templateContent := rawTemplateContent
 
 		// 展开模板中的 Ginclude 指令（模板间引用），最大递归深度 10 层
 		templateContent, expandErr := render.ExpandGinclude(templateContent, func(name string) (string, error) {
@@ -356,28 +394,44 @@ func (m *Migrator) compareRenderForBiz(
 		}, 10)
 		if expandErr != nil {
 			bizReport.RenderFailed++
-			bizReport.Diffs = append(bizReport.Diffs, CompareRenderDiff{
+			diff := CompareRenderDiff{
 				ConfigTemplateID: configTemplateID,
 				ConfigVersionID:  tv.Version.ConfigVersionID,
 				BkProcessID:      processID,
 				TemplateName:     tv.Template.TemplateName,
 				Reason:           "ginclude_expand_error",
 				ErrorMsg:         expandErr.Error(),
-			})
+			}
+			if err := attachCompareRenderArtifacts(opts.ArtifactDir, bizID, &diff, compareRenderArtifactContents{
+				Template: artifactContent(rawTemplateContent),
+				Expected: artifactContent(gsekitRendered),
+				Error:    artifactContent(expandErr.Error()),
+			}); err != nil {
+				return nil, fmt.Errorf("write artifacts for template %d failed: %w", configTemplateID, err)
+			}
+			bizReport.Diffs = append(bizReport.Diffs, diff)
 			continue
 		}
 
 		bscpRendered, err := bscpRenderer.RenderWithContext(ctx, templateContent, processCtx)
 		if err != nil {
 			bizReport.RenderFailed++
-			bizReport.Diffs = append(bizReport.Diffs, CompareRenderDiff{
+			diff := CompareRenderDiff{
 				ConfigTemplateID: configTemplateID,
 				ConfigVersionID:  tv.Version.ConfigVersionID,
 				BkProcessID:      processID,
 				TemplateName:     tv.Template.TemplateName,
 				Reason:           "render_error",
 				ErrorMsg:         err.Error(),
-			})
+			}
+			if err := attachCompareRenderArtifacts(opts.ArtifactDir, bizID, &diff, compareRenderArtifactContents{
+				Template: artifactContent(rawTemplateContent),
+				Expected: artifactContent(gsekitRendered),
+				Error:    artifactContent(err.Error()),
+			}); err != nil {
+				return nil, fmt.Errorf("write artifacts for template %d failed: %w", configTemplateID, err)
+			}
+			bizReport.Diffs = append(bizReport.Diffs, diff)
 			continue
 		}
 
@@ -385,19 +439,51 @@ func (m *Migrator) compareRenderForBiz(
 		expectedStr := strings.TrimRight(gsekitRendered, "\n\r \t")
 		actualStr := strings.TrimRight(bscpRendered, "\n\r \t")
 
-		if expectedStr == actualStr {
+		comparison := compareRenderedContentForTemplate(rawTemplateContent, expectedStr, actualStr, opts.IgnoreOrder)
+		if comparison.Matched {
 			bizReport.Matched++
-		} else {
-			bizReport.Mismatched++
-			bizReport.Diffs = append(bizReport.Diffs, CompareRenderDiff{
+		} else if comparison.Ignored {
+			bizReport.Ignored++
+		} else if comparison.OrderInsensitiveMatched {
+			bizReport.OrderInsensitiveMatched++
+		} else if comparison.JSONSemanticMatched {
+			bizReport.JSONSemanticMatched++
+			diff := CompareRenderDiff{
 				ConfigTemplateID: configTemplateID,
 				ConfigVersionID:  tv.Version.ConfigVersionID,
 				BkProcessID:      processID,
 				TemplateName:     tv.Template.TemplateName,
-				Reason:           "content_mismatch",
+				Reason:           comparison.Reason,
 				ExpectedPreview:  truncateStr(expectedStr, 200),
 				ActualPreview:    truncateStr(actualStr, 200),
-			})
+			}
+			if err := attachCompareRenderArtifacts(opts.ArtifactDir, bizID, &diff, compareRenderArtifactContents{
+				Template: artifactContent(rawTemplateContent),
+				Expected: artifactContent(gsekitRendered),
+				Actual:   artifactContent(bscpRendered),
+			}); err != nil {
+				return nil, fmt.Errorf("write artifacts for template %d failed: %w", configTemplateID, err)
+			}
+			bizReport.Diffs = append(bizReport.Diffs, diff)
+		} else {
+			bizReport.Mismatched++
+			diff := CompareRenderDiff{
+				ConfigTemplateID: configTemplateID,
+				ConfigVersionID:  tv.Version.ConfigVersionID,
+				BkProcessID:      processID,
+				TemplateName:     tv.Template.TemplateName,
+				Reason:           comparison.Reason,
+				ExpectedPreview:  truncateStr(expectedStr, 200),
+				ActualPreview:    truncateStr(actualStr, 200),
+			}
+			if err := attachCompareRenderArtifacts(opts.ArtifactDir, bizID, &diff, compareRenderArtifactContents{
+				Template: artifactContent(rawTemplateContent),
+				Expected: artifactContent(gsekitRendered),
+				Actual:   artifactContent(bscpRendered),
+			}); err != nil {
+				return nil, fmt.Errorf("write artifacts for template %d failed: %w", configTemplateID, err)
+			}
+			bizReport.Diffs = append(bizReport.Diffs, diff)
 
 			if opts.ShowDiff {
 				printUnifiedDiff(configTemplateID, expectedStr, actualStr, opts.DiffContextLines)
@@ -405,9 +491,10 @@ func (m *Migrator) compareRenderForBiz(
 		}
 	}
 
-	log.Printf("  Biz %d: total=%d matched=%d mismatched=%d render_failed=%d skipped=%d",
-		bizID, bizReport.Total, bizReport.Matched, bizReport.Mismatched,
-		bizReport.RenderFailed, bizReport.Skipped)
+	log.Printf("  Biz %d: total=%d matched=%d json_semantic_matched=%d order_insensitive_matched=%d "+
+		"mismatched=%d render_failed=%d ignored=%d skipped=%d",
+		bizID, bizReport.Total, bizReport.Matched, bizReport.JSONSemanticMatched, bizReport.OrderInsensitiveMatched,
+		bizReport.Mismatched, bizReport.RenderFailed, bizReport.Ignored, bizReport.Skipped)
 
 	return bizReport, nil
 }
@@ -529,6 +616,374 @@ func sortedKeys(m map[int64]*templateWithVersion) []int64 {
 	return keys
 }
 
+func compareRenderedContent(expected, actual string, ignoreOrder bool) renderComparisonResult {
+	if expected == actual {
+		return renderComparisonResult{Matched: true}
+	}
+
+	if jsonSemanticallyEqual(expected, actual) {
+		return renderComparisonResult{
+			JSONSemanticMatched: true,
+			Reason:              "content_mismatch_json_equivalent",
+		}
+	}
+
+	if ignoreOrder && orderInsensitivelyEqual(expected, actual) {
+		return renderComparisonResult{
+			OrderInsensitiveMatched: true,
+			Reason:                  "content_mismatch_order_insensitive_equivalent",
+		}
+	}
+
+	return renderComparisonResult{Reason: "content_mismatch"}
+}
+
+func compareRenderedContentForTemplate(template, expected, actual string, ignoreOrder bool) renderComparisonResult {
+	result := compareRenderedContent(expected, actual, ignoreOrder)
+	if result.Matched || result.JSONSemanticMatched || result.OrderInsensitiveMatched {
+		return result
+	}
+	if isHelpOnlyDifference(template, expected, actual) {
+		return renderComparisonResult{
+			Ignored: true,
+			Reason:  "content_mismatch_help_only",
+		}
+	}
+	return result
+}
+
+func isHelpOnlyDifference(template, expected, actual string) bool {
+	if !strings.Contains(template, "${HELP}") {
+		return false
+	}
+
+	expectedRest, ok := stripRenderedHelpBlock(expected)
+	if !ok {
+		return false
+	}
+	actualRest, ok := stripRenderedHelpBlock(actual)
+	if !ok {
+		return false
+	}
+	return strings.TrimRight(expectedRest, "\n\r \t") == strings.TrimRight(actualRest, "\n\r \t")
+}
+
+func stripRenderedHelpBlock(content string) (string, bool) {
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	start := strings.Index(normalized, "***********************************\n* NOW:")
+	if start < 0 {
+		return "", false
+	}
+
+	const helpEndBlock = "************\n* end help *\n************"
+	end := strings.Index(normalized[start:], helpEndBlock)
+	if end < 0 {
+		return "", false
+	}
+
+	after := start + end + len(helpEndBlock)
+	return normalized[:start] + normalized[after:], true
+}
+
+func jsonSemanticallyEqual(expected, actual string) bool {
+	expectedJSON, ok := decodeRenderedJSON(expected)
+	if !ok {
+		return false
+	}
+	actualJSON, ok := decodeRenderedJSON(actual)
+	if !ok {
+		return false
+	}
+	return reflect.DeepEqual(expectedJSON, actualJSON)
+}
+
+func decodeRenderedJSON(content string) (any, bool) {
+	decoder := json.NewDecoder(strings.NewReader(content))
+	decoder.UseNumber()
+
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, false
+	}
+
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, false
+	}
+	return value, true
+}
+
+func orderInsensitivelyEqual(expected, actual string) bool {
+	if matched, comparable := jsonOrderInsensitivelyEqual(expected, actual); comparable {
+		return matched
+	}
+	if matched, comparable := xmlOrderInsensitivelyEqual(expected, actual); comparable {
+		return matched
+	}
+	return lineOrderInsensitivelyEqual(expected, actual)
+}
+
+func jsonOrderInsensitivelyEqual(expected, actual string) (bool, bool) {
+	expectedJSON, ok := decodeRenderedJSON(expected)
+	if !ok {
+		return false, false
+	}
+	actualJSON, ok := decodeRenderedJSON(actual)
+	if !ok {
+		return false, false
+	}
+	return reflect.DeepEqual(canonicalizeJSONOrder(expectedJSON), canonicalizeJSONOrder(actualJSON)), true
+}
+
+func canonicalizeJSONOrder(value any) any {
+	switch v := value.(type) {
+	case []any:
+		items := make([]any, 0, len(v))
+		for _, item := range v {
+			items = append(items, canonicalizeJSONOrder(item))
+		}
+		sort.SliceStable(items, func(i, j int) bool {
+			return stableJSONKey(items[i]) < stableJSONKey(items[j])
+		})
+		return items
+	case map[string]any:
+		items := make(map[string]any, len(v))
+		for k, item := range v {
+			items[k] = canonicalizeJSONOrder(item)
+		}
+		return items
+	case string:
+		return normalizeDelimitedOrderValue(v)
+	default:
+		return v
+	}
+}
+
+func stableJSONKey(value any) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Sprintf("%#v", value)
+	}
+	return string(data)
+}
+
+type orderInsensitiveXMLAttr struct {
+	Name  string
+	Value string
+}
+
+type orderInsensitiveXMLNode struct {
+	Name     string
+	Attrs    []orderInsensitiveXMLAttr
+	Text     []string
+	Children []*orderInsensitiveXMLNode
+}
+
+func xmlOrderInsensitivelyEqual(expected, actual string) (bool, bool) {
+	expectedXML, ok := decodeComparableXML(expected)
+	if !ok {
+		return false, false
+	}
+	actualXML, ok := decodeComparableXML(actual)
+	if !ok {
+		return false, false
+	}
+	return reflect.DeepEqual(expectedXML, actualXML), true
+}
+
+func decodeComparableXML(content string) (*orderInsensitiveXMLNode, bool) {
+	decoder := xml.NewDecoder(strings.NewReader(content))
+	var root *orderInsensitiveXMLNode
+	stack := make([]*orderInsensitiveXMLNode, 0)
+
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, false
+		}
+
+		switch t := token.(type) {
+		case xml.StartElement:
+			node := &orderInsensitiveXMLNode{
+				Name:  xmlNameKey(t.Name),
+				Attrs: comparableXMLAttrs(t.Attr),
+			}
+			if len(stack) == 0 {
+				if root != nil {
+					return nil, false
+				}
+				root = node
+			} else {
+				parent := stack[len(stack)-1]
+				parent.Children = append(parent.Children, node)
+			}
+			stack = append(stack, node)
+		case xml.EndElement:
+			if len(stack) == 0 {
+				return nil, false
+			}
+			stack = stack[:len(stack)-1]
+		case xml.CharData:
+			if len(stack) == 0 {
+				if strings.TrimSpace(string(t)) == "" {
+					continue
+				}
+				return nil, false
+			}
+			text := strings.TrimSpace(string(t))
+			if text != "" {
+				current := stack[len(stack)-1]
+				current.Text = append(current.Text, normalizeDelimitedOrderValue(text))
+			}
+		}
+	}
+
+	if root == nil || len(stack) != 0 {
+		return nil, false
+	}
+	canonicalizeXMLOrder(root)
+	return root, true
+}
+
+func comparableXMLAttrs(attrs []xml.Attr) []orderInsensitiveXMLAttr {
+	result := make([]orderInsensitiveXMLAttr, 0, len(attrs))
+	for _, attr := range attrs {
+		result = append(result, orderInsensitiveXMLAttr{
+			Name:  xmlNameKey(attr.Name),
+			Value: normalizeDelimitedOrderValue(attr.Value),
+		})
+	}
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].Name == result[j].Name {
+			return result[i].Value < result[j].Value
+		}
+		return result[i].Name < result[j].Name
+	})
+	return result
+}
+
+func canonicalizeXMLOrder(node *orderInsensitiveXMLNode) {
+	sort.Strings(node.Text)
+	for _, child := range node.Children {
+		canonicalizeXMLOrder(child)
+	}
+	sort.SliceStable(node.Children, func(i, j int) bool {
+		return stableXMLKey(node.Children[i]) < stableXMLKey(node.Children[j])
+	})
+}
+
+func stableXMLKey(node *orderInsensitiveXMLNode) string {
+	data, err := json.Marshal(node)
+	if err != nil {
+		return fmt.Sprintf("%#v", node)
+	}
+	return string(data)
+}
+
+func xmlNameKey(name xml.Name) string {
+	if name.Space == "" {
+		return name.Local
+	}
+	return name.Space + ":" + name.Local
+}
+
+func lineOrderInsensitivelyEqual(expected, actual string) bool {
+	return reflect.DeepEqual(comparableLines(expected), comparableLines(actual))
+}
+
+func comparableLines(content string) []string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.ReplaceAll(content, "\r", "\n")
+	rawLines := strings.Split(content, "\n")
+	lines := make([]string, 0, len(rawLines))
+	for _, line := range rawLines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		lines = append(lines, normalizeDelimitedOrderValue(line))
+	}
+	sort.Strings(lines)
+	return lines
+}
+
+func normalizeDelimitedOrderValue(value string) string {
+	if !strings.Contains(value, ";") {
+		return value
+	}
+	parts := strings.Split(value, ";")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ";")
+}
+
+func attachCompareRenderArtifacts(
+	rootDir string,
+	bizID uint32,
+	diff *CompareRenderDiff,
+	contents compareRenderArtifactContents,
+) error {
+	if rootDir == "" {
+		return nil
+	}
+
+	dir := filepath.Join(rootDir, compareRenderArtifactDirName(bizID, diff))
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create artifact directory %s failed: %w", dir, err)
+	}
+
+	artifacts := &CompareRenderArtifacts{}
+	var err error
+	if contents.Template != nil {
+		artifacts.TemplatePath, err = writeCompareRenderArtifactFile(dir, "template.mako", *contents.Template)
+		if err != nil {
+			return err
+		}
+	}
+	if contents.Expected != nil {
+		artifacts.ExpectedPath, err = writeCompareRenderArtifactFile(dir, "expected.gsekit.rendered", *contents.Expected)
+		if err != nil {
+			return err
+		}
+	}
+	if contents.Actual != nil {
+		artifacts.ActualPath, err = writeCompareRenderArtifactFile(dir, "actual.bscp.rendered", *contents.Actual)
+		if err != nil {
+			return err
+		}
+	}
+	if contents.Error != nil {
+		artifacts.ErrorPath, err = writeCompareRenderArtifactFile(dir, "error.txt", *contents.Error)
+		if err != nil {
+			return err
+		}
+	}
+
+	diff.Artifacts = artifacts
+	return nil
+}
+
+func artifactContent(content string) *string {
+	return &content
+}
+
+func compareRenderArtifactDirName(bizID uint32, diff *CompareRenderDiff) string {
+	return fmt.Sprintf("biz_%d_template_%d_version_%d", bizID, diff.ConfigTemplateID, diff.ConfigVersionID)
+}
+
+func writeCompareRenderArtifactFile(dir, filename, content string) (string, error) {
+	path := filepath.Join(dir, filename)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("write artifact %s failed: %w", path, err)
+	}
+	return path, nil
+}
+
 // truncateStr truncates a string to maxLen runes, appending "..." if truncated.
 // Uses rune-based slicing to avoid splitting multi-byte UTF-8 characters.
 func truncateStr(s string, maxLen int) string {
@@ -565,11 +1020,14 @@ func (m *Migrator) PrintCompareRenderReport(report *CompareRenderReport) {
 
 	for _, biz := range report.BizReports {
 		fmt.Printf("\nBiz %d:\n", biz.BizID)
-		fmt.Printf("  Total:         %d\n", biz.Total)
-		fmt.Printf("  Matched:       %d\n", biz.Matched)
-		fmt.Printf("  Mismatched:    %d\n", biz.Mismatched)
-		fmt.Printf("  Render Failed: %d\n", biz.RenderFailed)
-		fmt.Printf("  Skipped:       %d\n", biz.Skipped)
+		fmt.Printf("  Total:                 %d\n", biz.Total)
+		fmt.Printf("  Matched:               %d\n", biz.Matched)
+		fmt.Printf("  JSON Semantic Matched: %d\n", biz.JSONSemanticMatched)
+		fmt.Printf("  Order-Insensitive Matched: %d\n", biz.OrderInsensitiveMatched)
+		fmt.Printf("  Mismatched:            %d\n", biz.Mismatched)
+		fmt.Printf("  Render Failed:         %d\n", biz.RenderFailed)
+		fmt.Printf("  Ignored:               %d\n", biz.Ignored)
+		fmt.Printf("  Skipped:               %d\n", biz.Skipped)
 
 		if len(biz.Diffs) > 0 {
 			fmt.Printf("\n  Differences (%d):\n", len(biz.Diffs))

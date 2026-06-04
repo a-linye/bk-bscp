@@ -45,6 +45,8 @@ var (
 	compareRenderRequestInterval time.Duration
 	compareRenderOutputDir       string
 	compareRenderCreateDir       bool
+	compareRenderArtifactDir     string
+	compareRenderIgnoreOrder     bool
 )
 
 // rootCmd represents the base command
@@ -381,6 +383,18 @@ to control where the reports are stored.`,
 			}
 		}
 
+		artifactDir := compareRenderArtifactDir
+		if artifactDir == "" && outputDir != "" {
+			artifactDir = filepath.Join(outputDir, "artifacts")
+		}
+		if artifactDir != "" {
+			if err := os.MkdirAll(artifactDir, 0755); err != nil {
+				fmt.Printf("Error creating artifact directory %s: %v\n", artifactDir, err)
+				os.Exit(1)
+			}
+			fmt.Printf("Artifact directory: %s\n", artifactDir)
+		}
+
 		m, err := migrator.NewMigrator(cfg)
 		if err != nil {
 			fmt.Printf("Error creating migrator: %v\n", err)
@@ -392,8 +406,10 @@ to control where the reports are stored.`,
 			ShowDiff:         compareRenderShowDiff,
 			DiffContextLines: compareRenderDiffCtxLines,
 			OutputFile:       compareRenderOutput,
+			ArtifactDir:      artifactDir,
 			RenderTimeout:    compareRenderTimeout,
 			RequestInterval:  compareRenderRequestInterval,
+			IgnoreOrder:      compareRenderIgnoreOrder,
 		}
 
 		report, err := m.CompareRender(opts)
@@ -408,7 +424,7 @@ to control where the reports are stored.`,
 		for i := range report.BizReports {
 			bizReport := &report.BizReports[i]
 			status := "success"
-			if bizReport.Mismatched > 0 || bizReport.RenderFailed > 0 {
+			if bizReport.JSONSemanticMatched > 0 || bizReport.Mismatched > 0 || bizReport.RenderFailed > 0 {
 				status = "failed"
 			}
 			filename := fmt.Sprintf("biz_%d-%s-%s.json", bizReport.BizID, timestamp, status)
@@ -483,4 +499,8 @@ func init() {
 		"Output directory for per-biz report files (each biz generates an independent report)")
 	compareRenderCmd.Flags().BoolVar(&compareRenderCreateDir, "create-dir", false,
 		"Create output directory if it does not exist; auto-generates a timestamped directory name when --output-dir is not set")
+	compareRenderCmd.Flags().StringVar(&compareRenderArtifactDir, "artifact-dir", "",
+		"Directory for per-diff template and render artifact files (default: <output-dir>/artifacts when --output-dir is set)")
+	compareRenderCmd.Flags().BoolVar(&compareRenderIgnoreOrder, "ignore-order", false,
+		"Treat XML, JSON, and line-order-only render differences as order-insensitive matches")
 }
