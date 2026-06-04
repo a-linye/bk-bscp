@@ -366,12 +366,7 @@ to control where the reports are stored.`,
 		outputDir := compareRenderOutputDir
 		if compareRenderCreateDir {
 			if outputDir == "" {
-				bizIDStrs := make([]string, 0, len(cfg.Migration.BizIDs))
-				for _, id := range cfg.Migration.BizIDs {
-					bizIDStrs = append(bizIDStrs, strconv.FormatUint(uint64(id), 10))
-				}
-				outputDir = fmt.Sprintf("render-diff-biz_%s-%s",
-					strings.Join(bizIDStrs, "_"), timestamp)
+				outputDir = fmt.Sprintf("render-diff-%s", timestamp)
 			}
 			if err := os.MkdirAll(outputDir, 0755); err != nil {
 				fmt.Printf("Error creating output directory %s: %v\n", outputDir, err)
