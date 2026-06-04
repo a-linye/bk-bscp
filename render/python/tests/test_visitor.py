@@ -71,10 +71,49 @@ ${safe_json.system("id")}""",
 
         self.assertEqual("&lt;bscp&gt;", result)
 
+    def test_preserves_legacy_line_leading_double_percent_text(self):
+        template = """%% 重要：修改之后，要同步给运维
+  %% expend配置。格式必须是{K,V}
+%%% 装饰注释
+{cluster_id, "${bk_set_name}"}.
+"""
+
+        result = mako_render(template, {"bk_set_name": "20001"})
+
+        self.assertEqual(
+            """%% 重要：修改之后，要同步给运维
+  % expend配置。格式必须是{K,V}
+%% 装饰注释
+{cluster_id, "20001"}.
+""",
+            result,
+        )
+
+    def test_preserves_legacy_first_line_triple_percent_text(self):
+        template = """%%%中间件ws接口
+{global, _Z_PORT_MIDDLE_WS, 8081}."""
+
+        result = mako_render(template, {})
+
+        self.assertEqual(
+            """%%%中间件ws接口
+{global, _Z_PORT_MIDDLE_WS, 8081}.""",
+            result,
+        )
+
+    def test_legacy_percent_compat_does_not_touch_control_or_inline_percent(self):
+        template = """% for item in ["a"]:
+{rate, "100%%"}.
+% endfor"""
+
+        result = mako_render(template, {})
+
+        self.assertEqual('{rate, "100%%"}.\n', result)
+
     def test_allows_assignment_rhs_to_use_current_module_binding(self):
         template = """<%
-import json
-json = json.dumps({"name": "bscp"})
+	import json
+	json = json.dumps({"name": "bscp"})
 %>
 ${json.replace("bscp", "BSCP")}"""
 
@@ -178,6 +217,42 @@ ${json.dumps("id")}"""
         self.assertEqual(0, process.returncode)
         self.assertEqual("127.0.0.1", process.stdout)
 
+    def test_host_global_variable_overrides_same_set_variable(self):
+        cc_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Application><Set SetName="9701" game_vip="">'
+            '<Module ModuleName="game">'
+            '<Host InnerIP="30.49.244.164" bk_cloud_id="0" game_vip="117.62.240.28" />'
+            '</Module></Set></Application>'
+        )
+        process = subprocess.run(
+            [sys.executable, str(PYTHON_ROOT / "main.py"), "--stdin"],
+            input=json.dumps(
+                {
+                    "template": "${game_vip}",
+                    "context": {
+                        "cc_xml": cc_xml,
+                        "bk_set_name": "9701",
+                        "bk_module_name": "game",
+                        "bk_host_innerip": "30.49.244.164",
+                        "bk_cloud_id": "0",
+                        "biz_global_variables": {
+                            "host": [{"bk_property_id": "game_vip"}],
+                            "set": [{"bk_property_id": "game_vip"}],
+                        },
+                    },
+                }
+            ),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual("", process.stderr)
+        self.assertEqual(0, process.returncode)
+        self.assertEqual("117.62.240.28", process.stdout)
+
     def test_rejects_unapproved_allowed_module_members(self):
         cases = [
             """<%
@@ -212,6 +287,10 @@ ${dumps({"name": "bscp"})}""",
 import math
 %>
 ${math.__dict__}""",
+            """<%
+import random
+random.shuffle(this.cc_set.attrib)
+%>""",
         ]
 
         for template in cases:
@@ -239,6 +318,18 @@ ${re.compile("bs")}
         self.assertIn("2.0", result)
         self.assertIn("1", result)
         self.assertIn("bs", result)
+
+    def test_allows_random_shuffle_on_local_list(self):
+        template = """<%
+import random
+values = ["11.147.75.165", "11.147.75.28", "11.147.75.1"]
+random.shuffle(values)
+result = ",".join(sorted(values))
+%>${result}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("11.147.75.1,11.147.75.165,11.147.75.28", result)
 
     def test_allows_safe_members_imported_from_allowed_modules(self):
         template = """<%
@@ -514,6 +605,51 @@ ${helper()}"""
 
         self.assert_unsafe(template)
 
+    def test_allows_helper_defined_inside_mako_if_block_for_inner_nodes(self):
+        template = """% if flag:
+<%
+def helper():
+    return "helper"
+%>
+${helper()}
+% endif"""
+
+        result = mako_render(template, {"flag": True})
+
+        self.assertIn("helper", result)
+
+    def test_allows_ginclude_helper_style_inside_mako_control_block(self):
+        from lxml import etree
+
+        template = '''% if flag:
+#Ginclude "常量配置"
+<%
+  def get_DSN(db_ip, set_id, db_pwd):
+      set_id = set_id.lstrip("s")
+      if SET_MSG[bk_set_name]['version'] == "live":
+        return "DSN(%s) = \\"DRIVER={SQL Server};SERVER=%s;DATABASE=Lin2World_%s;UID=syncmaster;PWD=%s\\"" %(set_id, db_ip, set_id, db_pwd)
+      return "DSN(%s) = \\"DRIVER={SQL Server Native Client 10.0};SERVER=%s;DATABASE=Lin2World_%s;UID=syncmaster;PWD=%s\\"" %(set_id, db_ip, set_id, db_pwd)
+
+  def get_ip(set_id, module_name):
+      for host in cc.findall('Set[@SetName="%s"]/Module[@ModuleName="%s"]/Host' % (set_id, module_name)):
+          server_ip = host.attrib['bk_host_innerip']
+          return server_ip
+%>
+${get_DSN("127.0.0.1", "s1001", "pwd")}
+% endif'''
+
+        result = mako_render(
+            template,
+            {
+                "flag": True,
+                "SET_MSG": {"991": {"version": "live"}},
+                "bk_set_name": "991",
+                "cc": etree.Element("Application"),
+            },
+        )
+
+        self.assertIn("SQL Server", result)
+
     def test_rejects_helper_defined_inside_mako_for_block(self):
         template = """% for item in items:
 <%
@@ -615,8 +751,11 @@ ${getAppId()}"""
             ('${",".join(["a", "b"])}', {}, "a,b"),
             ('${"  x".lstrip()}', {}, "x"),
             ('${list(zip([1, 2], [3, 4]))}', {}, "1"),
+            ('${"abc".index("b")}', {}, "1"),
             ('${sorted([3, 1, 2])}', {}, "1"),
             ('${len(set([1, 2, 1]))}', {}, "2"),
+            ('<% items = set(); items.add("a") %>${",".join(sorted(items))}', {}, "a"),
+            ('${",".join(map(str, [1, 2]))}', {}, "1,2"),
         ]
 
         for template, context, expected in cases:
@@ -625,7 +764,63 @@ ${getAppId()}"""
                 result = mako_render(template, context)
                 self.assertIn(expected, result)
 
+    def test_allows_mako_loop_index_attribute(self):
+        template = """% for item in ["a", "b"]:
+${loop.index}:${item}
+% endfor"""
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_zonelist_helper_whitelist_calls(self):
+        template = r"""<%
+def get_boolean(key, set_name, default=None):
+    value = cc_set.attrib.get(key)
+    if value.lower() == 'true':
+        result = True
+    elif value.lower() == 'false':
+        result = False
+    else:
+        result = default
+    return result
+
+d = {}
+hutongfu_list = [1803]
+hutongfu_list.extend(list(range(1803, 1805)))
+d.setdefault("1001", {}).update({"id": 1001, "name": "srv"})
+import json
+data = {"servers": sorted(d.values(), key=lambda i: i["id"])}
+%>${json.dumps(data, indent=4, ensure_ascii=False)}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_nested_subscript_assignment_on_local_containers(self):
+        template = """<%
+config = {}
+config["l2"] = {}
+config["l2"]["port"] = "1001"
+items = [0, 1]
+items[0] = 2
+%>${config["l2"]["port"]}:${items[0]}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("1001:2", result)
+
+    def test_allows_subscript_assignment_on_local_xml_element_attrib(self):
+        from lxml import etree
+
+        cc = etree.fromstring("<Application><Set><Module><Host InnerIP='127.0.0.1'/></Module></Set></Application>")
+        template = """<%
+game_ins = cc.findall(".//Host")[0]
+game_ins.attrib["bk_set_name"] = world_name
+%>${game_ins.attrib["InnerIP"]}:${game_ins.attrib["bk_set_name"]}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {"cc": cc, "world_name": "world-1"})
+        self.assertIn("127.0.0.1:world-1", result)
+
     def test_allows_render_diff_tail_whitelist_calls(self):
+        from lxml import etree
+
         cases = [
             (
                 """<%
@@ -643,6 +838,75 @@ result = datetime(2020, 1, 1).strftime("%Y-%m-%d")
 %>${result}""",
                 {},
                 "2020-01-01",
+            ),
+            (
+                """<%
+import datetime
+now = datetime.datetime.now
+result = now().strftime("ok")
+%>${result}""",
+                {},
+                "ok",
+            ),
+            (
+                """<%
+from datetime import datetime
+now = datetime.now
+result = now().strftime("ok")
+%>${result}""",
+                {},
+                "ok",
+            ),
+            (
+                """% if flag:
+<%
+from datetime import datetime
+%>
+% endif
+${datetime.now().strftime("ok")}""",
+                {"flag": True},
+                "ok",
+            ),
+            (
+                """<%
+from datetime import datetime
+dt = datetime(2020, 1, 1)
+result = int(dt.timestamp())
+%>${result}""",
+                {},
+                "1577808000",
+            ),
+            (
+                """<%
+items = [{"name": "B"}, {"name": "a"}]
+items.sort(key=lambda x: x["name"].lower())
+result = ",".join([item["name"] for item in items])
+%>${result}""",
+                {},
+                "a,B",
+            ),
+            (
+                """<%
+result = ",".join([item.attrib["SetName"] for item in sorted(cc.xpath("Set"), key=lambda x: int(x.attrib["SetName"]))])
+%>${result}""",
+                {"cc": etree.fromstring('<Application><Set SetName="10"/><Set SetName="2"/></Application>')},
+                "2,10",
+            ),
+            (
+                """<%
+format_num = lambda x: "0" + str(x) if x < 10 else str(x)
+result = ",".join([format_num(3), format_num(12)])
+%>${result}""",
+                {},
+                "03,12",
+            ),
+            (
+                """<%
+rs_host_tmpl0 = "game{}.%s%02d.lzjd.db:27017"
+result = ",".join(map(lambda x: rs_host_tmpl0.format(x), ("P", "S")))
+%>${result}""",
+                {},
+                "gameP.%s%02d.lzjd.db:27017,gameS.%s%02d.lzjd.db:27017",
             ),
             (
                 """<%
@@ -740,6 +1004,53 @@ ${result}"""
 raise Exception("need config")
 %>"""
         self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_raise_type_error_in_safety_check(self):
+        template = """<%
+flag = False
+if flag:
+    raise TypeError("set_name type error")
+%>ok"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        self.assertEqual("ok", mako_render(template, {}))
+
+    def test_allows_legacy_raise_exception_percent_format(self):
+        template = """<%
+flag = False
+set_name = "1001"
+sc_count = 3
+if flag:
+    raise Exception("invalid sc count SetName:%s count:%s") % (set_name, sc_count)
+%>ok"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        self.assertEqual("ok", mako_render(template, {}))
+
+    def test_rejects_unsafe_lambda_and_dict_methods_abuse(self):
+        cases = [
+            '<% x = sorted([1], key=lambda: open("/etc/passwd")) %>',
+            '<% x = sorted([1], key=lambda a, b: a) %>',
+            '<% x = sorted([1], key=lambda i: __import__("os")) %>',
+            '<% x = sorted([1], key=lambda i: open("/etc/passwd") if i < 2 else str(i)) %>',
+            '<% x = sorted([{"name": "a"}], key=lambda i: i["name"].replace("a", "b")) %>',
+            '<% this.cc_set.attrib.update({"k": "v"}) %>',
+            '<% this.cc_set.attrib["k"] = "v" %>',
+            '<% cc[0]["k"] = "v" %>',
+            """<%
+import datetime
+datetime["k"] = "v"
+%>""",
+            """<%
+import datetime
+now = datetime.datetime.now
+now = dangerous
+%>${now()}""",
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
 
     def test_rejects_unsafe_try_and_raise_after_control_flow_extension(self):
         cases = [

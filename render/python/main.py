@@ -292,7 +292,13 @@ def main():
                 # CMDBHandler.BK_GLOBAL_OBJ_ID = "global" (参考 cmdb.py 第 68 行)
                 BK_GLOBAL_OBJ_ID = "global"
                 
-                for bk_obj_id, bk_obj_variables in biz_global_variables.items():
+                obj_order = ["set", "module", "host"]
+                for bk_obj_id in biz_global_variables:
+                    if bk_obj_id not in obj_order:
+                        obj_order.append(bk_obj_id)
+
+                for bk_obj_id in obj_order:
+                    bk_obj_variables = biz_global_variables.get(bk_obj_id)
                     # 跳过全局对象ID（与 Python 代码一致）
                     if bk_obj_id == BK_GLOBAL_OBJ_ID:
                         continue

@@ -223,40 +223,53 @@ type Property struct {
 
 // HostInfo 主机信息
 type HostInfo struct {
-	BkHostName        string `json:"bk_host_name"`         // 主机名
-	BkHostInnerIP     string `json:"bk_host_innerip"`      // 内网IP
-	BkHostID          int    `json:"bk_host_id"`           // 主机ID
-	BkAgentID         string `json:"bk_agent_id"`          // Agent ID
-	BkCloudID         int    `json:"bk_cloud_id"`          // 管控区域
-	ImportFrom        string `json:"import_from"`          // 主机导入来源, API方式导入为3
-	BkAssetID         string `json:"bk_asset_id"`          // 固资编号
-	BkCloudInstID     string `json:"bk_cloud_inst_id"`     // 云主机实例ID
-	BkCloudVendor     string `json:"bk_cloud_vendor"`      // 云厂商
-	BkCloudHostStatus string `json:"bk_cloud_host_status"` // 云主机状态
-	BkComment         string `json:"bk_comment"`           // 备注
-	BkCPU             int    `json:"bk_cpu"`               // CPU逻辑核心数
-	BkCPUArchitecture string `json:"bk_cpu_architecture"`  // CPU架构
-	BkCPUModule       string `json:"bk_cpu_module"`        // CPU型号
-	BkDisk            int    `json:"bk_disk"`              // 磁盘容量（GB）
-	BkHostOuterIP     string `json:"bk_host_outerip"`      // 主机外网IP
-	BkHostInnerIPV6   string `json:"bk_host_innerip_v6"`   // 主机内网IPv6
-	BkHostOuterIPV6   string `json:"bk_host_outerip_v6"`   // 主机外网IPv6
-	BkISPName         string `json:"bk_isp_name"`          // 所属运营商
-	BkMAC             string `json:"bk_mac"`               // 主机内网MAC地址
-	BkMem             int    `json:"bk_mem"`               // 主机内存容量（MB）
-	BkOSBit           string `json:"bk_os_bit"`            // 操作系统位数
-	BkOSName          string `json:"bk_os_name"`           // 操作系统名称
-	BkOSType          string `json:"bk_os_type"`           // 操作系统类型
-	BkOSVersion       string `json:"bk_os_version"`        // 操作系统版本
-	BkOuterMAC        string `json:"bk_outer_mac"`         // 主机外网MAC地址
-	BkProvinceName    string `json:"bk_province_name"`     // 所在省份
-	BkServiceTerm     int    `json:"bk_service_term"`      // 质保年限
-	BkSLA             string `json:"bk_sla"`               // SLA级别
-	BkSN              string `json:"bk_sn"`                // 设备SN
-	BkState           string `json:"bk_state"`             // 当前状态
-	BkStateName       string `json:"bk_state_name"`        // 所在国家
-	Operator          string `json:"operator"`             // 主要维护人
-	BkBakOperator     string `json:"bk_bak_operator"`      // 备份维护人
+	RawAttrs          map[string]any `json:"-"`
+	BkHostName        string         `json:"bk_host_name"`         // 主机名
+	BkHostInnerIP     string         `json:"bk_host_innerip"`      // 内网IP
+	BkHostID          int            `json:"bk_host_id"`           // 主机ID
+	BkAgentID         string         `json:"bk_agent_id"`          // Agent ID
+	BkCloudID         int            `json:"bk_cloud_id"`          // 管控区域
+	ImportFrom        string         `json:"import_from"`          // 主机导入来源, API方式导入为3
+	BkAssetID         string         `json:"bk_asset_id"`          // 固资编号
+	BkCloudInstID     string         `json:"bk_cloud_inst_id"`     // 云主机实例ID
+	BkCloudVendor     string         `json:"bk_cloud_vendor"`      // 云厂商
+	BkCloudHostStatus string         `json:"bk_cloud_host_status"` // 云主机状态
+	BkComment         string         `json:"bk_comment"`           // 备注
+	BkCPU             int            `json:"bk_cpu"`               // CPU逻辑核心数
+	BkCPUArchitecture string         `json:"bk_cpu_architecture"`  // CPU架构
+	BkCPUModule       string         `json:"bk_cpu_module"`        // CPU型号
+	BkDisk            int            `json:"bk_disk"`              // 磁盘容量（GB）
+	BkHostOuterIP     string         `json:"bk_host_outerip"`      // 主机外网IP
+	BkHostInnerIPV6   string         `json:"bk_host_innerip_v6"`   // 主机内网IPv6
+	BkHostOuterIPV6   string         `json:"bk_host_outerip_v6"`   // 主机外网IPv6
+	BkISPName         string         `json:"bk_isp_name"`          // 所属运营商
+	BkMAC             string         `json:"bk_mac"`               // 主机内网MAC地址
+	BkMem             int            `json:"bk_mem"`               // 主机内存容量（MB）
+	BkOSBit           string         `json:"bk_os_bit"`            // 操作系统位数
+	BkOSName          string         `json:"bk_os_name"`           // 操作系统名称
+	BkOSType          string         `json:"bk_os_type"`           // 操作系统类型
+	BkOSVersion       string         `json:"bk_os_version"`        // 操作系统版本
+	BkOuterMAC        string         `json:"bk_outer_mac"`         // 主机外网MAC地址
+	BkProvinceName    string         `json:"bk_province_name"`     // 所在省份
+	BkServiceTerm     int            `json:"bk_service_term"`      // 质保年限
+	BkSLA             string         `json:"bk_sla"`               // SLA级别
+	BkSN              string         `json:"bk_sn"`                // 设备SN
+	BkState           string         `json:"bk_state"`             // 当前状态
+	BkStateName       string         `json:"bk_state_name"`        // 所在国家
+	Operator          string         `json:"operator"`             // 主要维护人
+	BkBakOperator     string         `json:"bk_bak_operator"`      // 备份维护人
+}
+
+func (h *HostInfo) UnmarshalJSON(data []byte) error {
+	type alias HostInfo
+	var info alias
+	rawAttrs, err := unmarshalCMDBInfoWithRawAttrs(data, &info)
+	if err != nil {
+		return err
+	}
+	*h = HostInfo(info)
+	h.RawAttrs = rawAttrs
+	return nil
 }
 
 // CMDBResponse 通用响应结构
@@ -500,25 +513,38 @@ type ModuleReq struct {
 
 // ModuleInfo 模块信息
 type ModuleInfo struct {
-	BkModuleID        int    `json:"bk_module_id"`        // 模块ID
-	BkModuleName      string `json:"bk_module_name"`      // 模块名称
-	Default           int    `json:"default"`             // 模块类型
-	CreateTime        string `json:"create_time"`         // 创建时间
-	BkSetID           int    `json:"bk_set_id"`           // 集群ID
-	BkBakOperator     string `json:"bk_bak_operator"`     // 备份维护人
-	BkBizID           int    `json:"bk_biz_id"`           // 业务ID
-	BkModuleType      string `json:"bk_module_type"`      // 模块类型
-	BkParentID        int    `json:"bk_parent_id"`        // 父节点ID
-	BkSupplierAccount string `json:"bk_supplier_account"` // 开发商账号
-	LastTime          string `json:"last_time"`           // 更新时间
-	HostApplyEnabled  bool   `json:"host_apply_enabled"`  // 是否启用主机属性自动应用
-	Operator          string `json:"operator"`            // 主要维护人
-	ServiceCategoryID int    `json:"service_category_id"` // 服务分类ID
-	ServiceTemplateID int    `json:"service_template_id"` // 服务模板ID
-	SetTemplateID     int    `json:"set_template_id"`     // 集群模板ID
-	BkCreatedAt       string `json:"bk_created_at"`       // 创建时间
-	BkUpdatedAt       string `json:"bk_updated_at"`       // 更新时间
-	BkCreatedBy       string `json:"bk_created_by"`       // 创建人
+	RawAttrs          map[string]any `json:"-"`
+	BkModuleID        int            `json:"bk_module_id"`        // 模块ID
+	BkModuleName      string         `json:"bk_module_name"`      // 模块名称
+	Default           int            `json:"default"`             // 模块类型
+	CreateTime        string         `json:"create_time"`         // 创建时间
+	BkSetID           int            `json:"bk_set_id"`           // 集群ID
+	BkBakOperator     string         `json:"bk_bak_operator"`     // 备份维护人
+	BkBizID           int            `json:"bk_biz_id"`           // 业务ID
+	BkModuleType      string         `json:"bk_module_type"`      // 模块类型
+	BkParentID        int            `json:"bk_parent_id"`        // 父节点ID
+	BkSupplierAccount string         `json:"bk_supplier_account"` // 开发商账号
+	LastTime          string         `json:"last_time"`           // 更新时间
+	HostApplyEnabled  bool           `json:"host_apply_enabled"`  // 是否启用主机属性自动应用
+	Operator          string         `json:"operator"`            // 主要维护人
+	ServiceCategoryID int            `json:"service_category_id"` // 服务分类ID
+	ServiceTemplateID int            `json:"service_template_id"` // 服务模板ID
+	SetTemplateID     int            `json:"set_template_id"`     // 集群模板ID
+	BkCreatedAt       string         `json:"bk_created_at"`       // 创建时间
+	BkUpdatedAt       string         `json:"bk_updated_at"`       // 更新时间
+	BkCreatedBy       string         `json:"bk_created_by"`       // 创建人
+}
+
+func (m *ModuleInfo) UnmarshalJSON(data []byte) error {
+	type alias ModuleInfo
+	var info alias
+	rawAttrs, err := unmarshalCMDBInfoWithRawAttrs(data, &info)
+	if err != nil {
+		return err
+	}
+	*m = ModuleInfo(info)
+	m.RawAttrs = rawAttrs
+	return nil
 }
 
 // TopoBriefBizInfo 拓扑简要信息中的业务信息
@@ -621,23 +647,49 @@ type Sets struct {
 
 // SetInfo 集群信息
 type SetInfo struct {
-	BkSetName          string   `json:"bk_set_name"`          // 集群名称
-	Default            int      `json:"default"`              // 0-普通集群，1-内置模块集合
-	BkBizID            int      `json:"bk_biz_id"`            // 业务ID
-	BkCapacity         int      `json:"bk_capacity"`          // 设计容量
-	BkParentID         int      `json:"bk_parent_id"`         // 父节点ID
-	BkSetID            int      `json:"bk_set_id"`            // 集群ID
-	BkServiceStatus    string   `json:"bk_service_status"`    // 服务状态: 1-开放, 2-关闭
-	BkSetDesc          string   `json:"bk_set_desc"`          // 集群描述
-	BkSetEnv           string   `json:"bk_set_env"`           // 环境类型: 1-测试, 2-体验, 3-正式
-	CreateTime         string   `json:"create_time"`          // 创建时间
-	LastTime           string   `json:"last_time"`            // 更新时间
-	BkSupplierAccount  string   `json:"bk_supplier_account"`  // 开发商账号
-	Description        string   `json:"description"`          // 数据描述信息
-	SetTemplateVersion []string `json:"set_template_version"` // 集群模板的当前版本
-	SetTemplateID      int      `json:"set_template_id"`      // 集群模板ID
-	BkCreatedAt        string   `json:"bk_created_at"`        // 创建时间
-	BkUpdatedAt        string   `json:"bk_updated_at"`        // 更新时间
+	RawAttrs           map[string]any `json:"-"`
+	BkSetName          string         `json:"bk_set_name"`          // 集群名称
+	Default            int            `json:"default"`              // 0-普通集群，1-内置模块集合
+	BkBizID            int            `json:"bk_biz_id"`            // 业务ID
+	BkCapacity         int            `json:"bk_capacity"`          // 设计容量
+	BkParentID         int            `json:"bk_parent_id"`         // 父节点ID
+	BkSetID            int            `json:"bk_set_id"`            // 集群ID
+	BkServiceStatus    string         `json:"bk_service_status"`    // 服务状态: 1-开放, 2-关闭
+	BkSetDesc          string         `json:"bk_set_desc"`          // 集群描述
+	BkSetEnv           string         `json:"bk_set_env"`           // 环境类型: 1-测试, 2-体验, 3-正式
+	CreateTime         string         `json:"create_time"`          // 创建时间
+	LastTime           string         `json:"last_time"`            // 更新时间
+	BkSupplierAccount  string         `json:"bk_supplier_account"`  // 开发商账号
+	Description        string         `json:"description"`          // 数据描述信息
+	SetTemplateVersion []string       `json:"set_template_version"` // 集群模板的当前版本
+	SetTemplateID      int            `json:"set_template_id"`      // 集群模板ID
+	BkCreatedAt        string         `json:"bk_created_at"`        // 创建时间
+	BkUpdatedAt        string         `json:"bk_updated_at"`        // 更新时间
+}
+
+func (s *SetInfo) UnmarshalJSON(data []byte) error {
+	type alias SetInfo
+	var info alias
+	rawAttrs, err := unmarshalCMDBInfoWithRawAttrs(data, &info)
+	if err != nil {
+		return err
+	}
+	*s = SetInfo(info)
+	s.RawAttrs = rawAttrs
+	return nil
+}
+
+func unmarshalCMDBInfoWithRawAttrs(data []byte, v any) (map[string]any, error) {
+	if err := json.Unmarshal(data, v); err != nil {
+		return nil, err
+	}
+
+	rawAttrs := make(map[string]any)
+	if err := json.Unmarshal(data, &rawAttrs); err != nil {
+		return nil, err
+	}
+
+	return rawAttrs, nil
 }
 
 // HostTopoReq 查询业务下主机与集群/模块绑定关系请求参数

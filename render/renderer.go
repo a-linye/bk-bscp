@@ -58,6 +58,8 @@ type Renderer struct {
 // RendererOption is a function that configures a Renderer
 type RendererOption func(*Renderer)
 
+const gsekitRenderTimezone = "Asia/Shanghai"
+
 // WithUvPath sets the path to uv executable
 func WithUvPath(path string) RendererOption {
 	return func(r *Renderer) {
@@ -118,6 +120,10 @@ func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 	return r, nil
 }
 
+func renderCommandEnv() []string {
+	return append(os.Environ(), "TZ="+gsekitRenderTimezone)
+}
+
 // Render renders a Mako template with given context
 // It uses stdin to pass JSON data to Python script
 func (r *Renderer) Render(template string, ctx map[string]interface{}) (string, error) {
@@ -156,7 +162,11 @@ func (r *Renderer) RenderWithContext(ctx context.Context, template string, conte
 
 	projectPath := filepath.Dir(r.scriptPath)
 	// Execute Python script with uv project environment.
-	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--project", projectPath, "python3", r.scriptPath, "--stdin")
+	// --no-sync skips the sync step (dependencies are pre-installed via `uv sync --frozen` at build time),
+	// avoiding runtime network access to PyPI which fails in offline/air-gapped environments.
+	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--no-sync", "--project", projectPath,
+		"python3", r.scriptPath, "--stdin")
+	cmd.Env = renderCommandEnv()
 	cmd.Stdin = bytes.NewReader(inputJSON)
 
 	var stdout, stderr bytes.Buffer
@@ -238,9 +248,11 @@ func (r *Renderer) RenderWithTempFileContext(ctx context.Context, template strin
 
 	projectPath := filepath.Dir(r.scriptPath)
 	// Execute Python script with uv project environment.
-	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--project", projectPath, "python3", r.scriptPath,
+	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--no-sync", "--project", projectPath,
+		"python3", r.scriptPath,
 		"--template", template,
 		"--context-file", tmpFile.Name())
+	cmd.Env = renderCommandEnv()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

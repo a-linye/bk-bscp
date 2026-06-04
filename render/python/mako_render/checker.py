@@ -7,6 +7,7 @@ Mako template safety checker
 """
 
 import ast
+import re
 from typing import List
 
 from mako import parsetree
@@ -16,6 +17,9 @@ from mako.lexer import Lexer
 
 from .exceptions import ForbiddenMakoTemplateException
 from .visitor import MakoNodeVisitor
+
+
+LEGACY_FIRST_LINE_DOUBLE_PERCENT_RE = re.compile(r"\A([ ]*)%%")
 
 
 def clean_mako_content(content: str) -> str:
@@ -31,6 +35,8 @@ def clean_mako_content(content: str) -> str:
     """
     # 替换制表符为 4 个空格
     content = content.replace("\t", " " * 4)
+    # 旧 GSEKit 的首行 %%+ 字面量会原样输出；Mako 1.3 会折叠掉一个 %，这里仅兼容物理首行。
+    content = LEGACY_FIRST_LINE_DOUBLE_PERCENT_RE.sub(r"\1%%%", content, count=1)
     return content
 
 

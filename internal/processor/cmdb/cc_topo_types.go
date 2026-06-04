@@ -16,8 +16,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 )
 
 // ApplicationXML 应用根节点（对应 Python 中的 Application）
@@ -50,22 +53,22 @@ type ModuleXML struct {
 // 注意：所有属性都通过 Attrs 动态添加，与 Python 代码统一处理方式一致
 type HostXML struct {
 	XMLName xml.Name `xml:"Host"`
-	// 所有属性通过 Attrs 动态添加（包括 InnerIP, CloudID, HostID, HostName 等，通过 buildAttrsFromStruct 统一处理）
+	// 所有属性通过 Attrs 动态添加（包括 InnerIP, CloudID, HostID, HostName 等，通过 buildAttrsFromCMDBInfo 统一处理）
 	Attrs []xml.Attr `xml:",any,attr"` // 动态属性
 }
 
 // convertSetInfoToXML 将 SetInfo 转换为 SetXML
 // topoFields: 从 biz_global_variables 获取的字段列表，用于补充缺失字段
-// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromStruct 统一处理
+// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromCMDBInfo 统一处理
 func convertSetInfoToXML(setInfo interface{}, topoFields []string) SetXML {
 	setXML := SetXML{
 		Modules: []ModuleXML{},
 	}
 
-	// 统一通过 buildAttrsFromStruct 处理所有属性（包括 SetName, SetID 等）
+	// 统一通过 buildAttrsFromCMDBInfo 处理所有属性（包括 SetName, SetID 等）
 	// 与 Python 代码的 set_attr_to_xml_element 逻辑一致
-	attrs := buildAttrsFromStruct(setInfo, map[string]bool{
-		// 不需要排除任何字段，所有字段都通过 buildAttrsFromStruct 统一处理
+	attrs := buildAttrsFromCMDBInfo(setInfo, map[string]bool{
+		// 不需要排除任何字段，所有字段都通过 buildAttrsFromCMDBInfo 统一处理
 	})
 
 	// Python 代码逻辑：为 topo_variables 中但 CMDB 数据中没有的字段设置空字符串
@@ -79,16 +82,16 @@ func convertSetInfoToXML(setInfo interface{}, topoFields []string) SetXML {
 
 // convertModuleInfoToXML 将 ModuleInfo 转换为 ModuleXML
 // topoFields: 从 biz_global_variables 获取的字段列表，用于补充缺失字段
-// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromStruct 统一处理
+// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromCMDBInfo 统一处理
 func convertModuleInfoToXML(moduleInfo interface{}, topoFields []string) ModuleXML {
 	moduleXML := ModuleXML{
 		Hosts: []HostXML{},
 	}
 
-	// 统一通过 buildAttrsFromStruct 处理所有属性（包括 ModuleName, ModuleID 等）
+	// 统一通过 buildAttrsFromCMDBInfo 处理所有属性（包括 ModuleName, ModuleID 等）
 	// 与 Python 代码的 set_attr_to_xml_element 逻辑一致
-	attrs := buildAttrsFromStruct(moduleInfo, map[string]bool{
-		// 不需要排除任何字段，所有字段都通过 buildAttrsFromStruct 统一处理
+	attrs := buildAttrsFromCMDBInfo(moduleInfo, map[string]bool{
+		// 不需要排除任何字段，所有字段都通过 buildAttrsFromCMDBInfo 统一处理
 	})
 
 	// Python 代码逻辑：为 topo_variables 中但 CMDB 数据中没有的字段设置空字符串
@@ -101,14 +104,14 @@ func convertModuleInfoToXML(moduleInfo interface{}, topoFields []string) ModuleX
 
 // convertHostInfoToXML 将 HostInfo 转换为 HostXML
 // topoFields: 从 biz_global_variables 获取的字段列表，用于补充缺失字段
-// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromStruct 统一处理
+// 与 Python 代码统一处理方式一致：所有属性都通过 buildAttrsFromCMDBInfo 统一处理
 func convertHostInfoToXML(hostInfo interface{}, topoFields []string) HostXML {
 	hostXML := HostXML{}
 
-	// 统一通过 buildAttrsFromStruct 处理所有属性（包括 InnerIP, CloudID, HostID, HostName 等）
+	// 统一通过 buildAttrsFromCMDBInfo 处理所有属性（包括 InnerIP, CloudID, HostID, HostName 等）
 	// 与 Python 代码的 set_attr_to_xml_element 逻辑一致
-	attrs := buildAttrsFromStruct(hostInfo, map[string]bool{
-		// 不需要排除任何字段，所有字段都通过 buildAttrsFromStruct 统一处理
+	attrs := buildAttrsFromCMDBInfo(hostInfo, map[string]bool{
+		// 不需要排除任何字段，所有字段都通过 buildAttrsFromCMDBInfo 统一处理
 	})
 
 	// Python 代码逻辑：为 topo_variables 中但 CMDB 数据中没有的字段设置空字符串
@@ -117,6 +120,104 @@ func convertHostInfoToXML(hostInfo interface{}, topoFields []string) HostXML {
 	hostXML.Attrs = attrs
 
 	return hostXML
+}
+
+func buildAttrsFromCMDBInfo(v interface{}, exclude map[string]bool) []xml.Attr {
+	switch info := v.(type) {
+	case *bkcmdb.SetInfo:
+		if info != nil && len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	case bkcmdb.SetInfo:
+		if len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	case *bkcmdb.ModuleInfo:
+		if info != nil && len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	case bkcmdb.ModuleInfo:
+		if len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	case *bkcmdb.HostInfo:
+		if info != nil && len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	case bkcmdb.HostInfo:
+		if len(info.RawAttrs) > 0 {
+			return buildAttrsFromRawMap(info.RawAttrs, exclude)
+		}
+	}
+
+	return buildAttrsFromStruct(v, exclude)
+}
+
+func buildAttrsFromRawMap(raw map[string]any, exclude map[string]bool) []xml.Attr {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		if exclude[key] {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	attrs := make([]xml.Attr, 0, len(keys)*2)
+	seen := make(map[string]bool, len(keys)*2)
+	for _, key := range keys {
+		value := raw[key]
+		if shouldSkipRawAttrValue(value) {
+			continue
+		}
+
+		attrValue := formatRawAttrValue(value)
+		attrs = appendAttr(attrs, seen, key, attrValue)
+		attrs = appendAttr(attrs, seen, mapCC3FieldToCC1(key), attrValue)
+	}
+
+	return attrs
+}
+
+func shouldSkipRawAttrValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
+
+func formatRawAttrValue(value any) string {
+	if value == nil {
+		return "None"
+	}
+	if v, ok := value.(bool); ok {
+		if v {
+			return "True"
+		}
+		return "False"
+	}
+	return fmt.Sprintf("%v", value)
+}
+
+func appendAttr(attrs []xml.Attr, seen map[string]bool, name string, value string) []xml.Attr {
+	if seen[name] {
+		return attrs
+	}
+	seen[name] = true
+	return append(attrs, xml.Attr{
+		Name:  xml.Name{Local: name},
+		Value: value,
+	})
 }
 
 // buildAttrsFromStruct 从结构体构建 XML 属性
