@@ -1521,6 +1521,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/process/operate"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/process/operate" body: "*" }
     };
   }
   // 进程过滤条件
@@ -1544,6 +1545,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/task_batch/{batch_id}/detail"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/task_batch/{batch_id}/detail" body: "*" }
     };
   }
   // 同步cc和gse状态
@@ -1552,6 +1554,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/sync/cmdb_gse_status"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/sync/cmdb_gse_status" body: "*" }
     };
   }
   // 获取同步的状态
@@ -1559,6 +1562,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz_id/{biz_id}/sync/sync_status"
+      additional_bindings { get: "/api/v1/inner/config/biz_id/{biz_id}/sync/sync_status" }
     };
   }
   // 重试失败的任务
@@ -1632,6 +1636,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/generate"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/config_instances/generate" body: "*" }
     };
   }
 
@@ -1641,6 +1646,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/check"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/config_instances/check" body: "*" }
     };
   }
 
@@ -1675,6 +1681,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_instances/push"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/config_instances/push" body: "*" }
     };
   }
 
@@ -1692,6 +1699,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/config_template/list"
       body: "*"
+      additional_bindings { post: "/api/v1/inner/config/biz_id/{biz_id}/config_template/list" body: "*" }
     };
   }
   // 创建配置模板
