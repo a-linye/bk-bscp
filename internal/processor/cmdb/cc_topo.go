@@ -228,7 +228,7 @@ func (s *CCTopoXMLService) buildTopoTreeXML(ctx context.Context, setEnv string) 
 	}
 
 	// 8. 构建 XML 结构
-	setsXML := s.buildSetsXML(setInfoMap, moduleInfoMap, hostInfoMap, setModuleMap, hostModuleMap, setEnv, setFields, moduleFields, hostFields)
+	setsXML := s.buildSetsXML(setIDs, setInfoMap, moduleInfoMap, hostInfoMap, setModuleMap, hostModuleMap, setEnv, setFields, moduleFields, hostFields)
 
 	// 9. 生成 XML
 	// 注意：Python 代码中使用的是 Application 作为根节点，不是 Business
@@ -532,6 +532,7 @@ func (s *CCTopoXMLService) fetchHostModuleRelationsByHostIDs(
 
 // buildSetsXML 构建 Set XML 结构
 func (s *CCTopoXMLService) buildSetsXML(
+	setIDs []int,
 	setInfoMap map[int]*bkcmdb.SetInfo,
 	moduleInfoMap map[int]*bkcmdb.ModuleInfo,
 	hostInfoMap map[int]*bkcmdb.HostInfo,
@@ -544,7 +545,8 @@ func (s *CCTopoXMLService) buildSetsXML(
 ) []SetXML {
 	var setsXML []SetXML
 
-	for setID, moduleIDs := range setModuleMap {
+	for _, setID := range setIDs {
+		moduleIDs := setModuleMap[setID]
 		setInfo, exists := setInfoMap[setID]
 		if !exists {
 			logs.Warnf("set info not found for setID: %d", setID)
