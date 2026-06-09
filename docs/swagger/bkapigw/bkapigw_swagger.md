@@ -19,7 +19,9 @@
 | POST | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/bind_process_instance | [Config_BindProcessInstance](#config-bind-process-instance) | 绑定配置模板与进程实例 |
 | GET | /api/v1/config/biz_id/{bizId}/topo | [Config_BizTopo](#config-biz-topo) | 根据业务查询拓扑 |
 | POST | /api/v1/config/biz_id/{bizId}/config_instances/check | [Config_CheckConfig](#config-check-config) | 配置检查 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/config_instances/check | [Config_CheckConfig2](#config-check-config2) | 配置检查 |
 | GET | /api/v1/config/biz_id/{bizId}/sync/sync_status | [Config_CmdbGseStatus](#config-cmdb-gse-status) | 获取同步的状态 |
+| GET | /api/v1/inner/config/biz_id/{bizId}/sync/sync_status | [Config_CmdbGseStatus2](#config-cmdb-gse-status2) | 获取同步的状态 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/variable | [Config_ConfigTemplateVariable](#config-config-template-variable) | 配置模板变量 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template | [Config_CreateConfigTemplate](#config-create-config-template) | 创建配置模板 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs | [Config_CreateKv](#config-create-kv) | 创建键值配置项 |
@@ -27,24 +29,30 @@
 | DELETE | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_DeleteConfigTemplate](#config-delete-config-template) | 删除配置模板 |
 | DELETE | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{id} | [Config_DeleteKv](#config-delete-kv) | 删除键值配置项 |
 | POST | /api/v1/config/biz_id/{bizId}/config_instances/generate | [Config_GenerateConfig](#config-generate-config) | 配置生成 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/config_instances/generate | [Config_GenerateConfig2](#config-generate-config2) | 配置生成 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/publish | [Config_GenerateReleaseAndPublish](#config-generate-release-and-publish) | 生成版本并发布 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_GetConfigTemplate](#config-get-config-template) | 获取配置模板 |
 | GET | /api/v1/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView](#config-get-process-config-view) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/inner/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance_topo | [Config_GetProcessInstanceTopo](#config-get-process-instance-topo) | 进程实例拓扑 |
 | POST | /api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail | [Config_GetTaskBatchDetail](#config-get-task-batch-detail) | 任务批次详情 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail | [Config_GetTaskBatchDetail2](#config-get-task-batch-detail2) | 任务批次详情 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate](#config-list-config-template) | 配置模板列表 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate2](#config-list-config-template2) | 配置模板列表 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs](#config-list-kvs) | 获取键值配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/template_spaces/{templateSpaceId}/templates/list_not_bound | [Config_ListTemplatesNotBound](#config-list-templates-not-bound) | 获取未绑定的模板列表 |
 | POST | /api/v1/config/biz_id/{bizId}/process/operate | [Config_OperateProcess](#config-operate-process) | 进程操作 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/process/operate | [Config_OperateProcess2](#config-operate-process2) | 进程操作 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId}/preview_bind_process_instance | [Config_PreviewBindProcessInstance](#config-preview-bind-process-instance) | 预览绑定配置模板与进程实例 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance/{serviceInstanceId} | [Config_ProcessInstance](#config-process-instance) | 根据服务实例查询实例进程列表 |
 | POST | /api/v1/config/biz_id/{bizId}/process_template/{serviceTemplateId} | [Config_ProcessTemplate](#config-process-template) | 根据服务模板查询模板进程列表 |
 | POST | /api/v1/config/update/strategy/publish/publish/release_id/{releaseId}/app_id/{appId}/biz_id/{bizId} | [Config_Publish](#config-publish) | 发布指定版本 |
 | POST | /api/v1/config/biz_id/{bizId}/config_instances/push | [Config_PushConfig](#config-push-config) | 配置下发 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/config_instances/push | [Config_PushConfig2](#config-push-config2) | 配置下发 |
 | GET | /api/v1/config/biz_id/{bizId}/service_instance/{moduleId} | [Config_ServiceInstance](#config-service-instance) | 根据模块获取服务实例列表 |
 | GET | /api/v1/config/biz_id/{bizId}/service_template | [Config_ServiceTemplate](#config-service-template) | 根据业务查询服务模板列表 |
 | POST | /api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status | [Config_SyncCmdbGseStatus](#config-sync-cmdb-gse-status) | 同步cc和gse状态 |
+| POST | /api/v1/inner/config/biz_id/{bizId}/sync/cmdb_gse_status | [Config_SyncCmdbGseStatus2](#config-sync-cmdb-gse-status2) | 同步cc和gse状态 |
 | PUT | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_UpdateConfigTemplate](#config-update-config-template) | 编辑配置模板 |
 | PUT | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key} | [Config_UpdateKv](#config-update-kv) | 更新键值配置项 |
 
@@ -426,6 +434,64 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-check-config2"></span> 配置检查 (*Config_CheckConfig2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/check
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateGroups | \[\][PbcinConfigTemplateGroup](#pbcin-config-template-group) |  | 配置模版组 |
+| operateRange | [PbprocOperateRange](#pbproc-operate-range) |  |  |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/check HTTP/1.1
+Content-Type: application/json
+
+{
+  "configTemplateGroups": [
+    {
+      "ccProcessIds": [
+        {}
+      ],
+      "configTemplateId": 0,
+      "configTemplateVersionId": 0
+    }
+  ],
+  "operateRange": {
+    "ccProcessId": 0,
+    "configTemplateIds": [
+      {}
+    ],
+    "configTemplateNames": [
+      {}
+    ],
+    "environment": "",
+    "moduleName": "",
+    "processAlias": "",
+    "serviceName": "",
+    "setName": ""
+  }
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-cmdb-gse-status"></span> 获取同步的状态 (*Config_CmdbGseStatus*)
 
 ```
@@ -447,6 +513,38 @@ GET /api/v1/config/biz_id/{bizId}/sync/sync_status
 
 ```bash
 GET /api/v1/config/biz_id/{bizId}/sync/sync_status HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-cmdb-gse-status2"></span> 获取同步的状态 (*Config_CmdbGseStatus2*)
+
+```
+GET /api/v1/inner/config/biz_id/{bizId}/sync/sync_status
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/inner/config/biz_id/{bizId}/sync/sync_status HTTP/1.1
 Content-Type: application/json
 
 
@@ -771,6 +869,64 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-generate-config2"></span> 配置生成 (*Config_GenerateConfig2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/generate
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| configTemplateGroups | \[\][PbcinConfigTemplateGroup](#pbcin-config-template-group) |  | 配置模版组 |
+| operateRange | [PbprocOperateRange](#pbproc-operate-range) |  |  |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/generate HTTP/1.1
+Content-Type: application/json
+
+{
+  "configTemplateGroups": [
+    {
+      "ccProcessIds": [
+        {}
+      ],
+      "configTemplateId": 0,
+      "configTemplateVersionId": 0
+    }
+  ],
+  "operateRange": {
+    "ccProcessId": 0,
+    "configTemplateIds": [
+      {}
+    ],
+    "configTemplateNames": [
+      {}
+    ],
+    "environment": "",
+    "moduleName": "",
+    "processAlias": "",
+    "serviceName": "",
+    "setName": ""
+  }
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-generate-release-and-publish"></span> 生成版本并发布 (*Config_GenerateReleaseAndPublish*)
 
 ```
@@ -1025,6 +1181,70 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-get-task-batch-detail2"></span> 任务批次详情 (*Config_GetTaskBatchDetail2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| batchId | int64 (formatted integer) | ✓ | 批任务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| ccProcessIds | []int64 (formatted integer) |  | CC进程ID列表 |
+| instIds | []int64 (formatted integer) |  | 模块下的递增ID序号列表 |
+| limit | int64 (formatted integer) |  | 限制数量 |
+| moduleNames | []string |  | 模块名称列表 |
+| processAliases | []string |  | 进程别名列表 |
+| serviceNames | []string |  | 服务名称列表 |
+| setNames | []string |  | 集群名称列表 |
+| start | int64 (formatted integer) |  | 起始位置 |
+| status | string |  | 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail HTTP/1.1
+Content-Type: application/json
+
+{
+  "ccProcessIds": [
+    {}
+  ],
+  "instIds": [
+    {}
+  ],
+  "limit": 0,
+  "moduleNames": [
+    {}
+  ],
+  "processAliases": [
+    {}
+  ],
+  "serviceNames": [
+    {}
+  ],
+  "setNames": [
+    {}
+  ],
+  "start": 0,
+  "status": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-list-config-template"></span> 配置模板列表 (*Config_ListConfigTemplate*)
 
 ```
@@ -1050,6 +1270,54 @@ POST /api/v1/config/biz_id/{bizId}/config_template/list
 
 ```bash
 POST /api/v1/config/biz_id/{bizId}/config_template/list HTTP/1.1
+Content-Type: application/json
+
+{
+  "all": false,
+  "limit": 0,
+  "search": {
+    "fileName": "",
+    "reviser": "",
+    "templateId": [
+      {}
+    ],
+    "templateName": ""
+  },
+  "start": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-config-template2"></span> 配置模板列表 (*Config_ListConfigTemplate2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/config_template/list
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| all | boolean |  | 是否获取所有 |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| search | [PbctTemplateSearchCond](#pbct-template-search-cond) |  |  |
+| start | int64 (formatted integer) |  | 当前页码 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/config_template/list HTTP/1.1
 Content-Type: application/json
 
 {
@@ -1205,6 +1473,66 @@ POST /api/v1/config/biz_id/{bizId}/process/operate
 
 ```bash
 POST /api/v1/config/biz_id/{bizId}/process/operate HTTP/1.1
+Content-Type: application/json
+
+{
+  "enableProcessRestart": false,
+  "operateRange": {
+    "ccProcessId": 0,
+    "configTemplateIds": [
+      {}
+    ],
+    "configTemplateNames": [
+      {}
+    ],
+    "environment": "",
+    "moduleName": "",
+    "processAlias": "",
+    "serviceName": "",
+    "setName": ""
+  },
+  "operateType": "",
+  "processIds": [
+    {}
+  ],
+  "processInstanceIds": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-operate-process2"></span> 进程操作 (*Config_OperateProcess2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/process/operate
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| enableProcessRestart | boolean |  | 是否启停进程：默认为false，只有操作类型是update_register才有效 |
+| operateRange | [PbprocOperateRange](#pbproc-operate-range) |  |  |
+| operateType | string |  | 操作类型：start、stop、query_status、register、unregister、restart、reload、kill、update_register、delete |
+| processIds | []int64 (formatted integer) |  | 进程ID |
+| processInstanceIds | []int64 (formatted integer) |  | 进程实例ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/process/operate HTTP/1.1
 Content-Type: application/json
 
 {
@@ -1431,6 +1759,41 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-push-config2"></span> 配置下发 (*Config_PushConfig2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/push
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| batchId | int64 (formatted integer) |  | 配置生成操作产生的批任务ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/config_instances/push HTTP/1.1
+Content-Type: application/json
+
+{
+  "batchId": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-service-instance"></span> 根据模块获取服务实例列表 (*Config_ServiceInstance*)
 
 ```
@@ -1517,6 +1880,38 @@ POST /api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status
 
 ```bash
 POST /api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status HTTP/1.1
+Content-Type: application/json
+
+{}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-sync-cmdb-gse-status2"></span> 同步cc和gse状态 (*Config_SyncCmdbGseStatus2*)
+
+```
+POST /api/v1/inner/config/biz_id/{bizId}/sync/cmdb_gse_status
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/inner/config/biz_id/{bizId}/sync/cmdb_gse_status HTTP/1.1
 Content-Type: application/json
 
 {}
