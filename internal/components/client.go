@@ -288,10 +288,12 @@ func (r *BKResult) ValidateCode() error {
 }
 
 // refineCode 多种返回Code统一处理
-// 支持 "00", 0, "0"
+// 支持 "00", 0, "0", nil(部分接口不返回code字段, 视为成功)
 func refineCode(code interface{}) (int, error) {
 	var resultCode int
 	switch code := code.(type) {
+	case nil:
+		resultCode = 0
 	case int:
 		resultCode = code
 	case float64:

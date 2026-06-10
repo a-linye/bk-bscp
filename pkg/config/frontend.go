@@ -29,6 +29,7 @@ type HostConf struct {
 	BKSharedResURL       string `yaml:"bk_shared_res_url"` // 对应运维公共变量bkSharedResUrl, PaaS环境变量BKPAAS_SHARED_RES_URL
 	BKSharedResBaseJSURL string `yaml:"-"`                 // 规则是${bkSharedResUrl}/${目录名 aka app_code}/base.js
 	UserManHost          string `yaml:"user_man_host"`     // 用户列表host
+	UserCenterURL        string `yaml:"user_center_url"`   // 用户中心(个人中心)跳转地址
 }
 
 // FrontendConf docs and host conf

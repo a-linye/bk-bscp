@@ -65,7 +65,7 @@ func (p *proxy) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	k := kit.MustGetKit(r.Context())
 
-	user := kit.User{Username: k.User, TenantID: k.TenantID}
+	user := kit.User{Username: k.User, TenantID: k.TenantID, TimeZone: k.TimeZone}
 	render.Render(w, r, rest.OKRender(user))
 }
 

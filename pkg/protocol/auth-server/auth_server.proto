@@ -251,6 +251,7 @@ message UserInfoResp {
   string username = 1;
   string avatar_url = 2;
   string tenant_id = 3;
+  string time_zone = 4;
 }
 
 message ListUserSpaceReq {

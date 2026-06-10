@@ -36,5 +36,7 @@ frontend_conf:
     # bscp api 域名，与 ingress 保持一致
     bscp_api_url: "[bscp api url]"
     user_man_host: "[bkapi url]"
+    # 用户中心(个人中心)跳转地址, 仅多租户环境配置, 填写完整 URL
+    user_center_url: "[bkuser url]/personal-center"
   helper: "[helper]"
   enable_bk_notice: false

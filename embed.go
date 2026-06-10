@@ -59,6 +59,7 @@ type IndexConfig struct {
 	BKSharedResBaseJSURL string // 规则是${bkSharedResUrl}/${目录名 aka app_code}/base.js
 	NodeManHost          string
 	UserManHost          string
+	UserCenterURL        string // 用户中心(个人中心)跳转地址, 仅多租户环境配置
 }
 
 // EmbedWebServer 前端 web server
@@ -174,6 +175,7 @@ func (e *EmbedWeb) RenderIndexHandler(conf *IndexConfig) http.Handler {
 			"HTTP_ADDR":                 conf.HttpAddr,
 			"BK_NODE_HOST":              conf.NodeManHost,
 			"USER_MAN_HOST":             conf.UserManHost,
+			"USER_CENTER_URL":           conf.UserCenterURL,
 		}
 
 		// 本地开发模式 / 代理请求

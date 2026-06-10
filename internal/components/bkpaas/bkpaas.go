@@ -15,7 +15,6 @@ package bkpaas
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -41,6 +40,7 @@ type LoginCredential struct {
 type TenantUserInfo struct {
 	BkUsername string `json:"bk_username"`
 	TenantID   string `json:"tenant_id"`
+	TimeZone   string `json:"time_zone"`
 }
 
 // AuthLoginClient 登入鉴权
@@ -70,8 +70,10 @@ func buildAbsoluteUri(webHost string, r *http.Request) string {
 	return fmt.Sprintf("%s%s", webHost, r.RequestURI)
 }
 
-// getTenantUserInfoByToken 获取租户用户信息
-func getTenantUserInfoByToken(ctx context.Context, token string) (*TenantUserInfo, error) {
+// verifyBKToken 通过 bk_token 校验并获取租户用户信息
+//
+//nolint:unused
+func verifyBKToken(ctx context.Context, token string) (*TenantUserInfo, error) {
 	// 使用网关域名
 	url := fmt.Sprintf("%s/api/bk-login/prod/login/api/v3/open/bk-tokens/verify/", cc.G().Esb.APIGWHost())
 
@@ -92,8 +94,40 @@ func getTenantUserInfoByToken(ctx context.Context, token string) (*TenantUserInf
 	}
 
 	info := new(TenantUserInfo)
-	bkResult := &components.BKResult{Data: info}
-	if err := json.Unmarshal(resp.Body(), bkResult); err != nil {
+	if err := components.UnmarshalBKResult(resp, info); err != nil {
+		return nil, err
+	}
+
+	if info.BkUsername == "" {
+		return nil, fmt.Errorf("bk_username not found in response: %s", resp.Body())
+	}
+
+	return info, nil
+}
+
+// getTenantUserInfoByBKToken 通过 bk_token 获取租户用户信息
+func getTenantUserInfoByBKToken(ctx context.Context, token string) (*TenantUserInfo, error) {
+	// 使用网关域名
+	url := fmt.Sprintf("%s/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/", cc.G().Esb.APIGWHost())
+
+	authHeader := components.MakeBKAPIGWAuthHeader(cc.G().Esb.AppCode, cc.G().Esb.AppSecret)
+	resp, err := components.GetClient().R().
+		SetContext(ctx).
+		SetQueryParam("bk_token", token).
+		SetHeader("X-Bkapi-Authorization", authHeader).
+		SetHeader("X-Bk-Tenant-Id", constant.DefaultTenantID). // 鉴权是没有租户信息, 使用默认租户
+		Get(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("http code %d != 200, body: %s", resp.StatusCode(), resp.Body())
+	}
+
+	info := new(TenantUserInfo)
+	if err := components.UnmarshalBKResult(resp, info); err != nil {
 		return nil, err
 	}
 
