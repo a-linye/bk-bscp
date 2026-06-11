@@ -5,7 +5,7 @@
 BINARY_NAME=bk-bscp-gsekit-migration
 BUILD_DIR=../../build/bk-bscp/bk-bscp-gsekit-migration
 PRO_DIR=../..
-REPO ?= mirrors.tencent.com/bk-bcs-xiaolnwang/gsekit-migrate
+REPO ?= ccr.ccs.tencentyun.com/xiaolnwang/blueking
 TAG  ?= latest
 
 build:
