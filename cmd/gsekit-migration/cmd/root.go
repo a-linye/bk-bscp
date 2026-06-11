@@ -310,7 +310,7 @@ mock-data.sql file with real IPs, set/module IDs, and process details.`,
 			bizID = 2
 		}
 
-		gen := migrator.NewMockGenerator(&cfg.CMDB, bizID, maxProcesses)
+		gen := migrator.NewMockGenerator(&cfg.CMDB, cfg.Migration.TenantID, bizID, maxProcesses)
 		if err := gen.Generate(mockOutput); err != nil {
 			fmt.Printf("Error generating mock data: %v\n", err)
 			os.Exit(1)

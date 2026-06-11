@@ -86,7 +86,7 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 
 	// Create CMDB client
 	log.Println("CMDB: using real client")
-	cmdbClient := NewRealCMDBClient(&cfg.CMDB)
+	cmdbClient := NewRealCMDBClient(&cfg.CMDB, cfg.Migration.TenantID)
 
 	// Create GSEKit client (optional, only needed for compare-render)
 	var gsekitClient GSEKitClient
