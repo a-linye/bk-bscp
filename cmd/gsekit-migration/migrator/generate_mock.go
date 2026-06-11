@@ -32,9 +32,9 @@ type MockGenerator struct {
 }
 
 // NewMockGenerator creates a new MockGenerator.
-func NewMockGenerator(cmdbCfg *config.CMDBConfig, bizID uint32, maxProcesses int) *MockGenerator {
+func NewMockGenerator(cmdbCfg *config.CMDBConfig, tenantID string, bizID uint32, maxProcesses int) *MockGenerator {
 	return &MockGenerator{
-		cmdbClient:   NewRealCMDBClient(cmdbCfg).(*realCMDBClient),
+		cmdbClient:   NewRealCMDBClient(cmdbCfg, tenantID).(*realCMDBClient),
 		bizID:        bizID,
 		maxProcesses: maxProcesses,
 	}

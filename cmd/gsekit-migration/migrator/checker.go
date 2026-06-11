@@ -26,6 +26,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/gsekit-migration/config"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 )
 
 // CheckResult holds the result of a single connectivity check
@@ -55,10 +56,16 @@ func Preflight(cfg *config.Config) *PreflightReport {
 			Details: "cmdb.endpoint is not configured",
 		})
 	} else {
-		report.Checks = append(report.Checks, checkCMDB(&cfg.CMDB))
+		report.Checks = append(report.Checks, checkCMDB(&cfg.CMDB, cfg.Migration.TenantID))
 	}
 
-	if cfg.GSEKit.Endpoint == "" {
+	if cfg.Migration.MultiTenant {
+		report.Checks = append(report.Checks, CheckResult{
+			Name:    "GSEKit API",
+			Pass:    true,
+			Details: "skipped in multi-tenant mode",
+		})
+	} else if cfg.GSEKit.Endpoint == "" {
 		report.Checks = append(report.Checks, CheckResult{
 			Name:    "GSEKit API",
 			Details: "gsekit.endpoint is not configured",
@@ -141,7 +148,7 @@ func checkMySQL(mysqlCfg config.MySQLConfig, name string) CheckResult {
 	return result
 }
 
-func checkCMDB(cfg *config.CMDBConfig) CheckResult {
+func checkCMDB(cfg *config.CMDBConfig, tenantID string) CheckResult {
 	start := time.Now()
 	result := CheckResult{Name: "CMDB API"}
 
@@ -161,6 +168,10 @@ func checkCMDB(cfg *config.CMDBConfig) CheckResult {
 	req.Header.Set("X-Bkapi-Authorization", fmt.Sprintf(
 		`{"bk_app_code":"%s","bk_app_secret":"%s","bk_username":"%s"}`,
 		cfg.AppCode, cfg.AppSecret, cfg.Username))
+	// CMDB 网关为 global 租户模式，所有请求都必须带租户头；单租户场景该值为 default。
+	if tenantID != "" {
+		req.Header.Set(constant.BkTenantID, tenantID)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

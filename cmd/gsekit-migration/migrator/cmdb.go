@@ -25,6 +25,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/gsekit-migration/config"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 )
 
 // CMDBClient defines the interface for CMDB API operations needed by migration.
@@ -149,15 +150,19 @@ type cmdbBaseResp struct {
 const cmdbMaxQPS = 29
 
 type realCMDBClient struct {
-	cfg     *config.CMDBConfig
-	client  *http.Client
-	limiter *rate.Limiter
+	cfg      *config.CMDBConfig
+	tenantID string
+	client   *http.Client
+	limiter  *rate.Limiter
 }
 
 // NewRealCMDBClient creates a real CMDB client.
-func NewRealCMDBClient(cfg *config.CMDBConfig) CMDBClient {
+// tenantID is sent as the X-Bk-Tenant-Id header on every request; in single-tenant
+// mode it is "default".
+func NewRealCMDBClient(cfg *config.CMDBConfig, tenantID string) CMDBClient {
 	return &realCMDBClient{
-		cfg: cfg,
+		cfg:      cfg,
+		tenantID: tenantID,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -187,6 +192,10 @@ func (c *realCMDBClient) doRequest(ctx context.Context, url string, body interfa
 	req.Header.Set("X-Bkapi-Authorization", fmt.Sprintf(
 		`{"bk_app_code":"%s","bk_app_secret":"%s","bk_username":"%s"}`,
 		c.cfg.AppCode, c.cfg.AppSecret, c.cfg.Username))
+	// CMDB 网关为 global 租户模式，所有请求都必须带租户头；单租户场景该值为 default。
+	if c.tenantID != "" {
+		req.Header.Set(constant.BkTenantID, c.tenantID)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
