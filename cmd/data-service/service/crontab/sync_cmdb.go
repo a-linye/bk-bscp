@@ -108,6 +108,7 @@ func (s *syncCMDB) syncCMDBByTenant(kt *kit.Kit) {
 
 		for _, tenant := range tenants {
 			kt.TenantID = tenant.ID
+			kt.Ctx = kit.WithKit(kt.Ctx, kt)
 			if err := s.svc.SynchronizeCmdbData(kt.Ctx, tenant.ID, []int{}); err != nil {
 				logs.Errorf(
 					"[syncCMDBAndGSE][error] rid=%s tenant=%s at=%s failed to synchronize cmdb/gse data: %v",
