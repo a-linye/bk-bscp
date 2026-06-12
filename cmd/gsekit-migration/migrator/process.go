@@ -227,8 +227,8 @@ func (m *Migrator) migrateProcesses() error {
 						"service_instance_id, host_id, cloud_id, agent_id, process_template_id, service_template_id, "+
 						"set_name, module_name, service_name, environment, alias, inner_ip, inner_ip_v6, "+
 						"cc_sync_status, process_state_synced_at, proc_num, func_name, source_data, prev_data, "+
-						"creator, reviser, created_at, updated_at) "+
-						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"os_type, creator, reviser, created_at, updated_at) "+
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					newID, m.cfg.Migration.TenantID, bizID, uint32(p.BkProcessID),
 					uint32(p.BkSetID), uint32(p.BkModuleID),
 					uint32(p.ServiceInstanceID), hostID, uint32(p.BkCloudID),
@@ -236,7 +236,7 @@ func (m *Migrator) migrateProcesses() error {
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
 					"synced", now, procNum, funcName, sourceData, "{}",
-					creator, reviser, now, now,
+					"", creator, reviser, now, now,
 				).Error; err != nil {
 					if m.cfg.Migration.ContinueOnError {
 						log.Printf("  Warning: insert process failed (bk_process_id=%d): %v", p.BkProcessID, err)
