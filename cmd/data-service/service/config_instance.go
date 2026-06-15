@@ -1932,10 +1932,10 @@ func (s *Service) GetConfigView(ctx context.Context, req *pbds.GetConfigViewReq)
 			return nil, errT
 		}
 
-		if tr != nil && tr.Attachment.TemplateID != req.GetConfigTemplateId() {
+		if tr != nil && tr.Attachment.TemplateID != ct.Attachment.TemplateID {
 			return nil, errf.Errorf(errf.InvalidParameter, "%s",
 				i18n.T(kt, "template not match template revision, template_id=%d, template_revision_id=%d",
-					req.GetConfigTemplateId(), tr.Attachment.TemplateID))
+					ct.Attachment.TemplateID, tr.Attachment.TemplateID))
 		}
 
 		return buildConfigViewResp(ct, tr, lastDispatched, nil), nil
@@ -1948,10 +1948,10 @@ func (s *Service) GetConfigView(ctx context.Context, req *pbds.GetConfigViewReq)
 		return nil, err
 	}
 
-	if tr != nil && tr.Attachment.TemplateID != req.GetConfigTemplateId() {
+	if tr != nil && tr.Attachment.TemplateID != ct.Attachment.TemplateID {
 		return nil, errf.Errorf(errf.InvalidParameter, "%s",
 			i18n.T(kt, "template not match template revision, template_id=%d, template_revision_id=%d",
-				req.GetConfigTemplateId(), tr.Attachment.TemplateID))
+				ct.Attachment.TemplateID, tr.Attachment.TemplateID))
 	}
 
 	previewConfig, err := s.buildPreviewConfig(kt, tr, req)
