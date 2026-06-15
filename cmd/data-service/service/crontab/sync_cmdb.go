@@ -39,6 +39,9 @@ func NewSyncCMDB(set dao.Set, sd serviced.Service, svc *service.Service,
 	if qpsLimit <= 0 || qpsLimit > findHostBizRelationsApiQpsLimit {
 		qpsLimit = findHostBizRelationsApiQpsLimit
 	}
+	if cleanupInterval <= 0 {
+		cleanupInterval = defaultSyncCmdbTime
+	}
 	rateLimiter := rate.NewLimiter(rate.Limit(qpsLimit), 1)
 	return &syncCMDB{
 		set:             set,
@@ -62,7 +65,7 @@ func (s *syncCMDB) Run() {
 	logs.Infof("[syncCMDBAndGSE] Start synchronizing CMDB & GSE data task")
 	notifier := shutdown.AddNotifier()
 	go func() {
-		ticker := time.NewTicker(defaultSyncCmdbTime)
+		ticker := time.NewTicker(s.cleanupInterval)
 		defer ticker.Stop()
 		for {
 			kt := kit.New()
@@ -107,8 +110,8 @@ func (s *syncCMDB) syncCMDBByTenant(kt *kit.Kit) {
 		}
 
 		for _, tenant := range tenants {
-			kt.TenantID = tenant.ID
-			if err := s.svc.SynchronizeCmdbData(kt.Ctx, tenant.ID, []int{}); err != nil {
+			tkt := kit.NewWithTenant(tenant.ID)
+			if err := s.svc.SynchronizeCmdbData(tkt.Ctx, tenant.ID, []int{}); err != nil {
 				logs.Errorf(
 					"[syncCMDBAndGSE][error] rid=%s tenant=%s at=%s failed to synchronize cmdb/gse data: %v",
 					rid, tenant.ID, syncAt, err,
