@@ -586,7 +586,6 @@ func (ds *dataService) startCronTasks() {
 		interval, err := time.ParseDuration(crontabConfig.SyncCmdbGse.Interval)
 		if err != nil {
 			logs.Errorf("parse syncCmdbGse interval failed, using default: %v", err)
-			interval = 1 * time.Hour // 1 hour
 		}
 
 		syncCmdb := crontab.NewSyncCMDB(ds.daoSet, ds.sd, ds.service, crontabConfig.SyncCmdbGse.QpsLimit, interval)
