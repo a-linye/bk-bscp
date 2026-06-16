@@ -2917,6 +2917,14 @@
             "format": "int64"
           }
         },
+        "ignoreErrorCodes": {
+          "description": "需忽略的错误码列表，命中该错误码的失败任务视为成功",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
         "instIds": {
           "description": "模块下的递增ID序号列表",
           "type": "array",

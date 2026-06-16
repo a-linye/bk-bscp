@@ -12854,6 +12854,14 @@
         "status": {
           "type": "string",
           "description": "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE"
+        },
+        "ignoreErrorCodes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "需忽略的错误码列表，命中该错误码的失败任务视为成功"
         }
       }
     },

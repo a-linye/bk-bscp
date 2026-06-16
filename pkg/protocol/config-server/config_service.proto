@@ -4801,6 +4801,9 @@ message GetTaskBatchDetailReq {
   string status = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE"
   }];
+  repeated int32 ignore_error_codes = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "需忽略的错误码列表，命中该错误码的失败任务视为成功"
+  }];
 }
 
 message GetTaskBatchDetailResp {

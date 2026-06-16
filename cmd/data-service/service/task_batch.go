@@ -230,6 +230,9 @@ func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbds.GetTaskBatch
 		return nil, errf.Errorf(errf.RecordNotFound, "%s",
 			i18n.T(kt, "list tasks returned nil pagination"))
 	}
+	// 需忽略的错误码集合，命中该错误码的失败任务只影响批次整体状态判定
+	ignoreSet := buildIgnoreErrorCodeSet(req.GetIgnoreErrorCodes())
+
 	// 解析每个 task 的 CommonPayload，构建 TaskDetail
 	taskDetails := make([]*pbtb.TaskDetail, 0, len(pagination.Items))
 	var detail *pbtb.TaskDetail
@@ -243,7 +246,9 @@ func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbds.GetTaskBatch
 	}
 
 	// 计算状态统计
-	statistics, err := getTaskStatusStatistics(kt, fmt.Sprintf("%d", req.GetBatchId()), string(taskBatch.Spec.TaskAction))
+	taskIndex := fmt.Sprintf("%d", req.GetBatchId())
+	taskType := string(taskBatch.Spec.TaskAction)
+	statistics, err := getTaskStatusStatistics(kt, taskIndex, taskType)
 	if err != nil {
 		logs.Errorf("get task status statistics failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -251,11 +256,100 @@ func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbds.GetTaskBatch
 
 	// 转换为 proto TaskBatch 以获取字段
 	resp.TaskBatch = pbtb.PbTaskBatch(taskBatch)
+	// 根据 ignore_error_codes 重判批次整体状态（适配标准运维插件）
+	if err = overrideTaskBatchStatusForIgnore(kt, resp.TaskBatch, taskBatch,
+		taskIndex, taskType, statistics, ignoreSet); err != nil {
+		logs.Errorf("override task batch status for ignore failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
 	resp.Statistics = statistics
 	resp.Count = uint32(pagination.Count)
 	resp.Tasks = taskDetails
 
 	return resp, nil
+}
+
+// overrideTaskBatchStatusForIgnore 在忽略错误码后，重判批次整体状态
+// 把命中忽略错误码的失败任务视为成功后，重新计算批次整体状态
+// 仅当批次已处于终态（失败/部分失败）时生效
+func overrideTaskBatchStatusForIgnore(kt *kit.Kit, pbBatch *pbtb.TaskBatch, taskBatch *table.TaskBatch,
+	taskIndex, taskType string, statistics []*pbtb.TaskStatusStatItem, ignoreSet map[int32]bool) error {
+	if pbBatch == nil || len(ignoreSet) == 0 || taskBatch.Spec == nil {
+		return nil
+	}
+	// 只重判终态批次，运行中/初始化批次保持原状态
+	if taskBatch.Spec.Status != table.TaskBatchStatusFailed &&
+		taskBatch.Spec.Status != table.TaskBatchStatusPartlyFailed {
+		return nil
+	}
+
+	var success, failure, running, initializing uint32
+	for _, s := range statistics {
+		switch s.Status {
+		case taskTypes.TaskStatusSuccess:
+			success = s.Count
+		case taskTypes.TaskStatusFailure:
+			failure = s.Count
+		case taskTypes.TaskStatusRunning:
+			running = s.Count
+		case taskTypes.TaskStatusInit:
+			initializing = s.Count
+		}
+	}
+	// 仍有未完成任务则不重判（终态批次理论上不会出现，防御处理）
+	if running > 0 || initializing > 0 {
+		return nil
+	}
+	// 没有失败任务，无需重判
+	if failure == 0 {
+		return nil
+	}
+
+	taskStorage := taskpkg.GetGlobalStorage()
+	if taskStorage == nil {
+		return errf.Errorf(errf.Unknown, "%s",
+			i18n.T(kt, "task storage is not initialized"))
+	}
+	ignored, err := countIgnoredFailedTasks(kt, taskStorage, taskIndex, taskType, failure, ignoreSet)
+	if err != nil {
+		return err
+	}
+	if ignored == 0 {
+		return nil
+	}
+
+	// 把命中忽略错误码的失败任务计入成功后重判
+	effectiveFailure := failure - ignored
+	effectiveSuccess := success + ignored
+	switch {
+	case effectiveFailure == 0:
+		pbBatch.Status = string(table.TaskBatchStatusSucceed)
+	case effectiveSuccess == 0:
+		pbBatch.Status = string(table.TaskBatchStatusFailed)
+	default:
+		pbBatch.Status = string(table.TaskBatchStatusPartlyFailed)
+	}
+	return nil
+}
+
+// buildIgnoreErrorCodeSet 构建需忽略的错误码集合
+func buildIgnoreErrorCodeSet(codes []int32) map[int32]bool {
+	if len(codes) == 0 {
+		return nil
+	}
+	set := make(map[int32]bool, len(codes))
+	for _, c := range codes {
+		set[c] = true
+	}
+	return set
+}
+
+// isIgnorableFailedTask 判断失败任务的 GSE 错误码是否命中忽略集合
+func isIgnorableFailedTask(payload *commonExecutor.TaskPayload, ignoreSet map[int32]bool) bool {
+	if len(ignoreSet) == 0 || payload == nil || payload.GsePayload == nil {
+		return false
+	}
+	return ignoreSet[int32(payload.GsePayload.ErrorCode)]
 }
 
 // convertTaskToDetail 将 task 转换为 pb 数据结构 TaskDetail
@@ -364,6 +458,40 @@ func getTaskStatusStatistics(kt *kit.Kit, taskIndex, taskType string) ([]*pbtb.T
 	}
 
 	return statistics, nil
+}
+
+// countIgnoredFailedTasks 统计该批次失败任务中 GSE 错误码命中忽略集合的数量
+func countIgnoredFailedTasks(kt *kit.Kit, taskStorage istore.Store, taskIndex, taskType string,
+	failureCount uint32, ignoreSet map[int32]bool) (uint32, error) {
+	listOpt := &istore.ListOption{
+		TaskIndex:  taskIndex,
+		TaskType:   taskType,
+		StatusList: []string{taskTypes.TaskStatusFailure, taskTypes.TaskStatusTimeout},
+		Limit:      int64(failureCount),
+		Offset:     0,
+	}
+
+	pagination, err := taskStorage.ListTask(kt.Ctx, listOpt)
+	if err != nil {
+		return 0, errf.Errorf(errf.Unknown, "%s",
+			i18n.T(kt, "list failed tasks from task storage failed, err: %v", err))
+	}
+
+	var ignored uint32
+	for _, task := range pagination.Items {
+		var payload commonExecutor.TaskPayload
+		if err = task.GetCommonPayload(&payload); err != nil {
+			// 单个任务 payload 解析失败不阻断统计，按未命中处理
+			logs.Warnf("get common payload failed when counting ignored tasks, taskID: %s, err: %v, rid: %s",
+				task.TaskID, err, kt.Rid)
+			continue
+		}
+		if isIgnorableFailedTask(&payload, ignoreSet) {
+			ignored++
+		}
+	}
+
+	return ignored, nil
 }
 
 // expandTaskStatusForQuery 将用户查询的状态扩展为实际要查询的状态列表

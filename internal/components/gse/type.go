@@ -105,6 +105,9 @@ const (
 	// ErrCodeInProgress 任务正在执行中（GSE 侧任务尚未完成）
 	ErrCodeInProgress = 115
 
+	// ErrCodeAlreadyRunning 启动进程时进程已在运行（GSE 拒绝重复启动）
+	ErrCodeAlreadyRunning = 828
+
 	// ErrCodeStopping 停止启动
 	ErrCodeStopping = 1015012
 )
@@ -168,6 +171,11 @@ func IsSuccess(errorCode int) bool {
 // IsInProgress 判断错误码是否表示任务正在执行中
 func IsInProgress(errorCode int) bool {
 	return errorCode == ErrCodeInProgress
+}
+
+// IsAlreadyRunning 判断错误码是否表示进程已在运行
+func IsAlreadyRunning(errorCode int) bool {
+	return errorCode == ErrCodeAlreadyRunning
 }
 
 // nolint

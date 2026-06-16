@@ -355,30 +355,39 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	}
 
 	// 根据操作类型判断是否需要继续操作进程
-	isValid, message := isOperationValid(payload.OperateType, &statusContent, payload.OriginalProcStatus, payload.OriginalProcManagedStatus)
+	isValid, alreadyRunning, message := isOperationValid(payload.OperateType, &statusContent,
+		payload.OriginalProcStatus, payload.OriginalProcManagedStatus)
 	if !isValid {
+		// 启动已在运行的进程：记录 GSE 错误码，供查询侧按错误码忽略，任务仍按失败返回
+		if alreadyRunning {
+			commonPayload.GsePayload = &common.GsePayload{ErrorCode: gse.ErrCodeAlreadyRunning, ErrorMsg: message}
+			if err = c.SetCommonPayload(commonPayload); err != nil {
+				logs.Errorf("[CompareWithGSEProcessStatus STEP]: failed to set common payload: %v", err)
+			}
+		}
 		return fmt.Errorf("[CompareWithGSEProcessStatus STEP]: operation is not valid: %s", message)
 	}
 	return nil
 }
 
-// shouldSkipOperation 判断操作是否合法
-// false表示操作不合法，true表示操作合法
-// message表示操作不合法的原因
+// isOperationValid 判断操作是否合法
+// isValid: false表示操作不合法，true表示操作合法
+// alreadyRunning: 启动操作时进程已在 GSE 侧运行
+// message: 操作不合法的原因
 func isOperationValid(
 	operateType table.ProcessOperateType,
 	statusContent *gse.ProcessStatusContent,
 	originalProcStatus table.ProcessStatus,
 	originalProcManagedStatus table.ProcessManagedStatus,
-) (bool, string) {
+) (isValid bool, alreadyRunning bool, message string) {
 	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程的信息
 	if len(statusContent.Process) == 0 {
-		return false, "process not found in gse"
+		return false, false, "process not found in gse"
 	}
 	procDetail := statusContent.Process[0]
 	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程实例的信息
 	if len(procDetail.Instance) == 0 {
-		return false, "process instance not found in gse"
+		return false, false, "process instance not found in gse"
 	}
 	// 获取gse侧存储的进程实例信息
 	instance := procDetail.Instance[0]
@@ -392,44 +401,48 @@ func isOperationValid(
 		gseManagedStatus = table.ProcessManagedStatusManaged
 	}
 
+	// 启动操作且 GSE 侧进程已在运行，视为“进程已启动”
+	alreadyRunning = operateType == table.StartProcessOperate && gseStatus == table.ProcessStatusRunning
+
 	if originalProcStatus != gseStatus {
-		return false, fmt.Sprintf("process status is %s in bscp, but %s in gse", originalProcStatus, gseStatus)
+		return false, alreadyRunning, fmt.Sprintf("process status is %s in bscp, but %s in gse", originalProcStatus, gseStatus)
 	}
 	if originalProcManagedStatus != gseManagedStatus {
-		return false, fmt.Sprintf("process managed status is %s in bscp, but %s in gse", originalProcManagedStatus, gseManagedStatus)
+		return false, alreadyRunning, fmt.Sprintf("process managed status is %s in bscp, but %s in gse",
+			originalProcManagedStatus, gseManagedStatus)
 	}
 
 	switch operateType {
 	case table.StartProcessOperate:
 		// 启动操作：如果进程已经在运行，跳过
 		if gseStatus == table.ProcessStatusRunning {
-			return false, "process status is running in gse"
+			return false, alreadyRunning, "process status is running in gse"
 		}
 
 	case table.StopProcessOperate, table.KillProcessOperate:
 		// 停止/杀死操作：如果进程已经停止，跳过
 		if gseStatus == table.ProcessStatusStopped {
-			return false, "process already stopped in gse"
+			return false, false, "process already stopped in gse"
 		}
 
 	case table.RegisterProcessOperate:
 		// 托管操作：如果进程已经被托管
 		if gseManagedStatus == table.ProcessManagedStatusManaged {
-			return false, "process already managed in gse"
+			return false, false, "process already managed in gse"
 		}
 
 	case table.UnregisterProcessOperate:
 		// 取消托管操作：如果进程已经取消托管，跳过
 		if gseManagedStatus == table.ProcessManagedStatusUnmanaged {
-			return false, "process already unmanaged in gse"
+			return false, false, "process already unmanaged in gse"
 		}
 
 	case table.RestartProcessOperate, table.ReloadProcessOperate:
 		// 重启操作/重载操作：总是执行，不跳过
-		return true, ""
+		return true, false, ""
 	}
 
-	return true, ""
+	return true, false, ""
 }
 
 // CompareWithGSEProcessConfig 对比GSE进程配置（TODO: 待实现）
@@ -514,6 +527,11 @@ func (e *ProcessExecutor) Operate(c *istep.Context) error {
 	}
 
 	if !gse.IsSuccess(procResult.ErrorCode) {
+		// 记录 GSE 错误码，供查询侧按错误码忽略，任务仍按失败返回
+		commonPayload.GsePayload = &common.GsePayload{ErrorCode: procResult.ErrorCode, ErrorMsg: procResult.ErrorMsg}
+		if err = c.SetCommonPayload(commonPayload); err != nil {
+			logs.Errorf("[Operate STEP]: failed to set common payload: %v", err)
+		}
 		return fmt.Errorf("[Operate STEP]: process operate failed, errorCode=%d, errorMsg=%s",
 			procResult.ErrorCode, procResult.ErrorMsg)
 	}
