@@ -2394,15 +2394,16 @@ message ListTaskBatchResp {
 message GetTaskBatchDetailReq {
   uint32 biz_id = 1;
   uint32 batch_id = 2;
-  uint32 start = 3;                     // 起始位置
-  uint32 limit = 4;                     // 限制数量
-  repeated string set_names = 5;        // 集群名称列表
-  repeated string module_names = 6;     // 模块名称列表
-  repeated string service_names = 7;    // 服务名称列表
-  repeated string process_aliases = 8;  // 进程别名列表
-  repeated uint32 cc_process_ids = 9;   // CC进程ID列表
-  repeated uint32 inst_ids = 10;        // 模块下的递增ID序号列表
-  string status = 11;                   // 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE
+  uint32 start = 3;                        // 起始位置
+  uint32 limit = 4;                        // 限制数量
+  repeated string set_names = 5;           // 集群名称列表
+  repeated string module_names = 6;        // 模块名称列表
+  repeated string service_names = 7;       // 服务名称列表
+  repeated string process_aliases = 8;     // 进程别名列表
+  repeated uint32 cc_process_ids = 9;      // CC进程ID列表
+  repeated uint32 inst_ids = 10;           // 模块下的递增ID序号列表
+  string status = 11;                      // 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE
+  repeated int32 ignore_error_codes = 12;  // 需忽略的错误码列表，命中的失败任务视为成功
 }
 
 message GetTaskBatchDetailResp {

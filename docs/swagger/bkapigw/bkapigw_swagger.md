@@ -1130,6 +1130,7 @@ POST /api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail
 | batchId | int64 (formatted integer) | ✓ | 批任务ID |
 | bizId | int64 (formatted integer) | ✓ | 业务ID |
 | ccProcessIds | []int64 (formatted integer) |  | CC进程ID列表 |
+| ignoreErrorCodes | []int32 (formatted integer) |  | 需忽略的错误码列表，命中该错误码的失败任务视为成功 |
 | instIds | []int64 (formatted integer) |  | 模块下的递增ID序号列表 |
 | limit | int64 (formatted integer) |  | 限制数量 |
 | moduleNames | []string |  | 模块名称列表 |
@@ -1152,6 +1153,9 @@ Content-Type: application/json
 
 {
   "ccProcessIds": [
+    {}
+  ],
+  "ignoreErrorCodes": [
     {}
   ],
   "instIds": [
@@ -1194,6 +1198,7 @@ POST /api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail
 | batchId | int64 (formatted integer) | ✓ | 批任务ID |
 | bizId | int64 (formatted integer) | ✓ | 业务ID |
 | ccProcessIds | []int64 (formatted integer) |  | CC进程ID列表 |
+| ignoreErrorCodes | []int32 (formatted integer) |  | 需忽略的错误码列表，命中该错误码的失败任务视为成功 |
 | instIds | []int64 (formatted integer) |  | 模块下的递增ID序号列表 |
 | limit | int64 (formatted integer) |  | 限制数量 |
 | moduleNames | []string |  | 模块名称列表 |
@@ -1216,6 +1221,9 @@ Content-Type: application/json
 
 {
   "ccProcessIds": [
+    {}
+  ],
+  "ignoreErrorCodes": [
     {}
   ],
   "instIds": [
@@ -2447,6 +2455,7 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | ccProcessIds | []int64 (formatted integer)| `[]int64` |  | | CC进程ID列表 |  |
+| ignoreErrorCodes | []int32 (formatted integer)| `[]int32` |  | | 需忽略的错误码列表，命中该错误码的失败任务视为成功 |  |
 | instIds | []int64 (formatted integer)| `[]int64` |  | | 模块下的递增ID序号列表 |  |
 | limit | int64 (formatted integer)| `int64` |  | | 限制数量 |  |
 | moduleNames | []string| `[]string` |  | | 模块名称列表 |  |
