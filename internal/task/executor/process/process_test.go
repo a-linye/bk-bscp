@@ -17,6 +17,7 @@ import (
 
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
+	pbproc "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/process"
 )
 
 func statusContent(pid int, isAuto bool) *gse.ProcessStatusContent {
@@ -35,25 +36,25 @@ func TestIsOperationValid(t *testing.T) {
 		origStatus     table.ProcessStatus
 		origManaged    table.ProcessManagedStatus
 		wantValid      bool
-		wantAlreadyRun bool
+		wantIgnoreCode int
 	}{
 		{
-			name:           "start but gse running and bscp running -> already running",
+			name:           "start but gse running and bscp running -> already running 828",
 			operateType:    table.StartProcessOperate,
 			content:        statusContent(100, true),
 			origStatus:     table.ProcessStatusRunning,
 			origManaged:    table.ProcessManagedStatusManaged,
 			wantValid:      false,
-			wantAlreadyRun: true,
+			wantIgnoreCode: gse.ErrCodeAlreadyRunning,
 		},
 		{
-			name:           "start but gse running while bscp stopped -> status mismatch but already running",
+			name:           "start but gse running while bscp stopped -> status mismatch but already running 828",
 			operateType:    table.StartProcessOperate,
 			content:        statusContent(100, true),
 			origStatus:     table.ProcessStatusStopped,
 			origManaged:    table.ProcessManagedStatusUnmanaged,
 			wantValid:      false,
-			wantAlreadyRun: true,
+			wantIgnoreCode: gse.ErrCodeAlreadyRunning,
 		},
 		{
 			name:           "start and gse stopped -> valid",
@@ -62,27 +63,78 @@ func TestIsOperationValid(t *testing.T) {
 			origStatus:     table.ProcessStatusStopped,
 			origManaged:    table.ProcessManagedStatusUnmanaged,
 			wantValid:      true,
-			wantAlreadyRun: false,
+			wantIgnoreCode: 0,
 		},
 		{
-			name:           "stop and gse stopped -> invalid, not already running",
+			name:           "stop and gse stopped -> no need stop 829",
 			operateType:    table.StopProcessOperate,
 			content:        statusContent(0, false),
 			origStatus:     table.ProcessStatusStopped,
 			origManaged:    table.ProcessManagedStatusUnmanaged,
 			wantValid:      false,
-			wantAlreadyRun: false,
+			wantIgnoreCode: gse.ErrCodeNoNeedStop,
+		},
+		{
+			name:           "kill and gse stopped -> no need stop 829",
+			operateType:    table.KillProcessOperate,
+			content:        statusContent(0, false),
+			origStatus:     table.ProcessStatusStopped,
+			origManaged:    table.ProcessManagedStatusUnmanaged,
+			wantValid:      false,
+			wantIgnoreCode: gse.ErrCodeNoNeedStop,
+		},
+		{
+			name:           "stop but gse stopped while bscp running -> status mismatch but no need stop 829",
+			operateType:    table.StopProcessOperate,
+			content:        statusContent(0, false),
+			origStatus:     table.ProcessStatusRunning,
+			origManaged:    table.ProcessManagedStatusManaged,
+			wantValid:      false,
+			wantIgnoreCode: gse.ErrCodeNoNeedStop,
+		},
+		{
+			name:           "stop and gse running -> valid",
+			operateType:    table.StopProcessOperate,
+			content:        statusContent(100, true),
+			origStatus:     table.ProcessStatusRunning,
+			origManaged:    table.ProcessManagedStatusManaged,
+			wantValid:      true,
+			wantIgnoreCode: 0,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			gotValid, gotAlreadyRun, _ := isOperationValid(c.operateType, c.content, c.origStatus, c.origManaged)
+			gotValid, gotIgnoreCode, _ := isOperationValid(c.operateType, c.content, c.origStatus, c.origManaged)
 			if gotValid != c.wantValid {
 				t.Fatalf("isValid = %v, want %v", gotValid, c.wantValid)
 			}
-			if gotAlreadyRun != c.wantAlreadyRun {
-				t.Fatalf("alreadyRunning = %v, want %v", gotAlreadyRun, c.wantAlreadyRun)
+			if gotIgnoreCode != c.wantIgnoreCode {
+				t.Fatalf("ignoreErrCode = %d, want %d", gotIgnoreCode, c.wantIgnoreCode)
+			}
+		})
+	}
+}
+
+func TestValidateOperateIgnoreErrCode(t *testing.T) {
+	cases := []struct {
+		name        string
+		reason      string
+		operateType table.ProcessOperateType
+		want        int
+	}{
+		{"no need operate + start -> 828", pbproc.DisableReasonNoNeedOperate, table.StartProcessOperate, gse.ErrCodeAlreadyRunning},
+		{"no need operate + stop -> 829", pbproc.DisableReasonNoNeedOperate, table.StopProcessOperate, gse.ErrCodeNoNeedStop},
+		{"no need operate + kill -> 829", pbproc.DisableReasonNoNeedOperate, table.KillProcessOperate, gse.ErrCodeNoNeedStop},
+		{"no need operate + register -> 0 (out of scope)", pbproc.DisableReasonNoNeedOperate, table.RegisterProcessOperate, 0},
+		{"no need operate + unregister -> 0 (out of scope)", pbproc.DisableReasonNoNeedOperate, table.UnregisterProcessOperate, 0},
+		{"other reason + start -> 0", pbproc.DisableReasonTaskRunning, table.StartProcessOperate, 0},
+		{"no reason + stop -> 0", pbproc.DisableReasonNone, table.StopProcessOperate, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := validateOperateIgnoreErrCode(c.reason, c.operateType); got != c.want {
+				t.Fatalf("validateOperateIgnoreErrCode(%q, %q) = %d, want %d", c.reason, c.operateType, got, c.want)
 			}
 		})
 	}

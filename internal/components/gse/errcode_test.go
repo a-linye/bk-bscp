@@ -33,3 +33,23 @@ func TestIsAlreadyRunning(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNoNeedStop(t *testing.T) {
+	cases := []struct {
+		name string
+		code int
+		want bool
+	}{
+		{"no need stop", ErrCodeNoNeedStop, true},
+		{"already running", ErrCodeAlreadyRunning, false},
+		{"success", ErrCodeSuccess, false},
+		{"other", 1, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := IsNoNeedStop(c.code); got != c.want {
+				t.Fatalf("IsNoNeedStop(%d) = %v, want %v", c.code, got, c.want)
+			}
+		})
+	}
+}

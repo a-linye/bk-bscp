@@ -24,3 +24,5 @@
 - 不回滚用户已有改动，除非用户明确要求。
 - 提交前确认 `git status --short`，避免把无关文件混入同一个提交。
 - 涉及生成文件时，优先使用仓库已有生成命令重新生成并检查 diff。
+- 仓库开启了提交 GPG 签名（`commit.gpgsign=true`）。Agent 在非交互环境提交依赖 `gpg-agent` 已缓存 passphrase（缓存命中即可无 TTY 签名）。
+- 若提交报 `gpg failed to sign the data`，多为缓存为空或过期：请用户在终端手动签一次（如手动提交或执行一次签名）暖缓存后再重试。禁止用 `--no-gpg-sign` 跳过签名、禁止改动 git/gpg 配置或写入明文 passphrase。
