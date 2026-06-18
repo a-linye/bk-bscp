@@ -108,6 +108,9 @@ const (
 	// ErrCodeAlreadyRunning 启动进程时进程已在运行（GSE 拒绝重复启动）
 	ErrCodeAlreadyRunning = 828
 
+	// ErrCodeNoNeedStop 停止进程时进程未在运行（GSE 无需停止）
+	ErrCodeNoNeedStop = 829
+
 	// ErrCodeStopping 停止启动
 	ErrCodeStopping = 1015012
 )
@@ -176,6 +179,11 @@ func IsInProgress(errorCode int) bool {
 // IsAlreadyRunning 判断错误码是否表示进程已在运行
 func IsAlreadyRunning(errorCode int) bool {
 	return errorCode == ErrCodeAlreadyRunning
+}
+
+// IsNoNeedStop 判断错误码是否表示进程未在运行、无需停止
+func IsNoNeedStop(errorCode int) bool {
+	return errorCode == ErrCodeNoNeedStop
 }
 
 // nolint

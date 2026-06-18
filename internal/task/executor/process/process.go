@@ -117,7 +117,7 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 	originalProcManagedStatus := payload.OriginalProcManagedStatus
 
 	// 校验操作是否合法
-	canOperate, message, _ := pbproc.CanProcessOperate(
+	canOperate, message, reason := pbproc.CanProcessOperate(
 		payload.OperateType,
 		processInfo,
 		originalProcStatus.String(),
@@ -126,10 +126,27 @@ func (e *ProcessExecutor) ValidateOperate(c *istep.Context) error {
 	)
 
 	if !canOperate {
+		// 重复启动已运行/重复停止已停止：记录可忽略错误码，供查询侧按错误码忽略，任务仍按失败返回
+		if ignoreErrCode := validateOperateIgnoreErrCode(reason, payload.OperateType); ignoreErrCode != 0 {
+			commonPayload.GsePayload = &common.GsePayload{ErrorCode: ignoreErrCode, ErrorMsg: message}
+			if err := c.SetCommonPayload(commonPayload); err != nil {
+				logs.Errorf("[ValidateOperate STEP]: failed to set common payload: %v", err)
+			}
+		}
 		return fmt.Errorf("process cannot operate, reason: %s", message)
 	}
 
 	return nil
+}
+
+// validateOperateIgnoreErrCode 在 ValidateOperate 校验失败时，返回可被查询侧忽略的错误码：
+// 仅当失败原因为“无需操作”（进程已处于目标态）且操作为启动/停止/强制停止时，
+// 返回 828/829，其余场景返回 0（保持真实失败）。
+func validateOperateIgnoreErrCode(reason string, operateType table.ProcessOperateType) int {
+	if reason != pbproc.DisableReasonNoNeedOperate {
+		return 0
+	}
+	return duplicateOperateIgnoreCode(operateType)
 }
 
 // CompareWithCMDBProcessInfo 对比CMDB进程信息
@@ -355,12 +372,12 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	}
 
 	// 根据操作类型判断是否需要继续操作进程
-	isValid, alreadyRunning, message := isOperationValid(payload.OperateType, &statusContent,
+	isValid, ignoreErrCode, message := isOperationValid(payload.OperateType, &statusContent,
 		payload.OriginalProcStatus, payload.OriginalProcManagedStatus)
 	if !isValid {
-		// 启动已在运行的进程：记录 GSE 错误码，供查询侧按错误码忽略，任务仍按失败返回
-		if alreadyRunning {
-			commonPayload.GsePayload = &common.GsePayload{ErrorCode: gse.ErrCodeAlreadyRunning, ErrorMsg: message}
+		// 重复启动已运行/重复停止已停止：记录 GSE 错误码，供查询侧按错误码忽略，任务仍按失败返回
+		if ignoreErrCode != 0 {
+			commonPayload.GsePayload = &common.GsePayload{ErrorCode: ignoreErrCode, ErrorMsg: message}
 			if err = c.SetCommonPayload(commonPayload); err != nil {
 				logs.Errorf("[CompareWithGSEProcessStatus STEP]: failed to set common payload: %v", err)
 			}
@@ -370,24 +387,37 @@ func (e *ProcessExecutor) CompareWithGSEProcessStatus(c *istep.Context) error {
 	return nil
 }
 
+// duplicateOperateIgnoreCode 返回“进程已处于目标态”导致的重复操作可被忽略的错误码：
+// 重复启动 -> 828（ErrCodeAlreadyRunning），重复停止/强制停止 -> 829（ErrCodeNoNeedStop），其余 -> 0。
+// 由调用方先确认“进程已处于目标态”后再调用，本函数只负责按操作类型映射错误码。
+func duplicateOperateIgnoreCode(operateType table.ProcessOperateType) int {
+	switch operateType {
+	case table.StartProcessOperate:
+		return gse.ErrCodeAlreadyRunning
+	case table.StopProcessOperate, table.KillProcessOperate:
+		return gse.ErrCodeNoNeedStop
+	}
+	return 0
+}
+
 // isOperationValid 判断操作是否合法
 // isValid: false表示操作不合法，true表示操作合法
-// alreadyRunning: 启动操作时进程已在 GSE 侧运行
+// ignoreErrCode: 进程已处于目标态导致的重复操作可忽略错误码（启动已运行->828，停止/强制停止已停止->829），其余为 0
 // message: 操作不合法的原因
 func isOperationValid(
 	operateType table.ProcessOperateType,
 	statusContent *gse.ProcessStatusContent,
 	originalProcStatus table.ProcessStatus,
 	originalProcManagedStatus table.ProcessManagedStatus,
-) (isValid bool, alreadyRunning bool, message string) {
+) (isValid bool, ignoreErrCode int, message string) {
 	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程的信息
 	if len(statusContent.Process) == 0 {
-		return false, false, "process not found in gse"
+		return false, 0, "process not found in gse"
 	}
 	procDetail := statusContent.Process[0]
 	// 只要操作成功，即使进程未托管及未启动也会返回查询的进程实例的信息
 	if len(procDetail.Instance) == 0 {
-		return false, false, "process instance not found in gse"
+		return false, 0, "process instance not found in gse"
 	}
 	// 获取gse侧存储的进程实例信息
 	instance := procDetail.Instance[0]
@@ -401,14 +431,18 @@ func isOperationValid(
 		gseManagedStatus = table.ProcessManagedStatusManaged
 	}
 
-	// 启动操作且 GSE 侧进程已在运行，视为“进程已启动”
-	alreadyRunning = operateType == table.StartProcessOperate && gseStatus == table.ProcessStatusRunning
+	// GSE 侧进程已处于目标态时的重复操作，记录可忽略错误码：启动已运行->828，停止/强制停止已停止->829
+	if (operateType == table.StartProcessOperate && gseStatus == table.ProcessStatusRunning) ||
+		((operateType == table.StopProcessOperate || operateType == table.KillProcessOperate) &&
+			gseStatus == table.ProcessStatusStopped) {
+		ignoreErrCode = duplicateOperateIgnoreCode(operateType)
+	}
 
 	if originalProcStatus != gseStatus {
-		return false, alreadyRunning, fmt.Sprintf("process status is %s in bscp, but %s in gse", originalProcStatus, gseStatus)
+		return false, ignoreErrCode, fmt.Sprintf("process status is %s in bscp, but %s in gse", originalProcStatus, gseStatus)
 	}
 	if originalProcManagedStatus != gseManagedStatus {
-		return false, alreadyRunning, fmt.Sprintf("process managed status is %s in bscp, but %s in gse",
+		return false, ignoreErrCode, fmt.Sprintf("process managed status is %s in bscp, but %s in gse",
 			originalProcManagedStatus, gseManagedStatus)
 	}
 
@@ -416,33 +450,33 @@ func isOperationValid(
 	case table.StartProcessOperate:
 		// 启动操作：如果进程已经在运行，跳过
 		if gseStatus == table.ProcessStatusRunning {
-			return false, alreadyRunning, "process status is running in gse"
+			return false, ignoreErrCode, "process status is running in gse"
 		}
 
 	case table.StopProcessOperate, table.KillProcessOperate:
 		// 停止/杀死操作：如果进程已经停止，跳过
 		if gseStatus == table.ProcessStatusStopped {
-			return false, false, "process already stopped in gse"
+			return false, ignoreErrCode, "process already stopped in gse"
 		}
 
 	case table.RegisterProcessOperate:
 		// 托管操作：如果进程已经被托管
 		if gseManagedStatus == table.ProcessManagedStatusManaged {
-			return false, false, "process already managed in gse"
+			return false, 0, "process already managed in gse"
 		}
 
 	case table.UnregisterProcessOperate:
 		// 取消托管操作：如果进程已经取消托管，跳过
 		if gseManagedStatus == table.ProcessManagedStatusUnmanaged {
-			return false, false, "process already unmanaged in gse"
+			return false, 0, "process already unmanaged in gse"
 		}
 
 	case table.RestartProcessOperate, table.ReloadProcessOperate:
 		// 重启操作/重载操作：总是执行，不跳过
-		return true, false, ""
+		return true, 0, ""
 	}
 
-	return true, false, ""
+	return true, 0, ""
 }
 
 // CompareWithGSEProcessConfig 对比GSE进程配置（TODO: 待实现）
