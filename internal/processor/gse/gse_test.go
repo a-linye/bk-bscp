@@ -275,17 +275,88 @@ func TestBuildProcessOperate(t *testing.T) {
 				if result.OpType != gse.OpTypeQuery {
 					t.Errorf("OpType = %v, want %v", result.OpType, gse.OpTypeQuery)
 				}
-				if result.Spec.Resource.CPU != DefaultCPULimit {
-					t.Errorf("CPU = %v, want %v", result.Spec.Resource.CPU, DefaultCPULimit)
-				}
-				if result.Spec.Resource.Mem != DefaultMemLimit {
-					t.Errorf("Mem = %v, want %v", result.Spec.Resource.Mem, DefaultMemLimit)
-				}
 				if result.Spec.MonitorPolicy.AutoType != gse.AutoTypePersistent {
 					t.Errorf("AutoType = %v, want %v", result.Spec.MonitorPolicy.AutoType, gse.AutoTypePersistent)
 				}
+				// StartCheckSecs 未配置（0）时套用缺省值
 				if result.Spec.MonitorPolicy.StartCheckSecs != DefaultStartCheckSecs {
 					t.Errorf("StartCheckSecs = %v, want %v", result.Spec.MonitorPolicy.StartCheckSecs, DefaultStartCheckSecs)
+				}
+			},
+		},
+		{
+			name: "monitor policy uses default values when unset",
+			params: BuildProcessOperateParams{
+				BizID:         800,
+				Alias:         "default-process",
+				HostInstSeq:   80,
+				ModuleInstSeq: 11,
+				SetName:       "default-set",
+				ModuleName:    "default-module",
+				AgentID:       []string{"agent-008"},
+				GseOpType:     gse.OpTypeStart,
+				ProcessInfo: table.ProcessInfo{
+					WorkPath:    "/opt/app",
+					PidFile:     "/var/run/app.pid",
+					User:        "appuser",
+					StartCmd:    "start.sh",
+					StopCmd:     "stop.sh",
+					RestartCmd:  "restart.sh",
+					ReloadCmd:   "reload.sh",
+					FaceStopCmd: "kill.sh",
+					// StartCheckSecs 与 Timeout 均未配置（0），应套用缺省值
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *gse.ProcessOperate) {
+				if result == nil {
+					t.Fatal("result should not be nil")
+				}
+				if result.Spec.MonitorPolicy.StartCheckSecs != DefaultStartCheckSecs {
+					t.Errorf("StartCheckSecs = %v, want %v",
+						result.Spec.MonitorPolicy.StartCheckSecs, DefaultStartCheckSecs)
+				}
+				if result.Spec.MonitorPolicy.OpTimeout != DefaultOpTimeout {
+					t.Errorf("OpTimeout = %v, want %v",
+						result.Spec.MonitorPolicy.OpTimeout, DefaultOpTimeout)
+				}
+			},
+		},
+		{
+			name: "monitor policy respects user configured values",
+			params: BuildProcessOperateParams{
+				BizID:         900,
+				Alias:         "configured-process",
+				HostInstSeq:   90,
+				ModuleInstSeq: 12,
+				SetName:       "cfg-set",
+				ModuleName:    "cfg-module",
+				AgentID:       []string{"agent-009"},
+				GseOpType:     gse.OpTypeStart,
+				ProcessInfo: table.ProcessInfo{
+					WorkPath:       "/opt/app",
+					PidFile:        "/var/run/app.pid",
+					User:           "appuser",
+					StartCmd:       "start.sh",
+					StopCmd:        "stop.sh",
+					RestartCmd:     "restart.sh",
+					ReloadCmd:      "reload.sh",
+					FaceStopCmd:    "kill.sh",
+					StartCheckSecs: 8,
+					Timeout:        120,
+				},
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *gse.ProcessOperate) {
+				if result == nil {
+					t.Fatal("result should not be nil")
+				}
+				// 用户显式配置（非 0）不被缺省值覆盖
+				if result.Spec.MonitorPolicy.StartCheckSecs != 8 {
+					t.Errorf("StartCheckSecs = %v, want 8", result.Spec.MonitorPolicy.StartCheckSecs)
+				}
+				if result.Spec.MonitorPolicy.OpTimeout != 120 {
+					t.Errorf("OpTimeout = %v, want 120", result.Spec.MonitorPolicy.OpTimeout)
 				}
 			},
 		},

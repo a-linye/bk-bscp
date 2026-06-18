@@ -30,14 +30,11 @@ import (
 )
 
 const (
-	// DefaultCPULimit 默认 CPU 使用率上限百分比
-	DefaultCPULimit = 30.0
-
-	// DefaultMemLimit 默认内存使用率上限百分比
-	DefaultMemLimit = 10.0
-
 	// DefaultStartCheckSecs 默认启动后检查存活的时间（秒）
 	DefaultStartCheckSecs = 5
+
+	// DefaultOpTimeout 默认命令执行超时时间（秒）
+	DefaultOpTimeout = 60
 
 	defaultMaxWait  = 15 * time.Second
 	DefaultInterval = 3 * time.Second
