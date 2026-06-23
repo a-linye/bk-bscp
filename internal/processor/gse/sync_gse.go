@@ -16,6 +16,7 @@ package gse
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -38,8 +39,9 @@ const (
 
 	defaultMaxWait  = 15 * time.Second
 	DefaultInterval = 3 * time.Second
-	// Maximum number of times to tolerate ErrorCode 115 before treating as complete
-	MaxInProgressRetries = 5
+
+	// MaxInProgressRetries 容忍 GSE 任务处于执行中(115)的最大轮询次数，超过即提前返回当前结果。
+	MaxInProgressRetries = 150
 
 	// bizSyncBatchSize 按业务全量同步时单个 GSE 任务合并下发的进程实例数量上限。
 	bizSyncBatchSize = 1000
@@ -51,7 +53,7 @@ const (
 	bizSyncInterval = 1500 * time.Millisecond
 
 	// bizSyncMaxWait 按业务全量同步单批次结果的最长等待时间。
-	bizSyncMaxWait = 30 * time.Second
+	bizSyncMaxWait = 5 * time.Minute
 )
 
 // NewSyncGESService 初始化同步gse
@@ -87,10 +89,18 @@ type bizOperateItem struct {
 //  3. 以批次为单位并发处理，统一汇总后批量落库。
 //
 // 状态判定与字段语义保持不变；单批失败不阻断整体同步。
+// nolint:funlen
 func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
+	start := time.Now()
+	defer func() {
+		logs.Infof("[SyncSingleBiz] biz %d: total cost=%s", s.bizID, time.Since(start))
+	}()
+
 	kit := kit.FromGrpcContext(ctx)
 	kit.TenantID = s.tenantID
 	kit.Ctx = kit.InternalRpcCtx()
+
+	listStart := time.Now()
 	processes, err := s.dao.Process().ListProcessesWithInstance(kit, uint32(s.bizID))
 	if err != nil {
 		logs.Errorf("list active processes failed: %v", err)
@@ -100,12 +110,15 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 		logs.Infof("no active processes found, skip sync")
 		return nil
 	}
+	logs.Infof("[SyncSingleBiz] biz %d: list processes done, count=%d, cost=%s",
+		s.bizID, len(processes), time.Since(listStart))
 
 	// 一次性取出业务下全部进程实例，避免每进程一次 GetByProcessIDs 查询
 	processIDs := make([]uint32, 0, len(processes))
 	for _, p := range processes {
 		processIDs = append(processIDs, p.ID)
 	}
+	instStart := time.Now()
 	insts, err := s.dao.ProcessInstance().GetByProcessIDs(kit, uint32(s.bizID), processIDs)
 	if err != nil {
 		logs.Errorf("biz %d: get instances failed, err=%v", s.bizID, err)
@@ -114,6 +127,8 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 	if len(insts) == 0 {
 		return nil
 	}
+	logs.Infof("[SyncSingleBiz] biz %d: get instances done, count=%d, cost=%s",
+		s.bizID, len(insts), time.Since(instStart))
 
 	instsByProcess := make(map[uint32][]*table.ProcessInstance, len(processes))
 	for _, inst := range insts {
@@ -121,12 +136,17 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 	}
 
 	// 构建全业务的 GSE 操作项，并按批合并下发，减少任务数量
+	// 该阶段包含模板渲染，是历史上的主要耗时点，单独统计
+	buildStart := time.Now()
 	batches := chunkBizOperateItems(
 		buildBizOperateItems(processes, instsByProcess, uint32(s.bizID)), bizSyncBatchSize)
+	logs.Infof("[SyncSingleBiz] biz %d: build operate items done, batches=%d, cost=%s",
+		s.bizID, len(batches), time.Since(buildStart))
 	if len(batches) == 0 {
 		return nil
 	}
 
+	gseStart := time.Now()
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, bizSyncConcurrency)
 	resultCh := make(chan []*table.ProcessInstance, len(batches))
@@ -154,6 +174,8 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 	for updated := range resultCh {
 		allInsts = append(allInsts, updated...)
 	}
+	logs.Infof("[SyncSingleBiz] biz %d: gse batch sync done, updatedInsts=%d, cost=%s",
+		s.bizID, len(allInsts), time.Since(gseStart))
 
 	if len(allInsts) == 0 {
 		return nil
@@ -162,6 +184,7 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 	// 仅对有实例状态更新的进程记录同步时间，语义与现状一致
 	allProcess := collectSyncedProcesses(processes, allInsts, time.Now().UTC())
 
+	dbStart := time.Now()
 	tx := s.dao.GenQuery().Begin()
 	committed := false
 	defer func() {
@@ -195,6 +218,8 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 		return err
 	}
 	committed = true
+	logs.Infof("[SyncSingleBiz] biz %d: db write done, insts=%d, processes=%d, cost=%s",
+		s.bizID, len(allInsts), len(allProcess), time.Since(dbStart))
 
 	return nil
 }
@@ -298,9 +323,16 @@ func buildBizOperateItems(processes []*table.Process,
 	instsByProcess map[uint32][]*table.ProcessInstance, bizID uint32) []bizOperateItem {
 
 	items := make([]bizOperateItem, 0)
+	skippedNoAgent := 0
 	for _, process := range processes {
 		insts := instsByProcess[process.ID]
 		if len(insts) == 0 {
+			continue
+		}
+
+		// 跳过 agentID 为空的异常进程记录
+		if process.Attachment.AgentID == "" {
+			skippedNoAgent += len(insts)
 			continue
 		}
 
@@ -334,6 +366,11 @@ func buildBizOperateItems(processes []*table.Process,
 		}
 	}
 
+	if skippedNoAgent > 0 {
+		logs.Warnf("biz %d: skip %d instances of processes with empty agentID (abnormal records, not dispatched to GSE)",
+			bizID, skippedNoAgent)
+	}
+
 	return items
 }
 
@@ -358,12 +395,7 @@ func chunkBizOperateItems(items []bizOperateItem, size int) [][]bizOperateItem {
 // syncBizBatch 处理单个批次：合并下发一个 GSE 任务、轮询结果并解析实例状态。
 // 批次内任意环节失败仅记录日志并返回已更新实例（可能为空），不阻断其它批次。
 func (s *syncGSEService) syncBizBatch(ctx context.Context, batch []bizOperateItem) []*table.ProcessInstance {
-	req := make([]gse.ProcessOperate, 0, len(batch))
-	instMap := make(map[string]*table.ProcessInstance, len(batch))
-	for _, it := range batch {
-		req = append(req, it.operate)
-		instMap[it.key] = it.inst
-	}
+	req, instMap := buildBatchInstMap(batch)
 
 	proc, err := s.svc.OperateProcMulti(ctx, &gse.MultiProcOperateReq{ProcOperateReq: req})
 	if err != nil {
@@ -377,16 +409,45 @@ func (s *syncGSEService) syncBizBatch(ctx context.Context, batch []bizOperateIte
 		return nil
 	}
 
+	return applyBatchResult(result, instMap)
+}
+
+// buildBatchInstMap 构建下发请求与「结果 key -> 实例列表」映射。
+// 同一 GSE result key 可能对应多个实例：HostInstSeq 按进程独立分配，当同 host(agentID)+alias
+// 存在多个进程记录（被标记为 abnormal 的冲突进程）时，它们的实例会算出相同的 BuildResultKey。
+// 因此这里用多值 map 保存，避免单值映射在合批后静默覆盖、丢失前序实例的更新。
+func buildBatchInstMap(batch []bizOperateItem) ([]gse.ProcessOperate, map[string][]*table.ProcessInstance) {
+	req := make([]gse.ProcessOperate, 0, len(batch))
+	instMap := make(map[string][]*table.ProcessInstance, len(batch))
+	for _, it := range batch {
+		req = append(req, it.operate)
+		instMap[it.key] = append(instMap[it.key], it.inst)
+	}
+	return req, instMap
+}
+
+// applyBatchResult 将 GSE 结果按 key 扇出到所有命中实例。
+// 与 gsekit 一致：同一 key 命中的全部实例都更新为该 key 对应的同一状态，不丢更新。
+func applyBatchResult(result map[string]gse.ProcResult,
+	instMap map[string][]*table.ProcessInstance) []*table.ProcessInstance {
+
 	updatedInsts := make([]*table.ProcessInstance, 0, len(result))
 	for key, val := range result {
-		inst := instMap[key]
-		if inst == nil {
+		insts := instMap[key]
+		if len(insts) == 0 {
+			continue
+		}
+		// GSE 仍在执行中（115）说明本轮拿不到确定状态，跳过更新以保留实例原状态，
+		// 避免把"执行中"误判为 stopped/unmanaged 覆盖正确数据，等待下次同步重新拉取。
+		if gse.IsInProgress(val.ErrorCode) {
 			continue
 		}
 		status, managed := parseGSEProcResult(key, val)
-		inst.Spec.Status = status
-		inst.Spec.ManagedStatus = managed
-		updatedInsts = append(updatedInsts, inst)
+		for _, inst := range insts {
+			inst.Spec.Status = status
+			inst.Spec.ManagedStatus = managed
+			updatedInsts = append(updatedInsts, inst)
+		}
 	}
 
 	return updatedInsts
@@ -463,7 +524,9 @@ func parseGSEProcResult(key string, v gse.ProcResult) (status table.ProcessStatu
 	return status, managed
 }
 
-func waitForProcResult(ctx context.Context, svc *gse.Service, taskID string, maxWait, interval time.Duration) (map[string]gse.ProcResult, error) {
+func waitForProcResult(ctx context.Context, svc *gse.Service, taskID string,
+	maxWait, interval time.Duration) (map[string]gse.ProcResult, error) {
+
 	var result map[string]gse.ProcResult
 	inProgressCount := 0
 
@@ -503,10 +566,12 @@ func waitForProcResult(ctx context.Context, svc *gse.Service, taskID string, max
 			if hasInProgress {
 				inProgressCount++
 				if inProgressCount > MaxInProgressRetries {
-					// 详细日志：包含业务ID、任务ID、计数，以及只包含115的进程条目
-					logs.Warnf("task=%s: seen ErrorCode==115 for %d times — still in progress; listing procs with 115: %+v",
-						taskID, inProgressCount, inProgressProcs)
-					// 超过5次依旧是正在执行 → 直接认为完成
+					// 详细日志：包含任务ID、计数，以及只包含 115 的进程条目
+					logs.Warnf("task=%s: seen ErrorCode==115 for %d times — still in progress; "+
+						"return current result (in-progress entries skipped by caller); count of 115 procs=%d",
+						taskID, inProgressCount, len(inProgressProcs))
+					// 超过重试上限依旧在执行 → 提前返回当前结果：
+					// 已完成的进程正常落库，残留 115 由 applyBatchResult 跳过、保留原状态。
 					return true, nil
 				}
 				return false, nil // 继续轮询
@@ -517,7 +582,7 @@ func waitForProcResult(ctx context.Context, svc *gse.Service, taskID string, max
 	)
 
 	if err != nil {
-		if wait.Interrupted(err) || err == context.DeadlineExceeded || err == context.Canceled {
+		if wait.Interrupted(err) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			return nil, fmt.Errorf("timeout or canceled waiting for GSE result, taskID=%s", taskID)
 		}
 		return nil, err

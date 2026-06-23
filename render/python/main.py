@@ -7,6 +7,7 @@ Supports reading context from stdin or file and rendering templates
 
 import sys
 import json
+import struct
 import argparse
 from pathlib import Path
 
@@ -147,6 +148,203 @@ def parse_cc_xml(cc_xml):
     return cc
 
 
+def build_cc_context(ctx: dict) -> dict:
+    # 1. Handle cc_xml if present
+    cc_xml = ctx.get('cc_xml')
+    if cc_xml:
+        # Parse cc_xml into lxml Element
+        try:
+            cc = parse_cc_xml(cc_xml)
+            ctx['cc'] = cc
+        except (etree.XMLSyntaxError, etree.ParseError) as e:
+            # Provide descriptive error message indicating which field failed
+            xml_preview = (cc_xml[:200] + '...') if isinstance(cc_xml, str) and len(cc_xml) > 200 else str(cc_xml)[:200]
+            raise ValueError(
+                f"Failed to parse 'cc_xml' field as XML. "
+                f"XML syntax error: {str(e)}. "
+                f"XML content preview: {xml_preview}"
+            ) from e
+
+    # 2. Build 'this' object if not already provided
+    # If Go already passed a 'this' dict, convert it to object for attribute access
+    if 'this' in ctx:
+        if isinstance(ctx['this'], dict):
+            # Convert dict to object for this.attr access in Mako
+            this_obj = SimpleNamespace(**ctx['this'])
+            ctx['this'] = this_obj
+        # else: already an object, keep as-is
+        return ctx
+
+    # 3. Auto-build 'this' from cc_xml + identifiers (backward compatibility)
+    if cc_xml:
+        bk_set_name = ctx.get('bk_set_name')
+        bk_module_name = ctx.get('bk_module_name')
+        bk_host_innerip = ctx.get('bk_host_innerip')
+        bk_cloud_id = ctx.get('bk_cloud_id')
+
+        this_obj = SimpleNamespace()
+        cc = ctx.get('cc')
+
+        # cc_set
+        if bk_set_name and cc is not None:
+            this_obj.cc_set = cc.find(f'.//Set[@SetName="{bk_set_name}"]')
+        # cc_module
+        if bk_set_name and bk_module_name and cc is not None:
+            this_obj.cc_module = cc.find(
+                f'.//Set[@SetName="{bk_set_name}"]/Module[@ModuleName="{bk_module_name}"]'
+            )
+        # cc_host
+        if bk_set_name and bk_module_name and bk_host_innerip is not None and bk_cloud_id is not None and cc is not None:
+            xpath = (
+                f'.//Set[@SetName="{bk_set_name}"]'
+                f'/Module[@ModuleName="{bk_module_name}"]'
+                f'/Host[@InnerIP="{bk_host_innerip}"][@bk_cloud_id="{bk_cloud_id}"]'
+            )
+            this_obj.cc_host = cc.find(xpath)
+
+        # attach attrib container to mimic original API (empty by default)
+        if not hasattr(this_obj, 'attrib'):
+            this_obj.attrib = {}
+
+        ctx['this'] = this_obj
+
+    # 4. 补充内置字段（从 biz_global_variables 中提取属性值）
+    # 完全按照 Python 代码逻辑实现（config_version.py 第 350-356 行）
+    # for bk_obj_id, bk_obj_variables in biz_global_variables.items():
+    #     for variable in bk_obj_variables:
+    #         if bk_obj_id == CMDBHandler.BK_GLOBAL_OBJ_ID:
+    #             continue
+    #         bk_property_id = variable["bk_property_id"]
+    #         context[bk_property_id] = getattr(this_context, f"cc_{bk_obj_id}").attrib.get(bk_property_id)
+    biz_global_variables = ctx.get('biz_global_variables')
+    if biz_global_variables and isinstance(biz_global_variables, dict) and 'this' in ctx:
+        this_context = ctx.get('this')
+        # CMDBHandler.BK_GLOBAL_OBJ_ID = "global" (参考 cmdb.py 第 68 行)
+        BK_GLOBAL_OBJ_ID = "global"
+
+        obj_order = ["set", "module", "host"]
+        for bk_obj_id in biz_global_variables:
+            if bk_obj_id not in obj_order:
+                obj_order.append(bk_obj_id)
+
+        for bk_obj_id in obj_order:
+            bk_obj_variables = biz_global_variables.get(bk_obj_id)
+            # 跳过全局对象ID（与 Python 代码一致）
+            if bk_obj_id == BK_GLOBAL_OBJ_ID:
+                continue
+
+            # 跳过 topo_variables（这是字段列表，不是对象类型，Go 实现中添加的辅助字段）
+            if bk_obj_id == "topo_variables":
+                continue
+
+            # 验证 bk_obj_variables 是否为列表或元组
+            if not isinstance(bk_obj_variables, (list, tuple)):
+                continue
+
+            # 获取对应的 cc 对象（this.cc_set, this.cc_module, this.cc_host）
+            cc_obj_attr = f"cc_{bk_obj_id}"
+            cc_obj = getattr(this_context, cc_obj_attr, None) if hasattr(this_context, cc_obj_attr) else None
+
+            if cc_obj is None:
+                continue
+
+            # 从 cc_obj 的 attrib 中提取属性值
+            # 完全按照 Python 代码逻辑：context[bk_property_id] = getattr(this_context, f"cc_{bk_obj_id}").attrib.get(bk_property_id)
+            if hasattr(cc_obj, 'attrib'):
+                for variable in bk_obj_variables:
+                    if isinstance(variable, dict):
+                        bk_property_id = variable.get("bk_property_id")
+                        if bk_property_id:
+                            # 从 XML 元素的属性中获取值
+                            # lxml Element 的 attrib 支持 .get() 方法，如果属性不存在返回 None
+                            attr_value = cc_obj.attrib.get(bk_property_id)
+                            # Python 代码中即使 attr_value 为 None 也会设置，但这里只设置非 None 值
+                            # 因为 Python 代码中 .get() 可能返回 None，但实际 XML 属性通常不会为 None
+                            if attr_value is not None:
+                                ctx[bk_property_id] = attr_value
+
+    return ctx
+
+
+def render_once(template_content: str, context: dict) -> str:
+    """渲染单个模板。
+
+    封装 build_cc_context + global_variables 自引用 + HELP + mako_render，
+    与一次性模式和常驻模式共用，保证两种入口输出完全一致。
+    """
+    context = build_cc_context(context)
+
+    # Python 代码中最后会设置：context["global_variables"] = context
+    # 这允许模板中通过 global_variables 访问所有变量
+    # 注意：在 Python 端设置可以避免 JSON 编码时的循环引用问题
+    context["global_variables"] = context
+
+    # 生成 HELP（如果请求）
+    # 参考原项目：bk-process-config-manager/apps/gsekit/configfile/config_version.py
+    # mako_render 内部已经使用 MakoSandbox 上下文管理器，提供安全保护
+    with_help = context.get('_with_help', False) or "${HELP}" in template_content
+    if with_help:
+        try:
+            # mako_render 内部会使用 MakoSandbox 上下文管理器
+            # 配合 patch.py 中的运行时拦截，提供双重安全保护
+            context["HELP"] = mako_render(HELP_TEMPLATE, context)
+        except Exception as e:
+            # 如果生成 HELP 失败，记录错误但不中断渲染
+            context["HELP"] = f"Error generating help: {str(e)}"
+
+    # Render template
+    # mako_render 内部已经使用 MakoSandbox 上下文管理器，提供安全保护
+    # 安全机制包括：
+    # 1. 编译时检查：通过 AST 访问器检查模板语法树（checker.py + visitor.py）
+    # 2. 运行时拦截：通过 monkey patch 拦截危险函数调用（patch.py）
+    # 3. 上下文跟踪：通过 MakoSandbox 跟踪用户代码执行（context.py）
+    return mako_render(template_content, context)
+
+
+def _read_exact(stream, n: int):
+    """从二进制流读满 n 字节；遇到 EOF（无法读满）返回 None。"""
+    buf = bytearray()
+    while len(buf) < n:
+        chunk = stream.read(n - len(buf))
+        if not chunk:
+            return None
+        buf.extend(chunk)
+    return bytes(buf)
+
+
+def _write_frame(stream, payload: bytes):
+    """写出一帧：4 字节大端长度前缀 + 负载，并立即 flush。"""
+    stream.write(struct.pack(">I", len(payload)))
+    stream.write(payload)
+    stream.flush()
+
+
+def serve():
+    """常驻渲染模式。
+
+    协议：每个请求/响应均为「4 字节大端长度 + JSON 负载」。
+    请求 {"template": str, "context": dict}；响应 {"result": str} 或 {"error": str}。
+    单个请求的渲染异常作为 error 返回，不退出进程；stdin EOF 时正常结束。
+    """
+    stdin = sys.stdin.buffer
+    stdout = sys.stdout.buffer
+    while True:
+        header = _read_exact(stdin, 4)
+        if header is None:
+            break
+        (length,) = struct.unpack(">I", header)
+        payload = _read_exact(stdin, length)
+        if payload is None:
+            break
+        try:
+            req = json.loads(payload.decode("utf-8"))
+            result = render_once(req.get("template", ""), req.get("context", {}) or {})
+            resp = {"result": result}
+        except Exception as e:
+            resp = {"error": str(e)}
+        _write_frame(stdout, json.dumps(resp, ensure_ascii=False).encode("utf-8"))
+
+
 def main():
     """
     Main function to handle template rendering
@@ -155,16 +353,22 @@ def main():
     1. Via stdin: JSON containing 'template' and 'context' keys
     2. Via file: --template-file and --context-file arguments
     3. Via inline: --template and --context arguments
-    
+    4. Via server: --server 常驻模式，循环处理分帧请求
+
     Security:
     - 在启动时应用运行时补丁（patch），拦截危险函数调用
     - 使用 MakoSandbox 上下文管理器跟踪用户代码执行
     """
-    # 应用运行时补丁，拦截黑名单中的危险函数调用
+    # 应用运行时补丁，拦截黑名单中的危险函数调用（常驻模式下也只需应用一次）
     # 参考原项目：bk-process-config-manager/apps/utils/mako_utils/patch.py
     patch(default_black_list)
     parser = argparse.ArgumentParser(
         description='Render Mako templates with given context'
+    )
+    parser.add_argument(
+        '--server',
+        action='store_true',
+        help='Run as a long-lived render server reading length-prefixed JSON frames from stdin'
     )
     parser.add_argument(
         '--template',
@@ -189,6 +393,11 @@ def main():
     )
     
     args = parser.parse_args()
+
+    # 常驻模式：进入循环，直到 stdin 关闭
+    if args.server:
+        serve()
+        return
     
     try:
         # Read input data
@@ -216,152 +425,8 @@ def main():
                 context = json.loads(args.context)
             else:
                 context = {}
-        
-        # Build cc and this objects from context
-        def build_cc_context(ctx: dict) -> dict:
-            # 1. Handle cc_xml if present
-            cc_xml = ctx.get('cc_xml')
-            if cc_xml:
-                # Parse cc_xml into lxml Element
-                try:
-                    cc = parse_cc_xml(cc_xml)
-                    ctx['cc'] = cc
-                except (etree.XMLSyntaxError, etree.ParseError) as e:
-                    # Provide descriptive error message indicating which field failed
-                    xml_preview = (cc_xml[:200] + '...') if isinstance(cc_xml, str) and len(cc_xml) > 200 else str(cc_xml)[:200]
-                    raise ValueError(
-                        f"Failed to parse 'cc_xml' field as XML. "
-                        f"XML syntax error: {str(e)}. "
-                        f"XML content preview: {xml_preview}"
-                    ) from e
 
-            # 2. Build 'this' object if not already provided
-            # If Go already passed a 'this' dict, convert it to object for attribute access
-            if 'this' in ctx:
-                if isinstance(ctx['this'], dict):
-                    # Convert dict to object for this.attr access in Mako
-                    this_obj = SimpleNamespace(**ctx['this'])
-                    ctx['this'] = this_obj
-                # else: already an object, keep as-is
-                return ctx
-            
-            # 3. Auto-build 'this' from cc_xml + identifiers (backward compatibility)
-            if cc_xml:
-                bk_set_name = ctx.get('bk_set_name')
-                bk_module_name = ctx.get('bk_module_name')
-                bk_host_innerip = ctx.get('bk_host_innerip')
-                bk_cloud_id = ctx.get('bk_cloud_id')
-
-                this_obj = SimpleNamespace()
-                cc = ctx.get('cc')
-
-                # cc_set
-                if bk_set_name and cc is not None:
-                    this_obj.cc_set = cc.find(f'.//Set[@SetName="{bk_set_name}"]')
-                # cc_module
-                if bk_set_name and bk_module_name and cc is not None:
-                    this_obj.cc_module = cc.find(
-                        f'.//Set[@SetName="{bk_set_name}"]/Module[@ModuleName="{bk_module_name}"]'
-                    )
-                # cc_host
-                if bk_set_name and bk_module_name and bk_host_innerip is not None and bk_cloud_id is not None and cc is not None:
-                    xpath = (
-                        f'.//Set[@SetName="{bk_set_name}"]'
-                        f'/Module[@ModuleName="{bk_module_name}"]'
-                        f'/Host[@InnerIP="{bk_host_innerip}"][@bk_cloud_id="{bk_cloud_id}"]'
-                    )
-                    this_obj.cc_host = cc.find(xpath)
-
-                # attach attrib container to mimic original API (empty by default)
-                if not hasattr(this_obj, 'attrib'):
-                    this_obj.attrib = {}
-
-                ctx['this'] = this_obj
-
-            # 4. 补充内置字段（从 biz_global_variables 中提取属性值）
-            # 完全按照 Python 代码逻辑实现（config_version.py 第 350-356 行）
-            # for bk_obj_id, bk_obj_variables in biz_global_variables.items():
-            #     for variable in bk_obj_variables:
-            #         if bk_obj_id == CMDBHandler.BK_GLOBAL_OBJ_ID:
-            #             continue
-            #         bk_property_id = variable["bk_property_id"]
-            #         context[bk_property_id] = getattr(this_context, f"cc_{bk_obj_id}").attrib.get(bk_property_id)
-            biz_global_variables = ctx.get('biz_global_variables')
-            if biz_global_variables and isinstance(biz_global_variables, dict) and 'this' in ctx:
-                this_context = ctx.get('this')
-                # CMDBHandler.BK_GLOBAL_OBJ_ID = "global" (参考 cmdb.py 第 68 行)
-                BK_GLOBAL_OBJ_ID = "global"
-                
-                obj_order = ["set", "module", "host"]
-                for bk_obj_id in biz_global_variables:
-                    if bk_obj_id not in obj_order:
-                        obj_order.append(bk_obj_id)
-
-                for bk_obj_id in obj_order:
-                    bk_obj_variables = biz_global_variables.get(bk_obj_id)
-                    # 跳过全局对象ID（与 Python 代码一致）
-                    if bk_obj_id == BK_GLOBAL_OBJ_ID:
-                        continue
-                    
-                    # 跳过 topo_variables（这是字段列表，不是对象类型，Go 实现中添加的辅助字段）
-                    if bk_obj_id == "topo_variables":
-                        continue
-                    
-                    # 验证 bk_obj_variables 是否为列表或元组
-                    if not isinstance(bk_obj_variables, (list, tuple)):
-                        continue
-                    
-                    # 获取对应的 cc 对象（this.cc_set, this.cc_module, this.cc_host）
-                    cc_obj_attr = f"cc_{bk_obj_id}"
-                    cc_obj = getattr(this_context, cc_obj_attr, None) if hasattr(this_context, cc_obj_attr) else None
-                    
-                    if cc_obj is None:
-                        continue
-                    
-                    # 从 cc_obj 的 attrib 中提取属性值
-                    # 完全按照 Python 代码逻辑：context[bk_property_id] = getattr(this_context, f"cc_{bk_obj_id}").attrib.get(bk_property_id)
-                    if hasattr(cc_obj, 'attrib'):
-                        for variable in bk_obj_variables:
-                            if isinstance(variable, dict):
-                                bk_property_id = variable.get("bk_property_id")
-                                if bk_property_id:
-                                    # 从 XML 元素的属性中获取值
-                                    # lxml Element 的 attrib 支持 .get() 方法，如果属性不存在返回 None
-                                    attr_value = cc_obj.attrib.get(bk_property_id)
-                                    # Python 代码中即使 attr_value 为 None 也会设置，但这里只设置非 None 值
-                                    # 因为 Python 代码中 .get() 可能返回 None，但实际 XML 属性通常不会为 None
-                                    if attr_value is not None:
-                                        ctx[bk_property_id] = attr_value
-            
-            return ctx
-
-        context = build_cc_context(context)
-
-        # Python 代码中最后会设置：context["global_variables"] = context
-        # 这允许模板中通过 global_variables 访问所有变量
-        # 注意：在 Python 端设置可以避免 JSON 编码时的循环引用问题
-        context["global_variables"] = context
-
-        # 生成 HELP（如果请求）
-        # 参考原项目：bk-process-config-manager/apps/gsekit/configfile/config_version.py
-        # mako_render 内部已经使用 MakoSandbox 上下文管理器，提供安全保护
-        with_help = context.get('_with_help', False) or "${HELP}" in template_content
-        if with_help:
-            try:
-                # mako_render 内部会使用 MakoSandbox 上下文管理器
-                # 配合 patch.py 中的运行时拦截，提供双重安全保护
-                context["HELP"] = mako_render(HELP_TEMPLATE, context)
-            except Exception as e:
-                # 如果生成 HELP 失败，记录错误但不中断渲染
-                context["HELP"] = f"Error generating help: {str(e)}"
-
-        # Render template
-        # mako_render 内部已经使用 MakoSandbox 上下文管理器，提供安全保护
-        # 安全机制包括：
-        # 1. 编译时检查：通过 AST 访问器检查模板语法树（checker.py + visitor.py）
-        # 2. 运行时拦截：通过 monkey patch 拦截危险函数调用（patch.py）
-        # 3. 上下文跟踪：通过 MakoSandbox 跟踪用户代码执行（context.py）
-        rendered_output = mako_render(template_content, context)
+        rendered_output = render_once(template_content, context)
         
         # Output result to stdout without trailing newline
         # Use sys.stdout.write() instead of print() to avoid adding newline
