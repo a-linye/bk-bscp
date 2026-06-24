@@ -228,6 +228,46 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz/{bizId}/apps/query/name/{appName}": {
+      "get": {
+        "summary": "按服务名称获取",
+        "operationId": "Config_GetAppByName2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbappApp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appName",
+            "description": "服务名称",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz/{bizId}/apps": {
       "get": {
         "summary": "获取用户有权限的 spaces 所有的 apps",
@@ -549,6 +589,55 @@
       "put": {
         "summary": "批量创建或更新文件配置项",
         "operationId": "Config_BatchUpsertConfigItems",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsBatchUpsertConfigItemsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigBatchUpsertConfigItemsBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz/{bizId}/apps/{appId}/config_items": {
+      "put": {
+        "summary": "批量创建或更新文件配置项",
+        "operationId": "Config_BatchUpsertConfigItems2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1510,6 +1599,55 @@
         ]
       }
     },
+    "/api/v1/inner/config/create/release/release/app_id/{appId}/biz_id/{bizId}": {
+      "post": {
+        "summary": "生成版本",
+        "operationId": "Config_CreateRelease2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsCreateReleaseResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigCreateReleaseBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz/{bizId}/apps/{appId}/releases": {
       "get": {
         "summary": "获取服务版本列表",
@@ -1593,6 +1731,54 @@
       "get": {
         "summary": "按服务版本名",
         "operationId": "Config_GetReleaseByName",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbreleaseRelease"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "releaseName",
+            "description": "服务版本名",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName}": {
+      "get": {
+        "summary": "按服务版本名",
+        "operationId": "Config_GetReleaseByName2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -6960,6 +7146,46 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz/{bizId}/groups/query/name/{groupName}": {
+      "get": {
+        "summary": "按名称获取分组",
+        "operationId": "Config_GetGroupByName2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbgroupGroup"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "groupName",
+            "description": "分组名",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz/{bizId}/groups/selector/{labelName}": {
       "get": {
         "summary": "分组选择器",
@@ -7057,10 +7283,116 @@
         ]
       }
     },
+    "/api/v1/inner/config/update/strategy/publish/publish/release_id/{releaseId}/app_id/{appId}/biz_id/{bizId}": {
+      "post": {
+        "summary": "发布指定版本",
+        "operationId": "Config_Publish2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsPublishResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "releaseId",
+            "description": "服务版本ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigPublishBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz/{bizId}/apps/{appId}/publish": {
       "post": {
         "summary": "生成版本并发布",
         "operationId": "Config_GenerateReleaseAndPublish",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsPublishResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigGenerateReleaseAndPublishBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz/{bizId}/apps/{appId}/publish": {
+      "post": {
+        "summary": "生成版本并发布",
+        "operationId": "Config_GenerateReleaseAndPublish2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -7325,16 +7657,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "resourcePermissionRequired": true,
-            "userVerifiedRequired": false
-          },
-          "isPublic": true
-        }
+        ]
       }
     },
     "/api/v1/config/biz_id/{bizId}/app_id/{appId}/last/select": {
@@ -8175,6 +8498,55 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz/{bizId}/apps/{appId}/kvs/list": {
+      "post": {
+        "summary": "获取键值配置项列表",
+        "operationId": "Config_ListKvs2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListKvsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigListKvsBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz/{bizId}/apps/{appId}/kvs/{id}": {
       "delete": {
         "summary": "删除键值配置项",
@@ -8265,6 +8637,55 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/ConfigBatchDeleteKvBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz/{bizId}/apps/{appId}/kvs": {
+      "put": {
+        "summary": "批量创建或更新键值配置项",
+        "operationId": "Config_BatchUpsertKvs2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsBatchUpsertKvsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "appId",
+            "description": "服务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigBatchUpsertKvsBody"
             }
           }
         ],
@@ -9602,6 +10023,47 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz_id/{bizId}/process/operate": {
+      "post": {
+        "summary": "进程操作",
+        "operationId": "Config_OperateProcess2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsOperateProcessResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigOperateProcessBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/process/filter_options": {
       "get": {
         "summary": "进程过滤条件",
@@ -9725,6 +10187,55 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail": {
+      "post": {
+        "summary": "任务批次详情",
+        "operationId": "Config_GetTaskBatchDetail2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetTaskBatchDetailResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "batchId",
+            "description": "批任务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigGetTaskBatchDetailBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status": {
       "post": {
         "summary": "同步cc和gse状态",
@@ -9766,10 +10277,84 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz_id/{bizId}/sync/cmdb_gse_status": {
+      "post": {
+        "summary": "同步cc和gse状态",
+        "operationId": "Config_SyncCmdbGseStatus2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsSyncCmdbGseStatusResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigSyncCmdbGseStatusBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/sync/sync_status": {
       "get": {
         "summary": "获取同步的状态",
         "operationId": "Config_CmdbGseStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsCmdbGseStatusResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz_id/{bizId}/sync/sync_status": {
+      "get": {
+        "summary": "获取同步的状态",
+        "operationId": "Config_CmdbGseStatus2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -10168,10 +10753,92 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz_id/{bizId}/config_instances/generate": {
+      "post": {
+        "summary": "配置生成",
+        "operationId": "Config_GenerateConfig2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGenerateConfigResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigGenerateConfigBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/config_instances/check": {
       "post": {
         "summary": "配置检查",
         "operationId": "Config_CheckConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsCheckConfigResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigCheckConfigBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz_id/{bizId}/config_instances/check": {
+      "post": {
+        "summary": "配置检查",
+        "operationId": "Config_CheckConfig2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -10396,6 +11063,47 @@
         ]
       }
     },
+    "/api/v1/inner/config/biz_id/{bizId}/config_instances/push": {
+      "post": {
+        "summary": "配置下发",
+        "operationId": "Config_PushConfig2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsPushConfigResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigPushConfigBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
     "/api/v1/config/biz_id/{bizId}/render_task/{taskId}/result": {
       "get": {
         "summary": "查看配置生成结果",
@@ -10440,6 +11148,47 @@
       "post": {
         "summary": "配置模板列表",
         "operationId": "Config_ListConfigTemplate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListConfigTemplateResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "bizId",
+            "description": "业务ID",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigListConfigTemplateBody"
+            }
+          }
+        ],
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/v1/inner/config/biz_id/{bizId}/config_template/list": {
+      "post": {
+        "summary": "配置模板列表",
+        "operationId": "Config_ListConfigTemplate2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -10945,16 +11694,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "resourcePermissionRequired": true,
-            "userVerifiedRequired": false
-          },
-          "isPublic": false
-        }
+        ]
       }
     },
     "/api/v1/inner/config/biz_id/{bizId}/process_config_view": {
@@ -10986,16 +11726,7 @@
         ],
         "tags": [
           "Config"
-        ],
-        "x-bk-apigateway-resource": {
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "resourcePermissionRequired": true,
-            "userVerifiedRequired": false
-          },
-          "isPublic": false
-        }
+        ]
       }
     },
     "/api/v1/config/biz/{bizId}/projects/list": {
@@ -13085,6 +13816,14 @@
         "status": {
           "type": "string",
           "description": "任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE"
+        },
+        "ignoreErrorCodes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": "需忽略的错误码列表，命中该错误码的失败任务视为成功"
         }
       }
     },

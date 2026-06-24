@@ -13,13 +13,18 @@
 package render
 
 import (
-	"bytes"
+	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +36,13 @@ var (
 	defaultRenderer     *Renderer
 	defaultRendererOnce sync.Once
 	defaultRendererErr  error
+)
+
+const (
+	// defaultPoolSizeCap 自动推导池大小时的上限，避免在高核数机器上启动过多常驻进程
+	defaultPoolSizeCap = 16
+	// poolSizeEnv 覆盖渲染进程池大小的环境变量
+	poolSizeEnv = "BSCP_RENDER_POOL_SIZE"
 )
 
 // GetDefaultRenderer returns a singleton Renderer instance
@@ -45,18 +57,43 @@ func GetDefaultRenderer() (*Renderer, error) {
 	return defaultRenderer, defaultRendererErr
 }
 
-// Renderer handles Mako template rendering by calling Python scripts
+// Renderer handles Mako template rendering by reusing long-lived Python worker processes.
+// 渲染请求通过常驻 worker 进程池处理，避免每次渲染都 fork uv/python。
 type Renderer struct {
 	// uvPath is the path to uv executable
 	uvPath string
 	// scriptPath is the path to the Python main.py script
 	scriptPath string
-	// timeout is the maximum duration for rendering operation
+	// timeout is the maximum duration for a single rendering operation
 	timeout time.Duration
+	// poolSize 是常驻 worker 进程数；<=0 表示自动推导
+	poolSize int
+
+	// mu 保护 workers 的延迟初始化与 Close
+	mu sync.Mutex
+	// workers 是空闲 worker 的调度通道；每个 worker 同一时刻只被一个 goroutine 持有
+	workers chan *renderWorker
+}
+
+// renderWorker 表示池中的一个常驻渲染进程槽位。
+// 进程采用懒启动：首次取用时才 spawn；崩溃后标记 dead，下次取用时重启。
+type renderWorker struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout *bufio.Reader
+	dead   bool
+}
+
+// renderResponse 是常驻进程返回的一帧响应。
+type renderResponse struct {
+	Result string `json:"result"`
+	Error  string `json:"error"`
 }
 
 // RendererOption is a function that configures a Renderer
 type RendererOption func(*Renderer)
+
+const gsekitRenderTimezone = "Asia/Shanghai"
 
 // WithUvPath sets the path to uv executable
 func WithUvPath(path string) RendererOption {
@@ -79,6 +116,13 @@ func WithTimeout(timeout time.Duration) RendererOption {
 	}
 }
 
+// WithPoolSize 设置常驻 worker 进程数；<=0 表示自动推导
+func WithPoolSize(size int) RendererOption {
+	return func(r *Renderer) {
+		r.poolSize = size
+	}
+}
+
 // NewRenderer creates a new Renderer instance
 func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 	// Get default script path from environment variable or use default
@@ -92,6 +136,7 @@ func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 		uvPath:     "uv", // default to uv in PATH
 		scriptPath: defaultScriptPath,
 		timeout:    60 * time.Second,
+		poolSize:   poolSizeFromEnv(),
 	}
 
 	// Apply options
@@ -118,8 +163,175 @@ func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 	return r, nil
 }
 
+// poolSizeFromEnv 从环境变量解析池大小，非法或缺省时返回 0（交由自动推导）
+func poolSizeFromEnv() int {
+	v := os.Getenv(poolSizeEnv)
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		logs.Warnf("invalid %s=%q, fallback to auto pool size", poolSizeEnv, v)
+		return 0
+	}
+	return n
+}
+
+// resolvePoolSize 在 size<=0 时按 CPU 数自动推导，并限制在 [1, defaultPoolSizeCap]
+func resolvePoolSize(size int) int {
+	if size <= 0 {
+		size = runtime.NumCPU()
+	}
+	if size < 1 {
+		size = 1
+	}
+	if size > defaultPoolSizeCap {
+		size = defaultPoolSizeCap
+	}
+	return size
+}
+
+func renderCommandEnv() []string {
+	return append(os.Environ(), "TZ="+gsekitRenderTimezone)
+}
+
+// ensurePool 延迟初始化进程池：填充固定数量的 worker 槽位（进程懒启动）。
+func (r *Renderer) ensurePool() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.workers != nil {
+		return
+	}
+	size := resolvePoolSize(r.poolSize)
+	r.workers = make(chan *renderWorker, size)
+	for i := 0; i < size; i++ {
+		r.workers <- &renderWorker{}
+	}
+}
+
+// spawn 启动一个常驻渲染进程并填充 worker 字段。
+// 仅在全部管道建立、进程启动成功后才修改 w，失败时保持 w 原状以便后续重试。
+func (r *Renderer) spawn(w *renderWorker) error {
+	projectPath := filepath.Dir(r.scriptPath)
+	// 启动常驻渲染进程。--no-sync 跳过依赖同步（构建期已 uv sync --frozen 预装），
+	// 避免离线环境下访问 PyPI 失败。
+	cmd := exec.Command(r.uvPath, "run", "--no-sync", "--project", projectPath,
+		"python3", r.scriptPath, "--server")
+	cmd.Env = renderCommandEnv()
+	cmd.Stderr = os.Stderr
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return &RenderError{Op: "Render", Err: fmt.Errorf("%w: open stdin: %v", ErrRenderFailed, err)}
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		return &RenderError{Op: "Render", Err: fmt.Errorf("%w: open stdout: %v", ErrRenderFailed, err)}
+	}
+	if err := cmd.Start(); err != nil {
+		_ = stdin.Close()
+		return &RenderError{Op: "Render", Err: fmt.Errorf("%w: start worker: %v", ErrRenderFailed, err)}
+	}
+
+	w.cmd = cmd
+	w.stdin = stdin
+	w.stdout = bufio.NewReader(stdout)
+	w.dead = false
+	return nil
+}
+
+// terminate 终止进程并关闭其 stdin（不调用 Wait）。
+// 用于超时打断阻塞中的读取；reap 必须在唯一的读取方退出后再调用。
+func (w *renderWorker) terminate() {
+	if w.cmd != nil && w.cmd.Process != nil {
+		_ = w.cmd.Process.Kill()
+	}
+	if w.stdin != nil {
+		_ = w.stdin.Close()
+	}
+}
+
+// reap 回收已终止进程，避免僵尸。调用前必须保证没有 goroutine 仍在读取 stdout。
+func (w *renderWorker) reap() {
+	if w.cmd != nil {
+		_ = w.cmd.Wait()
+	}
+}
+
+// exchange 在当前 goroutine 内同步完成一次「写请求-读响应」。
+// 返回 fatal=true 表示进程 IO 异常（需重启）；fatal=false 且 err!=nil 表示渲染级错误（进程仍可用）。
+func (w *renderWorker) exchange(req []byte) (result string, fatal bool, err error) {
+	if werr := writeFrame(w.stdin, req); werr != nil {
+		return "", true, &RenderError{Op: "Render", Err: fmt.Errorf("%w: write request: %v", ErrRenderFailed, werr)}
+	}
+	payload, rerr := readFrame(w.stdout)
+	if rerr != nil {
+		return "", true, &RenderError{Op: "Render", Err: fmt.Errorf("%w: read response: %v", ErrRenderFailed, rerr)}
+	}
+	var resp renderResponse
+	if uerr := json.Unmarshal(payload, &resp); uerr != nil {
+		return "", true, &RenderError{Op: "Render", Err: fmt.Errorf("%w: %v", ErrDecodeJSON, uerr)}
+	}
+	if resp.Error != "" {
+		return "", false, &RenderError{Op: "Render", Err: ErrRenderFailed, Stderr: resp.Error}
+	}
+	return resp.Result, false, nil
+}
+
+// writeFrame 写出一帧：4 字节大端长度前缀 + 负载。
+func writeFrame(w io.Writer, payload []byte) error {
+	var hdr [4]byte
+	binary.BigEndian.PutUint32(hdr[:], uint32(len(payload)))
+	if _, err := w.Write(hdr[:]); err != nil {
+		return err
+	}
+	if _, err := w.Write(payload); err != nil {
+		return err
+	}
+	return nil
+}
+
+// readFrame 读取一帧：4 字节大端长度前缀 + 负载。
+func readFrame(r *bufio.Reader) ([]byte, error) {
+	var hdr [4]byte
+	if _, err := io.ReadFull(r, hdr[:]); err != nil {
+		return nil, err
+	}
+	n := binary.BigEndian.Uint32(hdr[:])
+	buf := make([]byte, n)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+// isLiteralTemplate 保守判断模板是否为纯静态文本（不含任何 Mako 语法）。
+// 命中则可直接原样返回，跳过渲染进程；任何不确定情况都返回 false 走正常渲染。
+func isLiteralTemplate(s string) bool {
+	if strings.Contains(s, "${") || strings.Contains(s, "<%") ||
+		strings.Contains(s, "%>") || strings.Contains(s, "##") {
+		return false
+	}
+	// 行首（忽略前导空白）出现 % 即为 Mako 控制行
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '\n' {
+			line := s[start:i]
+			j := 0
+			for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+				j++
+			}
+			if j < len(line) && line[j] == '%' {
+				return false
+			}
+			start = i + 1
+		}
+	}
+	return true
+}
+
 // Render renders a Mako template with given context
-// It uses stdin to pass JSON data to Python script
 func (r *Renderer) Render(template string, ctx map[string]interface{}) (string, error) {
 	return r.RenderWithContext(context.Background(), template, ctx)
 }
@@ -133,13 +345,12 @@ func (r *Renderer) RenderWithContext(ctx context.Context, template string, conte
 		}
 	}
 
-	// Prepare input data
-	input := RenderInput{
-		Template: template,
-		Context:  contextData,
+	// 快路径：纯静态模板直接原样返回，不进入渲染进程池
+	if isLiteralTemplate(template) {
+		return template, nil
 	}
 
-	inputJSON, err := json.Marshal(input)
+	inputJSON, err := json.Marshal(RenderInput{Template: template, Context: contextData})
 	if err != nil {
 		return "", &RenderError{
 			Op:  "Render",
@@ -154,25 +365,49 @@ func (r *Renderer) RenderWithContext(ctx context.Context, template string, conte
 		defer cancel()
 	}
 
-	projectPath := filepath.Dir(r.scriptPath)
-	// Execute Python script with uv project environment.
-	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--project", projectPath, "python3", r.scriptPath, "--stdin")
-	cmd.Stdin = bytes.NewReader(inputJSON)
+	r.ensurePool()
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	w := <-r.workers
+	defer func() { r.workers <- w }()
 
-	// Run the command
-	if err := cmd.Run(); err != nil {
-		return "", &RenderError{
-			Op:     "Render",
-			Err:    fmt.Errorf("%w: %v", ErrRenderFailed, err),
-			Stderr: stderr.String(),
+	if w.cmd == nil || w.dead {
+		if err := r.spawn(w); err != nil {
+			return "", err
 		}
 	}
 
-	return stdout.String(), nil
+	// 看门狗：ctx 取消/超时时终止进程以打断阻塞中的读取。
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+	killed := false
+	if ctx.Done() != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				killed = true
+				w.terminate()
+			case <-done:
+			}
+		}()
+	}
+
+	out, fatal, exErr := w.exchange(inputJSON)
+	close(done)
+	wg.Wait()
+
+	if killed {
+		w.dead = true
+		w.reap()
+		return "", &RenderError{Op: "Render", Err: fmt.Errorf("%w: %v", ErrRenderFailed, ctx.Err())}
+	}
+	if fatal {
+		w.dead = true
+		w.reap()
+		return "", exErr
+	}
+	return out, exErr
 }
 
 // RenderWithFile renders a template from file with given context
@@ -194,68 +429,31 @@ func (r *Renderer) RenderWithFileContext(ctx context.Context, templatePath strin
 	return r.RenderWithContext(ctx, string(template), contextData)
 }
 
-// RenderWithTempFile renders a template using temporary file for large context data
-// This is useful when context data is too large to pass via stdin
+// RenderWithTempFile 历史上用于通过临时文件传递超大 context；
+// 常驻进程采用长度前缀分帧，已能承载任意大小负载，故直接委托 RenderWithContext。
 func (r *Renderer) RenderWithTempFile(template string, ctx map[string]interface{}) (string, error) {
-	return r.RenderWithTempFileContext(context.Background(), template, ctx)
+	return r.RenderWithContext(context.Background(), template, ctx)
 }
 
-// RenderWithTempFileContext renders a template using temporary file with Go context
+// RenderWithTempFileContext 见 RenderWithTempFile 说明，直接委托 RenderWithContext。
 func (r *Renderer) RenderWithTempFileContext(ctx context.Context, template string, contextData map[string]interface{}) (string, error) {
-	if template == "" {
-		return "", &RenderError{
-			Op:  "RenderWithTempFile",
-			Err: fmt.Errorf("%w: template is empty", ErrInvalidInput),
-		}
+	return r.RenderWithContext(ctx, template, contextData)
+}
+
+// Close 关闭进程池中的全部 worker，回收常驻进程。供测试清理与进程退出使用。
+func (r *Renderer) Close() {
+	r.mu.Lock()
+	ch := r.workers
+	r.workers = nil
+	r.mu.Unlock()
+	if ch == nil {
+		return
 	}
-
-	// Create temporary file for context
-	tmpFile, err := os.CreateTemp("", "bk-bscp-context-*.json")
-	if err != nil {
-		return "", &RenderError{
-			Op:  "RenderWithTempFile",
-			Err: fmt.Errorf("failed to create temp file: %v", err),
-		}
+	for i := 0; i < cap(ch); i++ {
+		w := <-ch
+		w.terminate()
+		w.reap()
 	}
-	defer os.Remove(tmpFile.Name())
-
-	// Write context to temp file
-	if err := json.NewEncoder(tmpFile).Encode(contextData); err != nil {
-		tmpFile.Close()
-		return "", &RenderError{
-			Op:  "RenderWithTempFile",
-			Err: fmt.Errorf("%w: %v", ErrEncodeJSON, err),
-		}
-	}
-	tmpFile.Close()
-
-	// Create context with timeout
-	if r.timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, r.timeout)
-		defer cancel()
-	}
-
-	projectPath := filepath.Dir(r.scriptPath)
-	// Execute Python script with uv project environment.
-	cmd := exec.CommandContext(ctx, r.uvPath, "run", "--project", projectPath, "python3", r.scriptPath,
-		"--template", template,
-		"--context-file", tmpFile.Name())
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Run the command
-	if err := cmd.Run(); err != nil {
-		return "", &RenderError{
-			Op:     "RenderWithTempFile",
-			Err:    fmt.Errorf("%w: %v", ErrRenderFailed, err),
-			Stderr: stderr.String(),
-		}
-	}
-
-	return stdout.String(), nil
 }
 
 // GetScriptPath returns the absolute path to the Python script

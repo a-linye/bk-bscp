@@ -7,6 +7,7 @@ Mako template safety checker
 """
 
 import ast
+import re
 from typing import List
 
 from mako import parsetree
@@ -16,6 +17,9 @@ from mako.lexer import Lexer
 
 from .exceptions import ForbiddenMakoTemplateException
 from .visitor import MakoNodeVisitor
+
+
+LEGACY_FIRST_LINE_DOUBLE_PERCENT_RE = re.compile(r"\A([ ]*)%%")
 
 
 def clean_mako_content(content: str) -> str:
@@ -31,6 +35,8 @@ def clean_mako_content(content: str) -> str:
     """
     # 替换制表符为 4 个空格
     content = content.replace("\t", " " * 4)
+    # 旧 GSEKit 的首行 %%+ 字面量会原样输出；Mako 1.3 会折叠掉一个 %，这里仅兼容物理首行。
+    content = LEGACY_FIRST_LINE_DOUBLE_PERCENT_RE.sub(r"\1%%%", content, count=1)
     return content
 
 
@@ -46,7 +52,7 @@ def validate_filter_args(filter_args, node_visitor: ast.NodeVisitor):
             raise ForbiddenMakoTemplateException("发现非法过滤器使用:[{}]，请修改".format(filter_name))
 
 
-def parse_template_nodes(nodes: List[parsetree.Node], node_visitor: ast.NodeVisitor):
+def parse_template_nodes(nodes: List[parsetree.Node], node_visitor: ast.NodeVisitor, processed_nodes=None):
     """
     解析 Mako 模板节点，逐个节点解析抽象语法树并检查安全性
     
@@ -54,7 +60,15 @@ def parse_template_nodes(nodes: List[parsetree.Node], node_visitor: ast.NodeVisi
         nodes: Mako 模板节点列表
         node_visitor: 节点访问类，用于遍历 AST 节点
     """
+    if processed_nodes is None:
+        processed_nodes = set()
+
     for node in nodes:
+        node_id = id(node)
+        if node_id in processed_nodes:
+            continue
+        processed_nodes.add(node_id)
+
         if isinstance(node, (parsetree.Code, parsetree.Expression)):
             code = node.text
             if isinstance(node, parsetree.Expression):
@@ -83,7 +97,14 @@ def parse_template_nodes(nodes: List[parsetree.Node], node_visitor: ast.NodeVisi
             pass
         
         if hasattr(node, "nodes"):
-            parse_template_nodes(node.nodes, node_visitor)
+            if isinstance(node, parsetree.ControlLine) and hasattr(node_visitor, "enter_mako_control"):
+                node_visitor.enter_mako_control()
+                try:
+                    parse_template_nodes(node.nodes, node_visitor, processed_nodes)
+                finally:
+                    node_visitor.exit_mako_control()
+            else:
+                parse_template_nodes(node.nodes, node_visitor, processed_nodes)
 
 
 def check_mako_template_safety(text: str, node_visitor: ast.NodeVisitor = None) -> bool:

@@ -125,6 +125,7 @@ func (t *OperateTask) Steps() ([]*types.Step, error) {
 			t.batchID,
 			t.processID,
 			t.processInstanceID,
+			t.operateType,
 			t.originalProcManagedStatus,
 			t.originalProcStatus,
 			t.ccSyncStatus,

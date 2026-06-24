@@ -933,16 +933,25 @@ func (s *Service) PreviewBindProcessInstance(ctx context.Context, req *pbds.Prev
 					ProcessTemplateID: int(v),
 				})
 				if err != nil {
-					return nil, errf.Errorf(errf.DBOpFailed, "%s",
-						i18n.T(grpcKit, "get proc template failed, err: %v", err))
+					logs.Warnf("get proc template %d from cmdb failed (may have been deleted), skip, err: %v",
+						v, err)
+					templateProcesses = append(templateProcesses, &pbct.BindProcessInstance{
+						Id: v,
+					})
+					continue
 				}
 				// 获取服务模板信息
 				svcTemplate, err := s.cmdb.GetServiceTemplate(grpcKit.Ctx, bkcmdb.ServiceTemplateReq{
 					ServiceTemplateID: procTemplate.ServiceTemplateID,
 				})
 				if err != nil {
-					return nil, errf.Errorf(errf.DBOpFailed, "%s",
-						i18n.T(grpcKit, "get service template failed, err: %v", err))
+					logs.Warnf("get service template %d from cmdb failed (may have been deleted), skip, err: %v",
+						procTemplate.ServiceTemplateID, err)
+					templateProcesses = append(templateProcesses, &pbct.BindProcessInstance{
+						Id:          v,
+						ProcessName: procTemplate.BkProcessName,
+					})
+					continue
 				}
 				templateProcesses = append(templateProcesses, &pbct.BindProcessInstance{
 					Id:          v,

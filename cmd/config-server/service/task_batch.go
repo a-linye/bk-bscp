@@ -78,17 +78,18 @@ func (s *Service) GetTaskBatchDetail(ctx context.Context, req *pbcs.GetTaskBatch
 	}
 
 	resp, err := s.client.DS.GetTaskBatchDetail(grpcKit.RpcCtx(), &pbds.GetTaskBatchDetailReq{
-		BizId:          req.GetBizId(),
-		BatchId:        req.GetBatchId(),
-		Start:          req.GetStart(),
-		Limit:          req.GetLimit(),
-		SetNames:       req.GetSetNames(),
-		ModuleNames:    req.GetModuleNames(),
-		ServiceNames:   req.GetServiceNames(),
-		ProcessAliases: req.GetProcessAliases(),
-		CcProcessIds:   req.GetCcProcessIds(),
-		InstIds:        req.GetInstIds(),
-		Status:         req.GetStatus(),
+		BizId:            req.GetBizId(),
+		BatchId:          req.GetBatchId(),
+		Start:            req.GetStart(),
+		Limit:            req.GetLimit(),
+		SetNames:         req.GetSetNames(),
+		ModuleNames:      req.GetModuleNames(),
+		ServiceNames:     req.GetServiceNames(),
+		ProcessAliases:   req.GetProcessAliases(),
+		CcProcessIds:     req.GetCcProcessIds(),
+		InstIds:          req.GetInstIds(),
+		Status:           req.GetStatus(),
+		IgnoreErrorCodes: req.GetIgnoreErrorCodes(),
 	})
 	if err != nil {
 		return nil, err

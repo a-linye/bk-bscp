@@ -1019,10 +1019,7 @@ func (s *Service) submitCreateApproveTicket(kt *kit.Kit, app *table.App, release
 		approveTypeCH = table.CountSignCH
 	}
 	fields := buildFields(bizName, app, releaseName, scope, aduitId, releaseID, approveTypeCH, memo)
-	key := constant.CreateApproveItsmWorkflowID
-	if kt.TenantID != "" {
-		key = fmt.Sprintf("%s-%s", kt.TenantID, constant.CreateApproveItsmWorkflowID)
-	}
+	key := itsm.BuildWorkflowIDKey(kt.TenantID)
 	workFlowKey, err := s.dao.Config().GetConfig(kt, key)
 	if err != nil {
 		return nil, err

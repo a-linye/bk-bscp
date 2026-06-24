@@ -463,8 +463,14 @@ func (s *Service) GetUserInfo(ctx context.Context, req *pbas.UserCredentialReq) 
 			return nil, err
 		}
 
-		slog.Info("get user info success in MultiTenantMode", "username", tenant.BkUsername, "tenant_id", tenant.TenantID)
-		return &pbas.UserInfoResp{Username: tenant.BkUsername, AvatarUrl: "", TenantId: tenant.TenantID}, nil
+		slog.Info("get user info success in MultiTenantMode", "username", tenant.BkUsername,
+			"tenant_id", tenant.TenantID, "time_zone", tenant.TimeZone)
+		return &pbas.UserInfoResp{
+			Username:  tenant.BkUsername,
+			AvatarUrl: "",
+			TenantId:  tenant.TenantID,
+			TimeZone:  tenant.TimeZone,
+		}, nil
 
 	}
 

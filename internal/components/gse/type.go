@@ -105,6 +105,12 @@ const (
 	// ErrCodeInProgress 任务正在执行中（GSE 侧任务尚未完成）
 	ErrCodeInProgress = 115
 
+	// ErrCodeAlreadyRunning 启动进程时进程已在运行（GSE 拒绝重复启动）
+	ErrCodeAlreadyRunning = 828
+
+	// ErrCodeNoNeedStop 停止进程时进程未在运行（GSE 无需停止）
+	ErrCodeNoNeedStop = 829
+
 	// ErrCodeStopping 停止启动
 	ErrCodeStopping = 1015012
 )
@@ -170,6 +176,16 @@ func IsInProgress(errorCode int) bool {
 	return errorCode == ErrCodeInProgress
 }
 
+// IsAlreadyRunning 判断错误码是否表示进程已在运行
+func IsAlreadyRunning(errorCode int) bool {
+	return errorCode == ErrCodeAlreadyRunning
+}
+
+// IsNoNeedStop 判断错误码是否表示进程未在运行、无需停止
+func IsNoNeedStop(errorCode int) bool {
+	return errorCode == ErrCodeNoNeedStop
+}
+
 // nolint
 // ProcessOperate 单个进程操作对象
 type ProcessOperate struct {
@@ -196,7 +212,6 @@ type HostInfo struct {
 type ProcessSpec struct {
 	Identity      ProcessIdentity      `json:"identity"`       // 进程身份信息
 	Control       ProcessControl       `json:"control"`        // 进程控制信息
-	Resource      ProcessResource      `json:"resource"`       // 进程资源信息
 	MonitorPolicy ProcessMonitorPolicy `json:"monitor_policy"` // 存活状态监控策略
 }
 
@@ -219,12 +234,6 @@ type ProcessControl struct {
 	KillCmd    string `json:"kill_cmd,omitempty"`    // kill 命令（可选）
 	VersionCmd string `json:"version_cmd,omitempty"` // 进程版本查询命令（可选）
 	HealthCmd  string `json:"health_cmd,omitempty"`  // 健康检查命令（可选）
-}
-
-// ProcessResource 进程资源信息
-type ProcessResource struct {
-	CPU float64 `json:"cpu"` // CPU 使用率上限百分比，例如 30.0 表示最多使用 30%（必填）
-	Mem float64 `json:"mem"` // 内存使用率上限百分比，例如 10.0 表示最多使用 10%（必填）
 }
 
 // ProcessMonitorPolicy 进程存活状态监控策略
