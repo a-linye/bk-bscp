@@ -14,6 +14,8 @@ package cmdb
 
 import (
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"os"
 	"testing"
 
@@ -118,4 +120,79 @@ func TestCCTopoXMLService_GetTopoTreeXML(t *testing.T) {
 	// 输出完整 XML 的 spew dump（用于详细分析）
 	t.Logf("\n=== 完整 XML 内容（spew dump）===")
 	t.Logf("%s", spew.Sdump(xmlStr))
+}
+
+func TestConvertSetInfoToXMLPreservesCustomCMDBAttributes(t *testing.T) {
+	var setInfo bkcmdb.SetInfo
+	err := json.Unmarshal([]byte(`{
+		"bk_set_id": 5101,
+		"bk_set_name": "5101",
+		"bk_set_env": "3",
+		"NBOPTime": "2024-01-02 03:04:05",
+		"tglog_report": true,
+		"bk_world_id": "1001"
+	}`), &setInfo)
+	if err != nil {
+		t.Fatalf("unmarshal set info failed: %v", err)
+	}
+
+	setXML := convertSetInfoToXML(&setInfo, []string{"NBOPTime", "bk_world_id"})
+	attrs := attrsToMap(setXML.Attrs)
+
+	if attrs["NBOPTime"] != "2024-01-02 03:04:05" {
+		t.Fatalf("expected custom set attr NBOPTime to be preserved, got %q", attrs["NBOPTime"])
+	}
+	if attrs["bk_world_id"] != "1001" {
+		t.Fatalf("expected raw bk_world_id string value to be preserved, got %q", attrs["bk_world_id"])
+	}
+	if attrs["SetWorldID"] != "1001" {
+		t.Fatalf("expected legacy SetWorldID value to match bk_world_id, got %q", attrs["SetWorldID"])
+	}
+	if attrs["tglog_report"] != "True" {
+		t.Fatalf("expected raw bool attr to use GSEKit/Python bool format, got %q", attrs["tglog_report"])
+	}
+}
+
+func TestBuildSetsXMLFollowsTopoSetOrder(t *testing.T) {
+	svc := &CCTopoXMLService{}
+	setIDs := []int{22, 11}
+	setInfoMap := map[int]*bkcmdb.SetInfo{
+		11: {BkSetID: 11, BkSetName: "11"},
+		22: {BkSetID: 22, BkSetName: "22"},
+	}
+	setModuleMap := map[int][]int{
+		11: nil,
+		22: nil,
+	}
+
+	setsXML := svc.buildSetsXML(
+		setIDs,
+		setInfoMap,
+		map[int]*bkcmdb.ModuleInfo{},
+		map[int]*bkcmdb.HostInfo{},
+		setModuleMap,
+		nil,
+		"",
+		nil,
+		nil,
+		nil,
+	)
+
+	if len(setsXML) != 2 {
+		t.Fatalf("expected 2 sets, got %d", len(setsXML))
+	}
+	if got := attrsToMap(setsXML[0].Attrs)["SetID"]; got != "22" {
+		t.Fatalf("expected first set to follow topo order 22, got %q", got)
+	}
+	if got := attrsToMap(setsXML[1].Attrs)["SetID"]; got != "11" {
+		t.Fatalf("expected second set to follow topo order 11, got %q", got)
+	}
+}
+
+func attrsToMap(attrs []xml.Attr) map[string]string {
+	result := make(map[string]string, len(attrs))
+	for _, attr := range attrs {
+		result[attr.Name.Local] = attr.Value
+	}
+	return result
 }

@@ -1,9 +1,13 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import Cookies from 'js-cookie';
+import { storeToRefs } from 'pinia';
+import useUserStore from '../store/user';
 import { localT } from '../i18n/index';
 
 dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // 字节数转换为对应的显示单位
 export const byteUnitConverse = (size: number): string => {
@@ -42,15 +46,31 @@ export const copyToClipBoard = (content: string) => {
   }
 };
 
-// 时间格式化
-export const datetimeFormat = (str: string): string => dayjs(str).format('YYYY-MM-DD HH:mm:ss');
+// 时间格式化（支持用户时区，IANA 格式如 Asia/Shanghai）
+export const datetimeFormat = (str: string, withTZ = true): string => {
+  const { userInfo } = storeToRefs(useUserStore());
+  const userTZ = userInfo.value.time_zone;
 
-// 时间转换 time格式YYYY-MM-DD HH:mm:ss
-export const convertTime = (time: string, type?: 'local' | 'utc') => {
+  const format = withTZ ? 'YYYY-MM-DD HH:mm:ss ZZ' : 'YYYY-MM-DD HH:mm:ss';
+
+  // 按 UTC 解析，然后转换为用户时区
+  return dayjs.utc(str).tz(userTZ).format(format);
+};
+
+// 时间转换 time格式YYYY-MM-DD HH:mm:ss (ZZ)
+export const convertTime = (time: string, type?: 'local' | 'utc', withTZ = true) => {
+  const { userInfo } = storeToRefs(useUserStore());
+  const userTZ = userInfo.value.time_zone;
+
   if (type === 'local') {
     // 把传入的UTC时间，转换成本地时间
-    return dayjs.utc(time, 'YYYY-MM-DD HH:mm:ss').local().format('YYYY-MM-DD HH:mm:ss');
+    const dateUtc = dayjs.utc(time);
+    if (withTZ) {
+      return dateUtc.tz(userTZ).format('YYYY-MM-DD HH:mm:ss ZZ');
+    }
+    return dateUtc.local().format('YYYY-MM-DD HH:mm:ss');
   }
+
   if (type === 'utc') {
     // 把传入的本地时间，转换成UTC时间
     return dayjs(time, 'YYYY-MM-DD HH:mm:ss').utc().format('YYYY-MM-DD HH:mm:ss');

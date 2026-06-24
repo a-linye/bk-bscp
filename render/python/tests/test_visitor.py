@@ -25,7 +25,6 @@ class MakoSafetyTest(unittest.TestCase):
         cases = [
             '${__import__("os").system("id")}',
             '${().__class__.__mro__[1].__subclasses__()}',
-            '${sorted([2, 1])}',
             '${getattr(this, "cc_host", None)}',
             '${open("/etc/passwd").read()}',
             '${open("/etc/passwd").read().replace("a", "b")}',
@@ -72,10 +71,49 @@ ${safe_json.system("id")}""",
 
         self.assertEqual("&lt;bscp&gt;", result)
 
+    def test_preserves_legacy_line_leading_double_percent_text(self):
+        template = """%% 重要：修改之后，要同步给运维
+  %% expend配置。格式必须是{K,V}
+%%% 装饰注释
+{cluster_id, "${bk_set_name}"}.
+"""
+
+        result = mako_render(template, {"bk_set_name": "20001"})
+
+        self.assertEqual(
+            """%% 重要：修改之后，要同步给运维
+  % expend配置。格式必须是{K,V}
+%% 装饰注释
+{cluster_id, "20001"}.
+""",
+            result,
+        )
+
+    def test_preserves_legacy_first_line_triple_percent_text(self):
+        template = """%%%中间件ws接口
+{global, _Z_PORT_MIDDLE_WS, 8081}."""
+
+        result = mako_render(template, {})
+
+        self.assertEqual(
+            """%%%中间件ws接口
+{global, _Z_PORT_MIDDLE_WS, 8081}.""",
+            result,
+        )
+
+    def test_legacy_percent_compat_does_not_touch_control_or_inline_percent(self):
+        template = """% for item in ["a"]:
+{rate, "100%%"}.
+% endfor"""
+
+        result = mako_render(template, {})
+
+        self.assertEqual('{rate, "100%%"}.\n', result)
+
     def test_allows_assignment_rhs_to_use_current_module_binding(self):
         template = """<%
-import json
-json = json.dumps({"name": "bscp"})
+	import json
+	json = json.dumps({"name": "bscp"})
 %>
 ${json.replace("bscp", "BSCP")}"""
 
@@ -179,6 +217,42 @@ ${json.dumps("id")}"""
         self.assertEqual(0, process.returncode)
         self.assertEqual("127.0.0.1", process.stdout)
 
+    def test_host_global_variable_overrides_same_set_variable(self):
+        cc_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Application><Set SetName="9701" game_vip="">'
+            '<Module ModuleName="game">'
+            '<Host InnerIP="30.49.244.164" bk_cloud_id="0" game_vip="117.62.240.28" />'
+            '</Module></Set></Application>'
+        )
+        process = subprocess.run(
+            [sys.executable, str(PYTHON_ROOT / "main.py"), "--stdin"],
+            input=json.dumps(
+                {
+                    "template": "${game_vip}",
+                    "context": {
+                        "cc_xml": cc_xml,
+                        "bk_set_name": "9701",
+                        "bk_module_name": "game",
+                        "bk_host_innerip": "30.49.244.164",
+                        "bk_cloud_id": "0",
+                        "biz_global_variables": {
+                            "host": [{"bk_property_id": "game_vip"}],
+                            "set": [{"bk_property_id": "game_vip"}],
+                        },
+                    },
+                }
+            ),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual("", process.stderr)
+        self.assertEqual(0, process.returncode)
+        self.assertEqual("117.62.240.28", process.stdout)
+
     def test_rejects_unapproved_allowed_module_members(self):
         cases = [
             """<%
@@ -213,6 +287,10 @@ ${dumps({"name": "bscp"})}""",
 import math
 %>
 ${math.__dict__}""",
+            """<%
+import random
+random.shuffle(this.cc_set.attrib)
+%>""",
         ]
 
         for template in cases:
@@ -240,6 +318,18 @@ ${re.compile("bs")}
         self.assertIn("2.0", result)
         self.assertIn("1", result)
         self.assertIn("bs", result)
+
+    def test_allows_random_shuffle_on_local_list(self):
+        template = """<%
+import random
+values = ["11.147.75.165", "11.147.75.28", "11.147.75.1"]
+random.shuffle(values)
+result = ",".join(sorted(values))
+%>${result}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("11.147.75.1,11.147.75.165,11.147.75.28", result)
 
     def test_allows_safe_members_imported_from_allowed_modules(self):
         template = """<%
@@ -278,6 +368,712 @@ ${idx}:${item}
         self.assertIn("b-b", result)
         self.assertIn("0:x", result)
         self.assertIn("1:y", result)
+
+    def test_allows_template_helper_functions(self):
+        template = """<%
+def getAppId():
+    if this.cc_set.attrib['bk_set_name'] == "prod":
+        return ""
+    return ""
+
+def getMongoInfo():
+    if this.cc_set.attrib['bk_set_name'] == "prod":
+        return "mongodb://g"
+    return "mongodb://gameus"
+%>
+${getAppId()}|${getMongoInfo()}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+
+        this = SimpleNamespace(
+            cc_set=SimpleNamespace(attrib={"bk_set_name": "prod"}),
+        )
+        result = mako_render(template, {"this": this})
+
+        self.assertIn("|mongodb://g", result)
+
+    def test_rejects_nested_template_function_def(self):
+        template = """<%
+def outer():
+    def inner():
+        return 1
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_decorated_template_function_def(self):
+        template = """<%
+def helper():
+    return 1
+
+@decorator
+def wrapped():
+    return 2
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_unsafe_code_inside_template_function(self):
+        template = """<%
+def evil():
+    return open("/etc/passwd").read()
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_function_local_assignment_does_not_clear_outer_module_binding(self):
+        template = """<%
+import json
+
+def helper():
+    json = {}
+    return "ok"
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_function_local_import_does_not_create_outer_module_binding(self):
+        template = """<%
+def helper():
+    import json
+    return json.dumps({"name": "bscp"})
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_module_call_after_helper_rebinds_module_name(self):
+        template = """<%
+import json
+
+def json():
+    return "helper"
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_helper_to_call_later_helper_in_same_code_block(self):
+        template = """<%
+def first():
+    return second()
+
+def second():
+    return "helper"
+%>
+${first()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn("helper", result)
+
+    def test_allows_helper_to_use_later_module_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+%>
+${helper()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_allows_helper_to_use_later_from_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return to_json({"name": "bscp"})
+
+from json import dumps as to_json
+%>
+${helper()}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_rejects_helper_later_module_import_rebound_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+json = attacker
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_import_inside_python_control_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+if flag:
+    import json
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_call_before_later_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+value = helper()
+import json
+%>
+${value}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_helper_call_after_later_import_in_same_code_block(self):
+        template = """<%
+def helper():
+    return json.dumps({"name": "bscp"})
+
+import json
+value = helper()
+%>
+${value}"""
+
+        result = mako_render(template, {})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_rejects_helper_call_to_rebound_later_helper_name(self):
+        template = """<%
+def first():
+    return second()
+
+def second():
+    return "helper"
+
+second = attacker
+%>
+${first()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_call_before_later_helper_in_same_code_block(self):
+        template = """<%
+def first():
+    return second()
+
+value = first()
+
+def second():
+    return "helper"
+%>
+${value}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_call_after_later_import_rebinds_helper_name(self):
+        template = """<%
+def json():
+    return "helper"
+
+import json
+%>
+${json()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_module_attr_after_from_import_rebinds_module_name(self):
+        template = """<%
+import json
+from math import sqrt as json
+%>
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_defined_inside_mako_if_block(self):
+        template = """% if flag:
+<%
+def helper():
+    return "helper"
+%>
+% endif
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_helper_defined_inside_mako_if_block_for_inner_nodes(self):
+        template = """% if flag:
+<%
+def helper():
+    return "helper"
+%>
+${helper()}
+% endif"""
+
+        result = mako_render(template, {"flag": True})
+
+        self.assertIn("helper", result)
+
+    def test_allows_ginclude_helper_style_inside_mako_control_block(self):
+        from lxml import etree
+
+        template = '''% if flag:
+#Ginclude "常量配置"
+<%
+  def get_DSN(db_ip, set_id, db_pwd):
+      set_id = set_id.lstrip("s")
+      if SET_MSG[bk_set_name]['version'] == "live":
+        return "DSN(%s) = \\"DRIVER={SQL Server};SERVER=%s;DATABASE=Lin2World_%s;UID=syncmaster;PWD=%s\\"" %(set_id, db_ip, set_id, db_pwd)
+      return "DSN(%s) = \\"DRIVER={SQL Server Native Client 10.0};SERVER=%s;DATABASE=Lin2World_%s;UID=syncmaster;PWD=%s\\"" %(set_id, db_ip, set_id, db_pwd)
+
+  def get_ip(set_id, module_name):
+      for host in cc.findall('Set[@SetName="%s"]/Module[@ModuleName="%s"]/Host' % (set_id, module_name)):
+          server_ip = host.attrib['bk_host_innerip']
+          return server_ip
+%>
+${get_DSN("127.0.0.1", "s1001", "pwd")}
+% endif'''
+
+        result = mako_render(
+            template,
+            {
+                "flag": True,
+                "SET_MSG": {"991": {"version": "live"}},
+                "bk_set_name": "991",
+                "cc": etree.Element("Application"),
+            },
+        )
+
+        self.assertIn("SQL Server", result)
+
+    def test_rejects_helper_defined_inside_mako_for_block(self):
+        template = """% for item in items:
+<%
+def helper():
+    return "helper"
+%>
+% endfor
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_import_defined_inside_mako_if_block_for_inner_nodes(self):
+        template = """% if flag:
+<%
+import json
+%>
+${json.dumps({"name": "bscp"})}
+% endif"""
+
+        result = mako_render(template, {"flag": True})
+
+        self.assertIn('"name": "bscp"', result)
+
+    def test_rejects_import_defined_inside_mako_if_block_leaking_out(self):
+        template = """% if flag:
+<%
+import json
+%>
+% endif
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_mako_control_rebind_of_outer_module_binding(self):
+        template = """<%
+import json
+%>
+% if flag:
+<%
+json = attacker
+%>
+% endif
+${json.dumps({"name": "bscp"})}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_helper_defined_inside_python_control_block(self):
+        template = """<%
+if flag:
+    def helper():
+        return "helper"
+%>
+${helper()}"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_unsafe_template_function_annotations(self):
+        cases = [
+            """<%
+def helper(value: open("/etc/passwd").read()):
+    return "ok"
+%>""",
+            """<%
+def helper() -> open("/etc/passwd").read():
+    return "ok"
+%>""",
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
+
+    def test_rejects_call_before_template_function_def(self):
+        template = """${getAppId()}
+<%
+def getAppId():
+    return ""
+%>"""
+
+        self.assert_unsafe(template)
+
+    def test_rejects_rebound_template_function_name(self):
+        template = """<%
+def getAppId():
+    return "safe"
+getAppId = attacker
+%>
+${getAppId()}"""
+
+        self.assert_unsafe(template)
+
+    def test_allows_extended_whitelist_calls(self):
+        cases = [
+            ('${"a,b,c".split(",")}', {}, "a"),
+            ('${"prod".startswith("p")}', {}, "True"),
+            ('${"9".isdigit()}', {}, "True"),
+            ('${"  x  ".strip()}', {}, "x"),
+            ('${"{}{}{}".format("a", "-", "b")}', {}, "a-b"),
+            ('${",".join(["a", "b"])}', {}, "a,b"),
+            ('${"  x".lstrip()}', {}, "x"),
+            ('${list(zip([1, 2], [3, 4]))}', {}, "1"),
+            ('${"abc".index("b")}', {}, "1"),
+            ('${sorted([3, 1, 2])}', {}, "1"),
+            ('${len(set([1, 2, 1]))}', {}, "2"),
+            ('<% items = set(); items.add("a") %>${",".join(sorted(items))}', {}, "a"),
+            ('${",".join(map(str, [1, 2]))}', {}, "1,2"),
+        ]
+
+        for template, context, expected in cases:
+            with self.subTest(template=template):
+                self.assertTrue(check_mako_template_safety(template))
+                result = mako_render(template, context)
+                self.assertIn(expected, result)
+
+    def test_allows_mako_loop_index_attribute(self):
+        template = """% for item in ["a", "b"]:
+${loop.index}:${item}
+% endfor"""
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_zonelist_helper_whitelist_calls(self):
+        template = r"""<%
+def get_boolean(key, set_name, default=None):
+    value = cc_set.attrib.get(key)
+    if value.lower() == 'true':
+        result = True
+    elif value.lower() == 'false':
+        result = False
+    else:
+        result = default
+    return result
+
+d = {}
+hutongfu_list = [1803]
+hutongfu_list.extend(list(range(1803, 1805)))
+d.setdefault("1001", {}).update({"id": 1001, "name": "srv"})
+import json
+data = {"servers": sorted(d.values(), key=lambda i: i["id"])}
+%>${json.dumps(data, indent=4, ensure_ascii=False)}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_nested_subscript_assignment_on_local_containers(self):
+        template = """<%
+config = {}
+config["l2"] = {}
+config["l2"]["port"] = "1001"
+items = [0, 1]
+items[0] = 2
+%>${config["l2"]["port"]}:${items[0]}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("1001:2", result)
+
+    def test_allows_subscript_assignment_on_local_xml_element_attrib(self):
+        from lxml import etree
+
+        cc = etree.fromstring("<Application><Set><Module><Host InnerIP='127.0.0.1'/></Module></Set></Application>")
+        template = """<%
+game_ins = cc.findall(".//Host")[0]
+game_ins.attrib["bk_set_name"] = world_name
+%>${game_ins.attrib["InnerIP"]}:${game_ins.attrib["bk_set_name"]}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {"cc": cc, "world_name": "world-1"})
+        self.assertIn("127.0.0.1:world-1", result)
+
+    def test_allows_render_diff_tail_whitelist_calls(self):
+        from lxml import etree
+
+        cases = [
+            (
+                """<%
+import re
+m = re.search(r"(\\d+)", "svr12")
+result = m.group(1) if m else ""
+%>${result}""",
+                {},
+                "12",
+            ),
+            (
+                """<%
+from datetime import datetime
+result = datetime(2020, 1, 1).strftime("%Y-%m-%d")
+%>${result}""",
+                {},
+                "2020-01-01",
+            ),
+            (
+                """<%
+import datetime
+now = datetime.datetime.now
+result = now().strftime("ok")
+%>${result}""",
+                {},
+                "ok",
+            ),
+            (
+                """<%
+from datetime import datetime
+now = datetime.now
+result = now().strftime("ok")
+%>${result}""",
+                {},
+                "ok",
+            ),
+            (
+                """% if flag:
+<%
+from datetime import datetime
+%>
+% endif
+${datetime.now().strftime("ok")}""",
+                {"flag": True},
+                "ok",
+            ),
+            (
+                """<%
+from datetime import datetime
+dt = datetime(2020, 1, 1)
+result = int(dt.timestamp())
+%>${result}""",
+                {},
+                "1577808000",
+            ),
+            (
+                """<%
+items = [{"name": "B"}, {"name": "a"}]
+items.sort(key=lambda x: x["name"].lower())
+result = ",".join([item["name"] for item in items])
+%>${result}""",
+                {},
+                "a,B",
+            ),
+            (
+                """<%
+result = ",".join([item.attrib["SetName"] for item in sorted(cc.xpath("Set"), key=lambda x: int(x.attrib["SetName"]))])
+%>${result}""",
+                {"cc": etree.fromstring('<Application><Set SetName="10"/><Set SetName="2"/></Application>')},
+                "2,10",
+            ),
+            (
+                """<%
+format_num = lambda x: "0" + str(x) if x < 10 else str(x)
+result = ",".join([format_num(3), format_num(12)])
+%>${result}""",
+                {},
+                "03,12",
+            ),
+            (
+                """<%
+rs_host_tmpl0 = "game{}.%s%02d.lzjd.db:27017"
+result = ",".join(map(lambda x: rs_host_tmpl0.format(x), ("P", "S")))
+%>${result}""",
+                {},
+                "gameP.%s%02d.lzjd.db:27017,gameS.%s%02d.lzjd.db:27017",
+            ),
+            (
+                """<%
+items = [3, 1, 2]
+items.sort()
+result = ",".join([str(x) for x in items])
+%>${result}""",
+                {},
+                "1,2,3",
+            ),
+        ]
+        for template, context, expected in cases:
+            with self.subTest(template=template):
+                self.assertTrue(check_mako_template_safety(template))
+                result = mako_render(template, context)
+                self.assertIn(expected, result)
+
+        self.assertTrue(check_mako_template_safety('<% x = {"a": 1}.items() %>'))
+
+    def test_allows_append_and_xpath_in_template_helper(self):
+        template = """<%
+def build_items():
+    items = []
+    items.append("a")
+    items.append("b")
+    return items[0] + "," + items[1]
+%>
+${build_items()}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("a,b", result)
+
+        from lxml import etree
+
+        xpath_template = '${this.cc_host.xpath("string(@InnerIP)")}'
+        self.assertTrue(check_mako_template_safety(xpath_template))
+        this = SimpleNamespace(cc_host=etree.Element("Host", InnerIP="127.0.0.1"))
+        result = mako_render(xpath_template, {"this": this})
+        self.assertIn("127.0.0.1", result)
+
+    def test_rejects_unsafe_calls_after_whitelist_extension(self):
+        cases = [
+            '${open("/etc/passwd").read()}',
+            '${"a".endswith("a")}',
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
+
+    def test_allows_legacy_template_control_flow(self):
+        template = """<%
+def get_prefix(set_name):
+    return '{}-{}'.format("a", "b")
+
+try:
+    value = "ok"
+except:
+    value = "fallback"
+
+items = [x for x in ["a", "b"]]
+config = {}
+config['key'] = value
+%>
+${get_prefix("1001")}|${",".join(items)}|${config['key']}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("a-b", result)
+        self.assertIn("a,b", result)
+        self.assertIn("ok", result)
+
+    def test_allows_datetime_strptime_in_template_helper(self):
+        template = """<%
+from datetime import datetime
+
+def get_opentime(value):
+    return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+
+result = "ok"
+try:
+    result = get_opentime("2020-01-01 00:00:00")
+except ValueError:
+    result = "bad"
+%>
+${result}"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        result = mako_render(template, {})
+        self.assertIn("2020-01-01", result)
+
+    def test_allows_raise_exception_in_safety_check_only(self):
+        template = """<%
+raise Exception("need config")
+%>"""
+        self.assertTrue(check_mako_template_safety(template))
+
+    def test_allows_raise_type_error_in_safety_check(self):
+        template = """<%
+flag = False
+if flag:
+    raise TypeError("set_name type error")
+%>ok"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        self.assertEqual("ok", mako_render(template, {}))
+
+    def test_allows_legacy_raise_exception_percent_format(self):
+        template = """<%
+flag = False
+set_name = "1001"
+sc_count = 3
+if flag:
+    raise Exception("invalid sc count SetName:%s count:%s") % (set_name, sc_count)
+%>ok"""
+
+        self.assertTrue(check_mako_template_safety(template))
+        self.assertEqual("ok", mako_render(template, {}))
+
+    def test_rejects_unsafe_lambda_and_dict_methods_abuse(self):
+        cases = [
+            '<% x = sorted([1], key=lambda: open("/etc/passwd")) %>',
+            '<% x = sorted([1], key=lambda a, b: a) %>',
+            '<% x = sorted([1], key=lambda i: __import__("os")) %>',
+            '<% x = sorted([1], key=lambda i: open("/etc/passwd") if i < 2 else str(i)) %>',
+            '<% x = sorted([{"name": "a"}], key=lambda i: i["name"].replace("a", "b")) %>',
+            '<% this.cc_set.attrib.update({"k": "v"}) %>',
+            '<% this.cc_set.attrib["k"] = "v" %>',
+            '<% cc[0]["k"] = "v" %>',
+            """<%
+import datetime
+datetime["k"] = "v"
+%>""",
+            """<%
+import datetime
+now = datetime.datetime.now
+now = dangerous
+%>${now()}""",
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
+
+    def test_rejects_unsafe_try_and_raise_after_control_flow_extension(self):
+        cases = [
+            """<%
+try:
+    open("/etc/passwd").read()
+except:
+    pass
+%>""",
+            """<%
+raise OSError("deny")
+%>""",
+            """<%
+nested = [x for x in [y for y in range(2)]]
+%>""",
+            """<%
+this.cc_set.attrib['k'] = "v"
+%>""",
+        ]
+
+        for template in cases:
+            with self.subTest(template=template):
+                self.assert_unsafe(template)
 
     def test_allows_help_template_safety_check(self):
         from main import HELP_TEMPLATE

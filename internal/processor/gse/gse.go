@@ -91,6 +91,15 @@ func BuildProcessOperate(params BuildProcessOperateParams) (*gse.ProcessOperate,
 		return nil, err
 	}
 
+	startCheckSecs := params.ProcessInfo.StartCheckSecs
+	if startCheckSecs == 0 {
+		startCheckSecs = DefaultStartCheckSecs
+	}
+	opTimeout := params.ProcessInfo.Timeout
+	if opTimeout == 0 {
+		opTimeout = DefaultOpTimeout
+	}
+
 	// 构建基础的 ProcessOperate 对象
 	processOperate := &gse.ProcessOperate{
 		Meta: gse.ProcessMeta{
@@ -113,14 +122,10 @@ func BuildProcessOperate(params BuildProcessOperateParams) (*gse.ProcessOperate,
 				ReloadCmd:  reloadCmd,
 				KillCmd:    killCmd,
 			},
-			Resource: gse.ProcessResource{
-				CPU: DefaultCPULimit,
-				Mem: DefaultMemLimit,
-			},
 			MonitorPolicy: gse.ProcessMonitorPolicy{
 				AutoType:       gse.AutoTypePersistent,
-				StartCheckSecs: params.ProcessInfo.StartCheckSecs,
-				OpTimeout:      params.ProcessInfo.Timeout,
+				StartCheckSecs: startCheckSecs,
+				OpTimeout:      opTimeout,
 			},
 		},
 	}

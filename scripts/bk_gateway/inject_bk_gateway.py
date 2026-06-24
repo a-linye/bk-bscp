@@ -4,6 +4,41 @@
 import json
 import sys
 
+
+DEFAULT_EXTENSIONS = {
+    "isPublic": True,
+    "allowApplyPermission": True,
+    "authConfig": {
+        "appVerifiedRequired": True,
+        "userVerifiedRequired": True,
+        "resourcePermissionRequired": True
+    }
+}
+
+
+def build_inner_extensions(method, path):
+    """为 /inner/ 接口动态构建蓝鲸网关扩展配置，通过 backend.path 将网关路径映射到实际后端路径。"""
+    backend_path = path.replace("/inner/", "/", 1)
+    return {
+        "isPublic": False,
+        "allowApplyPermission": True,
+        "backend": {
+            "type": "HTTP",
+            "method": method,
+            "path": backend_path,
+            "matchSubpath": False,
+            "timeout": 0,
+            "upstreams": {},
+            "transformHeaders": {}
+        },
+        "authConfig": {
+            "appVerifiedRequired": True,
+            "userVerifiedRequired": False,
+            "resourcePermissionRequired": True
+        }
+    }
+
+
 def inject_bk_gateway_config(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -12,39 +47,32 @@ def inject_bk_gateway_config(file_path):
         print(f"读取或解析文件失败 [{file_path}]: {e}")
         return
 
-    # 蓝鲸网关专属配置模板
-    bk_extensions = {
-        "isPublic": False,  # 默认非公开，需管理员授权后才可见
-        "allowApplyPermission": True,  # 允许用户申请权限
-        "authConfig": {
-            "appVerifiedRequired": True,  # 需要应用认证
-            "userVerifiedRequired": False,  # 内部调用免用户校验
-            "resourcePermissionRequired": True  # 需要资源权限校验
-        }
-    }
-
     paths = swagger_data.get("paths", {})
-    inject_count = 0
+    inner_count = 0
+    default_count = 0
 
-    # 遍历所有路径，精准注入
     for path, path_item in paths.items():
-        # 核心判断：只要路由中包含 /inner/
-        if "/inner/" in path:
-            for method, method_config in path_item.items():
-                if isinstance(method_config, dict):
-                    # 注入扩展字段，且不影响该路径下的其他原有属性
-                    method_config["x-bk-apigateway-resource"] = bk_extensions
-                    inject_count += 1
+        is_inner = "/inner/" in path
+        for method, method_config in path_item.items():
+            if not isinstance(method_config, dict):
+                continue
+            if is_inner:
+                method_config["x-bk-apigateway-resource"] = build_inner_extensions(method, path)
+                inner_count += 1
+            else:
+                method_config.setdefault("x-bk-apigateway-resource", DEFAULT_EXTENSIONS)
+                default_count += 1
 
+    inject_count = inner_count + default_count
     if inject_count > 0:
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(swagger_data, f, indent=2, ensure_ascii=False)
-            print(f"成功, 已为 {file_path} 中的 {inject_count} 个 inner 接口注入蓝鲸网关配置。")
+            print(f"成功, 已为 {file_path} 注入蓝鲸网关配置: inner={inner_count}, default={default_count}。")
         except Exception as e:
             print(f"写入文件失败 [{file_path}]: {e}")
     else:
-        print(f"未在 {file_path} 中检测到 /inner/ 接口，跳过注入。")
+        print(f"未在 {file_path} 中检测到接口，跳过注入。")
 
 if __name__ == "__main__":
     # 支持从命令行传入多个文件路径

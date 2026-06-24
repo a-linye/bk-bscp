@@ -34,6 +34,7 @@ func newTestRenderer(t *testing.T) *render.Renderer {
 	if err != nil {
 		t.Fatalf("Failed to create renderer: %v", err)
 	}
+	t.Cleanup(renderer.Close)
 	return renderer
 }
 

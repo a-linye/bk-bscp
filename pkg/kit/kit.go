@@ -183,6 +183,7 @@ type User struct {
 	Username  string `json:"username"`
 	AvatarUrl string `json:"avatar_url"`
 	TenantID  string `json:"tenant_id"`
+	TimeZone  string `json:"time_zone"`
 }
 
 // Kit defines the basic metadata info within a task.
@@ -195,6 +196,9 @@ type Kit struct {
 
 	// TenantID is user's tenant id.
 	TenantID string
+
+	// TimeZone is user's timezone.
+	TimeZone string
 
 	// BkToken is user's token.
 	BkToken string
@@ -225,6 +229,7 @@ func (c *Kit) Clone() *Kit {
 		Ctx:         c.Ctx,
 		User:        c.User,
 		TenantID:    c.TenantID,
+		TimeZone:    c.TimeZone,
 		BkToken:     c.BkToken,
 		Rid:         c.Rid,
 		Lang:        c.Lang,

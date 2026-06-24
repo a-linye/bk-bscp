@@ -111,15 +111,12 @@
           </bk-dropdown-menu>
         </template>
       </bk-dropdown>
-      <bk-popover ext-cls="login-out-popover" trigger="click" placement="bottom-center" theme="light" :arrow="false">
-        <div class="username-wrapper">
-          <span class="text"><user-name :name="userInfo.username"></user-name></span>
-          <DownShape class="arrow-icon" />
-        </div>
-        <template #content>
-          <div class="login-out-btn" @click="handleLoginOut">{{ t('退出登录') }}</div>
-        </template>
-      </bk-popover>
+      <BkLoginUserinfo
+       :userinfo="loginUserInfo"
+       :action-list="actionList"
+       style="position: relative; z-index: 99">
+        <user-name :name="loginUserInfo.name"></user-name>
+      </BkLoginUserinfo>
     </div>
   </div>
   <version-log :log-list="logList" v-model:is-show="isShowVersionLog"></version-log>
@@ -131,7 +128,7 @@
   import { useI18n } from 'vue-i18n';
   import { useRoute, useRouter, RouteRecordName } from 'vue-router';
   import { storeToRefs } from 'pinia';
-  import { AngleDown, HelpDocumentFill, DownShape, Plus } from 'bkui-vue/lib/icon';
+  import { AngleDown, HelpDocumentFill, Plus } from 'bkui-vue/lib/icon';
   import useGlobalStore from '../store/global';
   import useUserStore from '../store/user';
   import useTemplateStore from '../store/template';
@@ -144,6 +141,8 @@
   import MarkdownIt from 'markdown-it';
   import { setCookie } from '../utils';
   import UserName from './user-name.vue';
+  import BkLoginUserinfo from '@blueking/login-userinfo';
+  import '@blueking/login-userinfo/vue3/vue3.css';
 
   const route = useRoute();
   const router = useRouter();
@@ -445,6 +444,43 @@
     locale.value = language;
     location.reload();
   };
+
+  const loginUserInfo = computed(() => {
+    const { username, tenant_id, tenant_name, time_zone } = userInfo.value;
+    return {
+      name: username,
+      organization: tenant_name || tenant_id,
+      timezone: time_zone
+    };
+  });
+  const actionList = computed(() => {
+    const actions = [
+      {
+        text: t('权限中心'),
+        href: (window as any).BK_IAM_HOST,
+        icon: 'bk-bscp-icon icon-quanxianzhongxin',
+        target: '_blank',
+        theme: 'primary' as const,
+      },
+      {
+        text: t('退出登录'),
+        icon: 'bk-bscp-icon icon-tuichu',
+        theme: 'danger' as const,
+        handle: handleLoginOut,
+      }
+    ];
+    // 租户模式下显示个人中心
+    if (spaceFeatureFlags.value.ENABLE_TENANT_MODE) {
+      actions.splice(1, 0, {
+        text: t('个人中心'),
+        href: (window as any).USER_CENTER_URL,
+        icon: 'bk-bscp-icon icon-yonghu',
+        target: '_blank',
+        theme: 'primary' as const,
+      });
+    }
+    return actions;
+  });
 </script>
 
 <style lang="scss" scoped>

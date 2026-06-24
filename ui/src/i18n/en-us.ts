@@ -1464,6 +1464,7 @@ export default {
   已成功: 'Success',
   等待生成: 'Waiting for Generation',
   生成中: 'Generating',
+  生成: 'Generate',
   '版本 ID': 'Version ID',
   '确认删除模板版本?': 'Confirm Delete Template Version?',
   个: 'Item',
@@ -1495,4 +1496,6 @@ export default {
   '清除操作将对进程执行停止或者取消托管操作。': 'The clear operation will perform stop or cancel managed operation on the process.',
   清除: '清除',
   目标平台: 'Target platform',
+  个人中心: 'Personal Center',
+  权限中心: 'BK IAM'
 };

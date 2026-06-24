@@ -133,6 +133,16 @@ type TaskPayload struct {
 	ProcessPayload *ProcessPayload
 	// 配置相关
 	ConfigPayload *ConfigPayload
+	// GSE 执行结果，子任务失败时记录，供查询侧按错误码忽略
+	GsePayload *GsePayload
+}
+
+// GsePayload GSE 执行结果
+type GsePayload struct {
+	// ErrorCode GSE 执行状态码
+	ErrorCode int
+	// ErrorMsg GSE 错误信息
+	ErrorMsg string
 }
 
 // ProcessPayload 进程相关

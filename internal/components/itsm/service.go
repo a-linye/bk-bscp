@@ -43,15 +43,27 @@ type Service interface {
 	GetApproveResult(ctx context.Context, req api.GetApproveResultReq) (*api.ApproveResultData, error)
 }
 
+// tenantConfigPrefix 返回 ITSM 配置 key 的租户前缀。
+// 网关在非多租户上云环境会默认注入 X-Bk-Tenant-Id: default，而配置写入侧按空租户落库（无前缀），
+// 这里把 default 归一化为无租户，避免拼出带 default 前缀的 key 查不到配置。
+func tenantConfigPrefix(tenantID string) string {
+	if tenantID == "" || tenantID == constant.DefaultTenantID {
+		return ""
+	}
+	return fmt.Sprintf("%s-", tenantID)
+}
+
 // BuildStateIDKey 获取stateID配置
 func BuildStateIDKey(tenantID string, approveType table.ApproveType) string {
-	prefix := ""
-	if tenantID != "" {
-		prefix = fmt.Sprintf("%s-", tenantID)
-	}
+	prefix := tenantConfigPrefix(tenantID)
 
 	if approveType == table.CountSign {
 		return fmt.Sprintf("%s%s", prefix, constant.CreateCountSignApproveItsmStateID)
 	}
 	return fmt.Sprintf("%s%s", prefix, constant.CreateOrSignApproveItsmStateID)
+}
+
+// BuildWorkflowIDKey 获取创建审批单 workflow 配置 key
+func BuildWorkflowIDKey(tenantID string) string {
+	return fmt.Sprintf("%s%s", tenantConfigPrefix(tenantID), constant.CreateApproveItsmWorkflowID)
 }
