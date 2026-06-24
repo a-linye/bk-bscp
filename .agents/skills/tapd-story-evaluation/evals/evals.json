@@ -1,0 +1,27 @@
+{
+  "skill_name": "tapd-story-evaluation",
+  "version": "1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "complex-story-breakdown-and-score",
+      "prompt": "评估需求 1004567，workspace 20000001",
+      "expected_output": "提取需求详情，判断需要拆分（>2 用户故事），调用 breakdown 拆分为多个子需求，用户确认后逐一 RICE 评分，创建 TAPD 子需求单据（v_status=approved）",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "simple-story-no-breakdown",
+      "prompt": "评估需求 1008901，这个需求比较简单。workspace 20000001",
+      "expected_output": "判断无需拆分（≤2 用户故事），直接进行工时预估和 RICE 评分，更新需求文档",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "user-rejects-breakdown",
+      "prompt": "评估需求 1006789，workspace 20000001",
+      "expected_output": "拆分后展示给用户确认，用户不通过并给出修改意见，系统根据反馈重新拆分，最多 3 轮后终止或通过",
+      "files": []
+    }
+  ]
+}
