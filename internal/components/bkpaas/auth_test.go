@@ -79,7 +79,7 @@ func TestGetTenantUserInfoByTokenUsesUserInfoEndpoint(t *testing.T) {
 				"code": 0,
 				"message": "ok",
 				"data": {
-					"bk_username": "xiaolnwang",
+					"bk_username": "test-user",
 					"tenant_id": "tencent",
 					"time_zone": "Asia/Shanghai"
 				}
@@ -91,7 +91,7 @@ func TestGetTenantUserInfoByTokenUsesUserInfoEndpoint(t *testing.T) {
 	authClient := NewAuthLoginClient(&cc.LoginAuthSettings{Provider: BKPaaSProvider})
 	info, err := authClient.GetTenantUserInfoByToken(context.Background(), "test-token")
 	require.NoError(t, err)
-	require.Equal(t, "xiaolnwang", info.BkUsername)
+	require.Equal(t, "test-user", info.BkUsername)
 	require.Equal(t, "tencent", info.TenantID)
 	require.Equal(t, "Asia/Shanghai", info.TimeZone)
 }

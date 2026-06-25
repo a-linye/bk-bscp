@@ -82,6 +82,18 @@ type bizOperateItem struct {
 	inst    *table.ProcessInstance
 }
 
+// filterSyncableProcesses 仅保留 agent 状态为 normal 的进程。
+func filterSyncableProcesses(processes []*table.Process) []*table.Process {
+	result := make([]*table.Process, 0, len(processes))
+	for _, p := range processes {
+		if p.Spec == nil || p.Spec.AgentStatus != table.AgentStatusNormal {
+			continue
+		}
+		result = append(result, p)
+	}
+	return result
+}
+
 // SyncSingleBiz 按业务全量同步 GSE 进程状态。
 // 处理流程：
 //  1. 一次性取出业务下全部进程实例；
@@ -112,6 +124,13 @@ func (s *syncGSEService) SyncSingleBiz(ctx context.Context) error {
 	}
 	logs.Infof("[SyncSingleBiz] biz %d: list processes done, count=%d, cost=%s",
 		s.bizID, len(processes), time.Since(listStart))
+
+	// agent 非 normal 的主机，GSE 查询会长期返回 115 直至超时，导致整批次进程同步失败
+	processes = filterSyncableProcesses(processes)
+	if len(processes) == 0 {
+		logs.Infof("biz %d: no normal-agent processes, skip sync", s.bizID)
+		return nil
+	}
 
 	// 一次性取出业务下全部进程实例，避免每进程一次 GetByProcessIDs 查询
 	processIDs := make([]uint32, 0, len(processes))
