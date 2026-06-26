@@ -69,6 +69,58 @@ func setupTestRendererEnv(t *testing.T) {
 	t.Logf("Example: export BSCP_PYTHON_RENDER_PATH=/path/to/render/python")
 }
 
+func TestFilterSyncableProcesses(t *testing.T) {
+	mk := func(id uint32, status table.AgentStatus) *table.Process {
+		return &table.Process{ID: id, Spec: &table.ProcessSpec{AgentStatus: status}}
+	}
+
+	tests := []struct {
+		name    string
+		input   []*table.Process
+		wantIDs []uint32
+	}{
+		{
+			name:    "keep only normal",
+			input:   []*table.Process{mk(1, table.AgentStatusNormal), mk(2, table.AgentStatusAbnormal), mk(3, table.AgentStatusNormal)},
+			wantIDs: []uint32{1, 3},
+		},
+		{
+			name:    "all abnormal returns empty",
+			input:   []*table.Process{mk(1, table.AgentStatusAbnormal), mk(2, table.AgentStatusAbnormal)},
+			wantIDs: []uint32{},
+		},
+		{
+			name:    "empty agent status is dropped",
+			input:   []*table.Process{mk(1, ""), mk(2, table.AgentStatusNormal)},
+			wantIDs: []uint32{2},
+		},
+		{
+			name:    "nil spec is dropped",
+			input:   []*table.Process{{ID: 1}, mk(2, table.AgentStatusNormal)},
+			wantIDs: []uint32{2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterSyncableProcesses(tt.input)
+			gotIDs := make([]uint32, 0, len(got))
+			for _, p := range got {
+				gotIDs = append(gotIDs, p.ID)
+			}
+			if len(gotIDs) != len(tt.wantIDs) {
+				t.Fatalf("filterSyncableProcesses() ids = %v, want %v", gotIDs, tt.wantIDs)
+			}
+			for i := range gotIDs {
+				if gotIDs[i] != tt.wantIDs[i] {
+					t.Errorf("filterSyncableProcesses() ids = %v, want %v", gotIDs, tt.wantIDs)
+					break
+				}
+			}
+		})
+	}
+}
+
 func TestBuildProcessOperate(t *testing.T) {
 	// 设置测试环境变量
 	setupTestRendererEnv(t)

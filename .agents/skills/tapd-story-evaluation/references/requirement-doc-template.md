@@ -22,9 +22,11 @@
 | 优先级 | [High/Middle/Low/Nice To Have] |
 | 价值规模 | [RICE 评分，由 tapd-story-score 填入] |
 | 预估工时 | [XX 人时，由 tapd-story-score 填入] |
-| 处理人 | [处理人] |
 | 创建时间 | [YYYY-MM-DD HH:MM:SS] |
 | 原始需求文档 | [本文档在项目中相对路径] |
+
+> 脱敏要求：基本信息只保留 TAPD 数字 ID（短 ID 与 19 位长 ID），不写入处理人/负责人等真实人名，
+> 也不写入 TAPD 内网域名链接。owner 仅用于 TAPD 单据接口交互，不落入文档正文。
 
 ## 依赖关系
 
