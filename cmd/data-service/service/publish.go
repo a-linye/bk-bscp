@@ -347,31 +347,32 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 	if err != nil {
 		return nil, err
 	}
-	// [v4]补充taskID、Operator、systemID
-	// message 不为空，或者单据状态已经被revoke 或者已经结束
-	if cc.DataService().ITSM.EnableV4 {
-		// 只有当需要审批并且同意的时候才需要TaskID，否则就是直接终止单据
-		if req.PublishStatus != string(table.RevokedPublish) {
-			taskIdUser := map[string]string{}
-			err = json.Unmarshal([]byte(strategy.Spec.ItsmTicketStateID), &taskIdUser)
-			if err != nil {
-				logs.Errorf("unmarshal itsm ticket state id failed, err: %v, rid: %s", err, grpcKit.Rid)
-				return nil, err
-			}
-			if taskIdUser[grpcKit.User] == "" {
-				// 没有该人的审批任务或者当前登录用户没有权限
-				logs.Errorf("no permission to approve this ticket, user: %s", grpcKit.User)
-				return nil, errors.New(i18n.T(grpcKit, "no permission to approve this ticket"))
-			}
-			itsmUpdata.TaskID = taskIdUser[grpcKit.User]
-		}
-		itsmUpdata.Operator = grpcKit.User
-		itsmUpdata.SystemID = cc.DataService().ITSM.SystemId
-	}
-
-	// 从页面进来且需要审批的数据则同步itsm
+	// 仅前端页面操作时才需要反向同步 ITSM：用户在 BSCP 页面审批/撤销后，将结果推给 ITSM。
+	// 回调和定时同步路径（OperateWay=""）已经由 ITSM 侧发起，无需反向同步。
+	// message 非空说明 ITSM 状态已变更（如已结束/已撤销），也无需再同步。
 	if app.Spec.IsApprove && grpcKit.OperateWay == string(enumor.WebUI) && message == "" &&
 		strategy.Spec.ItsmTicketStatus == constant.ItsmTicketStatusCreated {
+		// [v4] 补充 taskID、Operator、systemID，用于调用 ITSM 审批/撤销接口。
+		// ItsmTicketStateID 在 V4 中存储的是 JSON 格式的 map[审批人]taskID，
+		// 页面操作时 grpcKit.User 就是当前登录用户（审批人），可直接查找。
+		if cc.DataService().ITSM.EnableV4 {
+			if req.PublishStatus != string(table.RevokedPublish) {
+				taskIdUser := map[string]string{}
+				err = json.Unmarshal([]byte(strategy.Spec.ItsmTicketStateID), &taskIdUser)
+				if err != nil {
+					logs.Errorf("unmarshal itsm ticket state id failed, err: %v, rid: %s", err, grpcKit.Rid)
+					return nil, err
+				}
+				if taskIdUser[grpcKit.User] == "" {
+					logs.Errorf("no permission to approve this ticket, user: %s", grpcKit.User)
+					return nil, errors.New(i18n.T(grpcKit, "no permission to approve this ticket"))
+				}
+				itsmUpdata.TaskID = taskIdUser[grpcKit.User]
+			}
+			itsmUpdata.Operator = grpcKit.User
+			itsmUpdata.SystemID = cc.DataService().ITSM.SystemId
+		}
+
 		// 撤销状态下，直接撤销
 		if req.PublishStatus == string(table.RevokedPublish) {
 			_, err = s.itsm.RevokedTicket(grpcKit.Ctx, itsmUpdata)
