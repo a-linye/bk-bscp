@@ -1129,7 +1129,7 @@
       width: 120px;
     }
     .datetime {
-      width: 158px;
+      width: 192px;
     }
     .status {
       width: 140px;
