@@ -29,6 +29,7 @@ type Config struct {
 	Repository RepositoryConfig `yaml:"repository"`
 	CMDB       CMDBConfig       `yaml:"cmdb"`
 	GSEKit     GSEKitConfig     `yaml:"gsekit"`
+	GSE        GSEConfig        `yaml:"gse"`
 	Log        LogConfig        `yaml:"log"`
 }
 
@@ -120,6 +121,29 @@ type GSEKitConfig struct {
 	BkTicket  string `yaml:"bk_ticket"`
 }
 
+// GSEConfig contains GSE API Gateway configuration, used to query agent state
+// during process migration so that migrated processes carry agent_status.
+type GSEConfig struct {
+	Endpoint  string `yaml:"endpoint"`
+	AppCode   string `yaml:"app_code"`
+	AppSecret string `yaml:"app_secret"`
+}
+
+// Validate validates GSE configuration. GSE is required because migration always
+// fetches agent state; missing connection info must fail fast at startup.
+func (g *GSEConfig) Validate() error {
+	if g.Endpoint == "" {
+		return fmt.Errorf("gse.endpoint is required")
+	}
+	if g.AppCode == "" {
+		return fmt.Errorf("gse.app_code is required")
+	}
+	if g.AppSecret == "" {
+		return fmt.Errorf("gse.app_secret is required")
+	}
+	return nil
+}
+
 // LogConfig contains logging configuration
 type LogConfig struct {
 	Level string `yaml:"level"`
@@ -194,6 +218,10 @@ func (c *Config) Validate() error {
 	}
 
 	if err := c.Target.MySQL.Validate("target.mysql"); err != nil {
+		return err
+	}
+
+	if err := c.GSE.Validate(); err != nil {
 		return err
 	}
 

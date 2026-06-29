@@ -48,5 +48,11 @@ gsekit:
   app_secret: ""
   bk_ticket: ""
 
+# GSE API 配置（必填，迁移进程时查询 agent 状态并写入 agent_status）
+gse:
+  endpoint: ""
+  app_code: ""
+  app_secret: ""
+
 log:
   level: "info"

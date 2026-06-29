@@ -34,6 +34,7 @@ type Migrator struct {
 	idGen        *IDGenerator
 	cmdbClient   CMDBClient
 	gsekitClient GSEKitClient
+	agentClient  AgentStateClient
 	uploader     ContentUploader
 
 	// ID mapping tables
@@ -95,6 +96,10 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		log.Println("GSEKit: preview client initialized")
 	}
 
+	// Create GSE client (required, used to fetch agent state during process migration)
+	agentClient := NewAgentStateClient(&cfg.GSE, cfg.Migration.TenantID)
+	log.Println("GSE: agent state client initialized")
+
 	// Create content uploader (BKREPO or S3/COS based on config)
 	// BKREPO project naming uses tenantID only in multi-tenant mode ({tenantID}.{project}).
 	// In single-tenant mode, the BKREPO project name has no tenant prefix, so pass empty tenantID.
@@ -117,6 +122,7 @@ func NewMigrator(cfg *config.Config) (*Migrator, error) {
 		idGen:               idGen,
 		cmdbClient:          cmdbClient,
 		gsekitClient:        gsekitClient,
+		agentClient:         agentClient,
 		uploader:            uploader,
 		processIDMap:        make(map[uint32]uint32),
 		configTemplateIDMap: make(map[uint32]uint32),

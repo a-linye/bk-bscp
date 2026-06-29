@@ -174,6 +174,16 @@ func (m *Migrator) migrateProcesses() error {
 				procInstCounts[ic.BkProcessID] = ic.Count
 			}
 
+			// 查询本批次进程的 agent 状态
+			agentIDs := collectAgentIDs(processes)
+			agentStatusMap, err := m.agentClient.ListAgentStatus(ctx, agentIDs)
+			agentQueryFailed := false
+			if err != nil {
+				log.Printf("  Warning: list agent state for biz %d failed (%d agents), "+
+					"defaulting agent_status=normal: %v", bizID, len(agentIDs), err)
+				agentQueryFailed = true
+			}
+
 			// Allocate IDs
 			ids, err := m.idGen.BatchNextID("processes", len(processes))
 			if err != nil {
@@ -222,17 +232,19 @@ func (m *Migrator) migrateProcesses() error {
 					}
 				}
 
+				agentStatus := resolveAgentStatus(p.BkAgentID, agentStatusMap, agentQueryFailed)
+
 				if err := m.targetDB.Exec(
 					"INSERT INTO processes (id, tenant_id, biz_id, cc_process_id, set_id, module_id, "+
-						"service_instance_id, host_id, cloud_id, agent_id, process_template_id, service_template_id, "+
-						"set_name, module_name, service_name, environment, alias, inner_ip, inner_ip_v6, "+
-						"cc_sync_status, process_state_synced_at, proc_num, func_name, source_data, prev_data, "+
-						"os_type, creator, reviser, created_at, updated_at) "+
-						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"service_instance_id, host_id, cloud_id, agent_id, agent_status, process_template_id, "+
+						"service_template_id, set_name, module_name, service_name, environment, alias, inner_ip, "+
+						"inner_ip_v6, cc_sync_status, process_state_synced_at, proc_num, func_name, source_data, "+
+						"prev_data, os_type, creator, reviser, created_at, updated_at) "+
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					newID, m.cfg.Migration.TenantID, bizID, uint32(p.BkProcessID),
 					uint32(p.BkSetID), uint32(p.BkModuleID),
 					uint32(p.ServiceInstanceID), hostID, uint32(p.BkCloudID),
-					p.BkAgentID, uint32(p.ProcessTemplateID), svcTemplateID,
+					p.BkAgentID, agentStatus, uint32(p.ProcessTemplateID), svcTemplateID,
 					setName, moduleName, serviceName,
 					p.BkSetEnv, p.BkProcessName, p.BkHostInnerip, p.BkHostInneripV6,
 					"synced", now, procNum, funcName, sourceData, "{}",
