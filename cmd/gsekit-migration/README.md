@@ -51,6 +51,11 @@ gsekit:                       # 仅 compare-render 命令需要
   app_secret: "xxx"
   bk_ticket: "xxx"            # 用户登录态 ticket
 
+gse:                          # 必填，迁移进程时查询 agent 状态
+  endpoint: "xxx"
+  app_code: "xxx"
+  app_secret: "xxx"
+
 log:
   level: "info"              # 日志级别: debug / info / warn / error
 ```
@@ -64,6 +69,7 @@ log:
 | `repository` | 配置文件内容存储后端（BK-Repo 或 S3/COS），用于上传配置模板内容 |
 | `cmdb` | CMDB API 配置，用于查询进程关联的主机信息 |
 | `gsekit` | GSEKit API 网关配置，仅 `compare-render` 命令使用。`bk_ticket` 为用户登录态 |
+| `gse` | GSE API 网关配置（必填）。迁移进程时调用 `list_agent_state` 查询 agent 状态并写入 `agent_status`，使迁移完成后进程可立即参与 GSE 进程状态同步 |
 
 ---
 
