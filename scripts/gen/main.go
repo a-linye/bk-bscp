@@ -70,6 +70,7 @@ func main() {
 		table.BizHost{},
 		table.ConfigTemplate{},
 		table.ConfigInstance{},
+		table.ProcessManagedException{},
 	)
 
 	g.Execute()

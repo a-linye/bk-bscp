@@ -85,6 +85,7 @@ type Set interface {
 	BizHost() BizHost
 	ConfigTemplate() ConfigTemplate
 	ConfigInstance() ConfigInstance
+	ProcessManagedException() ProcessManagedException
 }
 
 // NewDaoSet create the DAO set instance.
@@ -593,6 +594,15 @@ func (s *set) BizHost() BizHost {
 // ConfigTemplate implements Set.
 func (s *set) ConfigTemplate() ConfigTemplate {
 	return &configTemplateDao{
+		idGen:    s.idGen,
+		auditDao: s.auditDao,
+		genQ:     s.genQ,
+	}
+}
+
+// ProcessManagedException implements Set.
+func (s *set) ProcessManagedException() ProcessManagedException {
+	return &processManagedExceptionDao{
 		idGen:    s.idGen,
 		auditDao: s.auditDao,
 		genQ:     s.genQ,

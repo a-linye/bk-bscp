@@ -43,6 +43,7 @@ var (
 	Kv                          *kv
 	Process                     *process
 	ProcessInstance             *processInstance
+	ProcessManagedException     *processManagedException
 	Release                     *release
 	ReleasedAppTemplate         *releasedAppTemplate
 	ReleasedAppTemplateVariable *releasedAppTemplateVariable
@@ -88,6 +89,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	Kv = &Q.Kv
 	Process = &Q.Process
 	ProcessInstance = &Q.ProcessInstance
+	ProcessManagedException = &Q.ProcessManagedException
 	Release = &Q.Release
 	ReleasedAppTemplate = &Q.ReleasedAppTemplate
 	ReleasedAppTemplateVariable = &Q.ReleasedAppTemplateVariable
@@ -134,6 +136,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		Kv:                          newKv(db, opts...),
 		Process:                     newProcess(db, opts...),
 		ProcessInstance:             newProcessInstance(db, opts...),
+		ProcessManagedException:     newProcessManagedException(db, opts...),
 		Release:                     newRelease(db, opts...),
 		ReleasedAppTemplate:         newReleasedAppTemplate(db, opts...),
 		ReleasedAppTemplateVariable: newReleasedAppTemplateVariable(db, opts...),
@@ -181,6 +184,7 @@ type Query struct {
 	Kv                          kv
 	Process                     process
 	ProcessInstance             processInstance
+	ProcessManagedException     processManagedException
 	Release                     release
 	ReleasedAppTemplate         releasedAppTemplate
 	ReleasedAppTemplateVariable releasedAppTemplateVariable
@@ -229,6 +233,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		Kv:                          q.Kv.clone(db),
 		Process:                     q.Process.clone(db),
 		ProcessInstance:             q.ProcessInstance.clone(db),
+		ProcessManagedException:     q.ProcessManagedException.clone(db),
 		Release:                     q.Release.clone(db),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.clone(db),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.clone(db),
@@ -284,6 +289,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		Kv:                          q.Kv.replaceDB(db),
 		Process:                     q.Process.replaceDB(db),
 		ProcessInstance:             q.ProcessInstance.replaceDB(db),
+		ProcessManagedException:     q.ProcessManagedException.replaceDB(db),
 		Release:                     q.Release.replaceDB(db),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.replaceDB(db),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.replaceDB(db),
@@ -329,6 +335,7 @@ type queryCtx struct {
 	Kv                          IKvDo
 	Process                     IProcessDo
 	ProcessInstance             IProcessInstanceDo
+	ProcessManagedException     IProcessManagedExceptionDo
 	Release                     IReleaseDo
 	ReleasedAppTemplate         IReleasedAppTemplateDo
 	ReleasedAppTemplateVariable IReleasedAppTemplateVariableDo
@@ -374,6 +381,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		Kv:                          q.Kv.WithContext(ctx),
 		Process:                     q.Process.WithContext(ctx),
 		ProcessInstance:             q.ProcessInstance.WithContext(ctx),
+		ProcessManagedException:     q.ProcessManagedException.WithContext(ctx),
 		Release:                     q.Release.WithContext(ctx),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.WithContext(ctx),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.WithContext(ctx),

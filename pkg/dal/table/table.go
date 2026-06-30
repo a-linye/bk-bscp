@@ -263,6 +263,8 @@ const (
 	ConfigTemplatesTable Name = "config_templates"
 	// ConfigInstancesTable is config_instances table's name
 	ConfigInstancesTable Name = "config_instances"
+	// ProcessManagedExceptionsTable is process_managed_exceptions table's name
+	ProcessManagedExceptionsTable Name = "process_managed_exceptions"
 )
 
 // RevisionColumns defines all the Revision table's columns.
