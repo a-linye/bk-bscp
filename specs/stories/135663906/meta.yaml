@@ -1,0 +1,159 @@
+# specs/stories/135663906/meta.yaml
+# 字段说明详见 .cursor/skills/tapd-story-pipeline/references/state-mutation-guide.md
+
+# ===== 需求标识 =====
+id: "1020451610135663906"
+workspace_id: "20451610"
+agent_tool: agent
+owner: "xiaolnwang"
+
+# ===== 状态游标 =====
+phase: validated
+attempts: 2
+round: 1
+context_revision: 4
+
+# ===== 基线 =====
+implement_baseline_commit: "16a151b8a909a060fd786ba6b80021b7f3e8a1e8"
+
+# ===== 卡点信号 =====
+last_failure: null
+pending_review: null
+
+# ===== 代码统计（commit 阶段写入）=====
+stats:
+  total: 4424
+  add_code: 4424
+  delete_code: 0
+  logic_code: 954
+  test_code: 693
+  docs: 2446
+  files: 41
+  cost:
+    # cost-events.jsonl 不存在，宿主 hook 未采集成本；总量保持 0，仅记录 subagent_calls（attempt-1=5 + attempt-2=8）
+    total_duration_sec: 0.0
+    total_cost_usd: 0.0
+    total_credit: 0.0
+    total_input_tokens: 0
+    total_output_tokens: 0
+    total_cache_tokens: 0
+    total_cached_write_tokens: 0
+    total_cached_miss_tokens: 0
+    subagent_calls: 13
+    per_call: []
+    per_stage: {}
+
+# ===== 子 skill 内部 round 轨迹 =====
+specify_attempts:
+  - attempt: 1
+    rounds:
+      - round: 1
+        at: "2026-06-30T18:00:00+08:00"
+        stage: clarify
+        status: ok
+        added_open: []
+        self_resolved: ["Q-001", "Q-002", "Q-003", "Q-004", "Q-005", "Q-006", "Q-007"]
+      - round: 1
+        at: "2026-06-30T18:05:00+08:00"
+        stage: specify
+        status: ok
+  - attempt: 2
+    rounds:
+      - round: 1
+        at: "2026-06-30T20:05:00+08:00"
+        stage: specify
+        status: ok
+        note: "回退重跑：跳过 clarify（澄清已完成），直接重生成 spec.md，落实 attempt-2 改进点"
+implement_attempts:
+  - attempt: 2
+    rounds:
+      - round: 1
+        at: "2026-06-30T20:31:00+08:00"
+        status: ok
+        tests: {unit: passed, integration: passed, e2e: skipped}
+        note: "新增 internal/processor/processcheck 包(parse/expected/compare/record/executor/checker+单测) + crontab/check_managed_process.go + app.go 守卫 + pkg/cc CheckProcessManagedConfig + yaml 样例；gofmt 干净，单包 go test 通过，data-service 编译通过；引用上游 #135663687 DAO 未重复定义"
+validate_attempts:
+  - attempt: 2
+    rounds:
+      - round: 1
+        at: "2026-06-30T20:35:00+08:00"
+        arch: LGTM
+        security: LGTM
+        codereview: LGTM
+        status: ok
+        note: "三维并行校验全 LGTM；CodeReview 0 CRITICAL/HIGH/MEDIUM + 2 LOW(测试可维护性，非阻塞)；无需修复，直接推进 validated"
+
+# ===== 累计历史 =====
+history:
+  - at: "2026-06-30T17:56:00+08:00"
+    kind: resume
+    phase: initialized
+    attempt: 1
+    round: 1
+    note: "pipeline 初始化（execute），父需求 #135190552 拆分的核心检查引擎子需求；强依赖 #135663687（已 validated 未提交）"
+  - at: "2026-06-30T18:05:00+08:00"
+    kind: phase_advance
+    phase: tech-clarified
+    attempt: 1
+    round: 1
+    note: "技术澄清 Q-001~Q-007 全自答 + spec.md 生成（FR-001~013/SC-001~006/AC-001~004/AC-P01/AC-T01~T04）"
+  - at: "2026-06-30T18:12:00+08:00"
+    kind: phase_advance
+    phase: researched
+    attempt: 1
+    round: 1
+    note: "plan/research/data-model 生成，plan-report verdict=pass（2 项 MEDIUM 合理取舍）；新增 internal/processor/processcheck 包 + crontab 任务 + cc 配置"
+  - at: "2026-06-30T18:25:00+08:00"
+    kind: phase_advance
+    phase: tasks-generated
+    attempt: 1
+    round: 1
+    note: "tasks.md T001-T021（TDD）+ tasks-report verdict=pass（FR/AC/SC 覆盖 100%，仅 2 项 LOW）；进入 confirm 卡点"
+  - at: "2026-06-30T19:55:00+08:00"
+    kind: rollback
+    phase: initialized
+    attempt: 2
+    round: 1
+    note: "confirm 评审深挖发现 spec/plan/data-model 在『是否应托管基准=ManagedStatus』『比对字段裁剪为 9 字段』『procName 来源=Spec.FuncName』『.proc 驼峰命名+contact 过滤』四点表述粗略/失实。结论已落 req.md 技术澄清补充(决策1~4)+questions.md Q-008~Q-011+iteration-patches/attempt-2.md+samples/proc-example.json。按用户要求本轮仅记录结论，spec/plan/tasks 由用户后续换模型重跑（attempts=2 起）"
+  - at: "2026-06-30T20:05:00+08:00"
+    kind: phase_advance
+    phase: tech-clarified
+    attempt: 2
+    round: 1
+    note: "attempt-2 重跑 specify：跳过 clarify 段（澄清已完成），重生成 spec.md（FR-001~015 落实 ManagedStatus 基准/9 字段比对/procName=FuncName/contact 过滤/valuekey 与非法项判定）；质量验证对 req.md 覆盖完整"
+  - at: "2026-06-30T20:12:00+08:00"
+    kind: phase_advance
+    phase: researched
+    attempt: 2
+    round: 1
+    note: "attempt-2 重跑 plan：plan/research/data-model 重生成，plan-report verdict=pass（2 MEDIUM 合理取舍 A1 端到端可测/A2 稳态掉管 + 1 LOW host_id 提示）；data-model 明确 procName=Process.Spec.FuncName、9 字段子集比对、contact 过滤、valuekey/illegal 判定，与新版 spec 一致"
+  - at: "2026-06-30T20:24:00+08:00"
+    kind: phase_advance
+    phase: tasks-generated
+    attempt: 2
+    round: 1
+    note: "attempt-2 重跑 tasks：tasks.md(T001~T021, TDD)重生成并对齐新版 FR/SC/AC；tasks-report verdict=pass（FR15/15、SC7/7、AC 全覆盖，attempt-2 六项改进点 100% 一致，仅 2 LOW）。写 pending_review，进入 confirm 卡点"
+  - at: "2026-06-30T20:30:00+08:00"
+    kind: confirm
+    phase: confirmed
+    attempt: 2
+    round: 1
+    note: "用户 approve 通过评审；pending_review 清空，implement_baseline_commit=16a151b8（branch compare-with-gse）。用户确认 #135663687 已完成且同分支同 PR，上游异常记录 DAO 已在工作树，implement 可直接引用"
+  - at: "2026-06-30T20:31:00+08:00"
+    kind: phase_advance
+    phase: implemented
+    attempt: 2
+    round: 1
+    note: "implement 完成：processcheck 核心包 + crontab 任务 + cc 配置；单包测试通过、gofmt 干净、data-service 编译通过（主会话已复核）"
+  - at: "2026-06-30T20:35:00+08:00"
+    kind: phase_advance
+    phase: validated
+    attempt: 2
+    round: 1
+    note: "validate 三维并行校验全 LGTM（arch/security/codereview）；CodeReview 0 高危 + 2 LOW 非阻塞；进入 commit"
+  - at: "2026-06-30T20:42:00+08:00"
+    kind: commit_blocked
+    phase: validated
+    attempt: 2
+    round: 1
+    note: "commit 受阻：git commit 报 gpg failed to sign the data（gpg-agent passphrase 缓存为空/过期）。变更已全部 staged（41 文件/+4424 行，排除 bk-process-config-manager/），commit.md/commit message 已就绪。待用户暖 gpg 缓存后原地重试 git commit（幂等），禁止 --no-gpg-sign"

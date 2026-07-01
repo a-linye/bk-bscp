@@ -1245,6 +1245,20 @@ type SyncCmdbGseConfig struct {
 	QpsLimit float64 `yaml:"qpsLimit"`
 }
 
+// CheckProcessManagedConfig defines the periodic process-managed-config check task options.
+type CheckProcessManagedConfig struct {
+	// Enabled defines whether the check process managed task is enabled
+	Enabled bool `yaml:"enabled"`
+	// Interval defines the interval for the periodic check
+	Interval string `yaml:"interval"`
+	// QpsLimit defines the global QPS limit for GSE script dispatch during a check round
+	QpsLimit float64 `yaml:"qpsLimit"`
+	// LinuxProcScript defines the command to read agent .proc on linux hosts
+	LinuxProcScript string `yaml:"linuxProcScript"`
+	// WindowsProcScript defines the command to read agent .proc on windows hosts
+	WindowsProcScript string `yaml:"windowsProcScript"`
+}
+
 // CrontabConfig defines crontab task configuration options.
 type CrontabConfig struct {
 	// SyncBizHost defines sync business host task configuration
@@ -1260,6 +1274,8 @@ type CrontabConfig struct {
 	WatchCmdbResource WatchCmdbResourceConfig `yaml:"watchCmdbResource"`
 	// SyncCmdbGse defines sync cmdb and gse task configuration
 	SyncCmdbGse SyncCmdbGseConfig `yaml:"syncCmdbGse"`
+	// CheckProcessManaged defines the periodic process-managed-config check task configuration
+	CheckProcessManaged CheckProcessManagedConfig `yaml:"checkProcessManaged"`
 }
 
 // validate if the sync biz host config is valid or not.
@@ -1322,6 +1338,21 @@ func (c WatchHostUpdatesConfig) validate() error {
 	return nil
 }
 
+// validate if the check process managed config is valid or not.
+func (c CheckProcessManagedConfig) validate() error {
+	if c.Interval != "" {
+		if _, err := time.ParseDuration(c.Interval); err != nil {
+			return fmt.Errorf("invalid checkProcessManaged interval duration: %s", c.Interval)
+		}
+	}
+
+	if c.QpsLimit < 0 {
+		return fmt.Errorf("invalid checkProcessManaged qpsLimit value: %f, should >= 0", c.QpsLimit)
+	}
+
+	return nil
+}
+
 // validate if the crontab config is valid or not.
 func (c CrontabConfig) validate() error {
 	if err := c.SyncBizHost.validate(); err != nil {
@@ -1337,6 +1368,10 @@ func (c CrontabConfig) validate() error {
 	}
 
 	if err := c.WatchHostUpdates.validate(); err != nil {
+		return err
+	}
+
+	if err := c.CheckProcessManaged.validate(); err != nil {
 		return err
 	}
 
@@ -1398,6 +1433,26 @@ func (c *SyncCmdbGseConfig) trySetDefault() {
 	}
 }
 
+// trySetDefault try set the default value of check process managed config
+func (c *CheckProcessManagedConfig) trySetDefault() {
+	if c.Interval == "" {
+		c.Interval = "20m" // 20m0s
+	}
+
+	if c.QpsLimit == 0 {
+		c.QpsLimit = 80.0 // 80 QPS，全局限流（跨 biz、跨 agent 下发共享）
+	}
+
+	// 缺省脚本对标 gsekit：读取 agent 维护的 .proc 托管进程清单文件
+	if c.LinuxProcScript == "" {
+		c.LinuxProcScript = "cat /usr/local/gse2_bkte/agent/etc/.proc"
+	}
+
+	if c.WindowsProcScript == "" {
+		c.WindowsProcScript = `type c:\gse2_bkte\agent\etc\.proc`
+	}
+}
+
 // trySetDefault try set the default value of crontab config
 func (c *CrontabConfig) trySetDefault() {
 	c.SyncBizHost.trySetDefault()
@@ -1405,6 +1460,7 @@ func (c *CrontabConfig) trySetDefault() {
 	c.WatchBizHostRelation.trySetDefault()
 	c.WatchHostUpdates.trySetDefault()
 	c.SyncCmdbGse.trySetDefault()
+	c.CheckProcessManaged.trySetDefault()
 }
 
 // RateLimiter defines the rate limiter options for traffic control.

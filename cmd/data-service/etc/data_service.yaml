@@ -194,3 +194,15 @@ crontab:
   watchCmdbResource:
     # whether the watch cmdb resource task is enabled (default: false)
     enabled: false
+  # periodic process managed-config check task configuration
+  checkProcessManaged:
+    # whether the check process managed task is enabled (default: false)
+    enabled: false
+    # interval for the periodic check (default: 20m)
+    interval: 20m
+    # global QPS limit for GSE script dispatch during a check round (default: 80)
+    qpsLimit: 80
+    # command to read agent .proc on linux hosts
+    linuxProcScript: cat /usr/local/gse2_bkte/agent/etc/.proc
+    # command to read agent .proc on windows hosts
+    windowsProcScript: type c:\gse2_bkte\agent\etc\.proc

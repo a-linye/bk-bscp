@@ -1,0 +1,6 @@
+===== [stage=validate-security attempt=2 round=1 ts=2026-06-30T20:35:00+08:00] =====
+[validate-security] reviewed code scope: processcheck/** + crontab/check_managed_process.go + app.go + types.go + data_service.yaml
+[validate-security] redline-1 input-validation: PASS (.proc only typed-unmarshal + string compare, never executed)
+[validate-security] redline-2 auth: PASS (internal crontab, Enabled+IsMaster guard, per-biz tenant kit, contact filter)
+[validate-security] redline-3 sensitive-data: PASS (no hardcoded creds; error_msg/logs no raw screen/cmd values)
+[validate-security] verdict=LGTM, no [must] findings; report written
