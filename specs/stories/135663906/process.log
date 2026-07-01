@@ -1,0 +1,38 @@
+===== [stage=clarify attempt=1 round=1 ts=2026-06-30T17:58:00+08:00] =====
+[clarify] read whitelist docs done; complexity=medium-complex; start self-answer
+[clarify] done: req.md 技术澄清 appended; questions.md resolved_by_doc x7; status=ok
+===== [stage=specify attempt=1 round=1 ts=2026-06-30T18:02:00+08:00] =====
+specify start: load req.md/questions.md(all resolved_by_doc)/context.md; no open questions
+[specify] spec.md generated (US1/US2 + FR-001~FR-013 + SC-001~SC-006 + AC mapping); no NEEDS CLARIFICATION; status=ok
+===== [stage=plan attempt=1 round=1 ts=2026-06-30T18:08:00+08:00] =====
+[plan] context+spec+whitelist sources read; start drafting plan/research/data-model
+===== [stage=tasks-generate attempt=1 round=1 ts=2026-06-30T18:20:00+08:00] =====
+[19:13:20] start tasks-generate: read context/spec/plan/research/data-model
+[19:16:24] tasks-generate done: tasks.md generated (T001-T021, US1 P0 / US2 P1, TDD, FR/AC mapping)
+===== [stage=tasks-analyze attempt=1 round=1 ts=2026-06-30T18:22:00+08:00] =====
+[tasks-analyze] speckit-analyze 完成：verdict=pass，findings=2(LOW)，coverage=100%，tasks-report.md 已生成
+===== [stage=specify attempt=2 round=1 ts=2026-06-30T20:05:00+08:00] =====
+[specify][ok] spec.md generated (FR-001~015, SC-001~007, AC mapping); ManagedStatus基准/9字段比对/procName来源FuncName/contact过滤/valuekey与非法项判定 已落实
+===== [stage=plan attempt=2 round=1 ts=2026-06-30T20:12:00+08:00] =====
+[plan][attempt-2] read spec/req/questions/context/samples + verified source facts (FuncName on Process.Spec; ProcessInfo has no FuncName; ManagedStatus enum; BuildProcessName=alias_hostInstSeq; exception enums); start regenerating plan/research/data-model
+[plan][ok] plan.md/research.md/data-model.md/plan-report.md generated; attempt-2 改进点全覆盖（ManagedStatus基准/9字段裁剪/procName=Process.Spec.FuncName/驼峰.proc+contact过滤/valuekey+illegal/子集比对对标gsekit/samples基准）; self-check: procName来源=Process.Spec.FuncName✓ 9字段✓ contact过滤✓; verdict=pass(2 MEDIUM 取舍+1 LOW)
+===== [stage=tasks-generate attempt=2 round=1 ts=2026-06-30T20:18:00+08:00] =====
+[tasks-generate] tasks.md regenerated (attempt-2): 21 tasks T001-T021, FR-001~FR-015/SC-001~007/AC mapping aligned to ManagedStatus baseline + 9-field subset + contact filter + illegal valuekey + record/recover decisions. ts=2026-06-30T20:18:00+08:00
+===== [stage=tasks-analyze attempt=2 round=1 ts=2026-06-30T20:24:00+08:00] =====
+[tasks-analyze] start: read context + spec/plan/research/data-model/tasks/questions; no existing tasks-report.md
+[tasks-analyze] verdict=pass; FR 15/15 + SC 7/7 coverage=100%; attempt-2 6 improvements all consistent across spec/plan/research/data-model/tasks; 2 LOW (A1 whitelist note, A2 var naming); 0 CRITICAL/HIGH. tasks-report.md generated.
+===== [stage=implement attempt=2 round=1 ts=2026-06-30T20:31:00+08:00] =====
+[start] read context done, begin implement T001~T021
+[done] T001~T021 implemented.
+[verify] gofmt -l (pkg/cc internal/processor/processcheck cmd/data-service/...) = empty
+[verify] go vet ./internal/processor/processcheck/... = clean
+[verify] go test ./internal/processor/processcheck/... = ok (unit + integration-mock)
+[verify] main module: go build ./... = exit 0
+[verify] pkg module: go build ./cc/... = exit 0
+[note] pre-existing env failures (NOT caused by this change, reproduced on stash baseline):
+       - pkg/cc TestCC panics in cc.ApiServer() (uninitialized global loading api_server.yaml)
+       - pkg module-wide go build ./... fails in external cached dep internal/components/client.go (resty PreRequestHook mismatch)
+===== [stage=commit attempt=2 round=1 ts=2026-06-30T20:42:00+08:00] =====
+[commit] warning: cost-events.jsonl 不存在，宿主 hook 未采集成本数据；stats.cost 总量保持 0，仅记录 subagent_calls。
+[commit] 变更统计 vs baseline 16a151b8：files=41, add=4424, del=0（logic=954 / test=693 / docs=2446 / 其它含 meta/log/json=331）。
+[commit] 排除无关目录 bk-process-config-manager/（gsekit 参考代码，非本需求）。

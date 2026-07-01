@@ -72,6 +72,7 @@ func main() {
 		table.ConfigInstance{},
 		table.Project{},
 		table.Environment{},
+		table.ProcessManagedException{},
 	)
 
 	g.Execute()

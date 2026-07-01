@@ -598,6 +598,13 @@ func (ds *dataService) startCronTasks() {
 		watchCmdb.Run()
 	}
 
+	// 进程托管配置定时检查（默认关闭，开启后仅 master 执行）
+	if crontabConfig.CheckProcessManaged.Enabled {
+		checkManaged := crontab.NewCheckManagedProcess(
+			ds.daoSet, ds.sd, ds.service, ds.cmdb, ds.gseSvc, crontabConfig.CheckProcessManaged)
+		checkManaged.Run()
+	}
+
 	// 初始化ITSM模板[只有v4版本才需要]
 	if cc.DataService().ITSM.EnableV4 {
 		registerItsmV4Templates := crontab.RegisterItsmV4Templates(ds.daoSet, ds.sd)

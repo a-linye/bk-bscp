@@ -1,0 +1,120 @@
+# specs/stories/135663687/meta.yaml
+# 字段说明详见 skills/tapd-story-pipeline/references/state-mutation-guide.md
+
+# ===== 需求标识 =====
+id: "1020451610135663687"
+workspace_id: "20451610"
+agent_tool: agent
+owner: "xiaolnwang"
+
+# ===== 状态游标 =====
+phase: validated
+attempts: 1
+round: 1
+context_revision: 5
+
+# ===== 基线 =====
+implement_baseline_commit: "796d07bb65e0a4855b6ab70cb0d9b58695e28e4a"
+
+# ===== 卡点信号 =====
+last_failure: null
+pending_review: null
+
+# ===== 代码统计（commit 阶段写入）=====
+stats:
+  total: 2181
+  add_code: 2181
+  delete_code: 0
+  logic_code: 799        # 含 internal/dal/gen 生成物 456 行
+  test_code: 72
+  docs: 1160             # specs 下 spec/plan/tasks/data-model/req 等 md
+  files: 27
+  cost:
+    # 本环境未触发 PostToolUse 成本采集 hook（无 cost-events.jsonl），成本累计保持 0
+    total_duration_sec: 0.0
+    total_cost_usd: 0.0
+    total_credit: 0.0
+    total_input_tokens: 0
+    total_output_tokens: 0
+    total_cache_tokens: 0
+    total_cached_write_tokens: 0
+    total_cached_miss_tokens: 0
+    subagent_calls: 9     # clarify/specify/plan/tasks-gen/tasks-analyze/implement/validate-arch/security/codereview
+    per_call: []
+
+# ===== 子 skill 内部 round 轨迹 =====
+specify_attempts:
+  - attempt: 1
+    rounds:
+      - round: 1
+        at: "2026-06-30T17:06:00+08:00"
+        stage: clarify
+        status: ok
+        added_open: []
+        self_resolved: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"]
+      - round: 1
+        at: "2026-06-30T17:12:00+08:00"
+        stage: specify
+        status: ok
+
+implement_attempts:
+  - attempt: 1
+    rounds:
+      - round: 1
+        at: "2026-06-30T17:40:00+08:00"
+        status: ok
+
+validate_attempts:
+  - attempt: 1
+    rounds:
+      - round: 1
+        at: "2026-06-30T17:46:00+08:00"
+        arch: { verdict: LGTM, findings_count: 0 }
+        security: { verdict: LGTM, findings_count: 0 }
+        codereview: { verdict: LGTM, findings_count: 2 }
+        fix_status: skipped
+
+# ===== 累计历史 =====
+history:
+  - at: "2026-06-30T17:05:00+08:00"
+    kind: resume
+    phase: initialized
+    attempt: 1
+    round: 1
+    note: "pipeline 初始化（execute），需求来自父需求 #135190552 拆分的数据存储子需求"
+  - at: "2026-06-30T17:12:00+08:00"
+    kind: phase_advance
+    phase: tech-clarified
+    attempt: 1
+    round: 1
+    note: "技术澄清 Q1-Q6 全自答 + spec.md 生成，覆盖 AC-001~004/AC-T01/T02"
+  - at: "2026-06-30T17:20:00+08:00"
+    kind: phase_advance
+    phase: researched
+    attempt: 1
+    round: 1
+    note: "plan/research/data-model 生成，plan-report verdict=pass（1 项 MEDIUM）"
+  - at: "2026-06-30T17:36:00+08:00"
+    kind: phase_advance
+    phase: tasks-generated
+    attempt: 1
+    round: 1
+    note: "tasks.md T001-T017 + tasks-report verdict=pass（FR/AC 覆盖 100%）；进入 confirm 卡点"
+  - at: "2026-06-30T17:38:00+08:00"
+    kind: phase_advance
+    phase: confirmed
+    attempt: 1
+    round: 1
+    note: "用户 approve 放行；基线 commit 796d07b"
+  - at: "2026-06-30T17:40:00+08:00"
+    kind: phase_advance
+    phase: implemented
+    attempt: 1
+    round: 1
+    note: "T001-T014 实现完成，表层单测 4 通过，go build ./... 通过，gen diff 仅本期新增"
+  - at: "2026-06-30T17:46:00+08:00"
+    kind: phase_advance
+    phase: validated
+    attempt: 1
+    round: 1
+    note: "validate 三维全 LGTM（arch/security/codereview），codereview 仅 2 项 LOW Nit"

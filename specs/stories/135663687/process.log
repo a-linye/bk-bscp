@@ -1,0 +1,27 @@
+===== [stage=clarify attempt=1 round=1 ts=2026-06-30T17:06:00+08:00] =====
+[clarify] 开始技术澄清：通读 req.md + context.md 白名单文档
+[clarify] 复杂度评估=中等；按标准澄清完成 Q1-Q6 自答（resolved_by_doc），无 open 条目
+[clarify] 产物落盘：req.md(技术澄清章节)、questions.md
+[clarify] DoR 中等三项（技术方案/外部依赖/测试策略）均自答通过 → ok
+[clarify] 重入校验：Q1(host_id 位于 ProcessAttachment 非 ProcessInstanceAttachment)、Q2(gsekit ErrorType 五值)对照白名单源码核验一致，澄清结论无需修订 → ok
+===== [stage=specify attempt=1 round=1 ts=2026-06-30T17:12:00+08:00] =====
+[specify] 读取 context.md 白名单 + req.md + questions.md(Q1-Q6 已 resolved_by_doc)
+[specify] spec.md 不存在，跳过快照
+[specify] 加载 speckit-specify skill，基于模板生成 spec.md
+[specify] spec.md 生成完成（覆盖 AC-001~AC-004 + AC-T01/AC-T02），无新增 open 条目 → ok
+===== [stage=plan attempt=1 round=1 ts=2026-06-30T17:20:00+08:00] =====
+[plan] banner written; start reading whitelist artifacts
+[plan] 已通读白名单：process.go/process_instance.go/config_template.go(模型) + migration 样板 + dao.go/id.go/process.go/config_template.go(DAO) + scripts/gen/main.go + set_tenant_id.go + table.go + migration README + Makefile gen
+[plan] 关键判定：仓库 dao 包无 sqlmock/sqlite 测试基建；set_tenant_id 为既有共享回调，AC-T01 复用既有回调+字段命名，不重测框架
+[plan] 索引决策：FR-010 联合索引 (biz_id, process_instance_id)，其 biz_id 最左前缀覆盖 biz_id 维度查询，避免冗余独立索引（AGENTS.md 不引入不必要）
+[plan] 开始落盘 plan.md / research.md / data-model.md
+[plan] 产物落盘完成：plan.md / research.md / data-model.md / plan-report.md
+[plan] 合规自检：完整度(FR-001~012/全AC 已映射) + research合规 + AGENTS硬约束 均通过；1 项 MEDIUM(testability, plan-self) → Verdict=pass
+[plan] 阶段完成 → ok
+===== [stage=tasks-generate attempt=1 round=1 ts=2026-06-30T17:28:00+08:00] =====
+[tasks-generate] loaded plan/research/data-model/spec/req; speckit-tasks skill loaded; no .specify setup script (custom specs/stories layout), falling back to template-driven generation; latest migration version=20260528170000
+[tasks-generate] tasks.md generated, 17 tasks across Phase2/3/4/5, FR/AC coverage table appended; readable=ok
+===== [stage=tasks-analyze attempt=1 round=1 ts=2026-06-30T17:34:00+08:00] =====
+[tasks-analyze] speckit-analyze done verdict=pass findings: MEDIUM x1 (testability/plan-self) LOW x1 (tasks-self); report=tasks-report.md
+===== [stage=implement attempt=1 round=1 ts=2026-06-30T17:40:00+08:00] =====
+[implement] T001-T014 done: migration 20260630173000, table model+enums, gen registered (gen.go + process_managed_exceptions.gen.go only), DAO 5 methods + Set mount. unit(table) pass(-vet=off; pre-existing vet noise in other table files), build ./... pass, pkg build pass, gofmt clean on changed files.

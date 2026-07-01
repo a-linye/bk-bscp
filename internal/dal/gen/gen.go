@@ -45,6 +45,7 @@ var (
 	Process                     *process
 	ProcessInstance             *processInstance
 	Project                     *project
+	ProcessManagedException     *processManagedException
 	Release                     *release
 	ReleasedAppTemplate         *releasedAppTemplate
 	ReleasedAppTemplateVariable *releasedAppTemplateVariable
@@ -92,6 +93,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	Process = &Q.Process
 	ProcessInstance = &Q.ProcessInstance
 	Project = &Q.Project
+	ProcessManagedException = &Q.ProcessManagedException
 	Release = &Q.Release
 	ReleasedAppTemplate = &Q.ReleasedAppTemplate
 	ReleasedAppTemplateVariable = &Q.ReleasedAppTemplateVariable
@@ -140,6 +142,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		Process:                     newProcess(db, opts...),
 		ProcessInstance:             newProcessInstance(db, opts...),
 		Project:                     newProject(db, opts...),
+		ProcessManagedException:     newProcessManagedException(db, opts...),
 		Release:                     newRelease(db, opts...),
 		ReleasedAppTemplate:         newReleasedAppTemplate(db, opts...),
 		ReleasedAppTemplateVariable: newReleasedAppTemplateVariable(db, opts...),
@@ -189,6 +192,7 @@ type Query struct {
 	Process                     process
 	ProcessInstance             processInstance
 	Project                     project
+	ProcessManagedException     processManagedException
 	Release                     release
 	ReleasedAppTemplate         releasedAppTemplate
 	ReleasedAppTemplateVariable releasedAppTemplateVariable
@@ -239,6 +243,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		Process:                     q.Process.clone(db),
 		ProcessInstance:             q.ProcessInstance.clone(db),
 		Project:                     q.Project.clone(db),
+		ProcessManagedException:     q.ProcessManagedException.clone(db),
 		Release:                     q.Release.clone(db),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.clone(db),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.clone(db),
@@ -296,6 +301,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		Process:                     q.Process.replaceDB(db),
 		ProcessInstance:             q.ProcessInstance.replaceDB(db),
 		Project:                     q.Project.replaceDB(db),
+		ProcessManagedException:     q.ProcessManagedException.replaceDB(db),
 		Release:                     q.Release.replaceDB(db),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.replaceDB(db),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.replaceDB(db),
@@ -343,6 +349,7 @@ type queryCtx struct {
 	Process                     IProcessDo
 	ProcessInstance             IProcessInstanceDo
 	Project                     IProjectDo
+	ProcessManagedException     IProcessManagedExceptionDo
 	Release                     IReleaseDo
 	ReleasedAppTemplate         IReleasedAppTemplateDo
 	ReleasedAppTemplateVariable IReleasedAppTemplateVariableDo
@@ -390,6 +397,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		Process:                     q.Process.WithContext(ctx),
 		ProcessInstance:             q.ProcessInstance.WithContext(ctx),
 		Project:                     q.Project.WithContext(ctx),
+		ProcessManagedException:     q.ProcessManagedException.WithContext(ctx),
 		Release:                     q.Release.WithContext(ctx),
 		ReleasedAppTemplate:         q.ReleasedAppTemplate.WithContext(ctx),
 		ReleasedAppTemplateVariable: q.ReleasedAppTemplateVariable.WithContext(ctx),

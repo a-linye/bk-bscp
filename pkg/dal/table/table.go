@@ -267,6 +267,8 @@ const (
 	ProjectTable Name = "projects"
 	// EnvironmentTable is environments table's name
 	EnvironmentTable Name = "environments"
+	// ProcessManagedExceptionsTable is process_managed_exceptions table's name
+	ProcessManagedExceptionsTable Name = "process_managed_exceptions"
 )
 
 // RevisionColumns defines all the Revision table's columns.

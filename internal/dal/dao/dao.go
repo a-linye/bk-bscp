@@ -87,6 +87,7 @@ type Set interface {
 	ConfigInstance() ConfigInstance
 	Project() Project
 	Environment() Environment
+	ProcessManagedException() ProcessManagedException
 }
 
 // NewDaoSet create the DAO set instance.
@@ -618,5 +619,14 @@ func (s *set) Environment() Environment {
 		idGen:    s.idGen,
 		auditDao: s.auditDao,
 		event:    s.event,
+	}
+}
+
+// ProcessManagedException implements Set.
+func (s *set) ProcessManagedException() ProcessManagedException {
+	return &processManagedExceptionDao{
+		idGen:    s.idGen,
+		auditDao: s.auditDao,
+		genQ:     s.genQ,
 	}
 }
