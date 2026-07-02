@@ -187,7 +187,9 @@ service Config {
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/"
            "config_items/{config_item_id}"
-      additional_bindings { get: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/config_items/{config_item_id}" }
+      additional_bindings {
+        get: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/config_items/{config_item_id}"
+      }
     };
   }
   // 获取文件配置项列表
@@ -206,7 +208,10 @@ service Config {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/"
             "config_items"
       body: "*"
-      additional_bindings { post: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/config_items" body: "*" }
+      additional_bindings {
+        post: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/config_items"
+        body: "*"
+      }
     };
   }
   // 获取文件型服务配置数量列表
