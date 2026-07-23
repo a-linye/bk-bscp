@@ -95,15 +95,18 @@ func (rs *ReleasedService) matchReleasedGroupWithLabels(
 	// 2. match groups with labels
 	matchedList := []*matchedMeta{}
 	var def *matchedMeta
+	// debug（指定实例）是最具体的定向发布，优先级最高，不参与 custom 的灰度比例竞争，
+	// 避免调试发布被非灰度全量组或灰度组吞掉；groups 已按 UpdatedAt 倒序，首个命中即最近更新的 debug。
+	var debugMatched *matchedMeta
 	for _, group := range groups {
 		switch group.Mode {
 		case table.GroupModeDebug:
-			if group.UID == meta.Uid {
-				matchedList = append(matchedList, &matchedMeta{
+			if group.UID == meta.Uid && debugMatched == nil {
+				debugMatched = &matchedMeta{
 					ReleaseID:  group.ReleaseID,
 					GroupID:    group.GroupID,
 					StrategyID: group.StrategyID,
-				})
+				}
 			}
 		case table.GroupModeCustom:
 			matched, grayPercent, err := rs.matchCustomGroupWithGrayStrategy(group, meta)
@@ -126,6 +129,11 @@ func (rs *ReleasedService) matchReleasedGroupWithLabels(
 				StrategyID: group.StrategyID,
 			}
 		}
+	}
+
+	// debug（指定实例）优先级最高：命中即选中，优先于任意 custom 与 default。
+	if debugMatched != nil {
+		return debugMatched, nil
 	}
 
 	if len(matchedList) == 0 {
@@ -191,6 +199,11 @@ func (rs *ReleasedService) matchCustomGroupWithGrayStrategy(
 		matched, err = group.Selector.MatchLabels(meta.Labels)
 		if err != nil {
 			return false, 0, err
+		}
+		// 非灰度分组等价于灰度 100%：在多分组版本选择中优先级最高
+		// 使全量发布能够覆盖残留灰度分组命中的实例
+		if matched {
+			grayPercent = 1.0
 		}
 	}
 
