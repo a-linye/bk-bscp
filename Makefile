@@ -189,7 +189,7 @@ build_frontend: build_frontend_new build_frontend_old
 .PHONY: build_ui
 build_ui: 
 	@echo -e "\e[34;1mTips: ensure you have execute 'make build_frontend' first\033[0m"
-	${GOBUILD} -ldflags ${LDVersionFLAG} -o bscp-ui ./cmd/ui
+	${GOBUILD} -ldflags ${LDVersionFLAG} -o ${OUTPUT_DIR}/bk-bscp-ui/bk-bscp-ui ./cmd/ui
 
 .PHONY: docker
 docker:
