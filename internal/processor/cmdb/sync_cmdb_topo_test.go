@@ -91,8 +91,10 @@ func TestBuildProcessChangesTopoFields(t *testing.T) {
 				inst: &fakeEmptyInstanceDao{},
 			}
 			ctx := newTopoSyncContext(daoSet)
+			// agent_id 两侧一致且非空，避免触发 agent 字段兜底干扰拓扑字段断言
 			newP := &table.Process{
-				Attachment: &table.ProcessAttachment{BizID: 3, CcProcessID: 1000, ModuleID: 10, HostID: 100},
+				Attachment: &table.ProcessAttachment{BizID: 3, CcProcessID: 1000, ModuleID: 10,
+					HostID: 100, AgentID: "agent-1"},
 				Spec: &table.ProcessSpec{
 					Alias:       "alias",
 					SourceData:  "{}",
@@ -103,8 +105,9 @@ func TestBuildProcessChangesTopoFields(t *testing.T) {
 				},
 			}
 			oldP := &table.Process{
-				ID:         5,
-				Attachment: &table.ProcessAttachment{BizID: 3, CcProcessID: 1000, ModuleID: 10, HostID: 100},
+				ID: 5,
+				Attachment: &table.ProcessAttachment{BizID: 3, CcProcessID: 1000, ModuleID: 10,
+					HostID: 100, AgentID: "agent-1"},
 				Spec: &table.ProcessSpec{
 					Alias:       "alias",
 					SourceData:  "{}",
