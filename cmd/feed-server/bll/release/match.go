@@ -99,10 +99,13 @@ func (rs *ReleasedService) matchReleasedGroupWithLabels(
 		switch group.Mode {
 		case table.GroupModeDebug:
 			if group.UID == meta.Uid {
+				// debug 与非灰度 custom 同等视为 100%：避免「选最大 GrayPercent」
+				// 时被全量分组吞掉；并列时仍按 UpdatedAt 排序保留最近更新。
 				matchedList = append(matchedList, &matchedMeta{
-					ReleaseID:  group.ReleaseID,
-					GroupID:    group.GroupID,
-					StrategyID: group.StrategyID,
+					ReleaseID:   group.ReleaseID,
+					GroupID:     group.GroupID,
+					StrategyID:  group.StrategyID,
+					GrayPercent: 1.0,
 				})
 			}
 		case table.GroupModeCustom:

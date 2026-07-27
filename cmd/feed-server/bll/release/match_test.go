@@ -812,6 +812,122 @@ func TestGrayLock_OnlyFullUnchanged(t *testing.T) {
 	}
 }
 
+// TestDebugVsFull_PreferLatest 同一 UID 同时命中 debug 与非灰度全量组时，
+// 二者均为 100% 优先级，按 UpdatedAt 最近者生效，避免全量组凭 GrayPercent=1.0
+// 吞掉 GrayPercent 默认为 0 的 debug 发布。
+func TestDebugVsFull_PreferLatest(t *testing.T) {
+	rs := &ReleasedService{}
+	const uid = "debug-uid-001"
+	labels := map[string]string{"app": "nginx"}
+
+	debugNewer := &ptypes.ReleasedGroupCache{
+		GroupID:    501,
+		ReleaseID:  51,
+		StrategyID: 1501,
+		Mode:       table.GroupModeDebug,
+		UID:        uid,
+		UpdatedAt:  time.Now(),
+	}
+	fullOlder := &ptypes.ReleasedGroupCache{
+		GroupID:    502,
+		ReleaseID:  52,
+		StrategyID: 1502,
+		Mode:       table.GroupModeCustom,
+		UpdatedAt:  time.Now().Add(-time.Hour),
+		Selector: &selector.Selector{
+			LabelsAnd: []selector.Element{
+				{Key: "app", Op: &selector.EqualOperator, Value: "nginx"},
+			},
+		},
+	}
+
+	meta := &types.AppInstanceMeta{Uid: uid, Labels: labels}
+	matched, err := rs.matchReleasedGroupWithLabels(nil,
+		[]*ptypes.ReleasedGroupCache{debugNewer, fullOlder}, meta)
+	if err != nil {
+		t.Fatalf("match failed: %v", err)
+	}
+	if matched == nil || matched.ReleaseID != 51 {
+		t.Errorf("debug 更新更晚时应保留 debug 发布 R=51，实际 %+v", matched)
+	}
+
+	// 反过来：全量更新更晚，应选全量（同等优先级下按最近更新）
+	debugOlder := &ptypes.ReleasedGroupCache{
+		GroupID:    503,
+		ReleaseID:  53,
+		StrategyID: 1503,
+		Mode:       table.GroupModeDebug,
+		UID:        uid,
+		UpdatedAt:  time.Now().Add(-time.Hour),
+	}
+	fullNewer := &ptypes.ReleasedGroupCache{
+		GroupID:    504,
+		ReleaseID:  54,
+		StrategyID: 1504,
+		Mode:       table.GroupModeCustom,
+		UpdatedAt:  time.Now(),
+		Selector: &selector.Selector{
+			LabelsAnd: []selector.Element{
+				{Key: "app", Op: &selector.EqualOperator, Value: "nginx"},
+			},
+		},
+	}
+	matched, err = rs.matchReleasedGroupWithLabels(nil,
+		[]*ptypes.ReleasedGroupCache{debugOlder, fullNewer}, meta)
+	if err != nil {
+		t.Fatalf("match failed: %v", err)
+	}
+	if matched == nil || matched.ReleaseID != 54 {
+		t.Errorf("全量更新更晚时应选全量 R=54，实际 %+v", matched)
+	}
+}
+
+// TestDebugVsGray_DebugWins debug 与灰度组同时命中时，debug（100%）应覆盖灰度比例。
+func TestDebugVsGray_DebugWins(t *testing.T) {
+	rs := &ReleasedService{}
+	const uid = "debug-uid-gray"
+	labels := map[string]string{"app": "nginx"}
+
+	debugGroup := &ptypes.ReleasedGroupCache{
+		GroupID:    601,
+		ReleaseID:  61,
+		StrategyID: 1601,
+		Mode:       table.GroupModeDebug,
+		UID:        uid,
+		UpdatedAt:  time.Now().Add(-time.Hour), // 故意更早，验证靠优先级而非更新时间
+	}
+	grayGroup := &ptypes.ReleasedGroupCache{
+		GroupID:    602,
+		ReleaseID:  62,
+		StrategyID: 1602,
+		Mode:       table.GroupModeCustom,
+		UpdatedAt:  time.Now(),
+		Selector: &selector.Selector{
+			LabelsAnd: []selector.Element{
+				{Key: "app", Op: &selector.EqualOperator, Value: "nginx"},
+				{Key: table.GrayPercentKey, Op: &selector.EqualOperator, Value: "50%"},
+			},
+		},
+	}
+
+	// 找到会落入该灰度桶的 UID；若当前 uid 不在桶内，换用落桶 UID 并同步 debug.UID
+	bucketUID := findGrayBucketUID(rs, grayGroup, labels)
+	if bucketUID == "" {
+		t.Fatal("未找到落入灰度桶的 UID")
+	}
+	debugGroup.UID = bucketUID
+
+	meta := &types.AppInstanceMeta{Uid: bucketUID, Labels: labels}
+	matched, err := rs.matchReleasedGroupWithLabels(nil,
+		[]*ptypes.ReleasedGroupCache{debugGroup, grayGroup}, meta)
+	if err != nil {
+		t.Fatalf("match failed: %v", err)
+	}
+	if matched == nil || matched.ReleaseID != 61 {
+		t.Errorf("debug 应覆盖灰度组，期望 R=61，实际 %+v", matched)
+	}
+}
+
 // TestGrayLock_MultipleFullPickLatest 多个非灰度全量组并列命中时（均视为 100%），
 // 沿用「并列按最近更新」兜底规则，选中 UpdatedAt 最新的组（对应 F-001 边界条件）。
 func TestGrayLock_MultipleFullPickLatest(t *testing.T) {
