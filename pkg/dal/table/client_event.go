@@ -53,6 +53,11 @@ type ClientEventAttachment struct {
 	TenantID   string     `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
+// ClientEventKey 返回客户端事件唯一键 (4字段): BizID-AppID-UID-CursorID
+func (a *ClientEventAttachment) ClientEventKey() string {
+	return fmt.Sprintf("%d-%d-%s-%s", a.BizID, a.AppID, a.UID, a.CursorID)
+}
+
 // ClientMode define the client mode structure
 type ClientMode string
 

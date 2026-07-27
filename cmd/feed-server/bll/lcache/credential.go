@@ -56,10 +56,13 @@ type Credential struct {
 
 // CanMatchCI the credential's local cache.
 // CanMatchCI 支持文件类型和KV类型
-func (s *Credential) CanMatchCI(kt *kit.Kit, bizID uint32, app string, credential string,
+func (s *Credential) CanMatchCI(kt *kit.Kit, bizID, projectID uint32, app string, credential string,
 	path string, name string) (bool, error) {
 	if bizID == 0 {
 		return false, fmt.Errorf("invalid biz id")
+	}
+	if projectID == 0 {
+		return false, fmt.Errorf("invalid project id")
 	}
 	if len(app) == 0 {
 		return false, fmt.Errorf("invalid app name")
@@ -68,7 +71,9 @@ func (s *Credential) CanMatchCI(kt *kit.Kit, bizID uint32, app string, credentia
 		return false, fmt.Errorf("invalid credential")
 	}
 
-	c, hit, err := s.getCredentialFromCache(kt, bizID, credential)
+	key := fmt.Sprintf("%d-%d-%s", bizID, projectID, credential)
+
+	c, hit, err := s.getCredentialFromCache(kt, key)
 	if err != nil {
 		return false, err
 	}
@@ -91,6 +96,7 @@ func (s *Credential) CanMatchCI(kt *kit.Kit, bizID uint32, app string, credentia
 	opt := &pbcs.GetCredentialReq{
 		BizId:      bizID,
 		Credential: credential,
+		ProjectId:  projectID,
 	}
 	resp, err := s.cs.CS().GetCredential(kt.RpcCtx(), opt)
 	if err != nil {
@@ -103,8 +109,8 @@ func (s *Credential) CanMatchCI(kt *kit.Kit, bizID uint32, app string, credentia
 		return false, err
 	}
 
-	if err := s.client.SetWithExpire(fmt.Sprintf("%d-%s", bizID, credential), c, 10*time.Second); err != nil {
-		logs.Errorf("refresh credential %d-%s cache failed, %s", bizID, credential, err.Error())
+	if err := s.client.SetWithExpire(key, c, 10*time.Second); err != nil {
+		logs.Errorf("refresh credential %d-%d-%s cache failed, %s", bizID, projectID, credential, err.Error())
 		// do not return, ignore th error directly.
 	}
 
@@ -122,8 +128,9 @@ func (s *Credential) CanMatchCI(kt *kit.Kit, bizID uint32, app string, credentia
 }
 
 // GetCred 获取凭证, 并缓存
-func (s *Credential) GetCred(kt *kit.Kit, bizID uint32, credential string) (*types.CredentialCache, error) {
-	c, hit, err := s.getCredentialFromCache(kt, bizID, credential)
+func (s *Credential) GetCred(kt *kit.Kit, bizID, projectID uint32, credential string) (*types.CredentialCache, error) {
+	key := fmt.Sprintf("%d-%d-%s", bizID, projectID, credential)
+	c, hit, err := s.getCredentialFromCache(kt, key)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +143,7 @@ func (s *Credential) GetCred(kt *kit.Kit, bizID uint32, credential string) (*typ
 	opt := &pbcs.GetCredentialReq{
 		BizId:      bizID,
 		Credential: credential,
+		ProjectId:  projectID,
 	}
 	resp, err := s.cs.CS().GetCredential(kt.RpcCtx(), opt)
 	if err != nil {
@@ -148,19 +156,18 @@ func (s *Credential) GetCred(kt *kit.Kit, bizID uint32, credential string) (*typ
 		return nil, err
 	}
 
-	if err := s.client.SetWithExpire(fmt.Sprintf("%d-%s", bizID, credential), c, 10*time.Second); err != nil {
-		logs.Errorf("refresh credential %d-%s cache failed, %s", bizID, credential, err.Error())
+	if err := s.client.SetWithExpire(fmt.Sprintf("%d-%d-%s", bizID, projectID, credential), c, 10*time.Second); err != nil {
+		logs.Errorf("refresh credential %d-%d-%s cache failed, %s", bizID, projectID, credential, err.Error())
 	}
 
 	return &c, nil
 }
 
-func (s *Credential) getCredentialFromCache(_ *kit.Kit, bizID uint32, credential string) (
+func (s *Credential) getCredentialFromCache(_ *kit.Kit, key string) (
 	c types.CredentialCache, hit bool, err error) {
 
 	c = types.CredentialCache{}
 
-	key := fmt.Sprintf("%d-%s", bizID, credential)
 	val, err := s.client.GetIFPresent(key)
 	if err != nil {
 		if err != gcache.KeyNotFoundError {

@@ -54,7 +54,10 @@ func newApp(mc *metric, cs *clientset.ClientSet) *App {
 	app.metaClient = metaClient
 	app.idClient = idClient
 	app.cs = cs
-	app.collectHitRate()
+	app.defaultProjEnvCache = gcache.New(1024).
+		LRU().
+		Expiration(time.Duration(opt.AppCacheTTLSec) * time.Second).
+		Build()
 
 	return app
 }
@@ -65,16 +68,20 @@ type App struct {
 	metaClient gcache.Cache
 	idClient   gcache.Cache
 	cs         *clientset.ClientSet
+
+	// defaultProjEnvCache 缓存 bizID → (projectID, envID)，避免每次都 RPC 查询。
+	// key: fmt.Sprintf("%d", bizID), value: [2]uint32{projectID, envID}
+	defaultProjEnvCache gcache.Cache
 }
 
 // IsAppExist validate app if exist.
-func (ap *App) IsAppExist(kt *kit.Kit, bizID uint32, appIDs ...uint32) (bool, error) {
+func (ap *App) IsAppExist(kt *kit.Kit, bizID, projectID, envID uint32, appIDs ...uint32) (bool, error) {
 	if len(appIDs) == 0 {
 		return false, errors.New("appID is required")
 	}
 
 	for index := range appIDs {
-		_, err := ap.GetMeta(kt, bizID, appIDs[index])
+		_, err := ap.GetMeta(kt, bizID, projectID, envID, appIDs[index])
 		if err != nil {
 			if errf.Error(err).Code == errf.RecordNotFound {
 				return false, nil
@@ -88,15 +95,17 @@ func (ap *App) IsAppExist(kt *kit.Kit, bizID uint32, appIDs ...uint32) (bool, er
 }
 
 // RemoveCache 清空app缓存
-func (ap *App) RemoveCache(kt *kit.Kit, bizID uint32, appName string) {
-	key := fmt.Sprintf("%d-%s", bizID, appName)
+func (ap *App) RemoveCache(kt *kit.Kit, bizID, projectID, envID uint32, appName string) {
+	key := fmt.Sprintf("%d-%d-%d-%s", bizID, projectID, envID, appName)
 	ap.idClient.Remove(key)
 
 	// 强制 cacheserver 刷新缓存
 	opt := &pbcs.GetAppIDReq{
-		BizId:   bizID,
-		AppName: appName,
-		Refresh: true,
+		BizId:     bizID,
+		AppName:   appName,
+		Refresh:   true,
+		ProjectId: projectID,
+		EnvId:     envID,
 	}
 
 	_, _ = ap.cs.CS().GetAppID(kt.RpcCtx(), opt)
@@ -109,8 +118,8 @@ func (ap *App) ListApps(kt *kit.Kit, req *pbcs.ListAppsReq) (*pbcs.ListAppsResp,
 }
 
 // GetAppID get app id by app name.
-func (ap *App) GetAppID(kt *kit.Kit, bizID uint32, appName string) (uint32, error) {
-	key := fmt.Sprintf("%d-%s", bizID, appName)
+func (ap *App) GetAppID(kt *kit.Kit, bizID, projectID, envID uint32, appName string) (uint32, error) {
+	key := fmt.Sprintf("%d-%d-%d-%s", bizID, projectID, envID, appName)
 	val, err := ap.idClient.GetIFPresent(key)
 	if err == nil {
 		ap.mc.hitCounter.With(prm.Labels{"resource": "app_id", "biz": tools.Itoa(bizID)}).Inc()
@@ -133,10 +142,11 @@ func (ap *App) GetAppID(kt *kit.Kit, bizID uint32, appName string) (uint32, erro
 	start := time.Now()
 	// get the cache from cache service directly.
 	opt := &pbcs.GetAppIDReq{
-		BizId:   bizID,
-		AppName: appName,
+		BizId:     bizID,
+		AppName:   appName,
+		ProjectId: projectID,
+		EnvId:     envID,
 	}
-
 	resp, err := ap.cs.CS().GetAppID(kt.RpcCtx(), opt)
 	if err != nil {
 		ap.mc.errCounter.With(prm.Labels{"resource": "app_id", "biz": tools.Itoa(bizID)}).Inc()
@@ -155,7 +165,7 @@ func (ap *App) GetAppID(kt *kit.Kit, bizID uint32, appName string) (uint32, erro
 }
 
 // GetMeta the app meta cache.
-func (ap *App) GetMeta(kt *kit.Kit, bizID uint32, appID uint32) (*types.AppCacheMeta, error) {
+func (ap *App) GetMeta(kt *kit.Kit, bizID, projectID, envID uint32, appID uint32) (*types.AppCacheMeta, error) {
 	val, err := ap.metaClient.GetIFPresent(appID)
 	if err == nil {
 		ap.mc.hitCounter.With(prm.Labels{"resource": "app_meta", "biz": tools.Itoa(bizID)}).Inc()
@@ -178,8 +188,10 @@ func (ap *App) GetMeta(kt *kit.Kit, bizID uint32, appID uint32) (*types.AppCache
 	start := time.Now()
 	// get the cache from cache service directly.
 	opt := &pbcs.GetAppMetaReq{
-		BizId: bizID,
-		AppId: appID,
+		BizId:     bizID,
+		AppId:     appID,
+		ProjectId: projectID,
+		EnvId:     envID,
 	}
 
 	resp, err := ap.cs.CS().GetAppMeta(kt.RpcCtx(), opt)
@@ -209,8 +221,14 @@ func (ap *App) delete(appID uint32) {
 	ap.metaClient.Remove(appID)
 }
 
-func (ap *App) deleteByName(bizID uint32, appName string) {
-	key := fmt.Sprintf("%d-%s", bizID, appName)
+// deleteByName 删除 idClient 中按名称索引的缓存，key 格式必须与 GetAppID/RemoveCache 的写入格式
+// 保持一致（bizID-projectID-envID-appName），否则事件驱动的缓存失效会静默 miss。
+// 事件的 attachment 可能未携带 project/env（为 0），此时先归一化为默认项目/环境再删。
+func (ap *App) deleteByName(kt *kit.Kit, bizID, projectID, envID uint32, appName string) {
+	if projectID == 0 || envID == 0 {
+		projectID, envID = ap.ResolveProjectEnv(kt, bizID, projectID, envID)
+	}
+	key := fmt.Sprintf("%d-%d-%d-%s", bizID, projectID, envID, appName)
 	ap.idClient.Remove(key)
 }
 
@@ -227,6 +245,7 @@ func (ap *App) evictRecorder(key interface{}, _ interface{}) {
 	}
 }
 
+// nolint: unused
 func (ap *App) collectHitRate() {
 	go func() {
 		for {
@@ -328,4 +347,59 @@ func (ap *App) EnsureTenantID(kt *kit.Kit, bizID uint32) error {
 	kt.TenantID = tenantID
 	_ = ap.idClient.Set(key, resp.TenantId)
 	return nil
+}
+
+// ResolveProjectEnv 解析 projectID 和 environmentID，当任一为 0 时向 cache-service 查询默认值。
+// feed-server 统一通过此方法确保传入 cache-service 的 project/env 总是非零（除非查询失败降级）。
+// 调用方应优先从客户端请求中提取真实的 projectID/envID，仅在确实无法获取时才依赖此方法的默认值解析。
+func (ap *App) ResolveProjectEnv(kt *kit.Kit, bizID, projectID, envID uint32) (uint32, uint32) {
+	if projectID != 0 && envID != 0 {
+		return projectID, envID
+	}
+
+	cacheKey := fmt.Sprintf("%d", bizID)
+	val, err := ap.defaultProjEnvCache.GetIFPresent(cacheKey)
+	if err == nil {
+		if cached, ok := val.([2]uint32); ok {
+			if cached[0] != 0 && cached[1] != 0 {
+				logs.V(3).Infof("resolve default proj/env from local cache, biz: %d, proj: %d, env: %d",
+					bizID, cached[0], cached[1])
+				if projectID == 0 {
+					projectID = cached[0]
+				}
+				if envID == 0 {
+					envID = cached[1]
+				}
+				return projectID, envID
+			}
+		}
+	}
+
+	// 本地缓存未命中，调用 cache-service RPC 查询默认值
+	resp, rpcErr := ap.cs.CS().GetDefaultProjectEnv(kt.RpcCtx(), &pbcs.GetDefaultProjectEnvReq{
+		BizId: bizID,
+	})
+	if rpcErr != nil {
+		logs.Errorf("get default project/env failed, biz: %d, err: %v, rid: %s, fallback to 0",
+			bizID, rpcErr, kt.Rid)
+		// 查询失败时保持原值（可能为 0），由 cache-service 端兜底处理
+		return projectID, envID
+	}
+
+	// 仅填充调用方未显式指定的维度，显式传入的 projectID/envID 不能被默认值覆盖。
+	if projectID == 0 && resp.ProjectId != 0 {
+		projectID = resp.ProjectId
+	}
+	if envID == 0 && resp.EnvId != 0 {
+		envID = resp.EnvId
+	}
+
+	// 缓存的必须是 RPC 返回的 biz 级默认值，而不是归一化后的调用方入参，
+	// 否则会把某个请求显式指定的 project/env 错误固化成默认值污染后续请求。
+	if resp.ProjectId != 0 && resp.EnvId != 0 {
+		_ = ap.defaultProjEnvCache.Set(cacheKey, [2]uint32{resp.ProjectId, resp.EnvId})
+	}
+
+	logs.Infof("resolved default proj/env via RPC, biz: %d, proj: %d, env: %d", bizID, projectID, envID)
+	return projectID, envID
 }

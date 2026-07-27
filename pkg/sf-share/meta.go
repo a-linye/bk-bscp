@@ -31,6 +31,19 @@ import (
 type SidecarMetaHeader struct {
 	BizID       uint32 `json:"bid"`
 	Fingerprint string `json:"fpt"`
+	ProjectID   uint32 `json:"pid"`
+	EnvID       uint32 `json:"eid"`
+	Token       string `json:"token"`
+}
+
+// Encode serializes the sidecar meta header to a json string,
+// which is the reverse operation of the unmarshal in ParseFeedIncomingContext.
+func (sm *SidecarMetaHeader) Encode() (string, error) {
+	raw, err := jsoni.Marshal(sm)
+	if err != nil {
+		return "", fmt.Errorf("marshal sidecar meta failed, err: %v", err)
+	}
+	return string(raw), nil
 }
 
 // Validate the sidecar meta header is valid or not.

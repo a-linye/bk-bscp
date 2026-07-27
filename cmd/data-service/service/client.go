@@ -67,7 +67,7 @@ func (s *Service) BatchUpsertClientMetrics(ctx context.Context, req *pbds.BatchU
 
 	createID := make(map[string]uint32)
 	for _, item := range toCreate {
-		key := fmt.Sprintf("%d-%d-%s", item.Attachment.BizID, item.Attachment.AppID, item.Attachment.UID)
+		key := item.Attachment.ClientKey()
 		createID[key] = item.ID
 	}
 
@@ -75,7 +75,7 @@ func (s *Service) BatchUpsertClientMetrics(ctx context.Context, req *pbds.BatchU
 	// 更新 client_event 时需要clientID
 	for _, data := range toUpdate {
 		for _, v := range data {
-			key := fmt.Sprintf("%d-%d-%s", v.Attachment.BizID, v.Attachment.AppID, v.Attachment.UID)
+			key := v.Attachment.ClientKey()
 			if v.ID == 0 {
 				v.ID = createID[key]
 			}
@@ -115,9 +115,10 @@ func (s *Service) handleBatchCreateClients(kt *kit.Kit, clients []*pbclient.Clie
 		return nil, nil, nil
 	}
 
-	data := [][]interface{}{}
+	data := [][]any{}
 	for _, item := range clients {
-		data = append(data, []interface{}{item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid})
+		data = append(data, []any{item.Attachment.BizId, item.Attachment.ProjectId,
+			item.Attachment.EnvId, item.Attachment.AppId, item.Attachment.Uid})
 	}
 
 	oldData := make(map[string]*table.Client)
@@ -126,7 +127,7 @@ func (s *Service) handleBatchCreateClients(kt *kit.Kit, clients []*pbclient.Clie
 		return nil, nil, err
 	}
 	for _, item := range tuple {
-		key := fmt.Sprintf("%d-%d-%s", item.Attachment.BizID, item.Attachment.AppID, item.Attachment.UID)
+		key := item.Attachment.ClientKey()
 		oldData[key] = item
 	}
 
@@ -143,7 +144,7 @@ func (s *Service) handleBatchCreateClients(kt *kit.Kit, clients []*pbclient.Clie
 	toCreate = []*table.Client{}
 	toUpdate = make(map[string][]*table.Client)
 	for _, item := range clients {
-		key := fmt.Sprintf("%d-%d-%s", item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid)
+		key := item.GetAttachment().ClientKey()
 		client := &table.Client{
 			Attachment: item.GetAttachment().ClientAttachment(),
 			Spec:       item.GetSpec().ClientSpec(),

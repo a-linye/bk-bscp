@@ -32,12 +32,12 @@ import (
 
 // Interface defines all the supported operations to get resource cache.
 type Interface interface {
-	GetAppID(kt *kit.Kit, bizID uint32, appName string, refresh bool) (uint32, error)
+	GetAppID(kt *kit.Kit, bizID, projectID, envID uint32, appName string, refresh bool) (uint32, error)
 	GetAppMeta(kt *kit.Kit, bizID uint32, appID uint32) (string, error)
 	GetReleasedCI(kt *kit.Kit, bizID uint32, releaseID uint32) (string, error)
 	GetReleasedHook(kt *kit.Kit, bizID uint32, releaseID uint32) (string, error)
 	ListAppReleasedGroups(kt *kit.Kit, bizID uint32, appID uint32) (string, error)
-	GetCredential(kt *kit.Kit, bizID uint32, credential string) (string, error)
+	GetCredential(kt *kit.Kit, bizID, projectID uint32, credential string) (string, error)
 	RefreshAppCache(kt *kit.Kit, bizID uint32, appID uint32) error
 	GetReleasedKv(kt *kit.Kit, bizID uint32, releaseID uint32) (string, error)
 	GetReleasedKvValue(kt *kit.Kit, bizID, appID, releaseID uint32, key string) (string, error)

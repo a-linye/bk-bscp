@@ -32,7 +32,7 @@ import (
 )
 
 // GetAppID get app's id by app name.
-func (c *client) GetAppID(kt *kit.Kit, bizID uint32, appName string, refresh bool) (uint32, error) {
+func (c *client) GetAppID(kt *kit.Kit, bizID, projectID, envID uint32, appName string, refresh bool) (uint32, error) {
 	// try read from cache at first.
 	var (
 		appID uint32
@@ -42,7 +42,7 @@ func (c *client) GetAppID(kt *kit.Kit, bizID uint32, appName string, refresh boo
 
 	// 强制刷新获取
 	if !refresh {
-		appID, hit, err = c.getAppIDFromCache(kt, bizID, appName)
+		appID, hit, err = c.getAppIDFromCache(kt, bizID, projectID, envID, appName)
 		if err != nil {
 			return 0, err
 		}
@@ -56,7 +56,7 @@ func (c *client) GetAppID(kt *kit.Kit, bizID uint32, appName string, refresh boo
 	state := c.rLock.Acquire(keys.ResKind.AppID(bizID, appName))
 	if state.Acquired || (!state.Acquired && state.WithLimit) {
 		start := time.Now()
-		appID, err = c.refreshAppIDCache(kt, bizID, appName)
+		appID, err = c.refreshAppIDCache(kt, bizID, projectID, envID, appName)
 		if err != nil {
 			state.Release(true)
 			return 0, err
@@ -71,7 +71,7 @@ func (c *client) GetAppID(kt *kit.Kit, bizID uint32, appName string, refresh boo
 
 	// do not acquire the lock, but the cache have already been refreshed,
 	// so retry to get app id from cache again.
-	appID, hit, err = c.getAppIDFromCache(kt, bizID, appName)
+	appID, hit, err = c.getAppIDFromCache(kt, bizID, projectID, envID, appName)
 	if err != nil {
 		return 0, err
 	}
@@ -135,9 +135,9 @@ func (c *client) GetAppMeta(kt *kit.Kit, bizID uint32, appID uint32) (string, er
 }
 
 // getAppIDFromCache get app id from cache
-func (c *client) getAppIDFromCache(kt *kit.Kit, bizID uint32, appName string) (uint32, bool, error) {
+func (c *client) getAppIDFromCache(kt *kit.Kit, bizID, projectID, envID uint32, appName string) (uint32, bool, error) {
 
-	val, err := c.bds.Get(kt.Ctx, keys.Key.AppID(bizID, appName))
+	val, err := c.bds.Get(kt.Ctx, keys.Key.AppID(bizID, projectID, envID, appName))
 	if err != nil {
 		return 0, false, err
 	}
@@ -178,16 +178,15 @@ func (c *client) getAppMetaFromCache(kt *kit.Kit, bizID uint32, appID uint32) (s
 }
 
 // refreshAppIDCache get the app id from db and try to refresh to the cache.
-func (c *client) refreshAppIDCache(kt *kit.Kit, bizID uint32, appName string) (uint32, error) {
+func (c *client) refreshAppIDCache(kt *kit.Kit, bizID, projectID, envID uint32, appName string) (uint32, error) {
 
 	cancel := kt.CtxWithTimeoutMS(200)
 	defer cancel()
 
-	// TODO: 待补充项目和环境
-	app, err := c.op.App().GetByName(kt, bizID, 0, 0, appName)
+	app, err := c.op.App().GetByName(kt, bizID, projectID, envID, appName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, status.Errorf(codes.NotFound, err.Error())
+			return 0, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return 0, err
 	}
@@ -198,7 +197,7 @@ func (c *client) refreshAppIDCache(kt *kit.Kit, bizID uint32, appName string) (u
 	}
 
 	// update the app meta to cache.
-	err = c.bds.Set(kt.Ctx, keys.Key.AppID(bizID, appName), string(b), keys.Key.AppMetaTtlSec(false))
+	err = c.bds.Set(kt.Ctx, keys.Key.AppID(bizID, projectID, envID, appName), string(b), keys.Key.AppMetaTtlSec(false))
 	if err != nil {
 		logs.Errorf("set app: %d-%s cache failed, err: %v, rid: %s", bizID, appName, err, kt.Rid)
 		return 0, err
@@ -218,7 +217,7 @@ func (c *client) refreshAppMetaCache(kt *kit.Kit, bizID uint32, appID uint32) (s
 	metaMap, err := c.op.App().ListAppMetaForCache(kt, bizID, []uint32{appID})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", status.Errorf(codes.NotFound, err.Error())
+			return "", status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return "", err
 	}

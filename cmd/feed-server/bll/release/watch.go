@@ -78,7 +78,7 @@ func (wh *watchHandler) subscribe() error {
 
 	for _, one := range wh.sidePayload.Applications {
 
-		meta, err := wh.cache.App.GetMeta(wh.im.Kit, wh.sidePayload.BizID, one.AppID)
+		meta, err := wh.cache.App.GetMeta(wh.im.Kit, wh.sidePayload.BizID, one.ProjectID, one.EnvID, one.AppID)
 		if err != nil {
 			return fmt.Errorf("get app(%d) meta failed, err: %v", one.AppID, err)
 		}
@@ -91,6 +91,9 @@ func (wh *watchHandler) subscribe() error {
 				Labels:     one.Labels,
 				Match:      one.Match,
 				ConfigType: meta.ConfigType,
+				ProjectID:  one.ProjectID,
+				EnvID:      one.EnvID,
+				Token:      wh.im.Meta.Token,
 			},
 			Receiver: eventc.InitReceiver(wh.eventReceiver, wh.cancelCtx),
 		}

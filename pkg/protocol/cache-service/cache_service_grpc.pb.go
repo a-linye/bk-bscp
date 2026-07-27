@@ -38,6 +38,7 @@ const (
 	Cache_SetPublishTime_FullMethodName           = "/pbcs.Cache/SetPublishTime"
 	Cache_GetTenantIDByBiz_FullMethodName         = "/pbcs.Cache/GetTenantIDByBiz"
 	Cache_GetAgentBiz_FullMethodName              = "/pbcs.Cache/GetAgentBiz"
+	Cache_GetDefaultProjectEnv_FullMethodName     = "/pbcs.Cache/GetDefaultProjectEnv"
 )
 
 // CacheClient is the client API for Cache service.
@@ -63,6 +64,7 @@ type CacheClient interface {
 	SetPublishTime(ctx context.Context, in *SetPublishTimeReq, opts ...grpc.CallOption) (*SetPublishTimeResp, error)
 	GetTenantIDByBiz(ctx context.Context, in *GetTenantIDByBizReq, opts ...grpc.CallOption) (*GetTenantIDByBizResp, error)
 	GetAgentBiz(ctx context.Context, in *GetAgentBizReq, opts ...grpc.CallOption) (*GetAgentBizResp, error)
+	GetDefaultProjectEnv(ctx context.Context, in *GetDefaultProjectEnvReq, opts ...grpc.CallOption) (*GetDefaultProjectEnvResp, error)
 }
 
 type cacheClient struct {
@@ -235,6 +237,15 @@ func (c *cacheClient) GetAgentBiz(ctx context.Context, in *GetAgentBizReq, opts 
 	return out, nil
 }
 
+func (c *cacheClient) GetDefaultProjectEnv(ctx context.Context, in *GetDefaultProjectEnvReq, opts ...grpc.CallOption) (*GetDefaultProjectEnvResp, error) {
+	out := new(GetDefaultProjectEnvResp)
+	err := c.cc.Invoke(ctx, Cache_GetDefaultProjectEnv_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CacheServer is the server API for Cache service.
 // All implementations should embed UnimplementedCacheServer
 // for forward compatibility
@@ -258,6 +269,7 @@ type CacheServer interface {
 	SetPublishTime(context.Context, *SetPublishTimeReq) (*SetPublishTimeResp, error)
 	GetTenantIDByBiz(context.Context, *GetTenantIDByBizReq) (*GetTenantIDByBizResp, error)
 	GetAgentBiz(context.Context, *GetAgentBizReq) (*GetAgentBizResp, error)
+	GetDefaultProjectEnv(context.Context, *GetDefaultProjectEnvReq) (*GetDefaultProjectEnvResp, error)
 }
 
 // UnimplementedCacheServer should be embedded to have forward compatible implementations.
@@ -317,6 +329,9 @@ func (UnimplementedCacheServer) GetTenantIDByBiz(context.Context, *GetTenantIDBy
 }
 func (UnimplementedCacheServer) GetAgentBiz(context.Context, *GetAgentBizReq) (*GetAgentBizResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAgentBiz not implemented")
+}
+func (UnimplementedCacheServer) GetDefaultProjectEnv(context.Context, *GetDefaultProjectEnvReq) (*GetDefaultProjectEnvResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultProjectEnv not implemented")
 }
 
 // UnsafeCacheServer may be embedded to opt out of forward compatibility for this service.
@@ -654,6 +669,24 @@ func _Cache_GetAgentBiz_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Cache_GetDefaultProjectEnv_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultProjectEnvReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServer).GetDefaultProjectEnv(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Cache_GetDefaultProjectEnv_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServer).GetDefaultProjectEnv(ctx, req.(*GetDefaultProjectEnvReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Cache_ServiceDesc is the grpc.ServiceDesc for Cache service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -732,6 +765,10 @@ var Cache_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAgentBiz",
 			Handler:    _Cache_GetAgentBiz_Handler,
+		},
+		{
+			MethodName: "GetDefaultProjectEnv",
+			Handler:    _Cache_GetDefaultProjectEnv_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

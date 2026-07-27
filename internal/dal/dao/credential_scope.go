@@ -25,7 +25,7 @@ type CredentialScope interface {
 	// CreateWithTx create credential scope with transaction
 	CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, credential *table.CredentialScope) (uint32, error)
 	// Get get credential scopes
-	Get(kit *kit.Kit, credentialId, bizID uint32) ([]*table.CredentialScope, int64, error)
+	Get(kit *kit.Kit, credentialId, bizID, projectID uint32) ([]*table.CredentialScope, int64, error)
 	// ListAll list all credential scopes under the business
 	ListAll(kit *kit.Kit, bizID uint32) ([]*table.CredentialScope, error)
 	// DeleteWithTx delete credential scope with transaction
@@ -79,11 +79,11 @@ func (dao *credentialScopeDao) CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, g *ta
 }
 
 // Get get credential scope
-func (dao *credentialScopeDao) Get(kit *kit.Kit, credentialId, bizID uint32) ([]*table.CredentialScope, int64, error) {
+func (dao *credentialScopeDao) Get(kit *kit.Kit, credentialId, bizID, projectID uint32) ([]*table.CredentialScope, int64, error) {
 	m := dao.genQ.CredentialScope
 	q := dao.genQ.CredentialScope.WithContext(kit.Ctx)
 
-	result, err := q.Where(m.BizID.Eq(bizID), m.CredentialId.Eq(credentialId)).Find()
+	result, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID), m.CredentialId.Eq(credentialId)).Find()
 	if err != nil {
 		return nil, 0, err
 	}

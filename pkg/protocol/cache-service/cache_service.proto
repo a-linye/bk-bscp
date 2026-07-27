@@ -14,6 +14,9 @@ service Cache {
   rpc GetAppID(GetAppIDReq) returns (GetAppIDResp) {
     option (google.api.http) = {
       get: "/api/v1/cache/biz/{biz_id}/apps/{app_name}/app_id"
+      additional_bindings {
+        get: "/api/v1/cache/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_name}/app_id"
+      }
     };
   }
   rpc GetAppMeta(GetAppMetaReq) returns (JsonRawResp) {
@@ -21,6 +24,10 @@ service Cache {
     option (google.api.http) = {
       post: "/api/v1/cache/app/app/meta/biz_id/{biz_id}"
       body: "*"
+      additional_bindings {
+        post: "/api/v1/cache/app/app/meta/biz_id/{biz_id}/projects/{project_id}/envs/{env_id}"
+        body: "*"
+      }
     };
   }
 
@@ -47,6 +54,9 @@ service Cache {
   rpc ListAppReleasedGroups(ListAppReleasedGroupsReq) returns (JsonRawResp) {
     option (google.api.http) = {
       get: "/api/v1/cache/biz/{biz_id}/apps/{app_id}/released_groups"
+      additional_bindings {
+        get: "/api/v1/cache/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/released_groups"
+      }
     };
   }
 
@@ -70,6 +80,7 @@ service Cache {
     // get credential with filter
     option (google.api.http) = {
       get: "/api/v1/cache/biz/{biz_id}/credential/{credential}"
+      additional_bindings { get: "/api/v1/cache/biz/{biz_id}/projects/{project_id}/credential/{credential}" }
     };
   }
 
@@ -99,6 +110,10 @@ service Cache {
     option (google.api.http) = {
       post: "/api/v1/cache/biz/{biz_id}/apps/{app_id}/client_metric"
       body: "*"
+      additional_bindings {
+        post: "/api/v1/cache/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/client_metric"
+        body: "*"
+      }
     };
   }
 
@@ -108,6 +123,10 @@ service Cache {
     option (google.api.http) = {
       post: "/api/v1/cache/biz/{biz_id}/publish_time"
       body: "*"
+      additional_bindings {
+        post: "/api/v1/cache/biz/{biz_id}/projects/{project_id}/envs/{env_id}/publish_time"
+        body: "*"
+      }
     };
   }
 
@@ -118,6 +137,8 @@ service Cache {
       get: "/api/v1/cache/agent/{agent_id}/biz"
     };
   }
+
+  rpc GetDefaultProjectEnv(GetDefaultProjectEnvReq) returns (GetDefaultProjectEnvResp) {}
 }
 
 message JsonRawResp {
@@ -128,6 +149,12 @@ message GetAppIDReq {
   uint32 biz_id = 1;
   string app_name = 2;
   bool refresh = 3;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 4;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 5;
 }
 
 message GetAppIDResp {
@@ -137,10 +164,22 @@ message GetAppIDResp {
 message GetAppMetaReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 3;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 4;
 }
 
 message ListAppsReq {
   uint32 biz_id = 1;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 2;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 3;
 }
 
 message ListAppsResp {
@@ -161,6 +200,12 @@ message GetReleasedHookReq {
 message ListAppReleasedGroupsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 3;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 4;
 }
 
 message JsonArrayRawResp {
@@ -226,8 +271,8 @@ message ListCredentialMatchedCIReq {
 message GetCredentialReq {
   uint32 biz_id = 1;
   string credential = 2;
+  uint32 project_id = 3;
 }
-
 message GetReleasedKvReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
@@ -245,6 +290,12 @@ message SetClientMetricReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   bytes payload = 3;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 4;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 5;
 }
 
 message SetClientMetricResp {}
@@ -254,6 +305,12 @@ message SetPublishTimeReq {
   uint32 strategy_id = 2;
   int64 publish_time = 3;
   uint32 app_id = 4;
+  // project_id is the project ID (optional). If not provided or 0,
+  // the server will use the default project for backward compatibility.
+  uint32 project_id = 5;
+  // environment_id is the environment ID (optional). If not provided or 0,
+  // the server will use the default environment for backward compatibility.
+  uint32 env_id = 6;
 }
 
 message SetPublishTimeResp {
@@ -283,4 +340,15 @@ message GetAgentBizReq {
 message GetAgentBizResp {
   uint32 biz_id = 1;
   bool found = 2;
+}
+
+// GetDefaultProjectEnvReq 获取默认项目/环境请求。
+message GetDefaultProjectEnvReq {
+  uint32 biz_id = 1;
+}
+
+// GetDefaultProjectEnvResp 获取默认项目/环境响应。
+message GetDefaultProjectEnvResp {
+  uint32 project_id = 1;
+  uint32 env_id = 2;
 }

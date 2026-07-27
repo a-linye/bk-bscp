@@ -38,12 +38,12 @@ func (as *AuthService) Authorize(kt *kit.Kit, res *meta.ResourceAttribute) (bool
 }
 
 // CanMatchCI if credential can match the config item.
-func (as *AuthService) CanMatchCI(kt *kit.Kit, bizID uint32,
+func (as *AuthService) CanMatchCI(kt *kit.Kit, bizID, projectID uint32,
 	app string, token string, path string, name string) (bool, error) {
-	return as.cache.Credential.CanMatchCI(kt, bizID, app, token, path, name)
+	return as.cache.Credential.CanMatchCI(kt, bizID, projectID, app, token, path, name)
 }
 
 // GetCred 获取凭证配置
-func (as *AuthService) GetCred(kt *kit.Kit, bizID uint32, token string) (*types.CredentialCache, error) {
-	return as.cache.Credential.GetCred(kt, bizID, token)
+func (as *AuthService) GetCred(kt *kit.Kit, bizID, projectID uint32, token string) (*types.CredentialCache, error) {
+	return as.cache.Credential.GetCred(kt, bizID, projectID, token)
 }

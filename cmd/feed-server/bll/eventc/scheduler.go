@@ -260,11 +260,13 @@ func (sch *Scheduler) notifyOne(kt *kit.Kit, cursorID uint32, one *member) {
 	// Note: optimize this when a mount of instances have the same labels with same release id.
 	inst := one.InstSpec
 	meta := &btyp.AppInstanceMeta{
-		BizID:  inst.BizID,
-		AppID:  inst.AppID,
-		App:    inst.App,
-		Uid:    inst.Uid,
-		Labels: inst.Labels,
+		BizID:     inst.BizID,
+		AppID:     inst.AppID,
+		App:       inst.App,
+		Uid:       inst.Uid,
+		Labels:    inst.Labels,
+		ProjectID: inst.ProjectID,
+		EnvID:     inst.EnvID,
 	}
 	releaseID, e := sch.handler.GetMatchedRelease(kt, meta)
 	if e != nil {
@@ -307,7 +309,7 @@ func (sch *Scheduler) notifyOne(kt *kit.Kit, cursorID uint32, one *member) {
 		if len(ciList) == 0 {
 			return
 		}
-		event = sch.buildEvent(inst, ciList, preHook, postHook, releaseID, cursorID)
+		event = sch.buildEvent(kt, inst, ciList, preHook, postHook, releaseID, cursorID)
 
 	default:
 		logs.Errorf("Unsupported application type (%s), rid: %s", inst.Format(), kt.Rid)
@@ -321,7 +323,7 @@ func (sch *Scheduler) notifyOne(kt *kit.Kit, cursorID uint32, one *member) {
 	}
 }
 
-func (sch *Scheduler) buildEvent(inst *sfs.InstanceSpec, ciList []*types.ReleaseCICache,
+func (sch *Scheduler) buildEvent(kt *kit.Kit, inst *sfs.InstanceSpec, ciList []*types.ReleaseCICache,
 	pre *types.ReleasedHookCache, post *types.ReleasedHookCache, releaseID uint32, cursorID uint32) *Event {
 	uriD := sch.provider.URIDecorator(inst.BizID)
 	ciMeta := make([]*sfs.ConfigItemMetaV1, 0)
@@ -338,6 +340,22 @@ func (sch *Scheduler) buildEvent(inst *sfs.InstanceSpec, ciList []*types.Release
 				continue
 			}
 		}
+
+		// TODO: token空是为了兼容旧客户端
+		// 处理token规则不全匹配某个版本下的文件，报错问题
+		if inst.Token != "" {
+			canMatch, err := sch.lc.Credential.CanMatchCI(kt, inst.BizID, inst.ProjectID, inst.App, inst.Token, cis.Path, cis.Name)
+			if err != nil {
+				logs.Errorf("watch authorization failed, biz: %d, app: %s, file: %s/%s, err: %s, rid: %s",
+					inst.BizID, inst.App, cis.Path, cis.Name, err.Error(), kt.Rid)
+				continue
+			}
+			if !canMatch {
+				logs.Warnf("watch permission denied, biz: %d, app: %s, file: %s/%s, rid: %s", inst.BizID, inst.App, cis.Path, cis.Name, kt.Rid)
+				continue
+			}
+		}
+
 		m := &sfs.ConfigItemMetaV1{
 			ID:       one.ID,
 			CommitID: one.CommitID,

@@ -57,6 +57,11 @@ type ClientAttachment struct {
 	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
+// ClientKey 返回客户端完整唯一键: BizID-AppID-UID
+func (a *ClientAttachment) ClientKey() string {
+	return fmt.Sprintf("%d-%d-%s", a.BizID, a.AppID, a.UID)
+}
+
 // Resource resource information
 type Resource struct {
 	CpuUsage       float64 `gorm:"column:cpu_usage" json:"cpu_usage"`

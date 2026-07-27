@@ -139,11 +139,12 @@ func (k keyGenerator) CredentialMatchedCITtlSec(withRange bool) int {
 }
 
 // Credential generate a biz's credential key to save the credential
-func (k keyGenerator) Credential(bizID uint32, str string) string {
+func (k keyGenerator) Credential(bizID, projectID uint32, str string) string {
 	return element{
-		biz: bizID,
-		ns:  credential,
-		key: str,
+		biz:       bizID,
+		projectID: projectID,
+		ns:        credential,
+		key:       str,
 	}.String()
 }
 
@@ -227,11 +228,13 @@ func (k keyGenerator) ReleasedHookTtlSec(withRange bool) int {
 }
 
 // AppMeta generate the app id cache key.
-func (k keyGenerator) AppID(bizID uint32, appName string) string {
+func (k keyGenerator) AppID(bizID, projectID, envID uint32, appName string) string {
 	return element{
-		biz: bizID,
-		ns:  appID,
-		key: appName,
+		biz:       bizID,
+		projectID: projectID,
+		envID:     envID,
+		ns:        appID,
+		key:       appName,
 	}.String()
 }
 
@@ -288,13 +291,20 @@ func (k keyGenerator) NullKeyTtlSec() int {
 
 type element struct {
 	// all the cache key is formatted with hashtag.
-	biz uint32
-	ns  namespace
-	key string
+	biz       uint32
+	ns        namespace
+	key       string
+	projectID uint32
+	envID     uint32
 }
 
 // String format the element to a string
 func (ele element) String() string {
+	// 项目/环境维度任一非零时必须编入 key，否则同一应用名/凭证跨项目或环境会碰撞；
+	// 两个维度都为 0 时保持旧格式，兼容未启用项目/环境特性的存量缓存。
+	if ele.projectID > 0 || ele.envID > 0 {
+		return fmt.Sprintf("{%d}%s:%s:%d:%d:%s", ele.biz, cacheHead, ele.ns, ele.projectID, ele.envID, ele.key)
+	}
 	return fmt.Sprintf("{%d}%s:%s:%s", ele.biz, cacheHead, ele.ns, ele.key)
 }
 

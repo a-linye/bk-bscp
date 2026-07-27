@@ -554,6 +554,8 @@ func (s *Service) GenerateReleaseAndPublish(ctx context.Context, req *pbds.Gener
 		PublishStatus: table.AlreadyPublish,
 		PubState:      string(table.Publishing),
 		ApproveType:   string(app.Spec.ApproveType),
+		ProjectID:     req.ProjectId,
+		EnvID:         req.EnvId,
 	}
 
 	// if approval required, current approver required, pub_state unpublished
@@ -813,6 +815,8 @@ func (s *Service) parsePublishOption(req *pbds.SubmitPublishApproveReq, app *tab
 		PublishStatus: table.PendingPublish,
 		PubState:      string(table.Publishing),
 		ApproveType:   string(app.Spec.ApproveType),
+		ProjectID:     req.ProjectId,
+		EnvID:         req.EnvId,
 	}
 
 	// if approval required, current approver required, pub_state unpublished
@@ -958,7 +962,8 @@ func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bi
 			Selector: sel,
 		},
 		Attachment: &table.GroupAttachment{
-			BizID: bizID,
+			BizID:     bizID,
+			ProjectID: projectID,
 		},
 		Revision: &table.Revision{
 			Creator: grpcKit.User,

@@ -49,7 +49,6 @@ import (
 
 // Handshake received handshake from sidecar to validate the app instance's authorization and legality.
 func (s *Service) Handshake(ctx context.Context, hm *pbfs.HandshakeMessage) (*pbfs.HandshakeResp, error) {
-
 	im, err := sfs.ParseFeedIncomingContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -125,6 +124,8 @@ func (s *Service) Watch(swm *pbfs.SideWatchMeta, fws pbfs.Upstream_WatchServer) 
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
 	if err != nil {
@@ -142,7 +143,7 @@ func (s *Service) Watch(swm *pbfs.SideWatchMeta, fws pbfs.Upstream_WatchServer) 
 	}
 
 	for i := range payload.Applications {
-		appID, err := s.bll.AppCache().GetAppID(im.Kit, payload.BizID, payload.Applications[i].App)
+		appID, err := s.bll.AppCache().GetAppID(im.Kit, payload.BizID, projectID, envID, payload.Applications[i].App)
 		if err != nil {
 			if isNotFoundErr(err) {
 				return status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -150,19 +151,21 @@ func (s *Service) Watch(swm *pbfs.SideWatchMeta, fws pbfs.Upstream_WatchServer) 
 			return status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 		}
 		payload.Applications[i].AppID = appID
+		payload.Applications[i].ProjectID = projectID
+		payload.Applications[i].EnvID = envID
 	}
 
 	if err := payload.Validate(); err != nil {
 		return status.Errorf(codes.Aborted, "invalid payload, err: %s", err.Error())
 	}
 
-	var msg string
+	var msg strings.Builder
 	for _, one := range payload.Applications {
-		msg += fmt.Sprintf("biz: %d, app: %s, uid: %s, labels: %s, ", payload.BizID, one.App, one.Uid, one.Labels)
+		fmt.Fprintf(&msg, "app: %s, uid: %s, labels: %s; ", one.App, one.Uid, one.Labels)
 	}
 
-	logs.Infof("received sidecar watch request, biz: %d, %s fingerprint: %s, rid: %s.", im.Meta.BizID, msg,
-		im.Meta.Fingerprint, im.Kit.Rid)
+	logs.Infof("received sidecar watch request, biz: %d, applications: [%s], fingerprint: %s, rid: %s.",
+		im.Meta.BizID, msg.String(), im.Meta.Fingerprint, im.Kit.Rid)
 
 	s.mc.watchTotal.With(prm.Labels{"biz": tools.Itoa(im.Meta.BizID)}).Inc()
 	defer s.mc.watchTotal.With(prm.Labels{"biz": tools.Itoa(im.Meta.BizID)}).Dec()
@@ -186,6 +189,8 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
 	if err != nil {
@@ -208,22 +213,26 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 		}
 
 		if vc.BasicData.BizID != 0 {
-			appID, errApp := s.bll.AppCache().GetAppID(im.Kit, im.Meta.BizID, vc.Application.App)
+			appID, errApp := s.bll.AppCache().GetAppID(im.Kit, im.Meta.BizID, projectID, envID, vc.Application.App)
 			if errApp != nil {
 				logs.Errorf("get app id failed, %s", errApp.Error())
 				return nil, errApp
 			}
 			vc.Application.AppID = appID
+			vc.Application.ProjectID = projectID
+			vc.Application.EnvID = envID
 			// pull 首次是需要获取app meta, 会出现权限等问题导致失败，
 			// 因此TargetReleaseID会出现0的情况，
 			// 获取TargetReleaseID时出现错误直接忽略
 			if vc.Application.TargetReleaseID == 0 {
 				meta := &types.AppInstanceMeta{
-					BizID:  vc.BasicData.BizID,
-					App:    vc.Application.App,
-					AppID:  appID,
-					Uid:    vc.Application.Uid,
-					Labels: vc.Application.Labels,
+					BizID:     vc.BasicData.BizID,
+					App:       vc.Application.App,
+					AppID:     appID,
+					Uid:       vc.Application.Uid,
+					Labels:    vc.Application.Labels,
+					ProjectID: projectID,
+					EnvID:     envID,
 				}
 				cancel := im.Kit.CtxWithTimeoutMS(1500)
 				defer cancel()
@@ -261,12 +270,15 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 			onlineStatus := sfs.Online
 			for _, item := range hb.Applications {
 				if item.CursorID != "" {
-					appID, errApp := s.bll.AppCache().GetAppID(im.Kit, im.Meta.BizID, item.App)
+					appID, errApp := s.bll.AppCache().GetAppID(im.Kit, im.Meta.BizID, projectID, envID, item.App)
 					if errApp != nil {
-						logs.Errorf("get app id failed, %s", errApp.Error())
+						logs.Errorf("heartbeat get app id failed, biz: %d, app: %s, err: %s",
+							im.Meta.BizID, item.App, errApp.Error())
 						return nil, errApp
 					}
 					item.AppID = appID
+					item.ProjectID = projectID
+					item.EnvID = envID
 					s.handleResourceUsageMetrics(hb.BasicData.BizID, item.App, hb.ResourceUsage)
 					hb.BasicData.HeartbeatTime = heartbeatTime
 					hb.BasicData.OnlineStatus = onlineStatus
@@ -277,6 +289,8 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 					}
 					marshal, errHb := oneData.Encode()
 					if errHb != nil {
+						logs.Errorf("heartbeat encode failed, biz: %d, app: %s, err: %s",
+							im.Meta.BizID, item.App, errHb.Error())
 						return nil, errHb
 					}
 					clientMetricData[appID] = &sfs.ClientMetricData{
@@ -294,16 +308,16 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 			continue
 		}
 		if im.Meta.BizID != 0 && len(payload) != 0 {
-			err = s.bll.ClientMetric().Set(im.Kit, im.Meta.BizID, appID, payload)
+			err = s.bll.ClientMetric().Set(im.Kit, im.Meta.BizID, projectID, envID, appID, payload)
 			if err != nil {
-				logs.Errorf("send %d biz %s message, payload: %s, rid: %s", im.Meta.BizID, im.Meta.Fingerprint,
-					payload, msg.Rid)
+				logs.Errorf("send %d biz %s proj %d env %d message, payload: %s, rid: %s", im.Meta.BizID,
+					im.Meta.Fingerprint, projectID, envID, payload, msg.Rid)
 				continue
 			}
 		}
 	}
-	logs.V(3).Infof("receive %d biz %s sidecar %s message, payload: %s, rid: %s", im.Meta.BizID, im.Meta.Fingerprint,
-		sfs.MessagingType(msg.Type).String(), msg.Payload, msg.Rid)
+	logs.V(3).Infof("receive %d biz %s proj %d env %d sidecar %s message, payload: %s, rid: %s",
+		im.Meta.BizID, im.Meta.Fingerprint, projectID, envID, sfs.MessagingType(msg.Type).String(), msg.Payload, msg.Rid)
 	return new(pbfs.MessagingResp), nil
 }
 
@@ -330,6 +344,8 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
 	if err != nil {
@@ -344,7 +360,7 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 		return nil, status.Error(codes.InvalidArgument, "app meta is empty")
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, req.GetAppMeta().App)
+	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -352,11 +368,13 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 	}
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.GetAppMeta().App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.GetAppMeta().App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
 	cancel := im.Kit.CtxWithTimeoutMS(1500)
@@ -366,7 +384,7 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, req.GetAppMeta().App)
+			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 		}
 		return nil, err
 	}
@@ -388,21 +406,25 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 			}
 		}
 
-		app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, ci.ConfigItemAttachment.AppId)
+		app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, ci.ConfigItemAttachment.AppId)
 		if err != nil {
-			if isNotFoundErr(err) {
-				return nil, status.Errorf(codes.NotFound, "get app meta failed, %s", err.Error())
-			}
-			return nil, status.Errorf(codes.Aborted, "get app meta failed, %s", err.Error())
+			logs.Errorf("PullAppFileMeta get app meta failed, biz: %d, app_id: %d, file: %s/%s, err: %s, rid: %s",
+				req.BizId, ci.ConfigItemAttachment.AppId, ci.ConfigItemSpec.Path, ci.ConfigItemSpec.Name,
+				err.Error(), im.Kit.Rid)
+			continue
 		}
-		match, err := s.bll.Auth().CanMatchCI(im.Kit, req.BizId, app.Name, req.Token,
+		canMatch, err := s.bll.Auth().CanMatchCI(im.Kit, req.BizId, projectID, app.Name, req.Token,
 			ci.ConfigItemSpec.Path, ci.ConfigItemSpec.Name)
 		if err != nil {
+			logs.Errorf("PullAppFileMeta authorization failed, biz: %d, app: %s, file: %s/%s, err: %s, rid: %s",
+				req.BizId, app.Name, ci.ConfigItemSpec.Path, ci.ConfigItemSpec.Name, err.Error(), im.Kit.Rid)
 			return nil, status.Errorf(codes.InvalidArgument, "do authorization failed, %s", err.Error())
 		}
 
-		if !match {
-			return nil, status.Error(codes.PermissionDenied, "no permission to download file")
+		if !canMatch {
+			logs.Warnf("PullAppFileMeta permission denied, biz: %d, app: %s, file: %s/%s, rid: %s",
+				req.BizId, app.Name, ci.ConfigItemSpec.Path, ci.ConfigItemSpec.Name, im.Kit.Rid)
+			continue
 		}
 
 		fileMetas = append(fileMetas, &pbfs.FileMeta{
@@ -429,6 +451,35 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 	}
 
 	return resp, nil
+}
+
+// AppCacheInterface 定义 AppCache 的 ResolveProjectEnv 方法抽象，用于解耦 resolveProjectEnv 辅助函数。
+type AppCacheInterface interface {
+	ResolveProjectEnv(kt *kit.Kit, bizID, projectID, envID uint32) (uint32, uint32)
+}
+
+// resolveProjectEnv 解析项目和环境 ID，如果值为 0 则查询默认值并回写到 im.Meta。
+// 返回最终的 projectID 和 envID，方便后续使用。
+func resolveProjectEnv(im *sfs.IncomingMeta, appCache AppCacheInterface) (uint32, uint32) {
+	return resolveProjectEnvFromReq(im, appCache, nil)
+}
+
+// resolveProjectEnvFromReq 解析项目和环境 ID。AppMeta 携带的是请求级显式维度，优先级高于
+// sidecar-meta 头部；两者都未设置（为 0）的维度查询默认值并回写到 im.Meta。
+func resolveProjectEnvFromReq(im *sfs.IncomingMeta, appCache AppCacheInterface, appMeta *pbfs.AppMeta) (uint32, uint32) {
+	projectID, envID := im.Meta.ProjectID, im.Meta.EnvID
+	if appMeta.GetProjectId() != 0 {
+		projectID = appMeta.GetProjectId()
+	}
+	if appMeta.GetEnvId() != 0 {
+		envID = appMeta.GetEnvId()
+	}
+	if projectID == 0 || envID == 0 {
+		projectID, envID = appCache.ResolveProjectEnv(im.Kit, im.Meta.BizID, projectID, envID)
+		im.Meta.ProjectID = projectID
+		im.Meta.EnvID = envID
+	}
+	return projectID, envID
 }
 
 // getWaitTimeMil 流量控制
@@ -495,7 +546,9 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, req.FileMeta.ConfigItemAttachment.AppId)
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
+	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
 		return nil, status.Errorf(codes.Aborted, "get app meta failed, %s", err.Error())
 	}
@@ -504,7 +557,7 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 
 	// validate can file be downloaded by credential.
 	match, err := s.bll.Auth().CanMatchCI(
-		im.Kit, req.BizId, app.Name, req.Token, req.FileMeta.ConfigItemSpec.Path, req.FileMeta.ConfigItemSpec.Name)
+		im.Kit, req.BizId, projectID, app.Name, req.Token, req.FileMeta.ConfigItemSpec.Path, req.FileMeta.ConfigItemSpec.Name)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "do authorization failed, %s", err.Error())
 	}
@@ -549,7 +602,14 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 		return nil, status.Errorf(codes.PermissionDenied, "not have app %s permission", req.AppMeta.App)
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.AppMeta.App)
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+
+	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, projectID, envID, req.AppMeta.App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -557,7 +617,7 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 	}
 
-	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, appID)
+	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, projectID, envID, appID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app failed, %s", err.Error()))
@@ -570,18 +630,20 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.AppMeta.App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.AppMeta.App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
 	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(kt, meta)
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(kt, req.BizId, req.AppMeta.App)
+			s.bll.AppCache().RemoveCache(kt, req.BizId, projectID, envID, req.AppMeta.App)
 		}
 		return nil, err
 	}
@@ -620,7 +682,11 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 
 // GetKvValue get kv value
 func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbfs.GetKvValueResp, error) {
-	kt := kit.FromGrpcContext(ctx)
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	if req.GetAppMeta() == nil || req.GetAppMeta().App == "" {
 		return nil, status.Error(codes.InvalidArgument, "app_meta is required")
 	}
@@ -634,7 +700,9 @@ func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbf
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.GetAppMeta().App)
+	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+
+	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -642,7 +710,7 @@ func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbf
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 	}
 
-	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, appID)
+	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, appID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app failed, %s", err.Error()))
@@ -655,23 +723,25 @@ func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbf
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.GetAppMeta().App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.GetAppMeta().App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
-	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(kt, meta)
+	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(im.Kit, meta)
 	if err != nil {
 		return nil, err
 	}
 
-	rkv, err := s.bll.RKvCache().GetKvValue(kt, req.BizId, appID, metas.ReleaseId, req.Key)
+	rkv, err := s.bll.RKvCache().GetKvValue(im.Kit, req.BizId, appID, metas.ReleaseId, req.Key)
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(kt, req.BizId, req.GetAppMeta().App)
+			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 			return nil, status.Errorf(codes.NotFound, "get rkv failed, %s", err.Error())
 		}
 
@@ -692,8 +762,14 @@ func isNotFoundErr(err error) bool {
 
 // ListApps 获取服务列表
 func (s *Service) ListApps(ctx context.Context, req *pbfs.ListAppsReq) (*pbfs.ListAppsResp, error) {
-	kt := kit.FromGrpcContext(ctx)
-	resp, err := s.bll.AppCache().ListApps(kt, &pbcs.ListAppsReq{BizId: req.BizId})
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
+	resp, err := s.bll.AppCache().ListApps(im.Kit, &pbcs.ListAppsReq{BizId: req.BizId, ProjectId: projectID, EnvId: envID})
 	if err != nil {
 		return nil, err
 	}
@@ -725,23 +801,30 @@ func (s *Service) ListApps(ctx context.Context, req *pbfs.ListAppsReq) (*pbfs.Li
 
 // AsyncDownload 异步 p2p 下载，文件名为 sha256
 func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq) (*pbfs.AsyncDownloadResp, error) {
-	kt := kit.FromGrpcContext(ctx)
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	start := time.Now()
-	logs.CtxInfof(kt.Ctx, "async download request started, biz_id: %d, app_id: %d, file: %s/%s, file_dir: %s",
+	logs.CtxInfof(im.Kit.Ctx, "async download request started, biz_id: %d, app_id: %d, file: %s/%s, file_dir: %s",
 		req.BizId, req.FileMeta.ConfigItemAttachment.AppId, req.FileMeta.ConfigItemSpec.Path,
 		req.FileMeta.ConfigItemSpec.Name, req.FileDir)
 
 	// 鉴权
 	credential := getCredential(ctx)
-	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, req.FileMeta.ConfigItemAttachment.AppId)
+
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
+	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download get app meta failed, biz_id: %d, app_id: %d, duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download get app meta failed, biz_id: %d, app_id: %d, duration_ms: %d, err: %v",
 			req.BizId, req.FileMeta.ConfigItemAttachment.AppId, time.Since(start).Milliseconds(), err)
 		return nil, status.Errorf(codes.Aborted, "get app %d metadata failed, %s",
 			req.FileMeta.ConfigItemAttachment.AppId, err.Error())
 	}
 	if !credential.MatchApp(app.Name) {
-		logs.CtxErrorf(kt.Ctx, "async download app permission denied, biz_id: %d, app: %s, duration_ms: %d",
+		logs.CtxErrorf(im.Kit.Ctx, "async download app permission denied, biz_id: %d, app: %s, duration_ms: %d",
 			req.BizId, app.Name, time.Since(start).Milliseconds())
 		return nil, status.Errorf(codes.PermissionDenied, "not have app %s permission", app.Name)
 	}
@@ -749,7 +832,7 @@ func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq)
 	req.FileMeta.ConfigItemSpec.Path = tools.ConvertBackslashes(req.FileMeta.ConfigItemSpec.Path)
 
 	if !credential.MatchConfigItem(app.Name, req.FileMeta.ConfigItemSpec.Path, req.FileMeta.ConfigItemSpec.Name) {
-		logs.CtxErrorf(kt.Ctx, "async download file permission denied, biz_id: %d, app: %s, file: %s/%s, duration_ms: %d",
+		logs.CtxErrorf(im.Kit.Ctx, "async download file permission denied, biz_id: %d, app: %s, file: %s/%s, duration_ms: %d",
 			req.BizId, app.Name, req.FileMeta.ConfigItemSpec.Path, req.FileMeta.ConfigItemSpec.Name,
 			time.Since(start).Milliseconds())
 		return nil, status.Error(codes.PermissionDenied, "no permission download file")
@@ -757,54 +840,54 @@ func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq)
 
 	gseConf := cc.FeedServer().GSE
 	if !gseConf.Enabled {
-		logs.CtxErrorf(kt.Ctx, "async download rejected because p2p is disabled, biz_id: %d, app_id: %d, duration_ms: %d",
+		logs.CtxErrorf(im.Kit.Ctx, "async download rejected because p2p is disabled, biz_id: %d, app_id: %d, duration_ms: %d",
 			req.BizId, req.FileMeta.ConfigItemAttachment.AppId, time.Since(start).Milliseconds())
 		return nil, status.Error(codes.FailedPrecondition, "p2p download is disabled in server")
 	}
 
 	// 获取客户端信息，check 是否支持 p2p 下载
 	agentInfoStart := time.Now()
-	clientAgentID, clientContainerID, err := s.getAsyncDownloadAgentInfo(kt.Ctx, req)
+	clientAgentID, clientContainerID, err := s.getAsyncDownloadAgentInfo(im.Kit.Ctx, req)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download get client agent info failed, biz_id: %d, app_id: %d, duration_ms: %d, step_duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download get client agent info failed, biz_id: %d, app_id: %d, duration_ms: %d, step_duration_ms: %d, err: %v",
 			req.BizId, req.FileMeta.ConfigItemAttachment.AppId, time.Since(start).Milliseconds(),
 			time.Since(agentInfoStart).Milliseconds(), err)
 		return nil, err
 	}
-	logs.CtxInfof(kt.Ctx, "async download resolved client agent info, biz_id: %d, app_id: %d, agent_id: %s, container_id: %s, step_duration_ms: %d",
+	logs.CtxInfof(im.Kit.Ctx, "async download resolved client agent info, biz_id: %d, app_id: %d, agent_id: %s, container_id: %s, step_duration_ms: %d",
 		req.BizId, req.FileMeta.ConfigItemAttachment.AppId, clientAgentID, clientContainerID,
 		time.Since(agentInfoStart).Milliseconds())
 
 	// 验证agentID是否属于指定的业务
 	verifyStart := time.Now()
 	if err = s.verifyAgentBelongsToBiz(
-		kt,
+		im.Kit,
 		clientAgentID,
 		req.BizId,
 		req.FileMeta.ConfigItemAttachment.AppId,
 		app.Name,
 	); err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download verify agent belongs failed, biz_id: %d, app_id: %d, agent_id: %s, duration_ms: %d, step_duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download verify agent belongs failed, biz_id: %d, app_id: %d, agent_id: %s, duration_ms: %d, step_duration_ms: %d, err: %v",
 			req.BizId, req.FileMeta.ConfigItemAttachment.AppId, clientAgentID, time.Since(start).Milliseconds(),
 			time.Since(verifyStart).Milliseconds(), err)
 		return nil, err
 	}
-	logs.CtxInfof(kt.Ctx, "async download verified agent belongs to biz, biz_id: %d, app_id: %d, agent_id: %s, step_duration_ms: %d",
+	logs.CtxInfof(im.Kit.Ctx, "async download verified agent belongs to biz, biz_id: %d, app_id: %d, agent_id: %s, step_duration_ms: %d",
 		req.BizId, req.FileMeta.ConfigItemAttachment.AppId, clientAgentID, time.Since(verifyStart).Milliseconds())
 
 	// 创建下载任务
 	createTaskStart := time.Now()
-	taskID, err := s.bll.AsyncDownload().CreateAsyncDownloadTask(kt, req.BizId,
+	taskID, err := s.bll.AsyncDownload().CreateAsyncDownloadTask(im.Kit, req.BizId,
 		req.FileMeta.ConfigItemAttachment.AppId, req.FileMeta.ConfigItemSpec.Path, req.FileMeta.ConfigItemSpec.Name,
 		clientAgentID, clientContainerID, req.FileMeta.ConfigItemSpec.Permission.User, req.FileDir,
 		req.FileMeta.CommitSpec.Content.Signature)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download create task failed, biz_id: %d, app_id: %d, agent_id: %s, duration_ms: %d, step_duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download create task failed, biz_id: %d, app_id: %d, agent_id: %s, duration_ms: %d, step_duration_ms: %d, err: %v",
 			req.BizId, req.FileMeta.ConfigItemAttachment.AppId, clientAgentID, time.Since(start).Milliseconds(),
 			time.Since(createTaskStart).Milliseconds(), err)
 		return nil, err
 	}
-	logs.CtxInfof(kt.Ctx, "async download request finished, biz_id: %d, app_id: %d, task_id: %s, duration_ms: %d, create_task_duration_ms: %d",
+	logs.CtxInfof(im.Kit.Ctx, "async download request finished, biz_id: %d, app_id: %d, task_id: %s, duration_ms: %d, create_task_duration_ms: %d",
 		req.BizId, req.FileMeta.ConfigItemAttachment.AppId, taskID, time.Since(start).Milliseconds(),
 		time.Since(createTaskStart).Milliseconds())
 
@@ -860,47 +943,54 @@ func (s *Service) getAsyncDownloadAgentInfo(ctx context.Context, req *pbfs.Async
 // AsyncDownloadStatus 查询异步 p2p 下载任务状态
 func (s *Service) AsyncDownloadStatus(ctx context.Context, req *pbfs.AsyncDownloadStatusReq) (
 	*pbfs.AsyncDownloadStatusResp, error) {
-	kt := kit.FromGrpcContext(ctx)
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	start := time.Now()
-	logs.CtxInfof(kt.Ctx, "async download status request started, biz_id: %d, task_id: %s",
+	logs.CtxInfof(im.Kit.Ctx, "async download status request started, biz_id: %d, task_id: %s",
 		req.BizId, req.TaskId)
 
 	// 1.1 从 Redis 获取到任务对应的服务、文件信息，用token鉴权
-	task, err := s.bll.AsyncDownload().GetAsyncDownloadTask(kt, req.BizId, req.TaskId)
+	task, err := s.bll.AsyncDownload().GetAsyncDownloadTask(im.Kit, req.BizId, req.TaskId)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download status get task failed, biz_id: %d, task_id: %s, duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download status get task failed, biz_id: %d, task_id: %s, duration_ms: %d, err: %v",
 			req.BizId, req.TaskId, time.Since(start).Milliseconds(), err)
 		return nil, err
 	}
 	// 1. 鉴权
 	credential := getCredential(ctx)
-	app, err := s.bll.AppCache().GetMeta(kt, task.BizID, task.AppID)
+
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
+	app, err := s.bll.AppCache().GetMeta(im.Kit, task.BizID, projectID, envID, task.AppID)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download status get app meta failed, biz_id: %d, app_id: %d, task_id: %s, duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download status get app meta failed, biz_id: %d, app_id: %d, task_id: %s, duration_ms: %d, err: %v",
 			task.BizID, task.AppID, req.TaskId, time.Since(start).Milliseconds(), err)
 		return nil, status.Errorf(codes.Aborted, "get app %d metadata failed, %s",
 			task.AppID, err.Error())
 	}
 	if !credential.MatchApp(app.Name) {
-		logs.CtxErrorf(kt.Ctx, "async download status app permission denied, biz_id: %d, app: %s, task_id: %s, duration_ms: %d",
+		logs.CtxErrorf(im.Kit.Ctx, "async download status app permission denied, biz_id: %d, app: %s, task_id: %s, duration_ms: %d",
 			task.BizID, app.Name, req.TaskId, time.Since(start).Milliseconds())
 		return nil, status.Errorf(codes.PermissionDenied, "have not app %s permission", app.Name)
 	}
 
 	if !credential.MatchConfigItem(app.Name, task.FilePath, task.FileName) {
-		logs.CtxErrorf(kt.Ctx, "async download status file permission denied, biz_id: %d, app: %s, task_id: %s, file: %s/%s, duration_ms: %d",
+		logs.CtxErrorf(im.Kit.Ctx, "async download status file permission denied, biz_id: %d, app: %s, task_id: %s, file: %s/%s, duration_ms: %d",
 			task.BizID, app.Name, req.TaskId, task.FilePath, task.FileName, time.Since(start).Milliseconds())
 		return nil, status.Error(codes.PermissionDenied, "no permission download file")
 	}
 
-	taskStatus, err := s.bll.AsyncDownload().GetAsyncDownloadTaskStatus(kt, req.BizId, req.TaskId)
+	taskStatus, err := s.bll.AsyncDownload().GetAsyncDownloadTaskStatus(im.Kit, req.BizId, req.TaskId)
 	if err != nil {
-		logs.CtxErrorf(kt.Ctx, "async download status query failed, biz_id: %d, task_id: %s, duration_ms: %d, err: %v",
+		logs.CtxErrorf(im.Kit.Ctx, "async download status query failed, biz_id: %d, task_id: %s, duration_ms: %d, err: %v",
 			req.BizId, req.TaskId, time.Since(start).Milliseconds(), err)
 		return nil, err
 	}
 
-	logs.CtxInfof(kt.Ctx, "async download status request finished, biz_id: %d, task_id: %s, status: %s, duration_ms: %d",
+	logs.CtxInfof(im.Kit.Ctx, "async download status request finished, biz_id: %d, task_id: %s, status: %s, duration_ms: %d",
 		req.BizId, req.TaskId, taskStatus, time.Since(start).Milliseconds())
 
 	var status pbfs.AsyncDownloadStatus
@@ -922,7 +1012,10 @@ func (s *Service) AsyncDownloadStatus(ctx context.Context, req *pbfs.AsyncDownlo
 // GetSingleKvMeta 获取单个kv mate data
 func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValueReq) (
 	*pbfs.GetSingleKvMetaResp, error) {
-	kt := kit.FromGrpcContext(ctx)
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	if req.GetAppMeta() == nil || req.GetAppMeta().App == "" {
 		return nil, status.Error(codes.InvalidArgument, "app_meta is required")
@@ -937,7 +1030,9 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.AppMeta.App)
+	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+
+	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.AppMeta.App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -945,7 +1040,7 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 	}
 
-	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, appID)
+	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, appID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app failed, %s", err.Error()))
@@ -958,18 +1053,20 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.AppMeta.App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.AppMeta.App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
-	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(kt, meta)
+	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(im.Kit, meta)
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(kt, req.BizId, req.AppMeta.App)
+			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, projectID, envID, req.AppMeta.App)
 		}
 		return nil, err
 	}
@@ -999,10 +1096,11 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 }
 
 // GetSingleKvValue 获取单个kv
-func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvValueReq) (
-	*pbfs.GetSingleKvValueResp, error) {
-
-	kt := kit.FromGrpcContext(ctx)
+func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvValueReq) (*pbfs.GetSingleKvValueResp, error) {
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if req.GetAppMeta() == nil || req.GetAppMeta().App == "" {
 		return nil, status.Error(codes.InvalidArgument, "app_meta is required")
 	}
@@ -1015,8 +1113,8 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 	if !credential.MatchKv(req.AppMeta.App, req.Key) {
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
-
-	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, req.GetAppMeta().App)
+	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -1024,7 +1122,7 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 		return nil, status.Error(codes.Aborted, fmt.Sprintf("get app id failed, %s", err.Error()))
 	}
 
-	app, err := s.bll.AppCache().GetMeta(kt, req.BizId, appID)
+	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, appID)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("get app failed, %s", err.Error()))
@@ -1037,23 +1135,25 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.GetAppMeta().App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.GetAppMeta().App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
-	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(kt, meta)
+	metas, err := s.bll.Release().ListAppLatestReleaseKvMeta(im.Kit, meta)
 	if err != nil {
 		return nil, err
 	}
 
-	rkv, err := s.bll.RKvCache().GetKvValue(kt, req.BizId, appID, metas.ReleaseId, req.Key)
+	rkv, err := s.bll.RKvCache().GetKvValue(im.Kit, req.BizId, appID, metas.ReleaseId, req.Key)
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(kt, req.BizId, req.GetAppMeta().App)
+			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 			return nil, status.Errorf(codes.NotFound, "get rkv failed, %s", err.Error())
 		}
 
@@ -1069,8 +1169,7 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 
 // GetSingleFileContent 获取单文件内容
 // nolint:funlen
-func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
-	stream pbfs.Upstream_GetSingleFileContentServer) error {
+func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq, stream pbfs.Upstream_GetSingleFileContentServer) error {
 	// check if the sidecar's version can be accepted.
 	if !sfs.IsAPIVersionMatch(req.ApiVersion) {
 		st := status.New(codes.FailedPrecondition, "sdk's api version is too low, should be upgraded")
@@ -1089,6 +1188,8 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
 	if err != nil {
@@ -1103,7 +1204,7 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
 		return status.Error(codes.InvalidArgument, "app_meta is required")
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, req.GetAppMeta().App)
+	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return status.Error(codes.NotFound, fmt.Sprintf("get app id failed, %s", err.Error()))
@@ -1128,7 +1229,7 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
 
 	// validate can file be downloaded by credential.
 	match, err := s.bll.Auth().CanMatchCI(
-		im.Kit, req.BizId, req.AppMeta.App, req.Token, filePath, fileName)
+		im.Kit, req.BizId, projectID, req.AppMeta.App, req.Token, filePath, fileName)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "do authorization failed, %s", err.Error())
 	}
@@ -1138,18 +1239,20 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq,
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  req.BizId,
-		App:    req.GetAppMeta().App,
-		AppID:  appID,
-		Uid:    req.AppMeta.Uid,
-		Labels: req.AppMeta.Labels,
+		BizID:     req.BizId,
+		App:       req.GetAppMeta().App,
+		AppID:     appID,
+		Uid:       req.AppMeta.Uid,
+		Labels:    req.AppMeta.Labels,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
 	metas, err := s.bll.Release().ListAppLatestReleaseMeta(im.Kit, meta)
 	if err != nil {
 		// appid等未找到, 刷新缓存, 客户端重试请求
 		if isNotFoundErr(err) {
-			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, req.GetAppMeta().App)
+			s.bll.AppCache().RemoveCache(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 		}
 		return err
 	}

@@ -137,6 +137,10 @@ type SideAppMeta struct {
 	Labels    map[string]string `json:"labels"`
 	// Match is app config item's match conditions
 	Match []string `json:"match"`
+	// ProjectID is the project ID (optional). If 0, server uses default project.
+	ProjectID uint32 `json:"projectID"`
+	// EnvironmentID is the environment ID (optional). If 0, server uses default environment.
+	EnvID uint32 `json:"envID"`
 	// CurrentReleaseID is sidecar's current effected release id.
 	CurrentReleaseID uint32 `json:"currentReleaseID"`
 	// sidecar's current cursor id
@@ -235,6 +239,11 @@ type InstanceSpec struct {
 	// Match is app config item's match conditions
 	Match      []string         `json:"match"`
 	ConfigType table.ConfigType `json:"configType"`
+	// ProjectID is the project ID (optional). If 0, server uses default project.
+	ProjectID uint32 `json:"projectID"`
+	// EnvironmentID is the environment ID (optional). If 0, server uses default environment.
+	EnvID uint32 `json:"envID"`
+	Token string `json:"token"`
 }
 
 // Validate the instance spec is valid or not

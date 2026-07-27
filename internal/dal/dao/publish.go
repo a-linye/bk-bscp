@@ -345,7 +345,7 @@ func (dao *pubDao) submit(kit *kit.Kit, tx *gen.QueryTx, opt *types.PublishOptio
 				ResourceID: opt.ReleaseID,
 				OpType:     table.InsertOp,
 			},
-			Attachment: &table.EventAttachment{BizID: opt.BizID, AppID: opt.AppID},
+			Attachment: &table.EventAttachment{BizID: opt.BizID, AppID: opt.AppID, ProjectID: opt.ProjectID, EnvID: opt.EnvID},
 			Revision:   &table.CreatedRevision{Creator: kit.User},
 		}
 		if err := eDecorator.FireWithTx(tx, one); err != nil {

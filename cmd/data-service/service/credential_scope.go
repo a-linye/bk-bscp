@@ -37,7 +37,7 @@ func (s *Service) ListCredentialScopes(ctx context.Context, req *pbds.ListCreden
 		return nil, err
 	}
 
-	details, count, err := s.dao.CredentialScope().Get(kt, req.CredentialId, req.BizId)
+	details, count, err := s.dao.CredentialScope().Get(kt, req.CredentialId, req.BizId, req.ProjectId)
 	if err != nil {
 		logs.Errorf("list credential scope failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err

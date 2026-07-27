@@ -36,7 +36,8 @@ func PbEventAttachment(attach *table.EventAttachment) *EventAttachment { //nolin
 	}
 
 	return &EventAttachment{
-		BizId: attach.BizID,
-		AppId: attach.AppID,
+		BizId:     attach.BizID,
+		AppId:     attach.AppID,
+		ProjectId: attach.ProjectID,
 	}
 }

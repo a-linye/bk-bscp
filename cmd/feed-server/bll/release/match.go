@@ -40,7 +40,7 @@ func (rs *ReleasedService) GetMatchedRelease(kt *kit.Kit, meta *types.AppInstanc
 		return 0, err
 	}
 
-	am, err := rs.cache.App.GetMeta(kt, meta.BizID, meta.AppID)
+	am, err := rs.cache.App.GetMeta(kt, meta.BizID, meta.ProjectID, meta.EnvID, meta.AppID)
 	if err != nil {
 		return 0, err
 	}
@@ -68,7 +68,7 @@ func (rs *ReleasedService) GetMatchedRelease(kt *kit.Kit, meta *types.AppInstanc
 // listReleasedGroups list released groups
 func (rs *ReleasedService) listReleasedGroups(kt *kit.Kit, meta *types.AppInstanceMeta) (
 	[]*ptypes.ReleasedGroupCache, error) {
-	list, err := rs.cache.ReleasedGroup.Get(kt, meta.BizID, meta.AppID)
+	list, err := rs.cache.ReleasedGroup.Get(kt, meta.BizID, meta.ProjectID, meta.EnvID, meta.AppID)
 	if err != nil {
 		return nil, fmt.Errorf("get current published strategy failed, err: %v", err)
 	}

@@ -272,7 +272,7 @@ func (c *consumer) deleteAppMetaCache(kt *kit.Kit, events []*table.Event) error 
 	for _, one := range events {
 		appKeys = append(appKeys, keys.Key.AppMeta(one.Attachment.BizID, one.Spec.ResourceID))
 		if one.Spec.ResourceUid != "" {
-			appIDKeys = append(appIDKeys, keys.Key.AppID(one.Attachment.BizID, one.Spec.ResourceUid))
+			appIDKeys = append(appIDKeys, keys.Key.AppID(one.Attachment.BizID, one.Attachment.ProjectID, one.Attachment.EnvID, one.Spec.ResourceUid))
 		}
 	}
 
@@ -297,7 +297,7 @@ func (c *consumer) deleteCredentialCache(kt *kit.Kit, events []*table.Event) err
 
 	appKeys := make([]string, 0)
 	for _, one := range events {
-		appKeys = append(appKeys, keys.Key.Credential(one.Attachment.BizID, one.Spec.ResourceUid))
+		appKeys = append(appKeys, keys.Key.Credential(one.Attachment.BizID, one.Attachment.ProjectID, one.Spec.ResourceUid))
 	}
 
 	if err := c.bds.Delete(kt.Ctx, appKeys...); err != nil {
@@ -576,10 +576,9 @@ func (c *consumer) refreshCredentialCache(kt *kit.Kit, events []*table.Event) er
 		return nil
 	}
 
-	// TODO: 待处理
 	for _, event := range events {
 		bizKit := c.ensureTenantID(kt, event.Attachment.BizID, event.Attachment.TenantID)
-		cred, err := c.op.Credential().GetByCredentialString(bizKit, event.Attachment.BizID, 0, event.Spec.ResourceUid)
+		cred, err := c.op.Credential().GetByCredentialString(bizKit, event.Attachment.BizID, event.Attachment.ProjectID, event.Spec.ResourceUid)
 		if err != nil {
 			// 已经删除的忽略
 			if errors.Is(err, dao.ErrRecordNotFound) {
@@ -587,7 +586,8 @@ func (c *consumer) refreshCredentialCache(kt *kit.Kit, events []*table.Event) er
 			}
 			return err
 		}
-		details, _, err := c.op.CredentialScope().Get(bizKit, cred.ID, cred.Attachment.BizID)
+		// 获取事件中的环境ID
+		details, _, err := c.op.CredentialScope().Get(bizKit, cred.ID, cred.Attachment.BizID, cred.Attachment.ProjectID)
 		if err != nil {
 			// 已经删除的忽略
 			if errors.Is(err, dao.ErrRecordNotFound) {
@@ -609,7 +609,7 @@ func (c *consumer) refreshCredentialCache(kt *kit.Kit, events []*table.Event) er
 			return err
 		}
 		// refresh credential cache.
-		if err := c.bds.Set(kt.Ctx, keys.Key.Credential(event.Attachment.BizID, event.Spec.ResourceUid),
+		if err := c.bds.Set(kt.Ctx, keys.Key.Credential(event.Attachment.BizID, event.Attachment.ProjectID, event.Spec.ResourceUid),
 			b, keys.Key.CredentialTtlSec(false)); err != nil {
 			return fmt.Errorf("set biz: %d, credential: %s, cache failed, err: %v",
 				event.Attachment.BizID, event.Spec.ResourceUid, err)

@@ -31,19 +31,19 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/types"
 )
 
-func (c *client) GetCredential(kt *kit.Kit, bizID uint32, credential string) (string, error) {
+func (c *client) GetCredential(kt *kit.Kit, bizID, projectID uint32, credential string) (string, error) {
 	start := time.Now()
 	defer func() {
 		c.mc.refreshLagMS.With(prm.Labels{"rsc": credentialRes, "biz": tools.Itoa(bizID)}).Observe(tools.SinceMS(start))
 	}()
 
-	cred, hit, err := c.getCredentialFromCache(kt, bizID, credential)
+	cred, hit, err := c.getCredentialFromCache(kt, bizID, projectID, credential)
 	if err != nil {
 		return "", err
 	}
 
 	if !hit {
-		cred, err = c.refreshCredentialFromCache(kt, bizID, credential)
+		cred, err = c.refreshCredentialFromCache(kt, bizID, projectID, credential)
 		if err != nil {
 			return "", err
 		}
@@ -54,9 +54,9 @@ func (c *client) GetCredential(kt *kit.Kit, bizID uint32, credential string) (st
 	return cred, nil
 }
 
-func (c *client) getCredentialFromCache(kt *kit.Kit, bizID uint32, credential string) (string, bool, error) {
+func (c *client) getCredentialFromCache(kt *kit.Kit, bizID, projectID uint32, credential string) (string, bool, error) {
 
-	val, err := c.bds.Get(kt.Ctx, keys.Key.Credential(bizID, credential))
+	val, err := c.bds.Get(kt.Ctx, keys.Key.Credential(bizID, projectID, credential))
 	if err != nil {
 		return "", false, err
 	}
@@ -73,17 +73,17 @@ func (c *client) getCredentialFromCache(kt *kit.Kit, bizID uint32, credential st
 }
 
 // refreshCredentialFromCache get the credential from db and try to refresh to the cache.
-func (c *client) refreshCredentialFromCache(kt *kit.Kit, bizID uint32, credential string) (string, error) {
+func (c *client) refreshCredentialFromCache(kt *kit.Kit, bizID, projectID uint32, credential string) (string, error) {
 	cancel := kt.CtxWithTimeoutMS(200)
 	defer cancel()
 
-	cred, size, err := c.queryCredentialFromCahce(kt, bizID, credential)
+	cred, size, err := c.queryCredentialFromCahce(kt, bizID, projectID, credential)
 	if err != nil {
 		return "", err
 	}
 
 	// refresh app credential cache.
-	if err := c.bds.Set(kt.Ctx, keys.Key.Credential(bizID, credential),
+	if err := c.bds.Set(kt.Ctx, keys.Key.Credential(bizID, projectID, credential),
 		cred, keys.Key.CredentialTtlSec(false)); err != nil {
 		return "", fmt.Errorf("set biz: %d, credential: %s, cache failed, err: %v", bizID, credential, err)
 	}
@@ -93,22 +93,21 @@ func (c *client) refreshCredentialFromCache(kt *kit.Kit, bizID uint32, credentia
 	return cred, nil
 }
 
-func (c *client) queryCredentialFromCahce(kt *kit.Kit, bizID uint32, credential string) (string, int, error) {
-	// TODO: 待处理
-	cred, err := c.op.Credential().GetByCredentialString(kt, bizID, 0, credential)
+func (c *client) queryCredentialFromCahce(kt *kit.Kit, bizID, projectID uint32, credential string) (string, int, error) {
+	cred, err := c.op.Credential().GetByCredentialString(kt, bizID, projectID, credential)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", 0, status.Errorf(codes.NotFound, err.Error())
+			return "", 0, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return "", 0, err
 	}
 	if errors.Is(err, errf.ErrCredentialInvalid) {
 		return "", 0, errf.Newf(errf.InvalidParameter, "invalid credential: %s", credential)
 	}
-	details, _, err := c.op.CredentialScope().Get(kt, cred.ID, bizID)
+	details, _, err := c.op.CredentialScope().Get(kt, cred.ID, bizID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", 0, status.Errorf(codes.NotFound, err.Error())
+			return "", 0, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return "", 0, err
 	}

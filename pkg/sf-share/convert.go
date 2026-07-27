@@ -57,9 +57,11 @@ func (v *VersionChangePayload) PbClientMetric() (*pbclient.Client, error) {
 			TotalSeconds:              v.Application.TotalSeconds,
 		},
 		Attachment: &pbclient.ClientAttachment{
-			Uid:   v.Application.Uid,
-			BizId: v.BasicData.BizID,
-			AppId: v.Application.AppID,
+			Uid:       v.Application.Uid,
+			BizId:     v.BasicData.BizID,
+			AppId:     v.Application.AppID,
+			ProjectId: v.Application.ProjectID,
+			EnvId:     v.Application.EnvID,
 		},
 		MessageType: VersionChangeMessage.String(),
 	}
@@ -131,9 +133,11 @@ func (h *HeartbeatItem) PbClientMetric() (*pbclient.Client, error) {
 			TargetReleaseId:     h.Application.TargetReleaseID,
 		},
 		Attachment: &pbclient.ClientAttachment{
-			Uid:   h.Application.Uid,
-			BizId: h.BasicData.BizID,
-			AppId: h.Application.AppID,
+			Uid:       h.Application.Uid,
+			BizId:     h.BasicData.BizID,
+			AppId:     h.Application.AppID,
+			ProjectId: h.Application.ProjectID,
+			EnvId:     h.Application.EnvID,
 		},
 		MessageType: Heartbeat.String(),
 	}

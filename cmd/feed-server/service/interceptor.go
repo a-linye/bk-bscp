@@ -14,6 +14,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -78,7 +79,16 @@ func getBearerToken(md metadata.MD) (string, error) {
 	return authHeaderParts[1], nil
 }
 
-func (s *Service) authorize(ctx context.Context, bizID uint32) (context.Context, error) {
+// httpGatewayFingerprint 是 HTTP 请求经 grpc-gateway 接入时合成的占位 fingerprint，
+// 仅用于通过 SidecarMetaHeader.Validate 的非空校验，不参与任何鉴权逻辑。
+const httpGatewayFingerprint = "http-gateway"
+
+// authorize 鉴权并对 project/env 做来源归一化：
+// RPC 请求的 project/env 来自 sidecar-meta header，HTTP 请求（grpc-gateway）没有该 header，
+// 则从请求的 AppMeta 中获取；两者最终为 0 时都通过 ResolveProjectEnv 解析默认项目/环境。
+// 解析完成后的标准 meta 会写回 incoming metadata，下游 ParseFeedIncomingContext、
+// resolveProjectEnv 及 FeedUnaryUpdateLastConsumedTimeInterceptor 无需区分请求来源。
+func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Aborted, "missing grpc metadata")
@@ -91,7 +101,48 @@ func (s *Service) authorize(ctx context.Context, bizID uint32) (context.Context,
 
 	kt := kit.FromGrpcContext(ctx)
 
-	cred, err := s.bll.Auth().GetCred(kt, bizID, token)
+	var metaHeader string
+	if sm := md.Get(constant.SidecarMetaKey); len(sm) != 0 {
+		metaHeader = sm[0]
+	}
+
+	sm := new(sfs.SidecarMetaHeader)
+	if len(metaHeader) != 0 {
+		if errJ := jsoni.UnmarshalFromString(metaHeader, sm); errJ != nil {
+			return nil, fmt.Errorf("parse sidecar meta failed, err: %v", errJ)
+		}
+	} else {
+		// HTTP 请求无 sidecar-meta header，从 AppMeta 合成
+		am, ok := req.(interface{ GetAppMeta() *pbfs.AppMeta })
+		if !ok || am.GetAppMeta() == nil {
+			return nil, errors.New("invalid request without 'metadata' header from sidecar")
+		}
+		sm = &sfs.SidecarMetaHeader{
+			BizID:       bizID,
+			Fingerprint: httpGatewayFingerprint,
+			ProjectID:   am.GetAppMeta().GetProjectId(),
+			EnvID:       am.GetAppMeta().GetEnvId(),
+			Token:       token,
+		}
+	}
+
+	if errV := sm.Validate(); errV != nil {
+		return nil, fmt.Errorf("invalid sidecar meta, err: %v", errV)
+	}
+
+	// 统一收口：project/env 任一为 0 时解析默认值，保证写回及凭据查询使用的都是最终值
+	sm.ProjectID, sm.EnvID = s.bll.AppCache().ResolveProjectEnv(kt, bizID, sm.ProjectID, sm.EnvID)
+
+	// 将标准化后的 meta 写回 incoming metadata，下游可直接读取，无需感知请求来源
+	metaStr, err := sm.Encode()
+	if err != nil {
+		return nil, status.Errorf(codes.Aborted, "encode sidecar meta failed, %v", err)
+	}
+	md = md.Copy()
+	md.Set(constant.SidecarMetaKey, metaStr)
+	ctx = metadata.NewIncomingContext(ctx, md)
+
+	cred, err := s.bll.Auth().GetCred(kt, bizID, sm.ProjectID, token)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, err
@@ -164,7 +215,7 @@ func FeedUnaryAuthInterceptor(
 		return handler(ctx, req)
 	}
 
-	ctx, err := svc.authorize(ctx, bizID)
+	ctx, err := svc.authorize(ctx, req, bizID)
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +255,11 @@ func LogUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interface{},
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
+	im, err := sfs.ParseFeedIncomingContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	svc, ok := info.Server.(*Service)
 	// 跳过非业务 Service，如 GRPC Reflection
 	if !ok {
@@ -216,16 +272,16 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 		AppIDs   []uint32
 	}
 
-	param := lastConsumedTime{}
+	param := lastConsumedTime{
+		BizID: im.Meta.BizID,
+	}
 
 	switch info.FullMethod {
 	case pbfs.Upstream_GetKvValue_FullMethodName:
 		request := req.(*pbfs.GetKvValueReq)
-		param.BizID = request.BizId
 		param.AppNames = append(param.AppNames, request.GetAppMeta().GetApp())
 	case pbfs.Upstream_PullKvMeta_FullMethodName:
 		request := req.(*pbfs.PullKvMetaReq)
-		param.BizID = request.BizId
 		param.AppNames = append(param.AppNames, request.GetAppMeta().GetApp())
 	case pbfs.Upstream_Messaging_FullMethodName:
 		request := req.(*pbfs.MessagingMeta)
@@ -235,7 +291,6 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 				logs.Errorf("version change message decoding failed, %s", err.Error())
 				return handler(ctx, req)
 			}
-			param.BizID = vc.BasicData.BizID
 			param.AppNames = append(param.AppNames, vc.Application.App)
 		}
 	case pbfs.Upstream_Watch_FullMethodName:
@@ -245,21 +300,17 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 			logs.Errorf("parse request payload failed, %s", err.Error())
 			return handler(ctx, req)
 		}
-		param.BizID = payload.BizID
 		for _, v := range payload.Applications {
 			param.AppNames = append(param.AppNames, v.App)
 		}
 	case pbfs.Upstream_PullAppFileMeta_FullMethodName:
 		request := req.(*pbfs.PullAppFileMetaReq)
-		param.BizID = request.BizId
 		param.AppNames = append(param.AppNames, request.GetAppMeta().GetApp())
 	case pbfs.Upstream_GetDownloadURL_FullMethodName:
 		request := req.(*pbfs.GetDownloadURLReq)
-		param.BizID = request.BizId
 		param.AppIDs = append(param.AppIDs, request.GetFileMeta().GetConfigItemAttachment().GetAppId())
 	case pbfs.Upstream_GetSingleKvValue_FullMethodName, pbfs.Upstream_GetSingleKvMeta_FullMethodName:
 		request := req.(*pbfs.GetSingleKvValueReq)
-		param.BizID = request.BizId
 		param.AppNames = append(param.AppNames, request.GetAppMeta().GetApp())
 	default:
 		return handler(ctx, req)
@@ -272,8 +323,9 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 		kt := kit.FromGrpcContext(ctx)
 
 		if len(param.AppIDs) == 0 {
+			projectID, envID := resolveProjectEnv(im, svc.bll.AppCache())
 			for _, appName := range param.AppNames {
-				appID, err := svc.bll.AppCache().GetAppID(kt, param.BizID, appName)
+				appID, err := svc.bll.AppCache().GetAppID(kt, param.BizID, projectID, envID, appName)
 				if err != nil {
 					logs.Errorf("get app id failed, err: %v", err)
 					return handler(ctx, req)
@@ -282,8 +334,7 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 			}
 		}
 
-		if err := svc.bll.AppCache().SetAppLastConsumedTime(kt,
-			param.BizID, param.AppIDs); err != nil {
+		if err := svc.bll.AppCache().SetAppLastConsumedTime(kt, param.BizID, param.AppIDs); err != nil {
 			logs.Errorf("set app last consumed time failed, err: %v", err)
 			return handler(ctx, req)
 		}
@@ -367,7 +418,8 @@ func FeedStreamAuthInterceptor(
 	if !ok {
 		return handler(srv, ss)
 	}
-	ctx, err := svc.authorize(ss.Context(), bizID)
+	// stream 请求无 req 对象，传 nil；stream 方法均在 disabledMethod 中，不会走到这里
+	ctx, err := svc.authorize(ss.Context(), nil, bizID)
 	if err != nil {
 		return err
 	}

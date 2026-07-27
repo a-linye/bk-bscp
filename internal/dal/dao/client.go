@@ -813,13 +813,13 @@ func (dao *clientDao) ListByHeartbeatTimeOnlineState(kit *kit.Kit, heartbeatTime
 }
 
 // ListClientByTuple Query the client list according to multiple fields in
-// data Example {{1, 1,"uid1"}, {2, 2,"uid2"}}
-// SELECT * FROM `client` WHERE (`biz_id`, `app_id`,`uid`) IN ((1,1,"uid1"),(2,2,'uid2'));
-func (dao *clientDao) ListClientByTuple(kit *kit.Kit, data [][]interface{}) ([]*table.Client, error) {
+// data Example {{1,1,1,1,"uid1"}, {2,2,2,2,"uid2"}}
+// SELECT * FROM `client` WHERE (`biz_id`,`project_id`,`env_id`, `app_id`,`uid`) IN ((1,1,1,1,"uid1"),(2,2,2,2,'uid2'));
+func (dao *clientDao) ListClientByTuple(kit *kit.Kit, data [][]any) ([]*table.Client, error) {
 	m := dao.genQ.Client
 	return dao.genQ.Client.WithContext(kit.Ctx).
-		Select(m.ID, m.BizID, m.AppID, m.UID, m.FirstConnectTime, m.CurrentReleaseID).
-		Where(m.WithContext(kit.Ctx).Columns(m.BizID, m.AppID, m.UID).
+		Select(m.ID, m.BizID, m.ProjectID, m.EnvID, m.AppID, m.UID, m.FirstConnectTime, m.CurrentReleaseID).
+		Where(m.WithContext(kit.Ctx).Columns(m.BizID, m.ProjectID, m.EnvID, m.AppID, m.UID).
 			In(field.Values(data))).
 		Find()
 }
@@ -857,7 +857,7 @@ func (dao *clientDao) UpsertHeartbeat(kit *kit.Kit, tx *gen.QueryTx, data []*tab
 
 	q := tx.Client.WithContext(kit.Ctx)
 	return q.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
+		Columns: []clause.Column{{Name: "biz_id"}, {Name: "project_id"}, {Name: "environment_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"online_status", "last_heartbeat_time", "client_version", "ip", "annotations",
 			"release_change_status", "labels",
@@ -872,7 +872,7 @@ func (dao *clientDao) UpsertVersionChange(kit *kit.Kit, tx *gen.QueryTx, data []
 
 	q := tx.Client.WithContext(kit.Ctx)
 	return q.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "biz_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
+		Columns: []clause.Column{{Name: "biz_id"}, {Name: "project_id"}, {Name: "environment_id"}, {Name: "app_id"}, {Name: "uid"}, {Name: "tenant_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"online_status", "last_heartbeat_time", "client_version", "client_type", "ip", "labels", "annotations",
 			"current_release_id", "target_release_id", "specific_failed_reason",
