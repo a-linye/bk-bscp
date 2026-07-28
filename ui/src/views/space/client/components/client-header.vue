@@ -3,7 +3,7 @@
     <div class="head-left">
       <span class="title">{{ title }}</span>
       <div class="line"></div>
-      <EnvSelector v-model="localEnvId" @change="handleEnvChange">
+      <EnvSelector v-model="localEnvId">
         <template #trigger="{ selectInfo, isOpen }">
           <div
             class="env-selector-trigger"
@@ -61,7 +61,7 @@
   import { AngleUpFill, Search } from 'bkui-vue/lib/icon';
   import { CLIENT_HEARTBEAT_LIST } from '../../../../constants/client';
   import { IAppItem } from '../../../../../types/app';
-  import { IEnvItem, EnvType } from '../../../../../types/env';
+  import { EnvType } from '../../../../../types/env';
   import { ENV_TYPE_CONFIG } from '../../../../constants/env';
   import useClientStore from '../../../../store/client';
   import SearchSelector from './search-selector.vue';
@@ -127,11 +127,6 @@
     await router.push({ name: route.name!, params: routeParams.value });
     heartbeatTime.value = 1;
     handleHeartbeatTimeChange(1);
-  };
-
-  const handleEnvChange = (env: IEnvItem) => {
-    // TODO: 处理环境变更逻辑
-    console.log('环境变更:', env);
   };
 
   // 获取环境类型图标 class

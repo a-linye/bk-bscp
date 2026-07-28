@@ -22,6 +22,7 @@
       <div v-if="importType === 'localFile'">
         <ImportFromLocalFile
           :bk-biz-id="props.bkBizId"
+          :env-id="envId"
           :app-id="props.appId"
           :is-template="false"
           @change="handleUploadFile"

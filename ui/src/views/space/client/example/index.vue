@@ -120,7 +120,7 @@
   const serviceName = ref('');
   const serviceType = ref('');
   const projectId = ref(String(route.params.projectId));
-  const localEnvId = ref(String(route.params.envId));
+  const localEnvId = ref(String(route.params.envId || ''));
   const topTip = ref('');
   const loading = ref(true);
   provide('basicInfo', { serviceName, serviceType });
@@ -163,21 +163,18 @@
   const selectService = async (service: IAppItem) => {
     // 重置已选择的密钥信息
     selectedClientKey.value = null;
-    if (service) {
-      const routeParams = {
-        spaceId: bizId.value,
-        projectId: projectId.value,
-        envId: localEnvId.value,
-        appId: service.id };
-      await router.push({ name: route.name!, params: routeParams });
-      localStorage.setItem('lastAccessedServiceDetail', JSON.stringify(routeParams));
-    } else {
-      loading.value = false;
-    }
-    if (serviceName.value !== service.spec.name || serviceType.value !== service.spec.config_type) {
+    const routeParams = {
+      spaceId: bizId.value,
+      projectId: projectId.value,
+      envId: localEnvId.value,
+      appId: service?.id };
+    await router.push({ name: route.name!, params: routeParams });
+    localStorage.setItem('lastAccessedServiceDetail', JSON.stringify(routeParams));
+    loading.value = false;
+    if (serviceName.value !== service?.spec?.name || serviceType.value !== service?.spec?.config_type) {
       loading.value = true;
-      serviceName.value = service.spec.name;
-      serviceType.value = service.spec.config_type;
+      serviceName.value = service?.spec?.name;
+      serviceType.value = service?.spec?.config_type;
     }
     changeTypeItem(navList.value[0].val);
   };

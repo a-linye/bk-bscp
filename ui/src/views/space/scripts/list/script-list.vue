@@ -308,7 +308,7 @@
 
   const isSearchEmpty = ref(false);
   watch(
-    () => spaceId.value,
+    [() => spaceId.value, () => projectId.value],
     () => {
       refreshList();
       getTags();

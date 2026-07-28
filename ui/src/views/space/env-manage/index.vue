@@ -54,7 +54,7 @@
                         <bk-button
                           text
                           theme="primary"
-                          :disbaled="item.spec?.is_default"
+                          :disabled="item.spec?.is_default"
                           @click="handleDeleteEnv(item)">{{ t('删除环境') }}</bk-button>
                       </div>
                     </div>

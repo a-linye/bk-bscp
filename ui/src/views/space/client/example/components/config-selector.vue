@@ -57,7 +57,7 @@
   const configName = ref<string | string[]>();
   const bizId = ref(String(route.params.spaceId));
   const projectId = ref(String(route.params.projectId));
-  const envId = ref(String(route.params.envId));
+  const envId = ref(String(route.params.envId || ''));
   const appId = ref(route.params.appId);
   const configList = ref<{ name: string; sign: string }[]>([]);
 

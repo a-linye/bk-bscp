@@ -47,7 +47,7 @@ const routes = [
             component: () => import('./views/space/service/list/index.vue'),
           },
           {
-            path: ':appId(\\d+)/:envId',
+            path: ':envId(\\d+)/:appId(\\d+)',
             component: () => import('./views/space/service/detail/index.vue'),
             children: [
               {
@@ -169,7 +169,7 @@ const routes = [
         component: () => import('./views/space/client/example/index.vue'),
       },
       {
-        path: 'records/:envId?',
+        path: 'records',
         children: [
           {
             path: 'all',
@@ -180,7 +180,7 @@ const routes = [
             },
           },
           {
-            path: ':appId(\\d+)',
+            path: ':envId(\\d+)/:appId(\\d+)',
             name: 'records-app',
             component: () => import('./views/space/records/index.vue'),
             meta: {

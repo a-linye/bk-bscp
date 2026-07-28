@@ -1,5 +1,5 @@
 <template>
-  <bk-form-item :label="t('服务可见范围')" required property="env_apps">
+  <bk-form-item :label="t('服务可见范围')" required property="public">
     <bk-radio-group v-model="localPublic" @change="handlePublicChange">
       <bk-radio :label="true">{{ t('公开') }}</bk-radio>
       <bk-radio :label="false">{{ t('指定服务') }}</bk-radio>

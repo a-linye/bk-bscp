@@ -34,15 +34,15 @@
 
   watch(
     () => route.params,
-    (params) => {
+    (params, oldParams) => {
       const pSpaceId = params.spaceId as string;
       const pProjectId = params.projectId as string;
-      if (pSpaceId) {
+      if (pSpaceId && pSpaceId !== oldParams?.spaceId) {
         spaceId.value = pSpaceId;
         setLastAccessedSpace(pSpaceId);
         getFeatureFlagsData();
       }
-      if (pProjectId) {
+      if (pProjectId && pProjectId !== oldParams?.projectId) {
         projectId.value = pProjectId;
         saveSpaceToProjectId(pSpaceId, pProjectId);
       }

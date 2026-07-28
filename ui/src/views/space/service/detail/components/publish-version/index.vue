@@ -419,9 +419,10 @@
         confirmText: t('配置客户端'),
         cancelText: t('稍后再说'),
         onConfirm: () => {
+          const { bkBizId, projectId, envId, appId } = props;
           const routeData = router.resolve({
             name: 'configuration-example',
-            params: { spaceId: props.bkBizId, appId: props.appId },
+            params: { spaceId: bkBizId, projectId, envId, appId },
           });
           window.open(routeData.href, '_blank');
         },

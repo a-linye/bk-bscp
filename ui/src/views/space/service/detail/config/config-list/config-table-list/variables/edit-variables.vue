@@ -32,6 +32,8 @@
         :cited-list="citedList"
         :editable="true"
         :show-cited="true"
+        :project-id="projectId"
+        :env-id="envId"
         @change="handleVariablesChange" />
     </bk-loading>
     <section class="action-btns">

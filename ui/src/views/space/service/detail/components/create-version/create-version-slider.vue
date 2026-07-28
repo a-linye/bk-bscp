@@ -41,7 +41,13 @@
             :project-id="projectId"
             :list="initialVariables"
             @reset="handleResetDefault" />
-          <VariablesTable ref="tableRef" :list="variableList" :editable="true" @change="handleVariablesChange" />
+          <VariablesTable
+            ref="tableRef"
+            :list="variableList"
+            :editable="true"
+            :project-id="projectId"
+            :env-id="envId"
+            @change="handleVariablesChange" />
         </div>
       </div>
     </bk-loading>

@@ -94,6 +94,8 @@
     v-model:is-show="isShow"
     :value="editValue!.default_val"
     :is-set="editable"
+    :project-id="projectId"
+    :env-id="envId"
     @change="handleTextValueChange" />
 </template>
 <script lang="ts" setup>
@@ -118,6 +120,8 @@
       citedList?: IVariableCitedByConfigDetailItem[];
       editable?: boolean;
       showCited?: boolean;
+      projectId: string;
+      envId: string;
     }>(),
     {
       list: () => [],

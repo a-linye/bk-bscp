@@ -229,7 +229,11 @@
 
   const init = async () => {
     await getVersionList();
-    if (pendingApprovalVersion.value) {
+    // 从模板套餐跳转打开导入弹窗时（isOpenDialog=1），保持未命名版本（editing 态），
+    // 避免 versionData 切到非 editing 版本导致 CreateConfig 被外层 v-if 卸载、
+    // 其内已打开的批量导入弹窗成为无法关闭的 DOM 残骸
+    const skipAutoSelect = route.query.isOpenDialog === '1';
+    if (pendingApprovalVersion.value && !skipAutoSelect) {
       versionData.value = pendingApprovalVersion.value;
       router.push({ name: route.name as string, params: { ...route.params, versionId: versionData.value.id } });
     }

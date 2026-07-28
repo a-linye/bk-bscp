@@ -93,7 +93,7 @@
 
   onMounted(() => {
     const {pkg_id, isOpenDialog} = route.query;
-    if (pkg_id && isOpenDialog === '1') {
+    if (hasEditServicePerm.value && pkg_id && isOpenDialog === '1') {
       isBatchImportDialogOpen.value = true;
     }
   });

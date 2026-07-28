@@ -20,6 +20,7 @@
         v-show="stepsStatus.curStep === 2"
         ref="configRef"
         :bk-biz-id="spaceId"
+        :env-id="serviceEditForm.envId"
         :service="service"
         @select="handleSelectConfig" />
       <ImportScript

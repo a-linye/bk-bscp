@@ -206,7 +206,7 @@
   </DeleteConfirmDialog>
 </template>
 <script lang="ts" setup>
-  import { ref, watch, onMounted, computed } from 'vue';
+  import { ref, watch, onMounted, computed, nextTick } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { storeToRefs } from 'pinia';
   import Message from 'bkui-vue/lib/message';
@@ -318,16 +318,27 @@
       crossPageSelect, // 是否提供跨页全选功能
     });
 
+  // 版本切换时父组件会清空 searchQuery，导致本组件 searchQuery watch 连锁触发 refresh。
+  // 用该标志让 searchQuery watch 在版本切换引起的清空时跳过，避免重复请求。
+  const isVersionSwitching = ref(false);
+
   watch(
     () => versionData.value.id,
     () => {
+      isVersionSwitching.value = true;
       refresh();
+      // searchQuery watch 会在本次事件循环的后续阶段触发，下一 tick 复位即可
+      nextTick(() => {
+        isVersionSwitching.value = false;
+      });
     },
   );
 
   watch(
     () => props.searchQuery,
     () => {
+      // 版本切换引起的 searchQuery 清空由 versionData watch 兜底 refresh，这里跳过
+      if (isVersionSwitching.value) return;
       isSearchEmpty.value = Object.keys(props.searchQuery).length > 0;
       refresh();
     },

@@ -242,6 +242,8 @@
                     row.client.spec.release_change_status === 'Failed' && row.client.spec.online_status === 'Online'
                   "
                   :bk-biz-id="bkBizId"
+                  :project-id="projectId"
+                  :env-id="envId"
                   :app-id="appId"
                   :client="row.client"
                   @retried="handleRetryConfirm" />
@@ -386,6 +388,8 @@
       if (val) {
         appId.value = Number(val);
         bkBizId.value = String(route.params.spaceId);
+        projectId.value = String(route.params.projectId);
+        envId.value = String(route.params.envId || '');
       }
     },
   );

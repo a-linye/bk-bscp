@@ -77,9 +77,10 @@
   const props = defineProps<{
     service: IAppItem;
     bkBizId: string;
+    envId: string;
   }>();
 
-  const { projectId, envId } = storeToRefs(useGlobalStore());
+  const { projectId } = storeToRefs(useGlobalStore());
 
   const emits = defineEmits(['select']);
 
@@ -116,7 +117,7 @@
         start: 0,
         all: true,
       };
-      const res = await getConfigVersionList(props.bkBizId, props.service.id!, projectId.value, envId.value, params);
+      const res = await getConfigVersionList(props.bkBizId, props.service.id!, projectId.value, props.envId, params);
       versionList.value = res.data.details;
     } catch (e) {
       console.error(e);
@@ -139,16 +140,17 @@
     tableLoading.value = true;
     try {
       handleClearTable();
+      const { bkBizId, service, envId } = props;
       const params = {
-        other_app_id: props.service.id!,
+        other_app_id: service.id!,
         release_id: id,
       };
       if (isFileType.value) {
         const res = await importFromHistoryVersion(
-          props.bkBizId,
-          props.service.id!,
+          bkBizId,
+          service.id!,
           projectId.value,
-          envId.value,
+          envId,
           params);
         res.data.non_template_configs.forEach((item: any) => {
           const config = {
@@ -172,10 +174,10 @@
         });
       } else {
         const res = await importKvFromHistoryVersion(
-          props.bkBizId,
-          props.service.id!,
+          bkBizId,
+          service.id!,
           projectId.value,
-          envId.value,
+          envId,
           params);
         res.data.exist.forEach((item: IConfigKvItem) => {
           kvConfigList.value.push(item);

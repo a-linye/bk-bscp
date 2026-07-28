@@ -24,6 +24,7 @@ export interface IDialogData {
   version: string;
   group: string;
   memo: string;
+  envId: string;
   serviceId: number;
   releaseId: number;
 }
@@ -135,5 +136,6 @@ export interface IRowData {
     name: string;
     creator: string;
     approve_type: string;
+    env_id: string;
   };
 }

@@ -61,7 +61,7 @@
                     <bk-button
                       text
                       theme="primary"
-                      :disbaled="row.spec?.is_default"
+                      :disabled="row.spec?.is_default"
                       @click="handleDeleteProject(row)">{{ t('删除项目') }}</bk-button>
                   </div>
                 </template>

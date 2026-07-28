@@ -10,7 +10,9 @@
         :list="variableList"
         :cited-list="citedList"
         :editable="false"
-        :show-cited="true" />
+        :show-cited="true"
+        :project-id="projectId"
+        :env-id="envId" />
     </div>
     <section class="action-btns">
       <bk-button @click="close">{{ t('关闭') }}</bk-button>

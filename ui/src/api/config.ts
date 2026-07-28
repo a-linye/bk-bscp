@@ -565,13 +565,15 @@ export const deleteCurrBoundPkg = (bizId: string, appId: number, projectId: stri
  */
 export const importNonTemplateConfigFile = (
   biz_id: string,
+  projectId: string,
+  envId: string,
   appId: number,
   file: any,
   isDecompression: boolean,
   progress: Function,
 ) =>
   http
-    .post(`/config/biz/${biz_id}/apps/${appId}/config_item/import/${encodeURIComponent(file.name)}`, file, {
+    .post(`/config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/${appId}/config_item/import/${encodeURIComponent(file.name)}`, file, {
       headers: {
         'X-Bscp-Unzip': isDecompression,
       },
@@ -747,13 +749,11 @@ export const unModifyKv = (bizId: string, appId: number, projectId: string, envI
  * 批量导入kv配置文件
  * @param bizId 业务ID
  * @param appId 应用ID
- * @param projectId 项目ID
- * @param envId 环境ID
  * @param File 配置文件
  * @returns
  */
-export const batchImportKvFile = (bizId: string, appId: number, projectId: string, envId: string, File: any) =>
-  http.post(`/config/biz/${bizId}/projects/${projectId}/envs/${envId}/apps/${appId}/kvs/import`, File);
+export const batchImportKvFile = (bizId: string, appId: number, File: any) =>
+  http.post(`/biz/${bizId}/apps/${appId}/kvs/import`, File);
 
 /**
  * 导出kv配置文件
@@ -773,7 +773,7 @@ export const getExportKvFile = (
   format: string,
 ) =>
   http.get(
-    `config/biz/${bizId}/projects/${projectId}/envs/${envId}/apps/${appId}/releases/${releaseId}/kvs/export`,
+    `/biz/${bizId}/projects/${projectId}/envs/${envId}/apps/${appId}/releases/${releaseId}/kvs/export`,
     { params: { format } },
   );
 

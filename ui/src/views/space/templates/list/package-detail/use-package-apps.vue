@@ -225,7 +225,6 @@
     const { envId, appId } = formData.value;
     // 跳转至服务配置页面
     goToConfigPageImport(appId as number, envId, '1');
-    handleCancel();
   };
 
   // 取消：返回默认状态

@@ -277,7 +277,7 @@
       v-model:show="repealDialogShow"
       :space-id="spaceId"
       :project-id="projectId"
-      :env-id="envId"
+      :env-id="rowEnvId"
       :app-id="rowAppId"
       :release-id="rowReleaseId"
       :data="confirmData"
@@ -286,7 +286,7 @@
       v-model:show="publishDialogShow"
       :bk-biz-id="spaceId"
       :project-id="projectId"
-      :env-id="envId"
+      :env-id="confirmData.envId"
       :app-id="confirmData.serviceId"
       :group-list="groupList"
       :groups="groups"
@@ -300,7 +300,7 @@
       :show="approvalShow"
       :space-id="spaceId"
       :project-id="projectId"
-      :env-id="envId"
+      :env-id="rowEnvId"
       :app-id="rowAppId"
       :release-id="rowReleaseId"
       :released-groups="rowReleaseGroups"
@@ -310,7 +310,7 @@
       :show="firstApprovalShow"
       :space-id="spaceId"
       :project-id="projectId"
-      :env-id="envId"
+      :env-id="rowEnvId"
       :app-id="rowAppId"
       :release-id="rowReleaseId"
       :released-groups="rowReleaseGroups"
@@ -370,6 +370,7 @@
   const tableData = ref<IRowData[]>([]);
   const approvalShow = ref(false);
   const firstApprovalShow = ref(false);
+  const rowEnvId = ref('');
   const rowAppId = ref(-1);
   const rowReleaseId = ref(-1);
   const rowReleaseGroups = ref<number[]>([]);
@@ -379,6 +380,7 @@
     service: '',
     version: '',
     group: '',
+    envId: '',
     serviceId: 0,
     releaseId: 0,
     memo: '',
@@ -409,8 +411,8 @@
   // 数据过滤 E
 
   watch(
-    () => props.searchParams,
-    (newV) => {
+    [() => props.searchParams, () => props.projectId],
+    ([newV]) => {
       searchParams.value = {
         ...newV,
       };
@@ -450,7 +452,6 @@
         ...searchParams.value,
         start_time: start_time ? convertTime(start_time!, 'utc', false) : '',
         end_time: end_time ? convertTime(end_time!, 'utc', false) : '',
-        env_id: props.envId || '0',
       };
       const res = await getRecordList(props.spaceId, props.projectId, params);
       tableDataSort(res.details);
@@ -547,6 +548,7 @@
     repealDialogShow.value = true;
     const matchVersion = row.audit.spec.res_instance.match(/config_release_name:([^\n]*)/);
     const matchGroup = row.audit.spec.res_instance.match(/config_release_scope:([^\n]*)/);
+    rowEnvId.value = props.envId || row.app.env_id;
     rowAppId.value = row.audit.attachment.app_id;
     rowReleaseId.value = row.strategy.release_id;
     confirmData.value = {
@@ -554,6 +556,7 @@
       version: matchVersion ? matchVersion[1] : '--',
       group: matchGroup ? matchGroup[1] : '--',
       memo: '',
+      envId: rowEnvId.value,
       serviceId: row.audit.attachment.app_id,
       releaseId: row.strategy.release_id,
     };
@@ -561,7 +564,7 @@
 
   // 确认上线
   const handlePublishClick = async (row: IRowData) => {
-    await getAllGroupData(row.audit.attachment.app_id);
+    await getAllGroupData(row.audit.attachment.app_id, props.envId || row.app.env_id);
     const publishGroupIds = row.strategy.scope.groups.map((group) => group.id);
     const matchVersion = row.audit.spec.res_instance.match(/config_release_name:([^\n]*)/);
     if (publishGroupIds.length === 0) {
@@ -581,6 +584,7 @@
       version: matchVersion ? matchVersion[1] : '--',
       group: '',
       memo: row.strategy.memo,
+      envId: props.envId || row.app.env_id,
       serviceId: row.audit.attachment.app_id,
       releaseId: row.strategy.release_id,
     };
@@ -629,9 +633,11 @@
         confirmText: t('配置客户端'),
         cancelText: t('稍后再说'),
         onConfirm: () => {
+          const { spaceId, projectId } = props;
+          const { envId, serviceId } = confirmData.value;
           const routeData = router.resolve({
             name: 'configuration-example',
-            params: { spaceId: props.spaceId, appId: confirmData.value.serviceId },
+            params: { spaceId, projectId, envId, appId: serviceId },
           });
           window.open(routeData.href, '_blank');
         },
@@ -655,8 +661,8 @@
   };
 
   // 获取所有上线服务内的分组列表，并组装tree组件节点需要的数据
-  const getAllGroupData = async (appId: number) => {
-    const res = await getServiceGroupList(props.spaceId, appId, props.projectId, props.envId);
+  const getAllGroupData = async (appId: number, envId: string) => {
+    const res = await getServiceGroupList(props.spaceId, appId, props.projectId, envId);
     groupList.value = res.details.map((group: IGroupItemInService) => {
       const { group_id, group_name, release_id, release_name } = group;
       const selector = group.new_selector;
@@ -670,7 +676,7 @@
     const url = router.resolve({
       name: 'service-config',
       params: {
-        envId: props.envId,
+        envId: props.envId || row.app?.env_id,
         appId: row.audit.attachment.app_id,
         versionId: row.strategy.release_id,
       },
@@ -704,6 +710,7 @@
   // 去审批
   const handleApproval = debounce(
     (row: IRowData, firstPublish = false) => {
+      rowEnvId.value = props.envId || row.app.env_id;
       rowAppId.value = row.audit?.attachment.app_id;
       rowReleaseId.value = row.strategy?.release_id;
       // 当前row已上线版本的分组id,为空表示全部分组上线

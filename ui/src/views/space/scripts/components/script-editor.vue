@@ -61,6 +61,7 @@
           :editable="props.editable"
           :language="props.language"
           :project-id="projectId"
+          :env-id="envId"
           @change="emits('update:modelValue', $event)" />
         <slot name="sufContent" :fullscreen="isOpenFullScreen" :is-show-variable="isShowVariable"></slot>
       </div>
@@ -87,11 +88,13 @@
       uploadIcon?: boolean;
       isPreview?: boolean; // 是否是脚本预览
       projectId: string;
+      envId?: string;
     }>(),
     {
       editable: true,
       uploadIcon: true,
       isPreview: false,
+      envId: '',
     },
   );
 

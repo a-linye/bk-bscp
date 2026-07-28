@@ -153,12 +153,12 @@
   const handleToggleView = () => {
     // 非配置管理tab切换为版本详情视图
     if (!versionDetailView.value && route.name !== 'service-config') {
-      router.push({ name: 'service-config', params: { spaceId: bkBizId.value, appId: appId.value, envId: envId.value } });
+      router.push({ name: 'service-config' });
     }
 
     // 版本详情视图下，选中版本为废弃版本时，切换到配置详情视图，需要默认选中未命名版本
     if (versionDetailView.value && versionData.value.spec.deprecated) {
-      router.push({ name: 'service-config', params: { spaceId: bkBizId.value, appId: appId.value, envId: envId.value, versionId: 0 } });
+      router.push({ name: 'service-config', params: { versionId: 0 } });
     }
     versionDetailView.value = !versionDetailView.value;
   };

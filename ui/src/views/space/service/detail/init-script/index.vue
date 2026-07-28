@@ -64,7 +64,8 @@
         :upload-icon="false"
         :language="previewConfig.type"
         :is-preview="true"
-        :project-id="projectId">
+        :project-id="projectId"
+        :env-id="envId">
         <template #header>
           <div class="script-preview-title">
             <div class="close-area" @click="previewConfig.open = false">

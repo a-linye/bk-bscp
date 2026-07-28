@@ -1,6 +1,7 @@
 <template>
   <div>
     <EnvAlertBar
+      :model-value="envId"
       @change="handleEnvChange" />
     <div class="service-wrap">
       <ServiceListContent
@@ -22,16 +23,24 @@
   import ServiceListContent from './components/service-list-content.vue';
   import AppFooter from '../../../../components/footer.vue';
   import EnvAlertBar from '../../../../components/env-alert-bar.vue';
+  import { useRoute, useRouter } from 'vue-router';
 
   const { spaceId } = storeToRefs(useGlobalStore());
 
   const hasCreateServicePerm = ref(false);
   const permCheckLoading = ref(false);
 
-  const envId = ref();
+  const router = useRouter();
+  const route = useRoute();
+  const envId = ref(String(route.query?.envId || ''));
   // 环境切换
   const handleEnvChange = (env: IEnvItem) => {
     envId.value = String(env.id);
+    router.replace({
+      query: {
+        envId: String(env.id)
+      }
+    });
   };
 
 

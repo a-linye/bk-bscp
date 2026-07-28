@@ -6,6 +6,7 @@
       show-footer-overflow
       show-overflow="tooltip"
       resizable
+      min-height="96"
       :loading="props.loading">
       <vxe-column :title="$t('服务别名')" fixed="left" width="200">
         <template #default="{ row }">

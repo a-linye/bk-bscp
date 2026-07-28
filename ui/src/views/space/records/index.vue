@@ -4,16 +4,18 @@
       <env-selector
         class="env-selector"
         v-model="envId"
-        :placeholder="$t('请选择环境')"
+        :placeholder="$t('全部')"
         :use-default-trigger="true"
+        :is-use-first-env="false"
         @change="handleEnvChange" />
       <ServiceSelector
         ref="serviceSelectorRef"
         class="service-selector-record"
+        :value="appId"
         :custom-trigger="false"
         :placeholder="$t('全部')"
         :clearable="true"
-        :is-record="true"
+        :is-record="isRecord"
         :project-id="projectId"
         :env-id="envId"
         @change="handleAppChange"
@@ -30,7 +32,7 @@
   </section>
 </template>
 <script setup lang="ts">
-  import { ref } from 'vue';
+  import { onMounted, ref, watch } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import ServiceSelector from '../../../components/service-selector.vue';
   import datePicker from './components/date-picker.vue';
@@ -50,7 +52,16 @@
   const dateTimeParams = ref<{ start_time?: string; end_time?: string }>({}); // 日期组件参数
   const optionParams = ref<IRecordQuery>(); // 搜索组件参数
   const init = ref(true);
-  const serviceSelectorRef = ref();
+  const appId = ref();
+
+  watch(
+    () => route.params.projectId,
+    (val) => {
+      projectId.value = String(val);
+      envId.value = String(route.params.envId || '');
+      appId.value = '';
+    }
+  );
 
   const updateParams = (data: string[] | IRecordQuery) => {
     if (Array.isArray(data)) {
@@ -81,37 +92,42 @@
     };
   };
 
+  const isRecord = ref(true);
   const handleAppChange = async (service: IAppItem) => {
-    if (init.value) {
-      mergeData();
-      init.value = false;
-    }
     // 重新选择服务后不再精确查询
     const query = route.query;
     delete query.id;
     delete query.limit;
-    const routeParams = {
-      spaceId: spaceId.value,
-      projectId: projectId.value,
-      envId: envId.value,
-    };
     if (service) {
-      localStorage.setItem('lastAccessedServiceDetail', JSON.stringify({ ...routeParams, appId: service.id }));
-      await router.push({ name: 'records-app', params: { ...routeParams, appId: service.id }, query });
+      const routeParams = {
+        spaceId: spaceId.value,
+        projectId: projectId.value,
+        envId: envId.value,
+        appId: service.id
+      };
+      localStorage.setItem('lastAccessedServiceDetail', JSON.stringify({ ...routeParams }));
+      await router.push({ name: 'records-app', params: { ...routeParams }, query });
     } else {
-      await router.push({ name: 'records-all', params: routeParams, query });
+      isRecord.value = true;
+      envId.value = '';
+      await router.push({
+        name: 'records-all',
+        query
+      });
     }
   };
 
-  const handleEnvChange = async () => {
-    if (route.params.appId) return;
-    const routeParams = {
-      spaceId: spaceId.value,
-      projectId: projectId.value,
-      envId: envId.value,
-    };
-    await router.push({ name: route.name, params: routeParams, query: route.query });
+
+  const handleEnvChange = () => {
+    isRecord.value = false;
   };
+
+  onMounted(() => {
+    if (init.value) {
+      mergeData();
+      init.value = false;
+    }
+  });
 </script>
 <style lang="scss" scoped>
   .record-management-page {

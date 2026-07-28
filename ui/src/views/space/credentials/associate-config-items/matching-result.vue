@@ -68,6 +68,7 @@
     () => props.rule,
     (val) => {
       if (val) {
+        pagination.value.current = 1;
         loadCredentialRulePreviewList();
       }
     },

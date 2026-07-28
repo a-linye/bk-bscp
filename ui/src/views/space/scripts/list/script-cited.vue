@@ -32,7 +32,7 @@
                 class="link-btn"
                 theme="primary"
                 target="_blank"
-                :href="getHref(row.app_id, row.release_id)">
+                :href="getHref(row.env_id, row.app_id, row.release_id)">
                 {{ row.release_name }}
               </bk-link>
             </template>
@@ -103,10 +103,10 @@
     loading.value = false;
   };
 
-  const getHref = (id: number, releaseId: number) => {
+  const getHref = (envId: number, id: number, releaseId: number) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { spaceId: spaceId.value, appId: id, versionId: releaseId },
+      params: { envId, appId: id, versionId: releaseId },
     });
     return href;
   };

@@ -91,6 +91,7 @@
   const props = defineProps<{
     isTemplate: boolean; // 是否是配置模板导入
     bkBizId?: string;
+    envId?: string;
     appId?: number;
     spaceId?: string;
     currentTemplateSpace?: number;
@@ -202,6 +203,8 @@
       } else {
         res = await importNonTemplateConfigFile(
           props.bkBizId!,
+          projectId.value,
+          props.envId!,
           props.appId!,
           option.file,
           isDecompression.value,

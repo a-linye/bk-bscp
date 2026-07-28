@@ -189,15 +189,20 @@
 
       envGroups.value = groups;
 
-      // 智能选择第一个未被禁用的环境
+      // 当前 selectedEnvId 在新的环境列表里是否仍然有效（例如切换项目后，旧环境 id 不属于新项目）
+      const isCurrentEnvValid = groups.some((g) => g.envs.some((env) => String(env.id) === selectedEnvId.value));
+
+      // 智能选择第一个未被禁用的环境：当前未选择环境，或当前选择的环境在新列表中已失效
       const firstGroup = groups.find((g) => g.envs.length > 0);
-      if (firstGroup && props.isUseFirstEnv && !selectedEnvId.value) {
+      if (firstGroup && props.isUseFirstEnv && !isCurrentEnvValid) {
         // 跳过已禁用的环境
         const firstAvailableEnv = firstGroup.envs.find(
           (env) => !props.disabledEnvIds?.includes(String(env.id)),
         );
         if (firstAvailableEnv) {
           selectedEnvId.value = String(firstAvailableEnv.id);
+        } else {
+          selectedEnvId.value = '';
         }
       }
       if (selectedEnvId.value) {
@@ -252,7 +257,8 @@
   };
 
   const handleToEnvManage = () => {
-    router.push({ name: 'env-manage' });
+    const { href } = router.resolve({ name: 'env-manage' });
+    window.open(href, '_blank');
   };
 
   const isOpen = ref(false);
