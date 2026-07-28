@@ -1081,36 +1081,6 @@
             ]
         },
         {
-            "id": "get config templates by ids failed, err: {Err}",
-            "message": "get config templates by ids failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get config templates by names failed, err: {Err}",
-            "message": "get config templates by names failed, err: {Err}",
-            "translation": "根据名称获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
             "id": "get all config templates failed, err: {Err}",
             "message": "get all config templates failed, err: {Err}",
             "translation": "获取所有配置模板失败, err: {Err}",
@@ -1186,32 +1156,9 @@
             ]
         },
         {
-            "id": "get config template by id {Id} failed, err: {Err}",
-            "message": "get config template by id {Id} failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Id",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "id"
-                },
-                {
-                    "id": "Err",
-                    "string": "%[2]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 2,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "list config templates by names failed, err: {Err}",
-            "message": "list config templates by names failed, err: {Err}",
-            "translation": "根据名称列出配置模板失败, err: {Err}",
+            "id": "list config templates by ids failed, err: {Err}",
+            "message": "list config templates by ids failed, err: {Err}",
+            "translation": "根据ID列出配置模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",
@@ -1224,17 +1171,17 @@
             ]
         },
         {
-            "id": "config templates not found for names: {MissingNames}",
-            "message": "config templates not found for names: {MissingNames}",
-            "translation": "以下名称的配置模板未找到: {MissingNames}",
+            "id": "config templates not found for ids: {IdList}",
+            "message": "config templates not found for ids: {IdList}",
+            "translation": "以下ID的配置模板未找到: {IdList}",
             "placeholders": [
                 {
-                    "id": "MissingNames",
-                    "string": "%[1]v",
-                    "type": "[]string",
-                    "underlyingType": "[]string",
+                    "id": "IdList",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
                     "argNum": 1,
-                    "expr": "missingNames"
+                    "expr": "idList"
                 }
             ]
         },
@@ -2013,20 +1960,20 @@
             ]
         },
         {
-            "id": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "message": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "translation": "模板与模板版本不匹配, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
+            "id": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "message": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "translation": "模板与模板版本不匹配, template_id={TemplateID}, template_revision_id={TemplateID_1}",
             "placeholders": [
                 {
-                    "id": "ConfigTemplateId",
+                    "id": "TemplateID",
                     "string": "%[1]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
                     "argNum": 1,
-                    "expr": "req.GetConfigTemplateId()"
+                    "expr": "ct.Attachment.TemplateID"
                 },
                 {
-                    "id": "TemplateID",
+                    "id": "TemplateID_1",
                     "string": "%[2]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
@@ -2731,36 +2678,6 @@
             "id": "list processes by process template IDs failed, err: {Err}",
             "message": "list processes by process template IDs failed, err: {Err}",
             "translation": "根据进程模板ID列出进程失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get proc template failed, err: {Err}",
-            "message": "get proc template failed, err: {Err}",
-            "translation": "获取进程模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get service template failed, err: {Err}",
-            "message": "get service template failed, err: {Err}",
-            "translation": "获取服务模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",

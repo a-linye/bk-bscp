@@ -133,16 +133,15 @@ message FilterOptions {
 // 操作范围，适配进程配置管理插件
 message OperateRange {
   // 编号 2-6 原为旧单值等值过滤字段(set_name/module_name/service_name/process_alias/cc_process_id)，
-  // 已被 expression_scope 表达式范围取代并移除，保留 reserved 防止编号/字段名复用。
-  reserved 2, 3, 4, 5, 6;
-  reserved "set_name", "module_name", "service_name", "process_alias", "cc_process_id";
+  // 已被 expression_scope 表达式范围取代并移除；编号 8 原为 config_template_names，
+  // 已被 config_template_ids 取代并移除，保留 reserved 防止编号/字段名复用。
+  reserved 2, 3, 4, 5, 6, 8;
+  reserved "set_name", "module_name", "service_name", "process_alias", "cc_process_id", "config_template_names";
   string environment = 1 [
     (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境类型(1:测试 2: 体验 3: 正式)" }
   ];
   repeated uint32 config_template_ids = 7
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "配置模版ID列表" }];
-  repeated string config_template_names = 8
-      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "配置模版名称列表" }];
   // 表达式范围：按 gsekit 等价的表达式匹配进程。环境类型复用本消息的 environment 字段。
   ExpressionScope expression_scope = 9
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "表达式范围" }];
