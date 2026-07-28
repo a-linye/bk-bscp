@@ -749,6 +749,8 @@ func (s *Service) passApprove(
 			AppID:     req.AppId,
 			ReleaseID: req.ReleaseId,
 			All:       false,
+			ProjectID: req.ProjectId,
+			EnvID:     req.EnvId,
 		}
 
 		if len(strategy.Spec.Scope.Groups) == 0 {
@@ -781,6 +783,8 @@ func (s *Service) publishApprove(
 		AppID:     req.AppId,
 		ReleaseID: req.ReleaseId,
 		All:       false,
+		ProjectID: req.ProjectId,
+		EnvID:     req.EnvId,
 	}
 
 	if len(strategy.Spec.Scope.Groups) == 0 {
@@ -1289,6 +1293,18 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallba
 		return result, nil
 	}
 
+	// ITSM 回调走旧版 URL,不携带 project/env,req 中的维度值是经中间件回退的业务默认值;
+	// 必须以策略关联 App 的实际维度为准,避免发布事件(EventAttachment)写入错误的 project/env
+	app, err := s.dao.App().GetByID(kit, matchedStrategy.Attachment.AppID)
+	if err != nil {
+		logs.Errorf("get app failed, err=%v, rid=%s", err, kit.Rid)
+		return nil, err
+	}
+	if app == nil {
+		logs.Errorf("app %d not found, rid=%s", matchedStrategy.Attachment.AppID, kit.Rid)
+		return nil, errors.New("app not found")
+	}
+
 	// 查看状态是审批通过还是拒绝
 	approveReq := &pbds.ApproveReq{
 		BizId:         req.BizId,
@@ -1296,6 +1312,8 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallba
 		ReleaseId:     req.ReleaseId,
 		PublishStatus: string(table.PendingPublish),
 		StrategyId:    matchedStrategy.ID,
+		ProjectId:     app.ProjID,
+		EnvId:         app.EnvID,
 	}
 
 	// 获取active key

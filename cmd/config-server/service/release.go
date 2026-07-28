@@ -316,6 +316,8 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbcs.ApprovalCallba
 		ReleaseId:     req.GetReleaseId(),
 		CallbackToken: req.GetCallbackToken(),
 		Ticket:        req.GetTicket(),
+		ProjectId:     grpcKit.ResolvedProjectID(req.GetProjectId()),
+		EnvId:         grpcKit.ResolvedEnvID(req.GetEnvId()),
 	})
 	if err != nil {
 		return nil, err

@@ -350,9 +350,24 @@ func (s *Service) ListHookReferences(ctx context.Context,
 		return nil, err
 	}
 
+	// get app env details
+	appIDs := make([]uint32, 0, len(results))
+	for _, result := range results {
+		appIDs = append(appIDs, result.AppID)
+	}
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		logs.Errorf("list apps by ids failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
+	appMap := make(map[uint32]*table.App, len(apps))
+	for _, a := range apps {
+		appMap[a.ID] = a
+	}
+
 	details := make([]*pbds.ListHookReferencesResp_Detail, 0, len(results))
 	for _, result := range results {
-		details = append(details, &pbds.ListHookReferencesResp_Detail{
+		detail := &pbds.ListHookReferencesResp_Detail{
 			HookRevisionId:   result.HookRevisionID,
 			HookRevisionName: result.HookRevisionName,
 			AppId:            result.AppID,
@@ -361,7 +376,13 @@ func (s *Service) ListHookReferences(ctx context.Context,
 			ReleaseName:      result.ReleaseName,
 			Type:             result.HookType,
 			Deprecated:       result.Deprecated,
-		})
+		}
+		// 可能查不到 app（如已删除），此时保持环境字段为零值
+		if app, ok := appMap[result.AppID]; ok && app.Spec != nil {
+			detail.EnvDisplay = app.Spec.EnvDisplay
+			detail.EnvId = app.EnvID
+		}
+		details = append(details, detail)
 	}
 
 	resp := &pbds.ListHookReferencesResp{

@@ -379,7 +379,7 @@ func (dao *pubDao) UpsertPublishWithTx(
 			ResourceID: opt.ReleaseID,
 			OpType:     table.InsertOp,
 		},
-		Attachment: &table.EventAttachment{BizID: opt.BizID, AppID: opt.AppID},
+		Attachment: &table.EventAttachment{BizID: opt.BizID, AppID: opt.AppID, ProjectID: opt.ProjectID, EnvID: opt.EnvID},
 		Revision:   &table.CreatedRevision{Creator: kit.User},
 	}
 	eDecorator := dao.event.Eventf(kit)
