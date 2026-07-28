@@ -1060,6 +1060,8 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 		newSpec.ProcNum = uint(p.ProcNum)
 		newSpec.SourceData = string(sourceData)
 
+		// 事件不含主机信息，attachment 直接复用 DB 旧值，
+		// 因此 agent_id 不会在这条链路上刷新，需要靠全量同步纠正
 		newProcess := &table.Process{
 			Attachment: oldP.Attachment,
 			Spec:       &newSpec,
@@ -1641,7 +1643,9 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 		return nil, err
 	}
 
-	// 先落到 newP 上，下游更新/复用/重建三个分支都从 newP 取值
+	// 先落到 newP 上，下游更新/复用/重建三个分支都从 newP 取值。
+	// 注意只有全量同步会带来 CMDB 最新的 agent_id，进程更新事件（UpdateProcess）复用 DB 的
+	// attachment，新旧同指针，agent_id 不会变化，那条链路只有 agent_status 兜底生效
 	agentID := resolveAgentID(newP.Attachment.AgentID, oldP.Attachment.AgentID)
 	agentIDChanged := agentID != oldP.Attachment.AgentID
 	newP.Attachment.AgentID = agentID
