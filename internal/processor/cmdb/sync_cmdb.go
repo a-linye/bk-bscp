@@ -327,14 +327,6 @@ func resolveOsType(newOsType, oldOsType string) string {
 	return oldOsType
 }
 
-// resolveAgentID 以 CMDB 为准，新值为空时沿用旧值，避免 CMDB 未返回时清空已有 agent_id
-func resolveAgentID(newAgentID, oldAgentID string) string {
-	if newAgentID != "" {
-		return newAgentID
-	}
-	return oldAgentID
-}
-
 // resolveAgentStatus agent_id 为空时状态一律为 abnormal，否则会被判定为可同步、用空 agent_id 调用 GSE
 func resolveAgentStatus(agentID string, status table.AgentStatus) table.AgentStatus {
 	if agentID == "" {
@@ -1643,12 +1635,8 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 		return nil, err
 	}
 
-	// 先落到 newP 上，下游更新/复用/重建三个分支都从 newP 取值。
-	// 注意只有全量同步会带来 CMDB 最新的 agent_id，进程更新事件（UpdateProcess）复用 DB 的
-	// attachment，新旧同指针，agent_id 不会变化，那条链路只有 agent_status 兜底生效
-	agentID := resolveAgentID(newP.Attachment.AgentID, oldP.Attachment.AgentID)
+	agentID := newP.Attachment.AgentID
 	agentIDChanged := agentID != oldP.Attachment.AgentID
-	newP.Attachment.AgentID = agentID
 	newP.Spec.AgentStatus = resolveAgentStatus(agentID, newP.Spec.AgentStatus)
 
 	nameChanged := newP.Spec.Alias != oldP.Spec.Alias

@@ -21,29 +21,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
 
-// TestResolveAgentID CMDB 新值非空以 CMDB 为准，为空时沿用本地值不清空
-func TestResolveAgentID(t *testing.T) {
-	cases := []struct {
-		name        string
-		newAgentID  string
-		oldAgentID  string
-		wantAgentID string
-	}{
-		{"cmdb non-empty wins", "agent-new", "agent-old", "agent-new"},
-		{"cmdb fills empty local", "agent-new", "", "agent-new"},
-		{"cmdb empty keeps local", "", "agent-old", "agent-old"},
-		{"both empty", "", "", ""},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := resolveAgentID(c.newAgentID, c.oldAgentID); got != c.wantAgentID {
-				t.Fatalf("resolveAgentID(%q, %q) = %q, want %q",
-					c.newAgentID, c.oldAgentID, got, c.wantAgentID)
-			}
-		})
-	}
-}
-
 // TestResolveAgentStatus agent_id 为空时 agent_status 一律为 abnormal
 func TestResolveAgentStatus(t *testing.T) {
 	cases := []struct {
@@ -132,9 +109,9 @@ func TestBuildProcessChangesRefreshesAgentID(t *testing.T) {
 	}
 }
 
-// TestBuildProcessChangesKeepsAgentIDWhenCMDBEmpty CMDB 未返回 agent_id 时不清空本地已有值，
-// 且不因此产生无谓更新
-func TestBuildProcessChangesKeepsAgentIDWhenCMDBEmpty(t *testing.T) {
+// TestBuildProcessChangesClearsAgentIDWhenCMDBEmpty 主机注销或 agent 卸载后 CMDB 返回空 agent_id，
+// 本地随之清空并置为 abnormal，不保留失效的 agent 标识
+func TestBuildProcessChangesClearsAgentIDWhenCMDBEmpty(t *testing.T) {
 	newP, oldP := newAgentIDProcessPair("", "agent-old",
 		table.AgentStatusNormal, table.AgentStatusNormal)
 
@@ -143,11 +120,14 @@ func TestBuildProcessChangesKeepsAgentIDWhenCMDBEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildProcessChanges failed: %v", err)
 	}
-	if res.ToUpdateProcess != nil {
-		t.Fatalf("expected no update, got agent_id=%q", res.ToUpdateProcess.Attachment.AgentID)
+	if res.ToUpdateProcess == nil {
+		t.Fatal("expected ToUpdateProcess for agent_id clearing")
 	}
-	if oldP.Attachment.AgentID != "agent-old" {
-		t.Fatalf("local agent_id = %q, want agent-old (must not be cleared)", oldP.Attachment.AgentID)
+	if got := res.ToUpdateProcess.Attachment.AgentID; got != "" {
+		t.Fatalf("updated agent_id = %q, want empty", got)
+	}
+	if got := res.ToUpdateProcess.Spec.AgentStatus; got != table.AgentStatusAbnormal {
+		t.Fatalf("updated agent_status = %q, want abnormal", got)
 	}
 }
 
