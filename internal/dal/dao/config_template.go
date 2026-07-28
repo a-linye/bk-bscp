@@ -52,6 +52,8 @@ type ConfigTemplate interface {
 	GetByUniqueKey(kit *kit.Kit, bizID, id uint32, name string) (*table.ConfigTemplate, error)
 	// ListByNames list config templates by names.
 	ListByNames(kit *kit.Kit, bizID uint32, names []string) ([]*table.ConfigTemplate, error)
+	// ListByIDs list config templates by ids.
+	ListByIDs(kit *kit.Kit, bizID uint32, ids []uint32) ([]*table.ConfigTemplate, error)
 }
 
 var _ ConfigTemplate = new(configTemplateDao)
@@ -328,5 +330,18 @@ func (dao *configTemplateDao) ListByNames(kit *kit.Kit, bizID uint32, names []st
 
 	return dao.genQ.ConfigTemplate.WithContext(kit.Ctx).
 		Where(m.BizID.Eq(bizID), m.Name.In(names...)).
+		Find()
+}
+
+// ListByIDs implements ConfigTemplate.
+func (dao *configTemplateDao) ListByIDs(kit *kit.Kit, bizID uint32, ids []uint32) ([]*table.ConfigTemplate, error) {
+	if len(ids) == 0 {
+		return []*table.ConfigTemplate{}, nil
+	}
+
+	m := dao.genQ.ConfigTemplate
+
+	return dao.genQ.ConfigTemplate.WithContext(kit.Ctx).
+		Where(m.BizID.Eq(bizID), m.ID.In(ids...)).
 		Find()
 }

@@ -1081,36 +1081,6 @@
             ]
         },
         {
-            "id": "get config templates by ids failed, err: {Err}",
-            "message": "get config templates by ids failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get config templates by names failed, err: {Err}",
-            "message": "get config templates by names failed, err: {Err}",
-            "translation": "根据名称获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
             "id": "get all config templates failed, err: {Err}",
             "message": "get all config templates failed, err: {Err}",
             "translation": "获取所有配置模板失败, err: {Err}",
@@ -1186,32 +1156,9 @@
             ]
         },
         {
-            "id": "get config template by id {Id} failed, err: {Err}",
-            "message": "get config template by id {Id} failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Id",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "id"
-                },
-                {
-                    "id": "Err",
-                    "string": "%[2]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 2,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "list config templates by names failed, err: {Err}",
-            "message": "list config templates by names failed, err: {Err}",
-            "translation": "根据名称列出配置模板失败, err: {Err}",
+            "id": "list config templates by ids failed, err: {Err}",
+            "message": "list config templates by ids failed, err: {Err}",
+            "translation": "根据ID列出配置模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",
@@ -1224,17 +1171,17 @@
             ]
         },
         {
-            "id": "config templates not found for names: {MissingNames}",
-            "message": "config templates not found for names: {MissingNames}",
-            "translation": "以下名称的配置模板未找到: {MissingNames}",
+            "id": "config templates not found for ids: {IdList}",
+            "message": "config templates not found for ids: {IdList}",
+            "translation": "以下ID的配置模板未找到: {IdList}",
             "placeholders": [
                 {
-                    "id": "MissingNames",
-                    "string": "%[1]v",
-                    "type": "[]string",
-                    "underlyingType": "[]string",
+                    "id": "IdList",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
                     "argNum": 1,
-                    "expr": "missingNames"
+                    "expr": "idList"
                 }
             ]
         },
@@ -2013,20 +1960,20 @@
             ]
         },
         {
-            "id": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "message": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "translation": "模板与模板版本不匹配, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
+            "id": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "message": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "translation": "模板与模板版本不匹配, template_id={TemplateID}, template_revision_id={TemplateID_1}",
             "placeholders": [
                 {
-                    "id": "ConfigTemplateId",
+                    "id": "TemplateID",
                     "string": "%[1]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
                     "argNum": 1,
-                    "expr": "req.GetConfigTemplateId()"
+                    "expr": "ct.Attachment.TemplateID"
                 },
                 {
-                    "id": "TemplateID",
+                    "id": "TemplateID_1",
                     "string": "%[2]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
@@ -2731,36 +2678,6 @@
             "id": "list processes by process template IDs failed, err: {Err}",
             "message": "list processes by process template IDs failed, err: {Err}",
             "translation": "根据进程模板ID列出进程失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get proc template failed, err: {Err}",
-            "message": "get proc template failed, err: {Err}",
-            "translation": "获取进程模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get service template failed, err: {Err}",
-            "message": "get service template failed, err: {Err}",
-            "translation": "获取服务模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",
@@ -3605,82 +3522,82 @@
         {
             "id": "Running",
             "message": "Running",
-            "translation": ""
+            "translation": "运行中"
         },
         {
             "id": "PartiallyRunning",
             "message": "PartiallyRunning",
-            "translation": ""
+            "translation": "部分运行中"
         },
         {
             "id": "Starting",
             "message": "Starting",
-            "translation": ""
+            "translation": "启动中"
         },
         {
             "id": "Restarting",
             "message": "Restarting",
-            "translation": ""
+            "translation": "重启中"
         },
         {
             "id": "Stopping",
             "message": "Stopping",
-            "translation": ""
+            "translation": "停止中"
         },
         {
             "id": "Reloading",
             "message": "Reloading",
-            "translation": ""
+            "translation": "重载中"
         },
         {
             "id": "NotRunning",
             "message": "NotRunning",
-            "translation": ""
+            "translation": "未运行"
         },
         {
             "id": "StartingManagement",
             "message": "StartingManagement",
-            "translation": ""
+            "translation": "启动托管"
         },
         {
             "id": "StoppingManagement",
             "message": "StoppingManagement",
-            "translation": ""
+            "translation": "停止托管"
         },
         {
             "id": "Managed",
             "message": "Managed",
-            "translation": ""
+            "translation": "已托管"
         },
         {
             "id": "Unmanaged",
             "message": "Unmanaged",
-            "translation": ""
+            "translation": "未托管"
         },
         {
             "id": "PartiallyManaged",
             "message": "PartiallyManaged",
-            "translation": ""
+            "translation": "部分托管"
         },
         {
             "id": "Normal",
             "message": "Normal",
-            "translation": ""
+            "translation": "正常"
         },
         {
             "id": "Deleted",
             "message": "Deleted",
-            "translation": ""
+            "translation": "已删除"
         },
         {
             "id": "Updated",
             "message": "Updated",
-            "translation": ""
+            "translation": "有更新"
         },
         {
             "id": "Abnormal",
             "message": "Abnormal",
-            "translation": ""
+            "translation": "异常"
         },
         {
             "id": "release {Name} is deprecated, can not be submited",
@@ -5401,82 +5318,82 @@
         {
             "id": "ConfigFile",
             "message": "ConfigFile",
-            "translation": ""
+            "translation": "配置文件"
         },
         {
             "id": "Process",
             "message": "Process",
-            "translation": ""
+            "translation": "进程"
         },
         {
             "id": "Start",
             "message": "Start",
-            "translation": ""
+            "translation": "启动"
         },
         {
             "id": "Stop",
             "message": "Stop",
-            "translation": ""
+            "translation": "停止"
         },
         {
             "id": "Restart",
             "message": "Restart",
-            "translation": ""
+            "translation": "重启"
         },
         {
             "id": "Reload",
             "message": "Reload",
-            "translation": ""
+            "translation": "重载"
         },
         {
             "id": "Kill",
             "message": "Kill",
-            "translation": ""
+            "translation": "强制停止"
         },
         {
             "id": "Register",
             "message": "Register",
-            "translation": ""
+            "translation": "托管"
         },
         {
             "id": "Unregister",
             "message": "Unregister",
-            "translation": ""
+            "translation": "取消托管"
         },
         {
             "id": "ConfigPublish",
             "message": "ConfigPublish",
-            "translation": ""
+            "translation": "配置下发"
         },
         {
             "id": "ConfigGenerate",
             "message": "ConfigGenerate",
-            "translation": ""
+            "translation": "配置生成"
         },
         {
             "id": "ConfigCheck",
             "message": "ConfigCheck",
-            "translation": ""
+            "translation": "配置检查"
         },
         {
             "id": "Executing",
             "message": "Executing",
-            "translation": ""
+            "translation": "正在执行"
         },
         {
             "id": "ExecutionSuccessful",
             "message": "ExecutionSuccessful",
-            "translation": ""
+            "translation": "执行成功"
         },
         {
             "id": "ExecutionFailed",
             "message": "ExecutionFailed",
-            "translation": ""
+            "translation": "执行失败"
         },
         {
             "id": "PartialFailure",
             "message": "PartialFailure",
-            "translation": ""
+            "translation": "部分失败"
         },
         {
             "id": "default_val {DefaultVal} is not a number type",

@@ -1251,40 +1251,6 @@
             "fuzzy": true
         },
         {
-            "id": "get config templates by ids failed, err: {Err}",
-            "message": "get config templates by ids failed, err: {Err}",
-            "translation": "get config templates by ids failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get config templates by names failed, err: {Err}",
-            "message": "get config templates by names failed, err: {Err}",
-            "translation": "get config templates by names failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
             "id": "get all config templates failed, err: {Err}",
             "message": "get all config templates failed, err: {Err}",
             "translation": "get all config templates failed, err: {Err}",
@@ -1370,34 +1336,9 @@
             "fuzzy": true
         },
         {
-            "id": "get config template by id {Id} failed, err: {Err}",
-            "message": "get config template by id {Id} failed, err: {Err}",
-            "translation": "get config template by id {Id} failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Id",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "id"
-                },
-                {
-                    "id": "Err",
-                    "string": "%[2]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 2,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "list config templates by names failed, err: {Err}",
-            "message": "list config templates by names failed, err: {Err}",
-            "translation": "list config templates by names failed, err: {Err}",
+            "id": "list config templates by ids failed, err: {Err}",
+            "message": "list config templates by ids failed, err: {Err}",
+            "translation": "list config templates by ids failed, err: {Err}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
@@ -1412,18 +1353,18 @@
             "fuzzy": true
         },
         {
-            "id": "config templates not found for names: {MissingNames}",
-            "message": "config templates not found for names: {MissingNames}",
-            "translation": "config templates not found for names: {MissingNames}",
+            "id": "config templates not found for ids: {IdList}",
+            "message": "config templates not found for ids: {IdList}",
+            "translation": "config templates not found for ids: {IdList}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
-                    "id": "MissingNames",
-                    "string": "%[1]v",
-                    "type": "[]string",
-                    "underlyingType": "[]string",
+                    "id": "IdList",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
                     "argNum": 1,
-                    "expr": "missingNames"
+                    "expr": "idList"
                 }
             ],
             "fuzzy": true
@@ -2311,21 +2252,21 @@
             "fuzzy": true
         },
         {
-            "id": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "message": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "translation": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
+            "id": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "message": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "translation": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
-                    "id": "ConfigTemplateId",
+                    "id": "TemplateID",
                     "string": "%[1]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
                     "argNum": 1,
-                    "expr": "req.GetConfigTemplateId()"
+                    "expr": "ct.Attachment.TemplateID"
                 },
                 {
-                    "id": "TemplateID",
+                    "id": "TemplateID_1",
                     "string": "%[2]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
@@ -3127,40 +3068,6 @@
             "id": "list processes by process template IDs failed, err: {Err}",
             "message": "list processes by process template IDs failed, err: {Err}",
             "translation": "list processes by process template IDs failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get proc template failed, err: {Err}",
-            "message": "get proc template failed, err: {Err}",
-            "translation": "get proc template failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get service template failed, err: {Err}",
-            "message": "get service template failed, err: {Err}",
-            "translation": "get service template failed, err: {Err}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {

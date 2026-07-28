@@ -200,8 +200,7 @@ func (s *Service) GenerateConfig(ctx context.Context, req *pbds.GenerateConfigRe
 			return nil, err
 		}
 		pluginMode = true
-		logs.Infof("buildConfigTemplateGroups", configTemplateGroups)
-		logs.Infof("pluginMode", pluginMode)
+		logs.Infof("build config template groups by operate range, groups: %v, rid: %s", configTemplateGroups, kt.Rid)
 	} else {
 		configTemplateGroups = req.GetConfigTemplateGroups()
 	}
@@ -245,20 +244,11 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 	// 确定需要下发的配置模版列表
 	var configTemplates []*table.ConfigTemplate
 	if len(operateRange.GetConfigTemplateIds()) > 0 {
-		// 根据配置模版ID查询（预留）
+		// 根据配置模版ID查询
 		configTemplates, err = s.getConfigTemplatesByIDs(kt, bizID, operateRange.GetConfigTemplateIds())
 		if err != nil {
 			logs.Errorf("get config templates by ids failed, err: %v, rid: %s", err, kt.Rid)
-			return nil, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "get config templates by ids failed, err: %v", err))
-		}
-	} else if len(operateRange.GetConfigTemplateNames()) > 0 {
-		// 根据配置模版名称查询（当前插件版本仅支持配置模版名称查询）
-		configTemplates, err = s.getConfigTemplatesByNames(kt, bizID, operateRange.GetConfigTemplateNames())
-		if err != nil {
-			logs.Errorf("get config templates by names failed, err: %v, rid: %s", err, kt.Rid)
-			return nil, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "get config templates by names failed, err: %v", err))
+			return nil, err
 		}
 	} else {
 		// 未指定则下发所有配置模版
@@ -336,73 +326,74 @@ func (s *Service) getAllConfigTemplates(kt *kit.Kit, bizID uint32) ([]*table.Con
 	return configTemplates, nil
 }
 
-// getConfigTemplatesByIDs 根据配置模版ID列表批量获取配置模版
+// getConfigTemplatesByIDs 根据配置模版ID列表批量获取配置模版，
+// 存在查不到的ID（如模版已被删除）时报错并列出全部缺失ID，不做部分执行。
 func (s *Service) getConfigTemplatesByIDs(kt *kit.Kit, bizID uint32, ids []uint32) ([]*table.ConfigTemplate, error) {
-	if len(ids) == 0 {
+	uniqueIDs := dedupConfigTemplateIDs(ids)
+	if len(uniqueIDs) == 0 {
 		return []*table.ConfigTemplate{}, nil
 	}
 
-	// 对输入的ID进行去重
-	uniqueIDs := make(map[uint32]struct{}, len(ids))
-	for _, id := range ids {
-		uniqueIDs[id] = struct{}{}
+	configTemplates, err := s.dao.ConfigTemplate().ListByIDs(kt, bizID, uniqueIDs)
+	if err != nil {
+		return nil, errf.Errorf(errf.DBOpFailed, "%s",
+			i18n.T(kt, "list config templates by ids failed, err: %v", err))
 	}
 
-	// 批量查询配置模版
-	configTemplates := make([]*table.ConfigTemplate, 0, len(uniqueIDs))
-	for id := range uniqueIDs {
-		configTemplate, err := s.dao.ConfigTemplate().GetByID(kt, bizID, id)
-		if err != nil {
-			return nil, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "get config template by id %d failed, err: %v", id, err))
-		}
-		configTemplates = append(configTemplates, configTemplate)
+	if missingIDs := missingConfigTemplateIDs(uniqueIDs, configTemplates); len(missingIDs) > 0 {
+		logs.Warnf("some config template ids not found, missing ids: %v, rid: %s", missingIDs, kt.Rid)
+		idList := joinConfigTemplateIDs(missingIDs)
+		return nil, errf.Errorf(errf.RecordNotFound, "%s",
+			i18n.T(kt, "config templates not found for ids: %s", idList))
 	}
 
 	return configTemplates, nil
 }
 
-// getConfigTemplatesByNames 根据配置模版名称列表获取配置模版
-func (s *Service) getConfigTemplatesByNames(kt *kit.Kit, bizID uint32, names []string) ([]*table.ConfigTemplate, error) {
-	if len(names) == 0 {
-		return []*table.ConfigTemplate{}, nil
-	}
-
-	// 对输入的名称进行去重
-	uniqueNames := make(map[string]struct{}, len(names))
-	for _, name := range names {
-		uniqueNames[name] = struct{}{}
-	}
-
-	// 根据名称查询配置模版
-	configTemplates, err := s.dao.ConfigTemplate().ListByNames(kt, bizID, names)
-	if err != nil {
-		return nil, errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kt, "list config templates by names failed, err: %v", err))
-	}
-
-	// 验证是否所有名称都找到了对应的配置模版
-	if len(configTemplates) != len(uniqueNames) {
-		foundNames := make(map[string]struct{}, len(configTemplates))
-		for _, ct := range configTemplates {
-			foundNames[ct.Spec.Name] = struct{}{}
+// dedupConfigTemplateIDs 去重并保持入参顺序，剔除无效的 0 值。
+func dedupConfigTemplateIDs(ids []uint32) []uint32 {
+	seen := make(map[uint32]struct{}, len(ids))
+	uniqueIDs := make([]uint32, 0, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			continue
 		}
-
-		missingNames := make([]string, 0)
-		for name := range uniqueNames {
-			if _, found := foundNames[name]; !found {
-				missingNames = append(missingNames, name)
-			}
+		if _, ok := seen[id]; ok {
+			continue
 		}
+		seen[id] = struct{}{}
+		uniqueIDs = append(uniqueIDs, id)
+	}
+	return uniqueIDs
+}
 
-		if len(missingNames) > 0 {
-			logs.Warnf("some config template names not found, missing names: %v, rid: %s", missingNames, kt.Rid)
-			return nil, errf.Errorf(errf.RecordNotFound, "%s",
-				i18n.T(kt, "config templates not found for names: %v", missingNames))
+// missingConfigTemplateIDs 返回请求了但未查到的配置模版ID，顺序与请求顺序一致。
+func missingConfigTemplateIDs(requested []uint32, found []*table.ConfigTemplate) []uint32 {
+	existing := make(map[uint32]struct{}, len(found))
+	for _, ct := range found {
+		if ct == nil {
+			continue
+		}
+		existing[ct.ID] = struct{}{}
+	}
+
+	missingIDs := make([]uint32, 0)
+	for _, id := range requested {
+		if _, ok := existing[id]; !ok {
+			missingIDs = append(missingIDs, id)
 		}
 	}
+	return missingIDs
+}
 
-	return configTemplates, nil
+// joinConfigTemplateIDs 把ID拼成字符串再交给 i18n，避免 i18n 按语言给数字加千分位分隔符，
+// 使 999817 被渲染成 999,817 而看起来像两个ID。
+func joinConfigTemplateIDs(ids []uint32) string {
+	strs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		strs = append(strs, strconv.FormatUint(uint64(id), 10))
+	}
+	return strings.Join(strs, ", ")
 }
 
 // getFilteredProcesses 获取过滤后的进程列表
