@@ -1153,7 +1153,7 @@ func (s *Service) BatchUpdateTemplatePermissions(ctx context.Context, req *pbds.
 	tmps, err := s.dao.TemplateRevision().ListLatestRevisionsGroupByTemplateIds(kt, templateIds)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kt, fmt.Sprintf("lists the latest version by template ids failed, err: %s", err.Error())))
+			"%s", i18n.T(kt, "lists the latest version by template ids failed, err: %s", err.Error()))
 	}
 
 	now := time.Now().UTC()
@@ -1190,18 +1190,12 @@ func (s *Service) BatchUpdateTemplatePermissions(ctx context.Context, req *pbds.
 	if err := s.dao.Template().BatchUpdateTimeTx(kt, tx, req.TemplateIds); err != nil {
 		logs.Errorf("batch update template time failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kt, fmt.Sprintf("batch update of template permissions failed, err: %s", err.Error())))
+			"%s", i18n.T(kt, "batch update of template permissions failed, err: %s", err.Error()))
 	}
 	if err := s.dao.TemplateRevision().BatchCreateWithTx(kt, tx, toCreate); err != nil {
 		logs.Errorf("batch create template revisions failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kt, fmt.Sprintf("batch update of template permissions failed, err: %s", err.Error())))
-	}
-
-	if err := s.dao.TemplateRevision().BatchCreateWithTx(kt, tx, toCreate); err != nil {
-		logs.Errorf("batch create template revisions failed, err: %v, rid: %s", err, kt.Rid)
-		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kt, fmt.Sprintf("batch update of template permissions failed, err: %s", err.Error())))
+			"%s", i18n.T(kt, "batch update of template permissions failed, err: %s", err.Error()))
 	}
 
 	ids := []uint32{}
@@ -1219,7 +1213,7 @@ func (s *Service) BatchUpdateTemplatePermissions(ctx context.Context, req *pbds.
 		if err != nil {
 			logs.Errorf("list app template bindings by app ids failed, err: %v, rid: %s", err, kt.Rid)
 			return nil, errf.Errorf(errf.DBOpFailed,
-				i18n.T(kt, "list app template bindings by app ids failed, err: %s", err))
+				"%s", i18n.T(kt, "list app template bindings by app ids failed, err: %s", err))
 		}
 		for _, item := range items {
 			templateRevisionIDs := make([]uint32, 0, len(item.Spec.Bindings))
@@ -1246,14 +1240,14 @@ func (s *Service) BatchUpdateTemplatePermissions(ctx context.Context, req *pbds.
 		if err := s.dao.AppTemplateBinding().BatchUpdateWithTx(kt, tx, items); err != nil {
 			logs.Errorf("batch update app template bindings failed, err: %v, rid: %s", err, kt.Rid)
 			return nil, errf.Errorf(errf.DBOpFailed,
-				i18n.T(kt, fmt.Sprintf("batch update of template permissions failed, err: %s", err.Error())))
+				"%s", i18n.T(kt, "batch update of template permissions failed, err: %s", err.Error()))
 		}
 	}
 
 	if e := tx.Commit(); e != nil {
 		logs.Errorf("commit transaction failed, err: %v, rid: %s", e, kt.Rid)
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kt, fmt.Sprintf("batch update of template permissions failed, err: %s", e.Error())))
+			"%s", i18n.T(kt, "batch update of template permissions failed, err: %s", e.Error()))
 	}
 	committed = true
 
