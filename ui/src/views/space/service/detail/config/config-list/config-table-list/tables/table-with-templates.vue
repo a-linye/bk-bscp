@@ -897,7 +897,8 @@
   };
 
   const handleDeleteConfigConfirm = async () => {
-    await deleteServiceConfigItem(operationConfig.value!.config.id, props.bkBizId, props.appId);
+    const { bkBizId, appId, projectId, envId } = props;
+    await deleteServiceConfigItem(operationConfig.value!.config.id, bkBizId, appId, projectId, envId);
     Message({
       theme: 'success',
       message: t('删除配置文件成功'),

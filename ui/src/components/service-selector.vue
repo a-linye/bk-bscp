@@ -133,6 +133,8 @@
   watch(() => props.envId, (val) => {
     if (val) {
       initService();
+    } else {
+      serviceList.value = [];
     }
   }, {
     immediate: true

@@ -121,6 +121,7 @@
   const {
     bscpVersion,
     spaceId,
+    projectId,
     spaceFeatureFlags,
     showPermApplyPage,
     appGlobalConfig,
@@ -259,12 +260,12 @@
       const lastAccessedServiceDetail = localStorage.getItem('lastAccessedServiceDetail');
       if (lastAccessedServiceDetail) {
         const detail = JSON.parse(lastAccessedServiceDetail);
-        if (detail.spaceId === spaceId.value) {
+        const { spaceId: lastSpaceId, projectId: sPId, envId, appId } = detail;
+        if (lastSpaceId === spaceId.value && sPId === projectId.value) {
           const routeName = navId === 'service-all' && !showPermApplyPage.value ? 'service-config' : (navId as RouteRecordName);
-          const { spaceId, projectId, envId, appId } = detail;
           router.push({
             name: routeName,
-            params: { spaceId, projectId, envId, appId },
+            params: { spaceId: lastSpaceId, projectId: sPId, envId, appId },
           });
           return;
         }

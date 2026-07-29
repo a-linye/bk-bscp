@@ -66,34 +66,47 @@ export const getReleasedConfigList = (
 
 /**
  * 新增配置
- * @param app_id 服务ID
  * @param biz_id 业务ID
+ * @param app_id 服务ID
+ * @param projectId 项目ID
+ * @param envId 环境ID
  * @param params 配置参数内容
  * @returns
  */
-export const createServiceConfigItem = (app_id: number, biz_id: string, params: IConfigEditParams) =>
-  http.post(`/config/create/config_item/config_item/app_id/${app_id}/biz_id/${biz_id}`, params);
+export const createServiceConfigItem = (
+  biz_id: string,
+  app_id: number,
+  projectId: string,
+  envId: string,
+  params: IConfigEditParams) =>
+  http.post(`/config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/${app_id}/config_items`, params);
 
 /**
  * 更新配置
  * @param id 配置ID
- * @param app_id 服务ID
  * @param biz_id 业务ID
+ * @param app_id 服务ID
+ * @param projectId 项目ID
+ * @param envId 环境ID
  * @param params 配置参数内容
  * @returns
  */
-export const updateServiceConfigItem = (id: number, app_id: number, biz_id: string, params: IConfigEditParams) =>
-  http.put(`/config/update/config_item/config_item/config_item_id/${id}/app_id/${app_id}/biz_id/${biz_id}`, params);
+export const updateServiceConfigItem = (
+  id: number, biz_id: string, app_id: number, projectId: string, envId: string, params: IConfigEditParams,
+) =>
+  http.put(`/config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/${app_id}/config_items/${id}`, params);
 
 /**
  * 删除非模板配置
  * @param id 配置ID
  * @param bizId 业务ID
  * @param appId 应用ID
+ * @param projectId 项目ID
+ * @param envId 环境ID
  * @returns
  */
-export const deleteServiceConfigItem = (id: number, bizId: string, appId: number) =>
-  http.delete(`/config/delete/config_item/config_item/config_item_id/${id}/app_id/${appId}/biz_id/${bizId}`, {});
+export const deleteServiceConfigItem = (id: number, bizId: string, appId: number, projectId: string, envId: string) =>
+  http.delete(`/config/biz/${bizId}/projects/${projectId}/envs/${envId}/apps/${appId}/config_items/${id}`, {});
 
 /**
  * 批量删除非模板配置
@@ -229,6 +242,8 @@ export const getConfigUploadFileIsExist = (bizId: string, appId: number, signatu
  * 创建配置版本
  * @param bizId 业务ID
  * @param appId 应用ID
+ * @param projectId 项目ID
+ * @param envId 环境ID
  * @param params 请求参数
  * @returns
  */
@@ -237,8 +252,10 @@ interface ICreateVersionParams {
   memo: string;
   variables: IVariableEditParams[];
 }
-export const createVersion = (bizId: string, appId: number, params: ICreateVersionParams) =>
-  http.post(`/config/create/release/release/app_id/${appId}/biz_id/${bizId}`, params);
+export const createVersion = (
+  bizId: string, appId: number, projectId: string, envId: string, params: ICreateVersionParams,
+) =>
+  http.post(`/config/biz/${bizId}/projects/${projectId}/envs/${envId}/apps/${appId}/releases`, params);
 
 /**
  * 废弃版本

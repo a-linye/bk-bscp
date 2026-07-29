@@ -155,15 +155,16 @@
       pending.value = true;
       const sign = await formRef.value.getSignature();
       let size = 0;
+      const { configId, bkBizId, appId, projectId, envId } = props;
       if (configForm.value.file_type === 'binary') {
         size = Number((content.value as IFileConfigContentSummary).size);
       } else {
         const stringContent = content.value as string;
         size = new Blob([stringContent]).size;
-        await updateConfigContent(props.bkBizId, props.appId, stringContent, sign);
+        await updateConfigContent(bkBizId, appId, stringContent, sign);
       }
       const params = { ...configForm.value, ...{ sign, byte_size: size } };
-      await updateServiceConfigItem(props.configId, props.appId, props.bkBizId, params);
+      await updateServiceConfigItem(configId, bkBizId, appId, projectId, envId, params);
       emits('confirm');
       close();
       Message({

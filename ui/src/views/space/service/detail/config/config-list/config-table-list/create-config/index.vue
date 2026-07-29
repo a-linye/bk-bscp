@@ -57,7 +57,7 @@
     @confirm="emits('imported')" />
 </template>
 <script lang="ts" setup>
-  import { onMounted, ref } from 'vue';
+  import { ref, watch } from 'vue';
   import { useRoute } from 'vue-router';
   import { AngleDown } from 'bkui-vue/lib/icon';
   import { storeToRefs } from 'pinia';
@@ -91,12 +91,20 @@
   const isBatchImportDialogOpen = ref(false);
   const isBatchImportKvDialogOpen = ref(false);
 
-  onMounted(() => {
-    const {pkg_id, isOpenDialog} = route.query;
-    if (hasEditServicePerm.value && pkg_id && isOpenDialog === '1') {
-      isBatchImportDialogOpen.value = true;
-    }
-  });
+  const { pkg_id, isOpenDialog } = route.query;
+
+  // 权限校验为异步接口，权限结果回来前 hasEditServicePerm 仍为非最新值。
+  // 改为监听 permCheckLoading，待校验结束（loading 为 false）后再决定是否自动打开弹窗，
+  // 避免 onMounted 读取时机过早导致偶发不弹窗。
+  watch(
+    () => permCheckLoading.value,
+    (loading) => {
+      if (!loading && hasEditServicePerm.value && pkg_id && isOpenDialog === '1') {
+        isBatchImportDialogOpen.value = true;
+      }
+    },
+    { immediate: true },
+  );
 
   const handleManualCreateSlideOpen = () => {
     buttonRef.value.hide();

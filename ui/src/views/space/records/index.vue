@@ -110,6 +110,7 @@
     } else {
       isRecord.value = true;
       envId.value = '';
+      appId.value = '';
       await router.push({
         name: 'records-all',
         query

@@ -100,18 +100,19 @@
       pending.value = true;
       const sign = await formRef.value.getSignature();
       let size = 0;
+      const { bkBizId, appId, envId } = props;
       if (configForm.value.file_type === 'binary') {
         size = Number((content.value as IFileConfigContentSummary).size);
       } else {
         const stringContent = content.value as string;
         size = new Blob([stringContent]).size;
-        await updateConfigContent(props.bkBizId, props.appId, stringContent, sign, () => {});
+        await updateConfigContent(bkBizId, appId, stringContent, sign, () => {});
       }
       if (configForm.value.path?.endsWith('/') && configForm.value.path !== '/') {
         configForm.value.path = configForm.value.path.slice(0, -1);
       }
       const params = { ...configForm.value, ...{ sign, byte_size: size } };
-      const res = await createServiceConfigItem(props.appId, props.bkBizId, params);
+      const res = await createServiceConfigItem(bkBizId, appId, projectId.value, envId, params);
       serviceStore.$patch((state) => {
         state.topIds = [res.data.id];
       });
