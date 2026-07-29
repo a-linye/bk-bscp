@@ -28,7 +28,9 @@ render/python/build/
 .codex
 
 ### Local Agent Skills ###
-.agents/skills/
+.agents/skills/*
+!.agents/skills/bscp-file-config/
+!.agents/skills/bscp-kv-config/
 
 **/.graphify_root
 **/.graphify_python
