@@ -39,19 +39,20 @@ func (p *proxy) CheckDefaultTmplSpace(next http.Handler) http.Handler {
 			return
 		}
 		bizID := uint32(bizIDInt)
-		if bizsOfTS.Has(bizID) {
+		kt := kit.MustGetKit(r.Context())
+		// 默认模板空间按 业务+项目 维度判断是否已创建，命中缓存直接放行
+		if bizsOfTS.Has(bizID, kt.ProjectID) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		kt := kit.MustGetKit(r.Context())
 		// create default template space when not existent
-		in := &pbcs.CreateDefaultTmplSpaceReq{BizId: bizID}
+		in := &pbcs.CreateDefaultTmplSpaceReq{BizId: bizID, ProjectId: kt.ProjectID}
 		if _, err := p.cfgClient.CreateDefaultTmplSpace(kt.RpcCtx(), in); err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
-		bizsOfTS.Set(bizID)
+		bizsOfTS.Set(bizID, kt.ProjectID)
 
 		next.ServeHTTP(w, r)
 	})

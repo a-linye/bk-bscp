@@ -140,6 +140,7 @@ func (p *proxy) routers() http.Handler {
 				})
 				// 模版空间相关
 				r.Route("/template_spaces", func(r chi.Router) {
+					r.Use(p.CheckDefaultTmplSpace) // 没有默认模版空间则创建
 					r.Mount("/", p.cfgSvrMux)
 					r.Route("/{template_space_id}", func(r chi.Router) {
 						r.Use(p.TemplateSpaceProjectVerified) // 校验 TemplateSpace 归属于该项目

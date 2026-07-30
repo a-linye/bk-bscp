@@ -13,9 +13,12 @@
 package dao
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/go-sql-driver/mysql"
 	rawgen "gorm.io/gen"
+	"gorm.io/gorm"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
@@ -417,10 +420,28 @@ func (dao *templateSpaceDao) CreateDefault(kit *kit.Kit, bizID, projectID uint32
 		return nil
 	}
 	if err := dao.genQ.Transaction(createTx); err != nil {
+		// 并发场景下多个请求可能同时通过前置查询，template_spaces 的唯一索引
+		// (tenant_id, biz_id, project_id, name) 会让后到的事务报重复键错误；
+		// 此时默认空间已由先到的请求创建成功，按幂等处理回查并返回已有记录
+		if isDuplicateKeyError(err) {
+			tmplSpace, getErr := dao.GetByUniqueKey(kit, bizID, projectID, constant.DefaultTmplSpaceCNName)
+			if getErr == nil {
+				return tmplSpace.ID, nil
+			}
+		}
 		return 0, err
 	}
 
 	return g.ID, nil
+}
+
+// isDuplicateKeyError 判断是否为唯一键冲突错误
+func isDuplicateKeyError(err error) bool {
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }
 
 // GetByUniqueKey get template space by unique key
