@@ -33063,6 +33063,15 @@
         },
         "deprecated": {
           "type": "boolean"
+        },
+        "envDisplay": {
+          "type": "string",
+          "description": "环境名称+环境类型"
+        },
+        "envId": {
+          "type": "integer",
+          "format": "int64",
+          "description": "环境ID"
         }
       }
     },

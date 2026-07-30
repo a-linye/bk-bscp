@@ -357,8 +357,8 @@ func (s *Service) UpdateHookRevision(ctx context.Context, req *pbds.UpdateHookRe
 }
 
 // ListHookRevisionReferences ..
-func (s *Service) ListHookRevisionReferences(ctx context.Context,
-	req *pbds.ListHookRevisionReferencesReq) (*pbds.ListHookRevisionReferencesResp, error) {
+func (s *Service) ListHookRevisionReferences(ctx context.Context, req *pbds.ListHookRevisionReferencesReq) (
+	*pbds.ListHookRevisionReferencesResp, error) {
 
 	kt := kit.FromGrpcContext(ctx)
 
@@ -380,9 +380,24 @@ func (s *Service) ListHookRevisionReferences(ctx context.Context,
 		return nil, err
 	}
 
+	// get app env details
+	appIDs := make([]uint32, 0, len(results))
+	for _, result := range results {
+		appIDs = append(appIDs, result.AppID)
+	}
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		logs.Errorf("list apps by ids failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
+	appMap := make(map[uint32]*table.App, len(apps))
+	for _, a := range apps {
+		appMap[a.ID] = a
+	}
+
 	details := make([]*pbds.ListHookRevisionReferencesResp_Detail, 0, len(results))
 	for _, result := range results {
-		details = append(details, &pbds.ListHookRevisionReferencesResp_Detail{
+		detail := &pbds.ListHookRevisionReferencesResp_Detail{
 			RevisionId:   result.RevisionID,
 			RevisionName: result.RevisionName,
 			AppId:        result.AppID,
@@ -391,7 +406,13 @@ func (s *Service) ListHookRevisionReferences(ctx context.Context,
 			ReleaseName:  result.ReleaseName,
 			Type:         result.HookType,
 			Deprecated:   result.Deprecated,
-		})
+		}
+		// 可能查不到 app（如已删除），此时保持环境字段为零值
+		if app, ok := appMap[result.AppID]; ok && app.Spec != nil {
+			detail.EnvDisplay = app.Spec.EnvDisplay
+			detail.EnvId = app.EnvID
+		}
+		details = append(details, detail)
 	}
 
 	resp := &pbds.ListHookRevisionReferencesResp{

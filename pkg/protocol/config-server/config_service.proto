@@ -3375,6 +3375,9 @@ message ListHookRevisionReferencesResp {
       description: "前/后置脚本：(pre_hook、post_hook)"
     }];
     bool deprecated = 8;
+    string env_display = 9
+        [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境名称+环境类型" }];
+    uint32 env_id = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
   }
   uint32 count = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "总数" }];
   repeated Detail details = 2;
