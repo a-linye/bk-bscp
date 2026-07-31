@@ -66,6 +66,7 @@
       appName: rule.spec.app,
       scopeContent: rule.spec.scope,
       index,
+      envId: rule.spec.env_id,
     };
     emits('update:previewRule', previewRule);
   };
