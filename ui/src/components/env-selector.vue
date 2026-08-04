@@ -45,7 +45,7 @@
       :label="group.name"
       collapsible>
       <template #label>
-        <div class="env-group-label" @click.stop="toggleGroupCollapse(group.type)">
+        <div class="env-group-label" @click="toggleGroupCollapse(group.type)">
           <AngleUpFill class="collapse-icon" :class="{ 'is-collapsed': collapsedGroups[group.type] }" />
           <div
             class="group-name"
@@ -60,7 +60,7 @@
           </div>
         </div>
       </template>
-      <template v-if="!collapsedGroups[group.type]">
+      <div v-show="!collapsedGroups[group.type]">
         <bk-option
           v-for="env in group.envs"
           :key="env.id"
@@ -68,7 +68,7 @@
           :name="env.spec?.name || ''"
           :disabled="props.disabledEnvIds?.includes(String(env.id))">
         </bk-option>
-      </template>
+      </div>
     </bk-option-group>
     <!-- 底部操作 -->
     <template #extension>
@@ -348,6 +348,9 @@
   .env-selector-popover {
     border-radius: 4px !important;
     box-shadow: 0 2px 4px 0 #1919290d !important;
+    .bk-select-content-wrapper .bk-option-group-label {
+      padding: 0 !important;
+    }
     .bk-select-option {
       padding: 0 12px !important;
     }
@@ -371,6 +374,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      width: 100%;
+      padding: 0 8px;
       cursor: pointer;
       .collapse-icon {
         color: #979ba5;

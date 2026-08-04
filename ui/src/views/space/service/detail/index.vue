@@ -87,6 +87,8 @@
 
   onMounted(() => {
     getPermData();
+    getAppData();
+    setLastAccessedServiceDetail();
   });
 
   onBeforeUnmount(() => {
@@ -135,19 +137,6 @@
   const setLastAccessedServiceDetail = () => {
     localStorage.setItem('lastAccessedServiceDetail', JSON.stringify({ spaceId: bkBizId.value, projectId: projectId.value, envId: envId.value, appId: appId.value }));
   };
-
-  watch(
-    () => envId.value,
-    (val) => {
-      if (val) {
-        getAppData();
-        setLastAccessedServiceDetail();
-      }
-    },
-    {
-      immediate: true
-    }
-  );
 
   // 切换视图
   const handleToggleView = () => {
