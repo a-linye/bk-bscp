@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	bkiam "github.com/TencentBlueKing/iam-go-sdk"
 	"github.com/pkg/errors"
@@ -29,6 +30,10 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/meta"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/sdk/auth"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/sys"
+	adaptorv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/adaptor"
+	authv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/auth"
+	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
+	"github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/model"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbas "github.com/TencentBlueKing/bk-bscp/pkg/protocol/auth-server"
@@ -71,7 +76,19 @@ type Auth struct {
 	// spaceMgr defines space manager
 	spaceMgr *space.Manager
 	iamCli   IAMClientGetter
+	// v4 权限中心 V4 的鉴权器
+	v4 *authv4.Authorizer
+	// v4Cli V4 网关客户端，用于生成权限申请链接与创建者授权
+	v4Cli v4Gateway
 }
+
+// v4Gateway 是本包用到的 V4 网关能力。
+type v4Gateway interface {
+	AddAuthorizations(kt *kit.Kit, operator string, items []clientv4.Authorization) error
+	GeneratePermApplyURL(kt *kit.Kit, permissions []clientv4.ApplyPermission) (string, error)
+}
+
+var _ v4Gateway = (*clientv4.Client)(nil)
 
 // NewAuth new auth.
 func NewAuth(auth auth.Authorizer, ds pbds.DataClient, disableAuth bool, iamCli IAMClientGetter,
@@ -101,6 +118,24 @@ func NewAuth(auth auth.Authorizer, ds pbds.DataClient, disableAuth bool, iamCli 
 	return i, nil
 }
 
+// WithIAMV4 启用权限中心 V4：鉴权、申请链接与创建者授权改走 V4 实现。
+func (a *Auth) WithIAMV4(cli *clientv4.Client, cfg authv4.Config) error {
+	authorizer, err := authv4.NewAuthorizer(cli, cfg)
+	if err != nil {
+		return err
+	}
+
+	a.v4 = authorizer
+	a.v4Cli = cli
+
+	return nil
+}
+
+// useV4 判断当前是否走 V4 实现。
+func (a *Auth) useV4() bool {
+	return a.v4 != nil
+}
+
 // AuthorizeBatch authorize resource batch.
 func (a *Auth) AuthorizeBatch(ctx context.Context, req *pbas.AuthorizeBatchReq) (*pbas.AuthorizeBatchResp, error) {
 	kt := kit.FromGrpcContext(ctx)
@@ -124,6 +159,10 @@ func (a *Auth) AuthorizeBatch(ctx context.Context, req *pbas.AuthorizeBatchReq) 
 	// 	}
 	// 	return resp, nil
 	// }
+
+	if a.useV4() {
+		return a.authorizeBatchV4(kt, req)
+	}
 
 	// parse bscp resource to iam resource
 	resources := pbas.ResourceAttributes(req.Resources)
@@ -163,6 +202,25 @@ func (a *Auth) AuthorizeBatch(ctx context.Context, req *pbas.AuthorizeBatchReq) 
 
 	resp.Decisions = pbas.PbDecisions(decisions)
 	return resp, nil
+}
+
+// authorizeBatchV4 走权限中心 V4 的批量鉴权。
+func (a *Auth) authorizeBatchV4(kt *kit.Kit, req *pbas.AuthorizeBatchReq) (
+	*pbas.AuthorizeBatchResp, error) {
+
+	// 此处不校验用户名。feed-server 处理 sidecar 请求时使用应用凭证而非用户身份，
+	// 用户名为空且相关资源无需鉴权，用户名是否必需交由 V4 鉴权器在资源映射后判断。
+	user := req.GetUser().GetUserName()
+	resources := pbas.ResourceAttributes(req.Resources)
+
+	decisions, err := a.v4.AuthorizeBatch(kt, user, resources...)
+	if err != nil {
+		logs.Errorf("iam v4 authorize batch failed, user: %s, resource count: %d, err: %v, rid: %s",
+			user, len(resources), err, kt.Rid)
+		return nil, err
+	}
+
+	return &pbas.AuthorizeBatchResp{Decisions: pbas.PbDecisions(decisions)}, nil
 }
 
 func (a *Auth) isWriteOperationDisabled(kt *kit.Kit, resources []*pbas.ResourceAttribute) error {
@@ -258,19 +316,67 @@ func (a *Auth) GetPermissionToApply(ctx context.Context, req *pbas.GetPermission
 	}
 
 	resourceAttributes := pbas.ResourceAttributes(req.Resources)
-	application, err := AdaptIAMApplicationOptions(resourceAttributes)
+
+	url, err := a.genApplyURL(kt, resourceAttributes)
 	if err != nil {
 		return nil, err
-	}
-
-	url, err := a.iamCli(kt.TenantID).GetApplyURL(*application)
-	if err != nil {
-		return nil, errors.Wrap(err, "gen apply url")
 	}
 	resp.ApplyUrl = url
 
 	resp.Permission = pbas.PbIamPermission(permission)
 	return resp, nil
+}
+
+// genApplyURL 生成无权限时的申请链接。
+func (a *Auth) genApplyURL(kt *kit.Kit, resources []*meta.ResourceAttribute) (string, error) {
+	if a.useV4() {
+		return a.genApplyURLV4(kt, resources)
+	}
+
+	application, err := AdaptIAMApplicationOptions(resources)
+	if err != nil {
+		return "", err
+	}
+
+	url, err := a.iamCli(kt.TenantID).GetApplyURL(*application)
+	if err != nil {
+		return "", errors.Wrap(err, "gen apply url")
+	}
+
+	return url, nil
+}
+
+// genApplyURLV4 用 V4 的接口生成申请链接。
+func (a *Auth) genApplyURLV4(kt *kit.Kit, resources []*meta.ResourceAttribute) (string, error) {
+	permissions := make([]clientv4.ApplyPermission, 0, len(resources))
+
+	for _, res := range resources {
+		mapped, err := adaptorv4.Adapt(res)
+		if err != nil {
+			return "", err
+		}
+
+		// 不做权限控制的资源不需要申请。
+		if mapped.Skip {
+			continue
+		}
+
+		permissions = append(permissions, clientv4.ApplyPermission{
+			ActionID:  mapped.ActionID,
+			Resources: mapped.ApplyResource(),
+		})
+	}
+
+	if len(permissions) == 0 {
+		return "", nil
+	}
+
+	url, err := a.v4Cli.GeneratePermApplyURL(kt, permissions)
+	if err != nil {
+		return "", errors.Wrap(err, "gen iam v4 apply url")
+	}
+
+	return url, nil
 }
 
 func (a *Auth) getPermissionToApply(kt *kit.Kit, resources []*meta.ResourceAttribute) (*meta.IamPermission, error) {
@@ -446,7 +552,91 @@ func (a *Auth) getInstIDNameMap(kt *kit.Kit, resTypeIDsMap map[client.TypeID][]s
 	return nameMap, nil
 }
 
-// GrantResourceCreatorAction grant resource creator action.
-func (a *Auth) GrantResourceCreatorAction(ctx context.Context, opts *client.GrantResourceCreatorActionOption) error {
+// GrantResourceCreatorAction 把新建资源的权限授予创建者，按运行时配置分发到 V3 或 V4。
+func (a *Auth) GrantResourceCreatorAction(ctx context.Context,
+	opts *client.GrantResourceCreatorActionOption) error {
+
+	if a.useV4() {
+		return a.grantResourceCreatorActionV4(kit.FromGrpcContext(ctx), opts)
+	}
+
 	return a.auth.GrantResourceCreatorAction(ctx, opts)
+}
+
+// creatorGrantDuration 是创建者授权的有效期。
+const creatorGrantDuration = 365 * 24 * time.Hour
+
+// grantResourceCreatorActionV4 用 V4 的 add_authorization 授予创建者权限。
+func (a *Auth) grantResourceCreatorActionV4(kt *kit.Kit,
+	opts *client.GrantResourceCreatorActionOption) error {
+
+	if opts == nil {
+		return errf.New(errf.InvalidParameter, "creator action option is nil")
+	}
+
+	// 目前只有服务需要创建者授权，与 V3 注册的 ResourceCreatorAction 范围一致。
+	if opts.Type != sys.Application {
+		return errf.New(errf.InvalidParameter,
+			fmt.Sprintf("unsupported resource type for creator grant: %s", opts.Type))
+	}
+
+	if opts.Creator == "" {
+		return errf.New(errf.InvalidParameter, "creator is not set")
+	}
+
+	bizID := bizIDFromAncestors(opts.Ancestors)
+	if bizID == "" {
+		return errf.New(errf.InvalidParameter, "biz id is missing in ancestors")
+	}
+
+	subject := clientv4.NewUserSubject(opts.Creator)
+	expiredAt := time.Now().Add(creatorGrantDuration).Unix()
+
+	// 必须拆成两条：一次 add_authorization 仅授予 related_resource_type_id 指定的单个
+	// 授权维度。若只授 app 维度，角色内 biz 维度的 find_business_resource 不会生效；
+	// BSCP 每个业务接口都有业务访问前置校验，该操作缺失时创建者对新服务的所有操作都会被拒绝。
+	items := []clientv4.Authorization{
+		{
+			Subject:               subject,
+			RoleID:                model.RoleAppOperator,
+			RelatedResourceTypeID: model.ResourceTypeApp,
+			Resources: []clientv4.ResourceRef{
+				{Type: model.ResourceTypeApp, ID: opts.ID},
+			},
+			ExpiredAt: expiredAt,
+		},
+		{
+			Subject:               subject,
+			RoleID:                model.RoleAppOperator,
+			RelatedResourceTypeID: model.ResourceTypeBiz,
+			Resources: []clientv4.ResourceRef{
+				{Type: model.ResourceTypeBiz, ID: bizID},
+			},
+			ExpiredAt: expiredAt,
+		},
+	}
+
+	// 操作人取创建者：该授权由创建资源的行为直接触发，并非管理员代为授权。
+	if err := a.v4Cli.AddAuthorizations(kt, opts.Creator, items); err != nil {
+		logs.Errorf("iam v4 grant creator action failed, creator: %s, app: %s, biz: %s, "+
+			"err: %v, rid: %s", opts.Creator, opts.ID, bizID, err, kt.Rid)
+		return err
+	}
+
+	logs.Infof("iam v4 granted %s to creator %s on app %s and biz %s, rid: %s",
+		model.RoleAppOperator, opts.Creator, opts.ID, bizID, kt.Rid)
+
+	return nil
+}
+
+// bizIDFromAncestors 从祖先列表里取业务 ID。
+// V4 的资源类型不带 system 维度，因此只按类型匹配，忽略 Ancestor.System。
+func bizIDFromAncestors(ancestors []client.GrantResourceCreatorActionAncestor) string {
+	for _, ancestor := range ancestors {
+		if ancestor.Type == sys.Business {
+			return ancestor.ID
+		}
+	}
+
+	return ""
 }
