@@ -344,8 +344,20 @@ func (rs RedisCluster) validate() error {
 	return nil
 }
 
+// IAMVersion 标识使用哪一版权限中心。
+type IAMVersion string
+
+const (
+	// IAMVersionV3 权限中心 V3，默认值。
+	IAMVersionV3 IAMVersion = "v3"
+	// IAMVersionV4 权限中心 V4。
+	IAMVersionV4 IAMVersion = "v4"
+)
+
 // IAM defines all the iam related runtime.
 type IAM struct {
+	// Version 使用的权限中心版本，取值 v3 或 v4，为空时按 v3 处理
+	Version IAMVersion `yaml:"version"`
 	// IAM api url.
 	APIURL string `yaml:"api_url"`
 	// AppCode blueking belong to bscp's appcode.
@@ -353,10 +365,102 @@ type IAM struct {
 	// AppSecret blueking belong to bscp app's secret.
 	AppSecret string    `yaml:"appSecret"`
 	TLS       TLSConfig `yaml:"tls"`
+	// V4 权限中心 V4 的配置，仅当 Version 为 v4 时生效
+	V4 IAMV4 `yaml:"v4"`
 }
 
-// validate iam runtime.
+// IAMV4 defines the runtime of the bkiam gateway for IAM V4.
+type IAMV4 struct {
+	// GatewayURL bkiam 网关地址
+	GatewayURL string `yaml:"gateway_url"`
+	// SystemID 接入系统 ID，为空时取 bk-bscp
+	SystemID string `yaml:"system_id"`
+	// AppCode 调用网关的应用 ID，为空时回退到外层 IAM.AppCode
+	AppCode string `yaml:"app_code"`
+	// AppSecret 调用网关的应用密钥，为空时回退到外层 IAM.AppSecret
+	AppSecret string `yaml:"app_secret"`
+	// CallbackHost 权限中心回调 BSCP 资源接口的地址前缀，必填
+	CallbackHost string `yaml:"callback_host"`
+	// AuthCacheTTLSeconds 鉴权结果缓存的存活秒数，为零时取 defaultIAMV4AuthCacheTTLSeconds
+	AuthCacheTTLSeconds int `yaml:"auth_cache_ttl_seconds"`
+	// AuthCacheSize 鉴权结果缓存的条目上限，为零时取 defaultIAMV4AuthCacheSize
+	AuthCacheSize int `yaml:"auth_cache_size"`
+	// AuthConcurrency 批量鉴权分批后的并发度，为零时取 defaultIAMV4AuthConcurrency
+	AuthConcurrency int `yaml:"auth_concurrency"`
+}
+
+// IAM V4 运行时参数的默认值。
+const (
+	defaultIAMV4SystemID = "bk-bscp"
+	// 鉴权结果缓存的存活秒数
+	defaultIAMV4AuthCacheTTLSeconds = 30
+	// 鉴权结果缓存的条目上限
+	defaultIAMV4AuthCacheSize = 20000
+	// 批量鉴权分批请求权限中心的并发度
+	defaultIAMV4AuthConcurrency = 5
+)
+
+// IsV4 判断是否启用权限中心 V4。
+func (s IAM) IsV4() bool {
+	return s.Version == IAMVersionV4
+}
+
+// trySetDefault set the default value of the iam runtime.
+func (s *IAM) trySetDefault() {
+	if len(s.Version) == 0 {
+		s.Version = IAMVersionV3
+	}
+
+	if len(s.V4.SystemID) == 0 {
+		s.V4.SystemID = defaultIAMV4SystemID
+	}
+
+	// V4 未单独配置应用凭证时复用 V3 的配置，避免同一套凭证重复声明。
+	if len(s.V4.AppCode) == 0 {
+		s.V4.AppCode = s.AppCode
+	}
+
+	if len(s.V4.AppSecret) == 0 {
+		s.V4.AppSecret = s.AppSecret
+	}
+
+	if s.V4.AuthCacheTTLSeconds == 0 {
+		s.V4.AuthCacheTTLSeconds = defaultIAMV4AuthCacheTTLSeconds
+	}
+
+	if s.V4.AuthCacheSize == 0 {
+		s.V4.AuthCacheSize = defaultIAMV4AuthCacheSize
+	}
+
+	if s.V4.AuthConcurrency == 0 {
+		s.V4.AuthConcurrency = defaultIAMV4AuthConcurrency
+	}
+}
+
+// validate iam runtime. 仅校验当前 Version 对应的配置，另一版本的配置允许缺省，
+// 因此回滚版本前需确认目标版本的配置完整。
 func (s IAM) validate() error {
+	switch s.Version {
+	case "", IAMVersionV3:
+		if err := s.validateV3(); err != nil {
+			return err
+		}
+	case IAMVersionV4:
+		if err := s.V4.validate(); err != nil {
+			return fmt.Errorf("iam v4, %v", err)
+		}
+	default:
+		return fmt.Errorf("unsupported iam version: %s, should be one of v3, v4", s.Version)
+	}
+
+	if err := s.TLS.validate(); err != nil {
+		return fmt.Errorf("iam tls, %v", err)
+	}
+
+	return nil
+}
+
+func (s IAM) validateV3() error {
 	if len(s.APIURL) == 0 {
 		return errors.New("iam api url is not set")
 	}
@@ -369,8 +473,29 @@ func (s IAM) validate() error {
 		return errors.New("iam app secret is not set")
 	}
 
-	if err := s.TLS.validate(); err != nil {
-		return fmt.Errorf("iam tls, %v", err)
+	return nil
+}
+
+// validate iam v4 runtime.
+func (s IAMV4) validate() error {
+	if len(s.GatewayURL) == 0 {
+		return errors.New("gateway url is not set")
+	}
+
+	if len(s.AppCode) == 0 {
+		return errors.New("app code is not set")
+	}
+
+	if len(s.AppSecret) == 0 {
+		return errors.New("app secret is not set")
+	}
+
+	if s.AuthCacheTTLSeconds < 0 {
+		return errors.New("auth cache ttl seconds should not be negative")
+	}
+
+	if s.AuthConcurrency < 0 {
+		return errors.New("auth concurrency should not be negative")
 	}
 
 	return nil

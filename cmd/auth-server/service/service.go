@@ -37,6 +37,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/options"
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/service/auth"
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/service/iam"
+	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/service/iamv4"
 	"github.com/TencentBlueKing/bk-bscp/cmd/auth-server/service/initial"
 	confsvc "github.com/TencentBlueKing/bk-bscp/cmd/config-server/service"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
@@ -53,6 +54,8 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/meta"
 	pkgauth "github.com/TencentBlueKing/bk-bscp/pkg/iam/sdk/auth"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/sys"
+	authv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/auth"
+	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
@@ -75,6 +78,8 @@ type Service struct {
 	iamSettings     cc.IAM
 	// iam logic module.
 	iam *iam.IAM
+	// iamV4Lgc iam v4 资源回调的处理逻辑，仅当 iam.version 为 v4 时非空
+	iamV4Lgc *iamv4.IAM
 	// initial logic module.
 	initial *initial.Initial
 	// auth logic module.
@@ -265,8 +270,33 @@ func newClientSet(sd serviced.Discover, tls cc.TLSConfig, iamSettings cc.IAM, di
 			APIURL:    iamSettings.APIURL,
 		},
 	}
+
+	// V4 客户端只在启用 v4 时构造，v3 模式下保持为 nil，避免为未使用的版本要求配置齐全。
+	if iamSettings.IsV4() {
+		cs.iamV4, err = newIAMV4Client(iamSettings.V4)
+		if err != nil {
+			return nil, err
+		}
+		logs.Infof("initialize iam v4 gateway client success, system: %s", iamSettings.V4.SystemID)
+	}
+
 	logs.Infof("initialize the client set success.")
 	return cs, nil
+}
+
+// newIAMV4Client 构造 bkiam 网关客户端。
+func newIAMV4Client(settings cc.IAMV4) (*clientv4.Client, error) {
+	cli, err := clientv4.NewClient(&clientv4.Config{
+		GatewayURL: settings.GatewayURL,
+		SystemID:   settings.SystemID,
+		AppCode:    settings.AppCode,
+		AppSecret:  settings.AppSecret,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("new iam v4 gateway client failed, err: %v", err)
+	}
+
+	return cli, nil
 }
 
 // ClientSet defines configure server's all the depends api client.
@@ -280,11 +310,45 @@ type ClientSet struct {
 	Esb  esbcli.Client
 	iam  *auth.Iam
 	cmdb bkcmdb.Service
+	// iamV4 bkiam 网关客户端，仅当 iam.version 为 v4 时非空
+	iamV4 *clientv4.Client
 }
 
-// PullResource init auth center's auth model.
+// PullResource 是权限中心拉取资源实例的回调入口，按运行时配置分发到 V3 或 V4 的实现。
+// 两个版本的协议不兼容：分页字段、requires 的位置、_bk_iam_path_ 的类型以及响应包装都不同，
+// 因此各自独立实现，这里只做路由。
 func (s *Service) PullResource(ctx context.Context, req *pbas.PullResourceReq) (*structpb.Struct, error) {
+	if s.iamSettings.IsV4() {
+		return s.pullResourceV4(ctx, req)
+	}
+
 	return s.iam.PullResource(ctx, req)
+}
+
+// pullResourceV4 处理 V4 协议的资源回调。
+func (s *Service) pullResourceV4(ctx context.Context, req *pbas.PullResourceReq) (
+	*structpb.Struct, error) {
+
+	kt := kit.FromGrpcContext(ctx)
+
+	if s.iamV4Lgc == nil {
+		return nil, errors.New("iam v4 callback logic is not initialized")
+	}
+
+	v4Req, err := iamv4.ParsePullResourceReq(req)
+	if err != nil {
+		logs.Errorf("parse iam v4 pull resource request failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
+
+	data, err := s.iamV4Lgc.PullResource(kt, v4Req)
+	if err != nil {
+		logs.Errorf("iam v4 pull resource failed, type: %s, method: %s, err: %v, rid: %s",
+			v4Req.Type, v4Req.Method, err, kt.Rid)
+		return nil, err
+	}
+
+	return iamv4.MarshalResp(data)
 }
 
 // InitAuthCenter init auth center's auth model.
@@ -431,6 +495,15 @@ func (s *Service) initLogicModule() error {
 		return err
 	}
 
+	// V4 回调逻辑只在启用 v4 时装配。它代理 data-service 取服务、
+	// 代理 space.Manager 取业务——后者是 V4 下 biz 改由 BSCP 自行提供实例数据的落点。
+	if s.iamSettings.IsV4() {
+		s.iamV4Lgc, err = iamv4.NewIAM(s.client.DS, s.spaceMgr)
+		if err != nil {
+			return err
+		}
+	}
+
 	s.auth, err = auth.NewAuth(s.client.auth, s.client.DS, s.disableAuth, func(tenantID string) *bkiam.IAM {
 		return s.client.iam.WithTenant(tenantID)
 	},
@@ -438,6 +511,21 @@ func (s *Service) initLogicModule() error {
 		s.spaceMgr)
 	if err != nil {
 		return err
+	}
+
+	// 启用 v4 后鉴权、申请链接与创建者授权都改走 V4，V3 SDK 不再参与。
+	// 这是 V3/V4 切换的唯一开关点，业务侧与 internal/iam/auth 的 gRPC 契约不受影响。
+	if s.iamSettings.IsV4() {
+		v4Settings := s.iamSettings.V4
+		if err = s.auth.WithIAMV4(s.client.iamV4, authv4.Config{
+			CacheSize:   v4Settings.AuthCacheSize,
+			CacheTTL:    time.Duration(v4Settings.AuthCacheTTLSeconds) * time.Second,
+			Concurrency: v4Settings.AuthConcurrency,
+		}); err != nil {
+			return err
+		}
+		logs.Infof("iam v4 authorizer enabled, cache size: %d, cache ttl: %ds, concurrency: %d",
+			v4Settings.AuthCacheSize, v4Settings.AuthCacheTTLSeconds, v4Settings.AuthConcurrency)
 	}
 
 	return nil
@@ -615,25 +703,40 @@ func (s *Service) QuerySpaceByAppID(ctx context.Context, req *pbas.QuerySpaceByA
 	return resp, nil
 }
 
-// IAMVerify implements pbas.AuthServer.
+// IAMVerify implements pbas.AuthServer. 校验资源回调请求携带的 token。
+// V3 与 V4 的系统 token 来自不同接口，按运行时配置取用对应的那个。
 func (s *Service) IAMVerify(ctx context.Context, req *pbas.IAMVerifyReq) (*pbas.IAMVerifyResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 	if iamToken.token != "" && time.Since(iamToken.tokenRefreshTime) <= time.Minute && req.GetToken() == iamToken.token {
 		return &pbas.IAMVerifyResp{IsAuthorized: true}, nil
 	}
 
-	var err error
-	iamToken.token, err = s.gateway.iamSys.GetSystemToken(kt.Ctx)
+	token, err := s.getSystemToken(kt)
 	if err != nil {
 		logs.Errorf("check request authorization get system token failed, error: %s, rid: %s", err.Error(), kt.Rid)
 		return &pbas.IAMVerifyResp{IsAuthorized: false}, err
 	}
 
+	iamToken.token = token
 	iamToken.tokenRefreshTime = time.Now()
+
 	if req.GetToken() != iamToken.token {
-		logs.Errorf("check request authorization get system token failed, error: %s, rid: %s", err.Error(), kt.Rid)
+		logs.Errorf("request token does not match the system token, rid: %s", kt.Rid)
 		return &pbas.IAMVerifyResp{IsAuthorized: false}, errors.New("request password not match system token")
 	}
 
 	return &pbas.IAMVerifyResp{IsAuthorized: true}, nil
+}
+
+// getSystemToken 取当前启用版本的系统 token。
+func (s *Service) getSystemToken(kt *kit.Kit) (string, error) {
+	if !s.iamSettings.IsV4() {
+		return s.gateway.iamSys.GetSystemToken(kt.Ctx)
+	}
+
+	if s.client.iamV4 == nil {
+		return "", errors.New("iam v4 gateway client is not initialized")
+	}
+
+	return s.client.iamV4.GetSystemAuthToken(kt)
 }

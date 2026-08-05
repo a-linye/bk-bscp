@@ -40,6 +40,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/client"
+	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbas "github.com/TencentBlueKing/bk-bscp/pkg/protocol/auth-server"
@@ -543,7 +544,9 @@ func getRid(h http.Header) string {
 func (a *authorizer) checkRequestAuthorization(req *http.Request) (bool, error) {
 	rid := req.Header.Get(client.RequestIDHeader)
 	name, pwd, ok := req.BasicAuth()
-	if !ok || name != client.SystemIDIAM {
+	// 回调的 Basic 用户名 V3 是 iam、V4 是 bk_iam，两者都放行，
+	// 具体 token 归属哪个版本由 auth-server 的 IAMVerify 按运行时配置判定。
+	if !ok || (name != client.SystemIDIAM && name != clientv4.CallbackBasicUser) {
 		logs.Errorf("request have no basic authorization, rid: %s", rid)
 		return false, nil
 	}

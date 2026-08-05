@@ -126,6 +126,9 @@ message PullResourceReq {
   string method = 2;
   google.protobuf.Struct filter = 3;
   Page page = 4;
+  // requires 是 IAM V4 的字段，声明 fetch_instance_info 需要返回哪些实例属性。
+  // 它在请求体顶层而不在 filter 内，V3 不使用该字段。
+  repeated string requires = 5;
 }
 
 message PullResourceResp {
@@ -144,9 +147,14 @@ message CheckPermissionResp {
   repeated BasicDetail resources = 3;
 }
 
+// Page 承载资源回调的分页参数。
+// limit/offset 是 IAM V3 的形态；page/page_size 是 V4 的形态，页码从 1 开始。
+// 两版并存于同一 message，由各自的回调实现取用对应字段。
 message Page {
   uint32 limit = 1;
   uint32 offset = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
 }
 
 message AuthorizeBatchReq {

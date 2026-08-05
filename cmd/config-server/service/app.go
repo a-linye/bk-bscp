@@ -80,6 +80,12 @@ func (s *Service) CreateApp(ctx context.Context, req *pbcs.CreateAppReq) (*pbcs.
 		ID:      strconv.Itoa(int(rp.Id)),
 		Name:    req.Name,
 		Creator: kt.User,
+		// 声明服务所属的业务
+		Ancestors: []client.GrantResourceCreatorActionAncestor{{
+			System: sys.SystemIDCMDB,
+			Type:   sys.Business,
+			ID:     strconv.Itoa(int(req.BizId)),
+		}},
 	}); err != nil {
 		logs.Errorf("grant app creator action failed, err: %v, rid: %s", err, kt.Rid)
 	}
