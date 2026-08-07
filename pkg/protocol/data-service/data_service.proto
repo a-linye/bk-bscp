@@ -402,6 +402,10 @@ service Data {
   rpc EnsureDefaultProjectEnv(EnsureDefaultProjectEnvReq) returns (EnsureDefaultProjectEnvResp) {}
   // 根据业务和项目查询默认环境 ID
   rpc GetDefaultEnvironment(GetDefaultEnvironmentReq) returns (GetDefaultEnvironmentResp) {}
+  // 根据业务ID和项目key查询项目
+  rpc GetProjectByKey(GetProjectByKeyReq) returns (GetProjectResp) {}
+  // 根据业务ID、项目ID和环境名称查询环境
+  rpc GetEnvironmentByName(GetEnvironmentByNameReq) returns (GetEnvironmentResp) {}
 }
 
 // 确保默认项目和环境存在的请求参数
@@ -3184,4 +3188,15 @@ message DeleteEnvironmentReq {
   uint32 biz_id = 1;
   uint32 project_id = 2;
   uint32 env_id = 3;
+}
+
+message GetProjectByKeyReq {
+  uint32 biz_id = 1;
+  string project_key = 2;
+}
+
+message GetEnvironmentByNameReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  string env_name = 3;
 }

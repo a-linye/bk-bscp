@@ -153,3 +153,30 @@ func (s *Service) UpdateEnvironment(ctx context.Context, req *pbcs.UpdateEnviron
 
 	return &pbcs.UpdateEnvironmentResp{}, nil
 }
+
+// GetEnvironmentByName implements [pbcs.ConfigServer].
+func (s *Service) GetEnvironmentByName(ctx context.Context, req *pbcs.GetEnvironmentByNameReq) (*pbcs.GetEnvironmentResp, error) {
+	grpcKit := kit.FromGrpcContext(ctx)
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+	}
+	if err := s.authorizer.Authorize(grpcKit, res...); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.DS.GetEnvironmentByName(grpcKit.RpcCtx(), &pbds.GetEnvironmentByNameReq{
+		BizId:     req.GetBizId(),
+		ProjectId: req.GetProjectId(),
+		EnvName:   req.GetEnvName(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pbcs.GetEnvironmentResp{
+		Id:         resp.GetId(),
+		Spec:       resp.GetSpec(),
+		Attachment: resp.GetAttachment(),
+	}, nil
+}

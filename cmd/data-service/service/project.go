@@ -400,3 +400,31 @@ func (s *Service) UpdateProject(ctx context.Context, req *pbds.UpdateProjectReq)
 
 	return &pbbase.EmptyResp{}, nil
 }
+
+// GetProjectByKey implements [pbds.DataServer].
+func (s *Service) GetProjectByKey(ctx context.Context, req *pbds.GetProjectByKeyReq) (*pbds.GetProjectResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+
+	project, err := s.dao.Project().GetByKey(kt, req.GetBizId(), req.GetProjectKey())
+	if err != nil {
+		return nil, err
+	}
+
+	// 批量统计环境数量
+	envCounts, err := s.dao.Environment().CountByProjectIDs(kt, []uint32{project.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	// 批量统计服务数量
+	appCounts, err := s.dao.App().CountByProjectIDs(kt, []uint32{project.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pbds.GetProjectResp{
+		Id:         project.ID,
+		Spec:       pbproject.PbProjectSpec(project.Spec, envCounts[project.ID], appCounts[project.ID]),
+		Attachment: pbproject.PbProjectAttachment(project.Attachment),
+	}, nil
+}

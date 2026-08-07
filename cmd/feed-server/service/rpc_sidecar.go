@@ -124,7 +124,10 @@ func (s *Service) Watch(swm *pbfs.SideWatchMeta, fws pbfs.Upstream_WatchServer) 
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
@@ -189,7 +192,10 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
@@ -344,7 +350,10 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	projectID, envID, err := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)
@@ -453,33 +462,32 @@ func (s *Service) PullAppFileMeta(ctx context.Context, req *pbfs.PullAppFileMeta
 	return resp, nil
 }
 
-// AppCacheInterface 定义 AppCache 的 ResolveProjectEnv 方法抽象，用于解耦 resolveProjectEnv 辅助函数。
+// AppCacheInterface 定义 AppCache 的 ResolveProjectEnvByName 方法抽象，用于解耦 resolveProjectEnv 辅助函数。
 type AppCacheInterface interface {
-	ResolveProjectEnv(kt *kit.Kit, bizID, projectID, envID uint32) (uint32, uint32)
+	ResolveProjectEnvByName(kt *kit.Kit, bizID uint32, projectName, envName string) (uint32, uint32, error)
 }
 
-// resolveProjectEnv 解析项目和环境 ID，如果值为 0 则查询默认值并回写到 im.Meta。
+// resolveProjectEnv 解析项目和环境 ID，通过 sidecar-meta 头部中的项目名称和环境名称查询对应 ID。
 // 返回最终的 projectID 和 envID，方便后续使用。
-func resolveProjectEnv(im *sfs.IncomingMeta, appCache AppCacheInterface) (uint32, uint32) {
+func resolveProjectEnv(im *sfs.IncomingMeta, appCache AppCacheInterface) (uint32, uint32, error) {
 	return resolveProjectEnvFromReq(im, appCache, nil)
 }
 
 // resolveProjectEnvFromReq 解析项目和环境 ID。AppMeta 携带的是请求级显式维度，优先级高于
-// sidecar-meta 头部；两者都未设置（为 0）的维度查询默认值并回写到 im.Meta。
-func resolveProjectEnvFromReq(im *sfs.IncomingMeta, appCache AppCacheInterface, appMeta *pbfs.AppMeta) (uint32, uint32) {
-	projectID, envID := im.Meta.ProjectID, im.Meta.EnvID
-	if appMeta.GetProjectId() != 0 {
-		projectID = appMeta.GetProjectId()
+// sidecar-meta 头部；最终通过项目 key 和环境名称向 cache-service 查询对应的 ID。
+func resolveProjectEnvFromReq(im *sfs.IncomingMeta, appCache AppCacheInterface, appMeta *pbfs.AppMeta) (uint32, uint32, error) {
+	projectKey, envName := im.Meta.ProjectKey, im.Meta.EnvName
+	if appMeta.GetProjectKey() != "" {
+		projectKey = appMeta.GetProjectKey()
 	}
-	if appMeta.GetEnvId() != 0 {
-		envID = appMeta.GetEnvId()
+	if appMeta.GetEnvName() != "" {
+		envName = appMeta.GetEnvName()
 	}
-	if projectID == 0 || envID == 0 {
-		projectID, envID = appCache.ResolveProjectEnv(im.Kit, im.Meta.BizID, projectID, envID)
-		im.Meta.ProjectID = projectID
-		im.Meta.EnvID = envID
+	projectID, envID, err := appCache.ResolveProjectEnvByName(im.Kit, im.Meta.BizID, projectKey, envName)
+	if err != nil {
+		return 0, 0, err
 	}
-	return projectID, envID
+	return projectID, envID, nil
 }
 
 // getWaitTimeMil 流量控制
@@ -546,7 +554,10 @@ func (s *Service) GetDownloadURL(ctx context.Context, req *pbfs.GetDownloadURLRe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
@@ -607,7 +618,10 @@ func (s *Service) PullKvMeta(ctx context.Context, req *pbfs.PullKvMetaReq) (*pbf
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	projectID, envID, err := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	appID, err := s.bll.AppCache().GetAppID(kt, req.BizId, projectID, envID, req.AppMeta.App)
 	if err != nil {
@@ -700,7 +714,10 @@ func (s *Service) GetKvValue(ctx context.Context, req *pbfs.GetKvValueReq) (*pbf
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
 
-	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	projectID, envID, err := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
@@ -767,7 +784,10 @@ func (s *Service) ListApps(ctx context.Context, req *pbfs.ListAppsReq) (*pbfs.Li
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	resp, err := s.bll.AppCache().ListApps(im.Kit, &pbcs.ListAppsReq{BizId: req.BizId, ProjectId: projectID, EnvId: envID})
 	if err != nil {
@@ -814,7 +834,10 @@ func (s *Service) AsyncDownload(ctx context.Context, req *pbfs.AsyncDownloadReq)
 	// 鉴权
 	credential := getCredential(ctx)
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	app, err := s.bll.AppCache().GetMeta(im.Kit, req.BizId, projectID, envID, req.FileMeta.ConfigItemAttachment.AppId)
 	if err != nil {
@@ -962,7 +985,10 @@ func (s *Service) AsyncDownloadStatus(ctx context.Context, req *pbfs.AsyncDownlo
 	// 1. 鉴权
 	credential := getCredential(ctx)
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	app, err := s.bll.AppCache().GetMeta(im.Kit, task.BizID, projectID, envID, task.AppID)
 	if err != nil {
@@ -1030,7 +1056,10 @@ func (s *Service) GetSingleKvMeta(ctx context.Context, req *pbfs.GetSingleKvValu
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
 
-	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	projectID, envID, err := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.AppMeta.App)
 	if err != nil {
@@ -1113,7 +1142,10 @@ func (s *Service) GetSingleKvValue(ctx context.Context, req *pbfs.GetSingleKvVal
 	if !credential.MatchKv(req.AppMeta.App, req.Key) {
 		return nil, status.Error(codes.PermissionDenied, "no permission get value")
 	}
-	projectID, envID := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	projectID, envID, err := resolveProjectEnvFromReq(im, s.bll.AppCache(), req.GetAppMeta())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	appID, err := s.bll.AppCache().GetAppID(im.Kit, req.BizId, projectID, envID, req.GetAppMeta().App)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -1188,7 +1220,10 @@ func (s *Service) GetSingleFileContent(req *pbfs.GetSingleFileContentReq, stream
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	projectID, envID := resolveProjectEnv(im, s.bll.AppCache())
+	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	ra := &meta.ResourceAttribute{Basic: meta.Basic{Type: meta.Sidecar, Action: meta.Access}, BizID: im.Meta.BizID}
 	authorized, err := s.bll.Auth().Authorize(im.Kit, ra)

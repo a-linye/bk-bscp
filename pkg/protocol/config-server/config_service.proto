@@ -2481,6 +2481,22 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     };
   }
 
+  // 根据项目key获取项目
+  rpc GetProjectByKey(GetProjectByKeyReq) returns (GetProjectResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
+    option (google.api.http) = {
+      get: "/api/v1/config/biz/{biz_id}/projects:query_by_key"
+    };
+  }
+
+  // 根据环境名称获取环境
+  rpc GetEnvironmentByName(GetEnvironmentByNameReq) returns (GetEnvironmentResp) {
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
+    option (google.api.http) = {
+      get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:query_by_name"
+    };
+  }
+
   // 确保业务下的默认项目和默认环境存在，不存在则自动创建
   rpc EnsureDefaultProjectEnv(EnsureDefaultProjectEnvReq) returns (EnsureDefaultProjectEnvResp) {
     option (google.api.method_visibility).restriction = "INTERNAL";
@@ -6417,3 +6433,14 @@ message DeleteEnvironmentReq {
 }
 
 message DeleteEnvironmentResp {}
+
+message GetProjectByKeyReq {
+  uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  string project_key = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目key" }];
+}
+
+message GetEnvironmentByNameReq {
+  uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目ID" }];
+  string env_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境名称" }];
+}

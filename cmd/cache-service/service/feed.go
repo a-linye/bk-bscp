@@ -17,6 +17,10 @@ import (
 	"errors"
 	"math"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
+
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -355,4 +359,80 @@ func (s *Service) resolveDefaultProjectEnv(kt *kit.Kit, bizID uint32) (uint32, u
 	}
 
 	return projectID, envID
+}
+
+// GetProjectEnvByName 按项目 key 和环境名称查询对应的项目 ID 和环境 ID。
+// 当 key/名称为空时，对应维度回退到默认值。
+func (s *Service) GetProjectEnvByName(ctx context.Context, req *pbcs.GetProjectEnvByNameReq) (*pbcs.GetProjectEnvByNameResp, error) {
+	if req.BizId <= 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s", "invalid biz id")
+	}
+
+	kt := kit.FromGrpcContext(ctx)
+
+	// 项目 key 为空时回退到默认项目
+	projectID, err := s.resolveProjectByKey(kt, req.BizId, req.ProjectKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// 环境名称为空时回退到默认环境
+	envID, err := s.resolveEnvByName(kt, req.BizId, projectID, req.EnvName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pbcs.GetProjectEnvByNameResp{
+		ProjectId: projectID,
+		EnvId:     envID,
+	}, nil
+}
+
+// resolveProjectByKey 按项目 key 查询项目 ID，key 为空时返回默认项目 ID。
+func (s *Service) resolveProjectByKey(kt *kit.Kit, bizID uint32, key string) (uint32, error) {
+	if key == "" {
+		defProj, err := s.dao.Project().GetDefaultProject(kt, bizID)
+		if err != nil {
+			logs.Errorf("get default project failed, biz: %d, err: %v, rid: %s", bizID, err, kt.Rid)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return 0, status.Errorf(codes.NotFound, "%s", "project does not exist")
+			}
+			return 0, err
+		}
+		return defProj.ID, nil
+	}
+
+	proj, err := s.dao.Project().GetByKey(kt, bizID, key)
+	if err != nil {
+		logs.Errorf("get project by key failed, biz: %d, key: %s, err: %v, rid: %s", bizID, key, err, kt.Rid)
+		return 0, err
+	}
+	return proj.ID, nil
+}
+
+// resolveEnvByName 按环境名称查询环境 ID，名称为空时返回默认环境 ID。
+func (s *Service) resolveEnvByName(kt *kit.Kit, bizID, projectID uint32, name string) (uint32, error) {
+	if name == "" {
+		defEnv, err := s.dao.Environment().GetDefaultEnvironment(kt, bizID, projectID)
+		if err != nil {
+			logs.Errorf("get default environment failed, biz: %d, project: %d, err: %v, rid: %s",
+				bizID, projectID, err, kt.Rid)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return 0, status.Errorf(codes.NotFound, "%s", "environment does not exist")
+			}
+			return 0, err
+		}
+		return defEnv.ID, nil
+	}
+
+	env, err := s.dao.Environment().GetByName(kt, bizID, projectID, name)
+	if err != nil {
+		logs.Errorf("get environment by name failed, biz: %d, project: %d, name: %s, err: %v, rid: %s",
+			bizID, projectID, name, err, kt.Rid)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, status.Errorf(codes.NotFound, "%s", "environment does not exist")
+		}
+		return 0, err
+	}
+	return env.ID, nil
 }

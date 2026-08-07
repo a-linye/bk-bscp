@@ -139,6 +139,8 @@ service Cache {
   }
 
   rpc GetDefaultProjectEnv(GetDefaultProjectEnvReq) returns (GetDefaultProjectEnvResp) {}
+
+  rpc GetProjectEnvByName(GetProjectEnvByNameReq) returns (GetProjectEnvByNameResp) {}
 }
 
 message JsonRawResp {
@@ -349,6 +351,19 @@ message GetDefaultProjectEnvReq {
 
 // GetDefaultProjectEnvResp 获取默认项目/环境响应。
 message GetDefaultProjectEnvResp {
+  uint32 project_id = 1;
+  uint32 env_id = 2;
+}
+
+// GetProjectEnvByNameReq 按项目 key 和环境名称查询项目/环境 ID。
+message GetProjectEnvByNameReq {
+  uint32 biz_id = 1;
+  string project_key = 2;
+  string env_name = 3;
+}
+
+// GetProjectEnvByNameResp 按项目名称和环境名称查询项目/环境 ID 响应。
+message GetProjectEnvByNameResp {
   uint32 project_id = 1;
   uint32 env_id = 2;
 }

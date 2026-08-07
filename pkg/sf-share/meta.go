@@ -31,8 +31,8 @@ import (
 type SidecarMetaHeader struct {
 	BizID       uint32 `json:"bid"`
 	Fingerprint string `json:"fpt"`
-	ProjectID   uint32 `json:"pid"`
-	EnvID       uint32 `json:"eid"`
+	ProjectKey  string `json:"pkey"`
+	EnvName     string `json:"ename"`
 	Token       string `json:"token"`
 }
 

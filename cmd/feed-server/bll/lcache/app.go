@@ -403,3 +403,44 @@ func (ap *App) ResolveProjectEnv(kt *kit.Kit, bizID, projectID, envID uint32) (u
 	logs.Infof("resolved default proj/env via RPC, biz: %d, proj: %d, env: %d", bizID, projectID, envID)
 	return projectID, envID
 }
+
+// ResolveProjectEnvByName 按项目 key 和环境名称查询对应的项目 ID 和环境 ID。
+// 当 key/名称为空时，cache-service 会回退到默认项目/环境。
+// 结果会缓存到 defaultProjEnvCache（仅当 key/名称为空时，缓存的是默认值）。
+func (ap *App) ResolveProjectEnvByName(kt *kit.Kit, bizID uint32, projectKey, envName string) (uint32, uint32, error) {
+	// projectKey 和 envName 都为空时，走默认值缓存
+	if projectKey == "" && envName == "" {
+		cacheKey := fmt.Sprintf("%d", bizID)
+		val, err := ap.defaultProjEnvCache.GetIFPresent(cacheKey)
+		if err == nil {
+			if cached, ok := val.([2]uint32); ok {
+				if cached[0] != 0 && cached[1] != 0 {
+					logs.V(3).Infof("resolve default proj/env by name from local cache, biz: %d, proj: %d, env: %d",
+						bizID, cached[0], cached[1])
+					return cached[0], cached[1], nil
+				}
+			}
+		}
+	}
+
+	resp, err := ap.cs.CS().GetProjectEnvByName(kt.RpcCtx(), &pbcs.GetProjectEnvByNameReq{
+		BizId:      bizID,
+		ProjectKey: projectKey,
+		EnvName:    envName,
+	})
+	if err != nil {
+		logs.Errorf("get project/env by name failed, biz: %d, proj: %s, env: %s, err: %v, rid: %s",
+			bizID, projectKey, envName, err, kt.Rid)
+		return 0, 0, err
+	}
+
+	// 仅当 key/名称为空（即查询的是默认值）时缓存，避免显式指定的值固化成默认值
+	if projectKey == "" && envName == "" && resp.ProjectId != 0 && resp.EnvId != 0 {
+		cacheKey := fmt.Sprintf("%d", bizID)
+		_ = ap.defaultProjEnvCache.Set(cacheKey, [2]uint32{resp.ProjectId, resp.EnvId})
+	}
+
+	logs.Infof("resolved proj/env by name via RPC, biz: %d, proj: %s(%d), env: %s(%d)",
+		bizID, projectKey, resp.ProjectId, envName, resp.EnvId)
+	return resp.ProjectId, resp.EnvId, nil
+}

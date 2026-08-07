@@ -270,6 +270,8 @@ const (
 	Data_DeleteEnvironment_FullMethodName                 = "/pbds.Data/DeleteEnvironment"
 	Data_EnsureDefaultProjectEnv_FullMethodName           = "/pbds.Data/EnsureDefaultProjectEnv"
 	Data_GetDefaultEnvironment_FullMethodName             = "/pbds.Data/GetDefaultEnvironment"
+	Data_GetProjectByKey_FullMethodName                   = "/pbds.Data/GetProjectByKey"
+	Data_GetEnvironmentByName_FullMethodName              = "/pbds.Data/GetEnvironmentByName"
 )
 
 // DataClient is the client API for Data service.
@@ -581,6 +583,10 @@ type DataClient interface {
 	EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error)
 	// 根据业务和项目查询默认环境 ID
 	GetDefaultEnvironment(ctx context.Context, in *GetDefaultEnvironmentReq, opts ...grpc.CallOption) (*GetDefaultEnvironmentResp, error)
+	// 根据业务ID和项目key查询项目
+	GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 根据业务ID、项目ID和环境名称查询环境
+	GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
 }
 
 type dataClient struct {
@@ -2733,6 +2739,24 @@ func (c *dataClient) GetDefaultEnvironment(ctx context.Context, in *GetDefaultEn
 	return out, nil
 }
 
+func (c *dataClient) GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Data_GetProjectByKey_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Data_GetEnvironmentByName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataServer is the server API for Data service.
 // All implementations should embed UnimplementedDataServer
 // for forward compatibility
@@ -3042,6 +3066,10 @@ type DataServer interface {
 	EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error)
 	// 根据业务和项目查询默认环境 ID
 	GetDefaultEnvironment(context.Context, *GetDefaultEnvironmentReq) (*GetDefaultEnvironmentResp, error)
+	// 根据业务ID和项目key查询项目
+	GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error)
+	// 根据业务ID、项目ID和环境名称查询环境
+	GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3761,6 +3789,12 @@ func (UnimplementedDataServer) EnsureDefaultProjectEnv(context.Context, *EnsureD
 }
 func (UnimplementedDataServer) GetDefaultEnvironment(context.Context, *GetDefaultEnvironmentReq) (*GetDefaultEnvironmentResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultEnvironment not implemented")
+}
+func (UnimplementedDataServer) GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectByKey not implemented")
+}
+func (UnimplementedDataServer) GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironmentByName not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -8058,6 +8092,42 @@ func _Data_GetDefaultEnvironment_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_GetProjectByKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectByKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetProjectByKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetProjectByKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetProjectByKey(ctx, req.(*GetProjectByKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetEnvironmentByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentByNameReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetEnvironmentByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetEnvironmentByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetEnvironmentByName(ctx, req.(*GetEnvironmentByNameReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Data_ServiceDesc is the grpc.ServiceDesc for Data service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -9016,6 +9086,14 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDefaultEnvironment",
 			Handler:    _Data_GetDefaultEnvironment_Handler,
+		},
+		{
+			MethodName: "GetProjectByKey",
+			Handler:    _Data_GetProjectByKey_Handler,
+		},
+		{
+			MethodName: "GetEnvironmentByName",
+			Handler:    _Data_GetEnvironmentByName_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

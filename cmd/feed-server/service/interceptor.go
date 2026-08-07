@@ -84,10 +84,10 @@ func getBearerToken(md metadata.MD) (string, error) {
 const httpGatewayFingerprint = "http-gateway"
 
 // authorize 鉴权并对 project/env 做来源归一化：
-// RPC 请求的 project/env 来自 sidecar-meta header，HTTP 请求（grpc-gateway）没有该 header，
-// 则从请求的 AppMeta 中获取；两者最终为 0 时都通过 ResolveProjectEnv 解析默认项目/环境。
-// 解析完成后的标准 meta 会写回 incoming metadata，下游 ParseFeedIncomingContext、
-// resolveProjectEnv 及 FeedUnaryUpdateLastConsumedTimeInterceptor 无需区分请求来源。
+// RPC 请求的 project/env 来自 sidecar-meta header（项目名称和环境名称），HTTP 请求（grpc-gateway）
+// 没有该 header，则从请求的 AppMeta 中获取名称。
+// authorize 阶段通过名称解析出 projectID 用于凭据查询；下游 resolveProjectEnv 会再做一次
+// 名称→ID 解析（命中本地缓存，无额外开销）。
 func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -120,8 +120,8 @@ func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) 
 		sm = &sfs.SidecarMetaHeader{
 			BizID:       bizID,
 			Fingerprint: httpGatewayFingerprint,
-			ProjectID:   am.GetAppMeta().GetProjectId(),
-			EnvID:       am.GetAppMeta().GetEnvId(),
+			ProjectKey:  am.GetAppMeta().GetProjectKey(),
+			EnvName:     am.GetAppMeta().GetEnvName(),
 			Token:       token,
 		}
 	}
@@ -130,19 +130,26 @@ func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) 
 		return nil, fmt.Errorf("invalid sidecar meta, err: %v", errV)
 	}
 
-	// 统一收口：project/env 任一为 0 时解析默认值，保证写回及凭据查询使用的都是最终值
-	sm.ProjectID, sm.EnvID = s.bll.AppCache().ResolveProjectEnv(kt, bizID, sm.ProjectID, sm.EnvID)
-
-	// 将标准化后的 meta 写回 incoming metadata，下游可直接读取，无需感知请求来源
-	metaStr, err := sm.Encode()
-	if err != nil {
-		return nil, status.Errorf(codes.Aborted, "encode sidecar meta failed, %v", err)
+	// HTTP 请求没有 sidecar-meta header，从 AppMeta 合成后需要写回 incoming metadata，
+	// 否则后续 FeedUnaryUpdateLastConsumedTimeInterceptor 和 handler 中的
+	// ParseFeedIncomingContext 会因缺少 sidecar-meta header 而失败。
+	if len(metaHeader) == 0 {
+		encoded, errE := sm.Encode()
+		if errE != nil {
+			return nil, fmt.Errorf("encode sidecar meta failed, err: %v", errE)
+		}
+		md = md.Copy()
+		md.Set(constant.SidecarMetaKey, encoded)
+		ctx = metadata.NewIncomingContext(ctx, md)
 	}
-	md = md.Copy()
-	md.Set(constant.SidecarMetaKey, metaStr)
-	ctx = metadata.NewIncomingContext(ctx, md)
 
-	cred, err := s.bll.Auth().GetCred(kt, bizID, sm.ProjectID, token)
+	// 通过项目名称和环境名称解析出 projectID，用于凭据查询
+	projectID, _, err := s.bll.AppCache().ResolveProjectEnvByName(kt, bizID, sm.ProjectKey, sm.EnvName)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "resolve project/env by name failed, %v", err)
+	}
+
+	cred, err := s.bll.Auth().GetCred(kt, bizID, projectID, token)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, err
@@ -323,7 +330,11 @@ func FeedUnaryUpdateLastConsumedTimeInterceptor(ctx context.Context, req interfa
 		kt := kit.FromGrpcContext(ctx)
 
 		if len(param.AppIDs) == 0 {
-			projectID, envID := resolveProjectEnv(im, svc.bll.AppCache())
+			projectID, envID, err := resolveProjectEnv(im, svc.bll.AppCache())
+			if err != nil {
+				logs.Errorf("resolve project/env failed, err: %v", err)
+				return handler(ctx, req)
+			}
 			for _, appName := range param.AppNames {
 				appID, err := svc.bll.AppCache().GetAppID(kt, param.BizID, projectID, envID, appName)
 				if err != nil {

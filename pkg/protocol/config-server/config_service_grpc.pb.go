@@ -257,6 +257,8 @@ const (
 	Config_CreateEnvironment_FullMethodName                  = "/pbcs.Config/CreateEnvironment"
 	Config_UpdateEnvironment_FullMethodName                  = "/pbcs.Config/UpdateEnvironment"
 	Config_DeleteEnvironment_FullMethodName                  = "/pbcs.Config/DeleteEnvironment"
+	Config_GetProjectByKey_FullMethodName                    = "/pbcs.Config/GetProjectByKey"
+	Config_GetEnvironmentByName_FullMethodName               = "/pbcs.Config/GetEnvironmentByName"
 	Config_EnsureDefaultProjectEnv_FullMethodName            = "/pbcs.Config/EnsureDefaultProjectEnv"
 )
 
@@ -717,6 +719,10 @@ type ConfigClient interface {
 	UpdateEnvironment(ctx context.Context, in *UpdateEnvironmentReq, opts ...grpc.CallOption) (*UpdateEnvironmentResp, error)
 	// 删除环境
 	DeleteEnvironment(ctx context.Context, in *DeleteEnvironmentReq, opts ...grpc.CallOption) (*DeleteEnvironmentResp, error)
+	// 根据项目key获取项目
+	GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 根据环境名称获取环境
+	GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
 	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
 	EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error)
 }
@@ -2799,6 +2805,24 @@ func (c *configClient) DeleteEnvironment(ctx context.Context, in *DeleteEnvironm
 	return out, nil
 }
 
+func (c *configClient) GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Config_GetProjectByKey_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_GetEnvironmentByName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configClient) EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error) {
 	out := new(EnsureDefaultProjectEnvResp)
 	err := c.cc.Invoke(ctx, Config_EnsureDefaultProjectEnv_FullMethodName, in, out, opts...)
@@ -3265,6 +3289,10 @@ type ConfigServer interface {
 	UpdateEnvironment(context.Context, *UpdateEnvironmentReq) (*UpdateEnvironmentResp, error)
 	// 删除环境
 	DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*DeleteEnvironmentResp, error)
+	// 根据项目key获取项目
+	GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error)
+	// 根据环境名称获取环境
+	GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error)
 	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
 	EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error)
 }
@@ -3962,6 +3990,12 @@ func (UnimplementedConfigServer) UpdateEnvironment(context.Context, *UpdateEnvir
 }
 func (UnimplementedConfigServer) DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*DeleteEnvironmentResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEnvironment not implemented")
+}
+func (UnimplementedConfigServer) GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectByKey not implemented")
+}
+func (UnimplementedConfigServer) GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironmentByName not implemented")
 }
 func (UnimplementedConfigServer) EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnsureDefaultProjectEnv not implemented")
@@ -8118,6 +8152,42 @@ func _Config_DeleteEnvironment_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_GetProjectByKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectByKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetProjectByKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetProjectByKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetProjectByKey(ctx, req.(*GetProjectByKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetEnvironmentByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentByNameReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetEnvironmentByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetEnvironmentByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetEnvironmentByName(ctx, req.(*GetEnvironmentByNameReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Config_EnsureDefaultProjectEnv_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(EnsureDefaultProjectEnvReq)
 	if err := dec(in); err != nil {
@@ -9062,6 +9132,14 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteEnvironment",
 			Handler:    _Config_DeleteEnvironment_Handler,
+		},
+		{
+			MethodName: "GetProjectByKey",
+			Handler:    _Config_GetProjectByKey_Handler,
+		},
+		{
+			MethodName: "GetEnvironmentByName",
+			Handler:    _Config_GetEnvironmentByName_Handler,
 		},
 		{
 			MethodName: "EnsureDefaultProjectEnv",

@@ -213,3 +213,22 @@ func (s *Service) UpdateEnvironment(ctx context.Context, req *pbds.UpdateEnviron
 
 	return &pbbase.EmptyResp{}, nil
 }
+
+// GetEnvironmentByName implements [pbds.DataServer].
+func (s *Service) GetEnvironmentByName(ctx context.Context, req *pbds.GetEnvironmentByNameReq) (*pbds.GetEnvironmentResp, error) {
+	kt := kit.FromGrpcContext(ctx)
+
+	environment, err := s.dao.Environment().GetByName(kt, req.GetBizId(), req.GetProjectId(), req.GetEnvName())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errf.Errorf(errf.RecordNotFound, "%s", i18n.T(kt, "environment does not exist"))
+		}
+		return nil, err
+	}
+
+	return &pbds.GetEnvironmentResp{
+		Id:         environment.ID,
+		Spec:       pbenvironment.PbEnvironmentSpec(environment.Spec, 0),
+		Attachment: pbenvironment.PbEnvironmentAttachment(environment.Attachment),
+	}, nil
+}

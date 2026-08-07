@@ -51,6 +51,10 @@ type Project interface {
 	CreateIfNotExistWithTx(kit *kit.Kit, tx *gen.QueryTx, project *table.Project) error
 	// DeleteWithTx delete one project instance with transaction.
 	DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, project *table.Project) error
+	// GetByName get project with name.
+	GetByName(kit *kit.Kit, bizID uint32, name string) (*table.Project, error)
+	// GetByKey get project with key.
+	GetByKey(kit *kit.Kit, bizID uint32, key string) (*table.Project, error)
 }
 
 var _ Project = new(projectDao)
@@ -60,6 +64,34 @@ type projectDao struct {
 	idGen    IDGenInterface
 	auditDao AuditDao
 	event    Event
+}
+
+// GetByName implements [Project].
+func (dao *projectDao) GetByName(kit *kit.Kit, bizID uint32, name string) (*table.Project, error) {
+	m := dao.genQ.Project
+	q := dao.genQ.Project.WithContext(kit.Ctx)
+	detail, err := q.Where(m.BizID.Eq(bizID), m.Name.Eq(name)).Take()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errf.Errorf(errf.RecordNotFound, "%s", i18n.T(kit, "project does not exist"))
+		}
+		return nil, errf.Errorf(errf.DBOpFailed, "%s: %v", i18n.T(kit, "project query failed"), err)
+	}
+	return detail, nil
+}
+
+// GetByKey implements [Project].
+func (dao *projectDao) GetByKey(kit *kit.Kit, bizID uint32, key string) (*table.Project, error) {
+	m := dao.genQ.Project
+	q := dao.genQ.Project.WithContext(kit.Ctx)
+	detail, err := q.Where(m.BizID.Eq(bizID), m.Key.Eq(key)).Take()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errf.Errorf(errf.RecordNotFound, "%s", i18n.T(kit, "project does not exist"))
+		}
+		return nil, errf.Errorf(errf.DBOpFailed, "%s: %v", i18n.T(kit, "project query failed"), err)
+	}
+	return detail, nil
 }
 
 // DeleteWithTx implements [Project].

@@ -186,7 +186,7 @@ func (c *client) refreshAppIDCache(kt *kit.Kit, bizID, projectID, envID uint32, 
 	app, err := c.op.App().GetByName(kt, bizID, projectID, envID, appName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, status.Errorf(codes.NotFound, "%s", err.Error())
+			return 0, status.Errorf(codes.NotFound, "%s", "app does not exist")
 		}
 		return 0, err
 	}

@@ -172,3 +172,30 @@ func (s *Service) EnsureDefaultProjectEnv(ctx context.Context, req *pbcs.EnsureD
 		EnvId:     resp.GetEnvId(),
 	}, nil
 }
+
+// GetProjectByKey implements [pbcs.ConfigServer].
+func (s *Service) GetProjectByKey(ctx context.Context, req *pbcs.GetProjectByKeyReq) (*pbcs.GetProjectResp, error) {
+	grpcKit := kit.FromGrpcContext(ctx)
+
+	res := []*meta.ResourceAttribute{
+		{Basic: meta.Basic{Type: meta.Biz, Action: meta.FindBusinessResource}, BizID: req.BizId},
+	}
+	if err := s.authorizer.Authorize(grpcKit, res...); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.DS.GetProjectByKey(grpcKit.RpcCtx(), &pbds.GetProjectByKeyReq{
+		BizId:      req.GetBizId(),
+		ProjectKey: req.GetProjectKey(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pbcs.GetProjectResp{
+		Id:         resp.GetId(),
+		Spec:       resp.GetSpec(),
+		Attachment: resp.GetAttachment(),
+	}, nil
+}
