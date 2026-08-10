@@ -330,17 +330,27 @@
         }
       }
 
+      const taskBatch = res.task_batch || {};
       const {
         id,
         task_object,
-        task_data: { environment, operate_range },
         creator,
         start_at,
         end_at,
         execution_time,
         task_action,
         status,
-      } = res.task_batch;
+      } = taskBatch;
+      // task_data 可能为 null，需兜底：否则解构会抛错导致后续 $patch 不执行，
+      const taskData = taskBatch.task_data || {};
+      const environment = taskData.environment ?? '';
+      const operate_range = taskData.operate_range || {
+        set_name: '',
+        module_name: '',
+        service_name: '',
+        process_alias: '',
+        process_id: '',
+      };
 
       const actionText = TASK_ACTION_MAP[task_action as keyof typeof TASK_ACTION_MAP];
       const typePrefix = task_object === 'process' ? t('进程') : t('配置文件');
