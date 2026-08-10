@@ -287,18 +287,22 @@ func (e *GenerateConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 	kt := kit.NewWithTenant(payload.TenantID)
 
 	isSuccess := cbErr == nil
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
+	allCompleted, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+	if err != nil {
 		return fmt.Errorf("[ConfigGenerateCallback]: increment completed count failed, batchID: %d, err: %w",
 			payload.BatchID, err)
 	}
 
-	e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-		TenantID: payload.TenantID,
-		BizID:    payload.BizID,
-		BatchID:  payload.BatchID,
-		Operator: payload.OperatorUser,
-		CbErr:    cbErr,
-	})
+	// 通知只在批次收尾的那次回调发出：批次未到终态时通知内容无法渲染，
+	if allCompleted {
+		e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
+			TenantID: payload.TenantID,
+			BizID:    payload.BizID,
+			BatchID:  payload.BatchID,
+			Operator: payload.OperatorUser,
+			CbErr:    cbErr,
+		})
+	}
 
 	return nil
 }

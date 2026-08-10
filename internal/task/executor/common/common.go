@@ -673,8 +673,27 @@ type CallbackNotify struct {
 	CbErr    error
 }
 
-// AfterCallbackNotify 任务回调后通知
+// AfterCallbackNotify 任务回调后通知。
+// 通知链路包含 CMDB 业务查询与消息推送两次外部 HTTP 调用，若在回调路径内同步执行，
+// 会拉长「批次已标记成功」与「任务状态落库」之间的时间窗，导致下游按批次状态触发的动作读到不完整的任务集合。
+// 因此这里异步执行，通知失败只记录日志，不影响任务状态、批次计数与回滚逻辑。
 func (e *Executor) AfterCallbackNotify(ctx context.Context, notify CallbackNotify) {
+	// 回调返回后原 ctx 可能被取消，通知属于旁路，脱离调用方生命周期继续执行
+	asyncCtx := context.WithoutCancel(ctx)
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logs.Errorf("[AfterCallbackNotify] panic recovered, batchID=%d, err=%v", notify.BatchID, r)
+			}
+		}()
+
+		e.doCallbackNotify(asyncCtx, notify)
+	}()
+}
+
+// doCallbackNotify 执行通知内容的组装与推送
+func (e *Executor) doCallbackNotify(ctx context.Context, notify CallbackNotify) {
 	kt := kit.MustGetKit(ctx)
 	task, err := e.Dao.TaskBatch().GetByID(kt, notify.BizID, notify.BatchID)
 	if err != nil {
