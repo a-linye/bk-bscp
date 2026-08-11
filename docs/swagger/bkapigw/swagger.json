@@ -9652,13 +9652,6 @@
             "format": "int64"
           }
         },
-        "configTemplateNames": {
-          "description": "配置模版名称列表",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "environment": {
           "description": "环境类型(1:测试 2: 体验 3: 正式)",
           "type": "string"

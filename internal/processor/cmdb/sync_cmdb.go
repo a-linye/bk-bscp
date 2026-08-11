@@ -188,6 +188,7 @@ func (s *syncCMDBService) syncProcessesWithTx(kt *kit.Kit, newProcesses []*table
 	return res, nil
 }
 
+//nolint:unparam // tenantID 在多租户场景下由 getTenantID() 动态返回，单租户部署时恒为 "default" 属预期行为
 func (s *syncCMDBService) buildProcessEntities(kt *kit.Kit, data []*bkcmdb.ProcessRelatedInfoItem, tenantID string) []*table.Process {
 
 	now := time.Now()
@@ -236,6 +237,7 @@ func (s *syncCMDBService) buildProcessEntities(kt *kit.Kit, data []*bkcmdb.Proce
 		if code, ok := statusMap[item.Host.BkAgentID]; ok && code == 2 {
 			agentState = table.AgentStatusNormal
 		}
+		agentState = resolveAgentStatus(item.Host.BkAgentID, agentState)
 
 		sourceData, err := s.buildSourceData(item)
 		if err != nil {
@@ -268,7 +270,7 @@ func (s *syncCMDBService) buildProcessEntities(kt *kit.Kit, data []*bkcmdb.Proce
 				InnerIPV6:    item.Host.BkHostInnerIPV6,
 				SourceData:   sourceData,
 				PrevData:     "{}",
-				ProcNum:      uint(item.Process.ProcNum),
+				ProcNum:      normalizeProcNum(item.Process.ProcNum),
 				FuncName:     item.Process.BkFuncName,
 				OsType:       osType,
 				CcSyncStatus: table.Synced,
@@ -324,6 +326,22 @@ func resolveOsType(newOsType, oldOsType string) string {
 		return newOsType
 	}
 	return oldOsType
+}
+
+// resolveAgentStatus agent_id 为空时状态一律为 abnormal，否则会被判定为可同步、用空 agent_id 调用 GSE
+func resolveAgentStatus(agentID string, status table.AgentStatus) table.AgentStatus {
+	if agentID == "" {
+		return table.AgentStatusAbnormal
+	}
+	return status
+}
+
+// normalizeProcNum 归一化进程数量：CMDB 约定 proc_num 为 0 时按 1 处理
+func normalizeProcNum(n int) uint {
+	if n <= 0 {
+		return 1
+	}
+	return uint(n)
 }
 
 // hostOsTypeKey 主机唯一标识：管控区域 + 内网 IP（CC 通过该组合唯一确定一台主机）
@@ -1040,9 +1058,11 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 
 		newSpec := *oldP.Spec
 		newSpec.Alias = p.BkProcessName
-		newSpec.ProcNum = uint(p.ProcNum)
+		newSpec.ProcNum = normalizeProcNum(p.ProcNum)
 		newSpec.SourceData = string(sourceData)
 
+		// 事件不含主机信息，attachment 直接复用 DB 旧值，
+		// 因此 agent_id 不会在这条链路上刷新，需要靠全量同步纠正
 		newProcess := &table.Process{
 			Attachment: oldP.Attachment,
 			Spec:       &newSpec,
@@ -1177,10 +1197,10 @@ func buildProcessesFromSets(tenantID string, bizID int, sets []Set) []*table.Pro
 							ProcessStateSyncedAt: nil,
 							SourceData:           sourceData,
 							PrevData:             "{}",
-							ProcNum:              uint(proc.ProcNum),
+							ProcNum:              normalizeProcNum(proc.ProcNum),
 							FuncName:             proc.FuncName,
 							OsType:               h.OsType,
-							AgentStatus:          table.AgentStatus(h.AgentState),
+							AgentStatus:          resolveAgentStatus(h.AgentID, table.AgentStatus(h.AgentState)),
 						},
 						Revision: &table.Revision{
 							CreatedAt: now,
@@ -1624,6 +1644,10 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 		return nil, err
 	}
 
+	agentID := newP.Attachment.AgentID
+	agentIDChanged := agentID != oldP.Attachment.AgentID
+	newP.Spec.AgentStatus = resolveAgentStatus(agentID, newP.Spec.AgentStatus)
+
 	nameChanged := newP.Spec.Alias != oldP.Spec.Alias
 	infoChanged := !equal
 	numChanged := newP.Spec.ProcNum != oldP.Spec.ProcNum
@@ -1633,8 +1657,13 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 	topoChanged := newP.Spec.ServiceName != oldP.Spec.ServiceName ||
 		newP.Spec.Environment != oldP.Spec.Environment
 
-	if !nameChanged && !infoChanged && !numChanged && !osTypeChanged && !agentStatusChanged && !topoChanged {
+	if !nameChanged && !infoChanged && !numChanged && !osTypeChanged &&
+		!agentStatusChanged && !agentIDChanged && !topoChanged {
 		return result, nil
+	}
+
+	if agentIDChanged {
+		oldP.Attachment.AgentID = agentID
 	}
 
 	if osTypeChanged {
@@ -1681,6 +1710,10 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 			// 新值非空时采用 CMDB 最新 os_type，否则沿用旧进程值，
 			// 避免恢复 deleted 记录时保留其陈旧/空的 os_type
 			reusableProc.Spec.OsType = resolveOsType(newP.Spec.OsType, oldP.Spec.OsType)
+			// 刷新 deleted 记录上的陈旧状态，空值不覆盖
+			if newP.Spec.AgentStatus != "" {
+				reusableProc.Spec.AgentStatus = newP.Spec.AgentStatus
+			}
 			// 恢复 deleted 记录时同步刷新拓扑字段，避免残留旧值
 			reusableProc.Spec.ServiceName = newP.Spec.ServiceName
 			reusableProc.Spec.Environment = newP.Spec.Environment

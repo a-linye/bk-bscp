@@ -1251,40 +1251,6 @@
             "fuzzy": true
         },
         {
-            "id": "get config templates by ids failed, err: {Err}",
-            "message": "get config templates by ids failed, err: {Err}",
-            "translation": "get config templates by ids failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get config templates by names failed, err: {Err}",
-            "message": "get config templates by names failed, err: {Err}",
-            "translation": "get config templates by names failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
             "id": "get all config templates failed, err: {Err}",
             "message": "get all config templates failed, err: {Err}",
             "translation": "get all config templates failed, err: {Err}",
@@ -1370,34 +1336,9 @@
             "fuzzy": true
         },
         {
-            "id": "get config template by id {Id} failed, err: {Err}",
-            "message": "get config template by id {Id} failed, err: {Err}",
-            "translation": "get config template by id {Id} failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Id",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "id"
-                },
-                {
-                    "id": "Err",
-                    "string": "%[2]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 2,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "list config templates by names failed, err: {Err}",
-            "message": "list config templates by names failed, err: {Err}",
-            "translation": "list config templates by names failed, err: {Err}",
+            "id": "list config templates by ids failed, err: {Err}",
+            "message": "list config templates by ids failed, err: {Err}",
+            "translation": "list config templates by ids failed, err: {Err}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
@@ -1412,18 +1353,18 @@
             "fuzzy": true
         },
         {
-            "id": "config templates not found for names: {MissingNames}",
-            "message": "config templates not found for names: {MissingNames}",
-            "translation": "config templates not found for names: {MissingNames}",
+            "id": "config templates not found for ids: {IdList}",
+            "message": "config templates not found for ids: {IdList}",
+            "translation": "config templates not found for ids: {IdList}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
-                    "id": "MissingNames",
-                    "string": "%[1]v",
-                    "type": "[]string",
-                    "underlyingType": "[]string",
+                    "id": "IdList",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
                     "argNum": 1,
-                    "expr": "missingNames"
+                    "expr": "idList"
                 }
             ],
             "fuzzy": true
@@ -1829,6 +1770,139 @@
             "fuzzy": true
         },
         {
+            "id": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "message": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "translation": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "message": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "translation": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "Err",
+                    "string": "%[2]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 2,
+                    "expr": "kt.Ctx.Err()"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "message": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "translation": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FormatProgresssettled_total",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(settled, total)"
+                },
+                {
+                    "id": "String",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "elapsed.String()"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "message": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "translation": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(latest.Spec.CompletedCount, latest.Spec.TotalCount)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "message": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "translation": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FailedCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatUint32(latest.Spec.FailedCount)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "formatProgress(latest.Spec.SuccessCount, latest.Spec.TotalCount)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
             "id": "get source batch task data failed, err: {Err}",
             "message": "get source batch task data failed, err: {Err}",
             "translation": "get source batch task data failed, err: {Err}",
@@ -1965,23 +2039,6 @@
                     "underlyingType": "uint32",
                     "argNum": 3,
                     "expr": "latestRevision.ID"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "no success tasks found for batch {BatchId}",
-            "message": "no success tasks found for batch {BatchId}",
-            "translation": "no success tasks found for batch {BatchId}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "BatchId",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "req.GetBatchId()"
                 }
             ],
             "fuzzy": true
@@ -2311,21 +2368,21 @@
             "fuzzy": true
         },
         {
-            "id": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "message": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "translation": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
+            "id": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "message": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "translation": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {
-                    "id": "ConfigTemplateId",
+                    "id": "TemplateID",
                     "string": "%[1]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
                     "argNum": 1,
-                    "expr": "req.GetConfigTemplateId()"
+                    "expr": "ct.Attachment.TemplateID"
                 },
                 {
-                    "id": "TemplateID",
+                    "id": "TemplateID_1",
                     "string": "%[2]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
@@ -3127,40 +3184,6 @@
             "id": "list processes by process template IDs failed, err: {Err}",
             "message": "list processes by process template IDs failed, err: {Err}",
             "translation": "list processes by process template IDs failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get proc template failed, err: {Err}",
-            "message": "get proc template failed, err: {Err}",
-            "translation": "get proc template failed, err: {Err}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "get service template failed, err: {Err}",
-            "message": "get service template failed, err: {Err}",
-            "translation": "get service template failed, err: {Err}",
             "translatorComment": "Copied from source.",
             "placeholders": [
                 {

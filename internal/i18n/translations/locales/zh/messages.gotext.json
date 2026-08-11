@@ -1081,36 +1081,6 @@
             ]
         },
         {
-            "id": "get config templates by ids failed, err: {Err}",
-            "message": "get config templates by ids failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get config templates by names failed, err: {Err}",
-            "message": "get config templates by names failed, err: {Err}",
-            "translation": "根据名称获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
             "id": "get all config templates failed, err: {Err}",
             "message": "get all config templates failed, err: {Err}",
             "translation": "获取所有配置模板失败, err: {Err}",
@@ -1186,32 +1156,9 @@
             ]
         },
         {
-            "id": "get config template by id {Id} failed, err: {Err}",
-            "message": "get config template by id {Id} failed, err: {Err}",
-            "translation": "根据ID获取配置模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Id",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "id"
-                },
-                {
-                    "id": "Err",
-                    "string": "%[2]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 2,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "list config templates by names failed, err: {Err}",
-            "message": "list config templates by names failed, err: {Err}",
-            "translation": "根据名称列出配置模板失败, err: {Err}",
+            "id": "list config templates by ids failed, err: {Err}",
+            "message": "list config templates by ids failed, err: {Err}",
+            "translation": "根据ID列出配置模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",
@@ -1224,17 +1171,17 @@
             ]
         },
         {
-            "id": "config templates not found for names: {MissingNames}",
-            "message": "config templates not found for names: {MissingNames}",
-            "translation": "以下名称的配置模板未找到: {MissingNames}",
+            "id": "config templates not found for ids: {IdList}",
+            "message": "config templates not found for ids: {IdList}",
+            "translation": "以下ID的配置模板未找到: {IdList}",
             "placeholders": [
                 {
-                    "id": "MissingNames",
-                    "string": "%[1]v",
-                    "type": "[]string",
-                    "underlyingType": "[]string",
+                    "id": "IdList",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
                     "argNum": 1,
-                    "expr": "missingNames"
+                    "expr": "idList"
                 }
             ]
         },
@@ -1587,6 +1534,129 @@
             ]
         },
         {
+            "id": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "message": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "translation": "批次 {FormatUint32batchID} 的任务总数为 0，没有可下发的任务",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                }
+            ]
+        },
+        {
+            "id": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "message": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "translation": "等待批次 {FormatUint32batchID} 的任务状态落库被取消, err: {Err}",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "Err",
+                    "string": "%[2]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 2,
+                    "expr": "kt.Ctx.Err()"
+                }
+            ]
+        },
+        {
+            "id": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "message": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "translation": "批次 {FormatUint32batchID} 的成功任务数与批次总数不一致（已落库 {FormatProgresssettled_total}）,等待 {String} 后仍不一致, 已终止下发",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FormatProgresssettled_total",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(settled, total)"
+                },
+                {
+                    "id": "String",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "elapsed.String()"
+                }
+            ]
+        },
+        {
+            "id": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "message": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "translation": "批次 {FormatUint32batchID} 仍在执行中（已完成 {TotalCount}）,请等待配置生成结束后再下发",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(latest.Spec.CompletedCount, latest.Spec.TotalCount)"
+                }
+            ]
+        },
+        {
+            "id": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "message": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "translation": "批次 {FormatUint32batchID} 存在 {FailedCount} 个失败任务（成功 {TotalCount}）,需先重新生成配置后再下发",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FailedCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatUint32(latest.Spec.FailedCount)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "formatProgress(latest.Spec.SuccessCount, latest.Spec.TotalCount)"
+                }
+            ]
+        },
+        {
             "id": "get source batch task data failed, err: {Err}",
             "message": "get source batch task data failed, err: {Err}",
             "translation": "获取源批次任务数据失败, err: {Err}",
@@ -1710,21 +1780,6 @@
                     "underlyingType": "uint32",
                     "argNum": 3,
                     "expr": "latestRevision.ID"
-                }
-            ]
-        },
-        {
-            "id": "no success tasks found for batch {BatchId}",
-            "message": "no success tasks found for batch {BatchId}",
-            "translation": "批次{BatchId}未找到成功任务",
-            "placeholders": [
-                {
-                    "id": "BatchId",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "req.GetBatchId()"
                 }
             ]
         },
@@ -2013,20 +2068,20 @@
             ]
         },
         {
-            "id": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "message": "template not match template revision, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
-            "translation": "模板与模板版本不匹配, template_id={ConfigTemplateId}, template_revision_id={TemplateID}",
+            "id": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "message": "template not match template revision, template_id={TemplateID}, template_revision_id={TemplateID_1}",
+            "translation": "模板与模板版本不匹配, template_id={TemplateID}, template_revision_id={TemplateID_1}",
             "placeholders": [
                 {
-                    "id": "ConfigTemplateId",
+                    "id": "TemplateID",
                     "string": "%[1]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
                     "argNum": 1,
-                    "expr": "req.GetConfigTemplateId()"
+                    "expr": "ct.Attachment.TemplateID"
                 },
                 {
-                    "id": "TemplateID",
+                    "id": "TemplateID_1",
                     "string": "%[2]d",
                     "type": "uint32",
                     "underlyingType": "uint32",
@@ -2731,36 +2786,6 @@
             "id": "list processes by process template IDs failed, err: {Err}",
             "message": "list processes by process template IDs failed, err: {Err}",
             "translation": "根据进程模板ID列出进程失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get proc template failed, err: {Err}",
-            "message": "get proc template failed, err: {Err}",
-            "translation": "获取进程模板失败, err: {Err}",
-            "placeholders": [
-                {
-                    "id": "Err",
-                    "string": "%[1]v",
-                    "type": "error",
-                    "underlyingType": "interface{Error() string}",
-                    "argNum": 1,
-                    "expr": "err"
-                }
-            ]
-        },
-        {
-            "id": "get service template failed, err: {Err}",
-            "message": "get service template failed, err: {Err}",
-            "translation": "获取服务模板失败, err: {Err}",
             "placeholders": [
                 {
                     "id": "Err",

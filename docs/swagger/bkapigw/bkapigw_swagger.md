@@ -914,9 +914,6 @@ Content-Type: application/json
     "configTemplateIds": [
       {}
     ],
-    "configTemplateNames": [
-      {}
-    ],
     "environment": "",
     "expressionScope": {
       "moduleName": "",
@@ -972,9 +969,6 @@ Content-Type: application/json
   ],
   "operateRange": {
     "configTemplateIds": [
-      {}
-    ],
-    "configTemplateNames": [
       {}
     ],
     "environment": "",
@@ -1693,9 +1687,6 @@ Content-Type: application/json
     "configTemplateIds": [
       {}
     ],
-    "configTemplateNames": [
-      {}
-    ],
     "environment": "",
     "expressionScope": {
       "moduleName": "",
@@ -1751,9 +1742,6 @@ Content-Type: application/json
   ],
   "operateRange": {
     "configTemplateIds": [
-      {}
-    ],
-    "configTemplateNames": [
       {}
     ],
     "environment": "",
@@ -4070,9 +4058,6 @@ Content-Type: application/json
     "configTemplateIds": [
       {}
     ],
-    "configTemplateNames": [
-      {}
-    ],
     "environment": "",
     "expressionScope": {
       "moduleName": "",
@@ -4130,9 +4115,6 @@ Content-Type: application/json
   "enableProcessRestart": false,
   "operateRange": {
     "configTemplateIds": [
-      {}
-    ],
-    "configTemplateNames": [
       {}
     ],
     "environment": "",
@@ -7503,7 +7485,6 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | configTemplateIds | []int64 (formatted integer)| `[]int64` |  | | 配置模版ID列表 |  |
-| configTemplateNames | []string| `[]string` |  | | 配置模版名称列表 |  |
 | environment | string| `string` |  | | 环境类型(1:测试 2: 体验 3: 正式) |  |
 | expressionScope | [PbprocExpressionScope](#pbproc-expression-scope)| `PbprocExpressionScope` |  | | 表达式范围 |  |
 

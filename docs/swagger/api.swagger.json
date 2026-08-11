@@ -35120,13 +35120,6 @@
           },
           "description": "配置模版ID列表"
         },
-        "configTemplateNames": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "配置模版名称列表"
-        },
         "expressionScope": {
           "$ref": "#/definitions/pbprocExpressionScope",
           "description": "表达式范围",

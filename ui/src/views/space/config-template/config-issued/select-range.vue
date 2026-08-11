@@ -5,7 +5,6 @@
       <FilterProcess
         class="process-filter"
         :bk-biz-id="bkBizId"
-        :is-issued="true"
         @search="handleSelectProcessRange" />
     </div>
     <div class="config-template">

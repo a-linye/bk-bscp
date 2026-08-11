@@ -86,21 +86,35 @@ func buildLinuxPushScript(base64Content, absPath, fileMode, owner, group string,
 set -euo pipefail
 
 TARGET_PATH=%s
-TARGET_DIR="$(dirname "$TARGET_PATH")"
-TARGET_NAME="$(basename "$TARGET_PATH")"
 MAX_BACKUPS=%d
 
-# 1. 创建目标目录
+# 1. 目标为软链接时先解析真实路径，保持跟随语义：备份、临时文件与替换都作用于真实路径
+if [ -L "$TARGET_PATH" ]; then
+    REAL_PATH="$(readlink -f -- "$TARGET_PATH")"
+    echo "Resolved symlink: $TARGET_PATH -> $REAL_PATH"
+    TARGET_PATH="$REAL_PATH"
+fi
+
+TARGET_DIR="$(dirname "$TARGET_PATH")"
+TARGET_NAME="$(basename "$TARGET_PATH")"
+
+# 2. 创建目标目录
 mkdir -p -- "$TARGET_DIR"
 
-# 2. 备份原文件（如果存在）
+# 3. 临时文件与目标同目录，保证后续 mv 在同一文件系统内落到 rename(2) 从而原子；
+#    任一步骤失败都清理临时文件，不留残留、不触碰目标文件
+TMP_PATH="${TARGET_PATH}.tmp.$$.${RANDOM}"
+trap 'rm -f -- "$TMP_PATH"' EXIT
+
+# 4. 备份原文件（如果存在），并让备份归属与目标文件保持一致
 if [ -f "$TARGET_PATH" ]; then
     TIMESTAMP="$(date +%%s)"
     BACKUP_PATH="${TARGET_DIR}/${TARGET_NAME}.${TIMESTAMP}.bak"
     cp -- "$TARGET_PATH" "$BACKUP_PATH"
+    chown %s:%s -- "$BACKUP_PATH"
     echo "Backup created: $BACKUP_PATH"
 
-    # 3. 清理旧备份：超过 MAX_BACKUPS 份则删除最旧的
+    # 5. 清理旧备份：超过 MAX_BACKUPS 份则删除最旧的
     # 按修改时间从旧到新排列，找出需要删除的文件
     BACKUP_COUNT="$(ls -1 "${TARGET_DIR}/${TARGET_NAME}".*.bak 2>/dev/null | wc -l)"
     if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
@@ -113,20 +127,32 @@ if [ -f "$TARGET_PATH" ]; then
     fi
 fi
 
-# 3. 写入配置文件（base64 解码）
-echo %s | base64 -d > "$TARGET_PATH"
+# 6. 写入临时文件（base64 解码）
+echo %s | base64 -d > "$TMP_PATH"
 
-# 4. 设置权限和属主
-chmod %s "$TARGET_PATH"
-chown %s:%s "$TARGET_PATH"
+# 7. 在临时文件上设置权限和属主：失败即终止，目标文件保持原状
+chmod %s -- "$TMP_PATH"
+chown %s:%s -- "$TMP_PATH"
 
-# 5. 校验（不影响主流程）
+# 8. 继承目标文件原有的 SELinux 标签。替换换了 inode，新文件默认只能拿到目录的默认标签，
+#    原文件若被 chcon 定制过就会退化，导致业务进程被拒绝读取（下发成功但配置加载失败）。
+#    SELinux 关闭或未装工具的机器上整段跳过，不影响下发。
+if [ -e "$TARGET_PATH" ] && command -v chcon >/dev/null 2>&1; then
+    chcon --reference="$TARGET_PATH" -- "$TMP_PATH" 2>/dev/null || true
+fi
+
+# 9. 原子替换目标文件
+mv -f -- "$TMP_PATH" "$TARGET_PATH"
+
+# 10. 校验（不影响主流程）
 set +e
 ls -l "$TARGET_PATH" || true
 md5sum "$TARGET_PATH" || true
 `,
 		shellQuote(absPath),
 		maxBackups,
+		shellQuote(owner),
+		shellQuote(group),
 		shellQuote(base64Content),
 		fileMode,
 		shellQuote(owner),
@@ -258,10 +284,15 @@ move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul || (
     exit /b 1
 )
 
-REM 6. 设置权限
-icacls "%%TARGET_PATH%%" /setowner "%s" >nul 2>&1
-icacls "%%TARGET_PATH%%" /grant:r "%s:(F)" >nul 2>&1
-icacls "%%TARGET_PATH%%" /grant:r "%s:(R)" >nul 2>&1
+REM 6. 设置属主与权限。脚本以 Administrator（或配置的执行账号）运行，
+REM    /setowner 需要接管所有权的特权，改为该账号执行后才能真正生效。
+REM    这里不静默丢弃错误，失败时回传 errorlevel 便于定位，但不终止下发。
+icacls "%%TARGET_PATH%%" /setowner "%s" >nul
+if !ERRORLEVEL! neq 0 echo [WARN] icacls /setowner failed, errorlevel=!ERRORLEVEL!
+icacls "%%TARGET_PATH%%" /grant:r "%s:(F)" >nul
+if !ERRORLEVEL! neq 0 echo [WARN] icacls grant owner full control failed, errorlevel=!ERRORLEVEL!
+icacls "%%TARGET_PATH%%" /grant:r "%s:(R)" >nul
+if !ERRORLEVEL! neq 0 echo [WARN] icacls grant group read failed, errorlevel=!ERRORLEVEL!
 
 REM 7. 校验
 dir "%%TARGET_PATH%%"
@@ -332,10 +363,12 @@ func BuildScriptCommand(storeDir, scriptName string, fileMode table.FileMode) st
 	return path.Join(storeDir, scriptName)
 }
 
-// GetExecutionUser 根据平台返回执行账号
-func GetExecutionUser(fileMode table.FileMode, configUser string) string {
-	if configUser != "" {
-		return configUser
+// GetExecutionUser 返回 GSE 脚本的执行账号。
+// 执行账号取自全局配置项 gse.scriptExecuteUser，与模版属主无关：
+// 属主只表示文件最终应归谁，用属主身份部署会被目录权限与文件只读位挡住，且 chown 本身非 root 不可。
+func GetExecutionUser(fileMode table.FileMode, scriptExecuteUser string) string {
+	if scriptExecuteUser != "" {
+		return scriptExecuteUser
 	}
 	if fileMode == table.Windows {
 		return "Administrator"

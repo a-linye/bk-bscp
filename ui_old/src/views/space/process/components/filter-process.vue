@@ -300,7 +300,9 @@
     flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
+    height: 32px;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.15) transparent;

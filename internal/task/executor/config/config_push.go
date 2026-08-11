@@ -153,7 +153,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	scriptName := BuildScriptNameByFileMode("release", commonPayload, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	executionUser := GetExecutionUser(fileMode, commonPayload.ConfigPayload.ConfigFileOwner)
+	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
 
 	logs.Infof("[ReleaseConfig STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
 		payload.BatchID, command, executionUser, fullPath)
@@ -240,18 +240,21 @@ func (e *PushConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 	kt.User = payload.OperatorUser
 
 	isSuccess := cbErr == nil
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
+	allCompleted, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+	if err != nil {
 		return fmt.Errorf("increment completed count failed, batch: %d, err: %w", payload.BatchID, err)
 	}
 
-	// 统一推送事件
-	e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-		TenantID: payload.TenantID,
-		BizID:    payload.BizID,
-		BatchID:  payload.BatchID,
-		Operator: payload.OperatorUser,
-		CbErr:    cbErr,
-	})
+	// 统一推送事件，只在批次收尾的那次回调发出，避免异步通知重复推送
+	if allCompleted {
+		e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
+			TenantID: payload.TenantID,
+			BizID:    payload.BizID,
+			BatchID:  payload.BatchID,
+			Operator: payload.OperatorUser,
+			CbErr:    cbErr,
+		})
+	}
 
 	// 仅配置下发成功才更新配置实例的状态
 	if !isSuccess {
