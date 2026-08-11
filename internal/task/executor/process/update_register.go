@@ -450,7 +450,8 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 	// 更新 TaskBatch 的完成计数
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		if _, err := u.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
+		allCompleted, err := u.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+		if err != nil {
 			logs.Errorf("[UpdateRegisterCallback CALLBACK]: failed to increment completed count, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
 		}
@@ -488,14 +489,16 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 			}
 		}
 
-		// 统一推送事件
-		u.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-			TenantID: payload.TenantID,
-			BizID:    payload.BizID,
-			BatchID:  payload.BatchID,
-			Operator: payload.OperateUser,
-			CbErr:    cbErr,
-		})
+		// 统一推送事件，只在批次收尾的那次回调发出，避免异步通知重复推送
+		if allCompleted {
+			u.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
+				TenantID: payload.TenantID,
+				BizID:    payload.BizID,
+				BatchID:  payload.BatchID,
+				Operator: payload.OperateUser,
+				CbErr:    cbErr,
+			})
+		}
 	}
 
 	if isSuccess {

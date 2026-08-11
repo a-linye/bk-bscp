@@ -640,14 +640,16 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	}
 
-	// 统一推送事件
-	e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-		TenantID: payload.TenantID,
-		BizID:    payload.BizID,
-		BatchID:  payload.BatchID,
-		Operator: payload.OperateUser,
-		CbErr:    cbErr,
-	})
+	// 统一推送事件，只在批次收尾的那次回调发出，避免异步通知重复推送
+	if allCompleted {
+		e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
+			TenantID: payload.TenantID,
+			BizID:    payload.BizID,
+			BatchID:  payload.BatchID,
+			Operator: payload.OperateUser,
+			CbErr:    cbErr,
+		})
+	}
 
 	defer func() {
 		// 只要批次任务全部完成，就触发一次 CMDB 模块实例序列更新，确保模块实例序列的正确性

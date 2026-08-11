@@ -1109,6 +1109,156 @@ func getSuccessTasks(kt *kit.Kit, batchID uint32) ([]*taskTypes.Task, error) {
 	return result, nil
 }
 
+const (
+	// pushConfigSettleInterval 等待配置生成任务状态落库的轮询间隔
+	pushConfigSettleInterval = 200 * time.Millisecond
+	// pushConfigMaxSettleWait 等待配置生成任务状态落库的累计上限
+	pushConfigMaxSettleWait = 3 * time.Second
+)
+
+// waitSuccessTasksSettled 等待批次内配置生成任务的状态全部落库后返回成功任务。
+//
+// 任务框架在单个步骤完成后先执行回调再持久化任务状态，而批次计数与状态翻转发生在回调内，
+// 因此存在「批次已是 succeed 但个别任务在 task_records 里还不是 SUCCESS」的时间窗。
+// 此时直接取成功任务，单实例批次会拿到空集、多实例批次会拿到不完整集合而静默漏发，
+// 所以这里以「成功任务数 == 批次 total_count」为放行判据，不满足则有限重试。
+func waitSuccessTasksSettled(set dao.Set, kt *kit.Kit, bizID uint32,
+	batch *table.TaskBatch) ([]*taskTypes.Task, error) {
+	batchID := batch.ID
+	total := batch.Spec.TotalCount
+	if total == 0 {
+		return nil, errf.Errorf(errf.InvalidParameter, "%s",
+			i18n.T(kt, "batch %s total count is 0, there is no task to push", formatUint32(batchID)))
+	}
+
+	var (
+		settled uint32
+		retries int
+		start   = time.Now()
+	)
+
+	for {
+		var err error
+		if settled, err = countSuccessTasks(kt, batchID); err != nil {
+			return nil, err
+		}
+
+		if settled >= total {
+			logs.Infof("[PushConfig] batch %d success tasks settled, success=%d, total=%d, retries=%d, "+
+				"elapsed=%s, rid=%s", batchID, settled, total, retries, time.Since(start), kt.Rid)
+			return getSuccessTasks(kt, batchID)
+		}
+
+		if time.Since(start) >= pushConfigMaxSettleWait {
+			break
+		}
+
+		retries++
+		select {
+		case <-kt.Ctx.Done():
+			return nil, errf.Errorf(errf.InvalidParameter, "%s",
+				i18n.T(kt, "waiting for tasks of batch %s to settle is canceled, err: %v",
+					formatUint32(batchID), kt.Ctx.Err()))
+		case <-time.After(pushConfigSettleInterval):
+		}
+	}
+
+	elapsed := time.Since(start).Truncate(time.Millisecond)
+	logs.Errorf("[PushConfig] batch %d success tasks not settled, success=%d, total=%d, retries=%d, "+
+		"elapsed=%s, rid=%s", batchID, settled, total, retries, elapsed, kt.Rid)
+
+	return nil, buildTasksNotSettledError(set, kt, bizID, batchID, settled, total, elapsed)
+}
+
+// countSuccessTasks 只统计批次内成功任务的数量，开销与任务数量无关。
+//
+// 一致性校验每一轮只需要数量。若沿用 getSuccessTasks 逐页拉全量，单轮开销会随任务数线性增长，
+// 大批次下重试预算会被查询本身耗尽——极端情况下一轮查询就超过上限，等于完全没有重试。
+func countSuccessTasks(kt *kit.Kit, batchID uint32) (uint32, error) {
+	storage := taskpkg.GetGlobalStorage()
+	if storage == nil {
+		return 0, errf.Errorf(errf.Unknown, "%s",
+			i18n.T(kt, "task storage not initialized"))
+	}
+
+	// Limit 设为 1：底层分页在页满时会补一次 count 查询，返回的 Count 是符合条件的总数
+	pagination, err := storage.ListTask(kt.Ctx, &istore.ListOption{
+		TaskIndex:     strconv.FormatUint(uint64(batchID), 10),
+		TaskIndexType: common.TaskIndexType,
+		TaskType:      string(table.TaskActionConfigGenerate),
+		Status:        taskTypes.CallbackResultSuccess,
+		Limit:         1,
+	})
+	if err != nil {
+		logs.Errorf("[countSuccessTasks] count task failed, batchID=%d, rid=%s, err=%v", batchID, kt.Rid, err)
+		return 0, errf.Errorf(errf.Unknown, "%s",
+			i18n.T(kt, "list task failed, err: %v", err))
+	}
+
+	return uint32(pagination.Count), nil
+}
+
+// buildTasksNotSettledError 区分「批次仍在执行」「批次存在失败任务」与「任务状态落库延迟超时」三类原因。
+func buildTasksNotSettledError(set dao.Set, kt *kit.Kit, bizID, batchID, settled, total uint32,
+	elapsed time.Duration) error {
+	timeoutErr := errf.Errorf(errf.RecordNotFound, "%s",
+		i18n.T(kt, "the success task count of batch %s does not match its total count (settled %s), "+
+			"still inconsistent after waiting %s, config push aborted",
+			formatUint32(batchID), formatProgress(settled, total), elapsed.String()))
+
+	latest, err := set.TaskBatch().GetByID(kt, bizID, batchID)
+	if err != nil {
+		// 读不到批次详情时无法判定原因，降级为落库延迟超时
+		logs.Errorf("[PushConfig] get batch %d detail failed, err: %v, rid: %s", batchID, err, kt.Rid)
+		return timeoutErr
+	}
+
+	if batchIsRunning(latest.Spec) {
+		return errf.Errorf(errf.InvalidParameter, "%s",
+			i18n.T(kt, "batch %s is still running (completed %s), "+
+				"please wait for the config generation to finish before pushing",
+				formatUint32(batchID),
+				formatProgress(latest.Spec.CompletedCount, latest.Spec.TotalCount)))
+	}
+
+	if batchHasFailedTasks(latest.Spec) {
+		return errf.Errorf(errf.InvalidParameter, "%s",
+			i18n.T(kt, "batch %s has %s failed task(s) (success %s), "+
+				"please regenerate the config before pushing",
+				formatUint32(batchID), formatUint32(latest.Spec.FailedCount),
+				formatProgress(latest.Spec.SuccessCount, latest.Spec.TotalCount)))
+	}
+
+	return timeoutErr
+}
+
+// batchIsRunning 判定批次是否仍在执行。
+// 等待上限内批次都没跑完，说明任务集合还没定型，与「批次已终态、个别任务落库慢」是两回事；
+// 归因为落库延迟会把排查引向 end_at 与 updated_at 的时序比对，而真正该看的是批次为何未完成。
+func batchIsRunning(spec *table.TaskBatchSpec) bool {
+	if spec == nil {
+		return false
+	}
+	return spec.Status == table.TaskBatchStatusRunning
+}
+
+// batchHasFailedTasks 判定批次是否已全部执行完且存在失败任务。
+// 只有全部完成才能断定失败，否则未完成的任务仍可能成功，此时应归因为落库延迟。
+func batchHasFailedTasks(spec *table.TaskBatchSpec) bool {
+	if spec == nil {
+		return false
+	}
+	return spec.CompletedCount == spec.TotalCount && spec.FailedCount > 0
+}
+
+func formatUint32(v uint32) string {
+	return strconv.FormatUint(uint64(v), 10)
+}
+
+func formatProgress(current, total uint32) string {
+	return formatUint32(current) + "/" + formatUint32(total)
+}
+
 // createBatch 创建下发批次
 func createBatch(dao dao.Set, kt *kit.Kit, bizID uint32, srcBatch *table.TaskBatch,
 	taskCount uint32, configTemplateIDs []uint32) (uint32, error) {
@@ -1256,14 +1406,10 @@ func (s *Service) PushConfig(ctx context.Context, req *pbds.PushConfigReq) (*pbd
 		return nil, err
 	}
 
-	// 获取成功任务
-	tasks, err := getSuccessTasks(kt, req.GetBatchId())
+	// 获取成功任务，等待批次内任务状态全部落库后才放行下发，避免漏发实例
+	tasks, err := waitSuccessTasksSettled(s.dao, kt, req.GetBizId(), batch)
 	if err != nil {
 		return nil, err
-	}
-	if len(tasks) == 0 {
-		return nil, errf.Errorf(errf.RecordNotFound, "%s",
-			i18n.T(kt, "no success tasks found for batch %d", req.GetBatchId()))
 	}
 
 	// 获取配置生成任务的 payload，收集配置模板ID和版本信息

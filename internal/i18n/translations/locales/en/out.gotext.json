@@ -1770,6 +1770,139 @@
             "fuzzy": true
         },
         {
+            "id": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "message": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "translation": "batch {FormatUint32batchID} total count is 0, there is no task to push",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "message": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "translation": "waiting for tasks of batch {FormatUint32batchID} to settle is canceled, err: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "Err",
+                    "string": "%[2]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 2,
+                    "expr": "kt.Ctx.Err()"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "message": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "translation": "the success task count of batch {FormatUint32batchID} does not match its total count (settled {FormatProgresssettled_total}), still inconsistent after waiting {String}, config push aborted",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FormatProgresssettled_total",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(settled, total)"
+                },
+                {
+                    "id": "String",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "elapsed.String()"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "message": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "translation": "batch {FormatUint32batchID} is still running (completed {TotalCount}), please wait for the config generation to finish before pushing",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatProgress(latest.Spec.CompletedCount, latest.Spec.TotalCount)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "message": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "translation": "batch {FormatUint32batchID} has {FailedCount} failed task(s) (success {TotalCount}), please regenerate the config before pushing",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FormatUint32batchID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "formatUint32(batchID)"
+                },
+                {
+                    "id": "FailedCount",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "formatUint32(latest.Spec.FailedCount)"
+                },
+                {
+                    "id": "TotalCount",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "formatProgress(latest.Spec.SuccessCount, latest.Spec.TotalCount)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
             "id": "get source batch task data failed, err: {Err}",
             "message": "get source batch task data failed, err: {Err}",
             "translation": "get source batch task data failed, err: {Err}",
@@ -1906,23 +2039,6 @@
                     "underlyingType": "uint32",
                     "argNum": 3,
                     "expr": "latestRevision.ID"
-                }
-            ],
-            "fuzzy": true
-        },
-        {
-            "id": "no success tasks found for batch {BatchId}",
-            "message": "no success tasks found for batch {BatchId}",
-            "translation": "no success tasks found for batch {BatchId}",
-            "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "BatchId",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "req.GetBatchId()"
                 }
             ],
             "fuzzy": true

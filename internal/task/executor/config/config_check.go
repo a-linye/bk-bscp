@@ -124,14 +124,16 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, target=%s",
-		payload.BatchID, command, fullPath)
+	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
+
+	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
+		payload.BatchID, command, executionUser, fullPath)
 
 	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
+				User:      executionUser,
 			},
 		},
 		Scripts: []gse.Script{
@@ -292,14 +294,16 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, target=%s",
-		payload.BatchID, command, fullPath)
+	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
+
+	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
+		payload.BatchID, command, executionUser, fullPath)
 
 	req := &gse.ExecuteScriptReq{
 		Agents: []gse.Agent{
 			{
 				BkAgentID: payload.Process.Attachment.AgentID,
-				User:      GetExecutionUser(fileMode, payload.TemplateRevision.Spec.Permission.User),
+				User:      executionUser,
 			},
 		},
 		Scripts: []gse.Script{
@@ -391,18 +395,22 @@ func (e *CheckConfigExecutor) Callback(c *istep.Context, cbErr error) error {
 	kt := kit.NewWithTenant(payload.TenantID)
 
 	isSuccess := cbErr == nil
-	if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
+	allCompleted, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+	if err != nil {
 		return fmt.Errorf("increment completed count failed, batchID: %d, err: %w",
 			payload.BatchID, err)
 	}
 
-	e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-		TenantID: payload.TenantID,
-		BizID:    payload.BizID,
-		BatchID:  payload.BatchID,
-		Operator: payload.OperatorUser,
-		CbErr:    cbErr,
-	})
+	// 只在批次收尾的那次回调发出通知，避免异步通知重复推送
+	if allCompleted {
+		e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
+			TenantID: payload.TenantID,
+			BizID:    payload.BizID,
+			BatchID:  payload.BatchID,
+			Operator: payload.OperatorUser,
+			CbErr:    cbErr,
+		})
+	}
 
 	return nil
 }
