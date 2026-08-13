@@ -31,20 +31,17 @@ import (
 
 func TestGetExecutionUser(t *testing.T) {
 	tests := []struct {
-		name              string
-		fileMode          table.FileMode
-		scriptExecuteUser string
-		want              string
+		name     string
+		fileMode table.FileMode
+		want     string
 	}{
-		{"linux falls back to root", table.Unix, "", "root"},
-		{"windows falls back to administrator", table.Windows, "", "Administrator"},
-		{"configured user wins on linux", table.Unix, "deployer", "deployer"},
-		{"configured user wins on windows", table.Windows, "deployer", "deployer"},
+		{"linux uses root", table.Unix, linuxExecutionUser},
+		{"windows uses administrator", table.Windows, windowsExecutionUser},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetExecutionUser(tt.fileMode, tt.scriptExecuteUser))
+			assert.Equal(t, tt.want, GetExecutionUser(tt.fileMode))
 		})
 	}
 }

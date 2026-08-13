@@ -1773,10 +1773,6 @@ type GSE struct {
 	ContainerName string `yaml:"containerName"`
 	// AgentUser is the user exists in the feed server container/node.
 	AgentUser string `yaml:"agentUser"`
-	// ScriptExecuteUser is the account used to execute the config push/check scripts on the target host.
-	// It is independent from AgentUser, which is the feed server's file transfer account.
-	// Leave it empty to fall back to root on Linux and Administrator on Windows.
-	ScriptExecuteUser string `yaml:"scriptExecuteUser"`
 	// CacheDir is the directory where the source file download to and cached.
 	CacheDir string `yaml:"cacheDir"`
 	// CacheSizeGB is the cache size of the source file in the feed server.

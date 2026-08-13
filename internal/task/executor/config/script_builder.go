@@ -23,8 +23,13 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 )
 
-// defaultMaxBackups 是默认的脚本备份文件最大数量，超过后会删除最旧的备份文件
-const defaultMaxBackups = 5
+const (
+	// defaultMaxBackups 是默认的脚本备份文件最大数量，超过后会删除最旧的备份文件
+	defaultMaxBackups = 5
+	// GSE 脚本执行账号
+	linuxExecutionUser   = "root"
+	windowsExecutionUser = "Administrator"
+)
 
 // ScriptBuilder 根据 FileMode (OS 类型) 构建不同平台的脚本
 type ScriptBuilder struct {
@@ -284,7 +289,7 @@ move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul || (
     exit /b 1
 )
 
-REM 6. 设置属主与权限。脚本以 Administrator（或配置的执行账号）运行，
+REM 6. 设置属主与权限。脚本以 Administrator 运行，
 REM    /setowner 需要接管所有权的特权，改为该账号执行后才能真正生效。
 REM    这里不静默丢弃错误，失败时回传 errorlevel 便于定位，但不终止下发。
 icacls "%%TARGET_PATH%%" /setowner "%s" >nul
@@ -363,17 +368,13 @@ func BuildScriptCommand(storeDir, scriptName string, fileMode table.FileMode) st
 	return path.Join(storeDir, scriptName)
 }
 
-// GetExecutionUser 返回 GSE 脚本的执行账号。
-// 执行账号取自全局配置项 gse.scriptExecuteUser，与模版属主无关：
-// 属主只表示文件最终应归谁，用属主身份部署会被目录权限与文件只读位挡住，且 chown 本身非 root 不可。
-func GetExecutionUser(fileMode table.FileMode, scriptExecuteUser string) string {
-	if scriptExecuteUser != "" {
-		return scriptExecuteUser
-	}
+// GetExecutionUser 返回 GSE 脚本的执行账号
+// Linux 固定为 root，Windows 固定为 Administrator
+func GetExecutionUser(fileMode table.FileMode) string {
 	if fileMode == table.Windows {
-		return "Administrator"
+		return windowsExecutionUser
 	}
-	return "root"
+	return linuxExecutionUser
 }
 
 // ToWindowsPath 将 POSIX 路径转换为 Windows 路径
