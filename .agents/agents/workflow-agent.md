@@ -6,12 +6,14 @@ description: |
   错误暂停、完成后重启。启动时主动感知当前状态，无需用户输入特定指令。
   Use proactively when: 用户发起迭代开发、开始新需求、继续工作流时；
   或用户说"开始工作流"、"继续迭代"、"按工作流开发"、"执行下一步"时。
-model: claude-opus-4.6-1m
-tools: list_dir, search_file, search_content, read_file, read_lints, replace_in_file, write_to_file, execute_command, delete_file, connect_cloud_service, use_skill, codebase_search
+model: claude-opus-4.8-1m
+tools: list_dir, search_file, search_content, read_file, read_lints, replace_in_file, write_to_file, execute_command, delete_file, connect_cloud_service, use_skill, codebase_search, Read, Write, Edit, Glob, Grep, Bash, Skill
 agentMode: agentic
 enabled: true
 enabledAutoRun: true
-mcpServers: gongfeng_mcp
+permissionMode: bypassPermissions
+mcpServers:
+  - gongfeng
 ---
 # 工作流执行 Agent
 
