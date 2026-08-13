@@ -114,7 +114,7 @@
 
   const { t, locale } = useI18n();
   const router = useRouter();
-  const { showApplyPermDialog, permissionQuery } = storeToRefs(useGlobalStore());
+  const { showApplyPermDialog, permissionQuery, hideNav } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     spaceId: string;
@@ -149,12 +149,15 @@
   };
 
   const handleJump = (id: number, name: string) => {
+    // 当前处于 iframe 内嵌（hideNav=true）时，跳转需携带 hideNav=1，保持新页面/新标签页隐藏导航栏
+    const query = hideNav.value ? { hideNav: '1' } : {};
     if (name === 'service-config') {
       router.push({ name, params: { spaceId: props.spaceId, appId: id } });
     } else {
       const routeData = router.resolve({
         name,
         params: { spaceId: props.spaceId, appId: id },
+        query,
       });
       window.open(routeData.href, '_blank');
     }

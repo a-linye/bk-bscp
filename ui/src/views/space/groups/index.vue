@@ -477,7 +477,7 @@
     cursor: pointer;
   }
   .groups-management-page {
-    height: calc(100% - 33px);
+    height: calc(100% - 34px);
     padding: 24px;
     background: #f5f7fa;
     overflow: hidden;

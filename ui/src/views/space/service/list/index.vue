@@ -57,7 +57,7 @@
     display: flex;
     flex-direction: column;
     background: #f5f7fa;
-    height: calc(100vh - 52px);
+    height: 100%;
     width: 100%;
   }
 </style>
