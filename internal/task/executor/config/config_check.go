@@ -124,7 +124,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
+	executionUser := GetExecutionUser(fileMode)
 
 	logs.Infof("[CheckConfigMD5 STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
 		payload.BatchID, command, executionUser, fullPath)
@@ -294,7 +294,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 		e.GseConf.ScriptStoreDir, e.GseConf.WindowsScriptStoreDir, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
+	executionUser := GetExecutionUser(fileMode)
 
 	logs.Infof("[FetchConfigContent STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
 		payload.BatchID, command, executionUser, fullPath)
