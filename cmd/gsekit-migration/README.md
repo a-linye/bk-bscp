@@ -16,6 +16,8 @@ migration:
   reviser: "xxx"           # 迁移记录的修改者
   batch_size: 500            # 每批处理的记录数，默认 500
   continue_on_error: false   # 遇到错误是否继续迁移
+  config_template_id_reserve_base: 20000  # config_templates.id 预留基线，默认 20000
+  native_biz_id: 100148                   # 自建业务，对齐时整批搬到预留区，前置校验跳过
 
 source:
   mysql:
@@ -70,6 +72,8 @@ log:
 | `cmdb` | CMDB API 配置，用于查询进程关联的主机信息 |
 | `gsekit` | GSEKit API 网关配置，仅 `compare-render` 命令使用。`bk_ticket` 为用户登录态 |
 | `gse` | GSE API 网关配置（必填）。迁移进程时调用 `list_agent_state` 查询 agent 状态并写入 `agent_status`，使迁移完成后进程可立即参与 GSE 进程状态同步 |
+| `migration.config_template_id_reserve_base` | `config_templates.id` 的预留基线，默认 20000。`[1, base)` 归 GSEKit 对齐专用，迁移时直接复用 GSEKit 的 `config_template_id`；`[base, ∞)` 归 BSCP 自建模板，由 `id_generators` 分配。GSEKit 侧水位涨到基线时，`migrate` 与 `align-template-id` 都会硬失败，此时需调大该值并重跑 `align-template-id` |
+| `migration.native_biz_id` | BSCP 自建业务。该业务的模板与 GSEKit 无对应关系，`align-template-id` 整批搬到预留区且不做名字匹配，`precheck-align-template-id` 整批跳过。`0` 或不填表示没有例外业务 |
 
 ---
 
@@ -392,3 +396,224 @@ Biz 100148:
 | `render_error` | BSCP 渲染引擎执行失败 |
 | `gsekit_render_error` | GSEKit 预览 API 返回错误 |
 | `ginclude_expand_error` | BSCP 侧 Ginclude 指令展开失败 |
+
+---
+
+## 5. 配置模板 ID 对齐前置校验 (`precheck-align-template-id`)
+
+在跑 `align-template-id` **之前**的只读确认：迁移产物当前名字是否仍能在 GSEKit
+同业务下命中。与对齐命令无耦合，不改库、不阻塞对齐；是否继续由运维看报告自行决定。
+
+### 命令格式
+
+```bash
+./bk-bscp-gsekit-migration precheck-align-template-id -c <配置文件> [-o <报告路径>]
+```
+
+| 选项 | 说明 |
+|---|---|
+| `-c, --config` | 配置文件路径（必填），使用其中的双库连接、`migration.creator` 与 `migration.native_biz_id` |
+| `-o, --output` | 报告 JSON 路径，默认 `precheck-align-template-id-report-<YYYYMMDD-HHMMSS>.json` |
+
+### 判定规则
+
+1. 读 BSCP `config_templates`，筛 `creator == migration.creator` 且 `biz_id != migration.native_biz_id`（`native_biz_id` 为 0 时不过滤业务）
+2. 用 `(biz_id, name)` 查 GSEKit `gsekit_configtemplate`
+3. 命中 → OK；未命中 → ALERT
+
+有 ALERT 时进程退出码非 0，报告仍会写出。建议先处理 ALERT，再执行对齐。
+
+### 建议顺序
+
+```bash
+./bk-bscp-gsekit-migration precheck-align-template-id -c etc/migration.yaml
+./bk-bscp-gsekit-migration align-template-id -c etc/migration.yaml          # dry-run
+./bk-bscp-gsekit-migration align-template-id -c etc/migration.yaml --execute
+```
+
+## 6. 配置模板 ID 对齐命令 (`align-template-id`)
+
+把已迁移的 `config_templates.id` 对齐到 GSEKit 的 `config_template_id`。
+
+### 为什么需要对齐
+
+标准运维（bk-sops）的流程模板里保存的是 GSEKit 的配置模板 ID，插件执行时把它作为
+`config_template_ids` 传给 BSCP。而首批迁移时 `config_templates.id` 由 BSCP 的
+`id_generators` 重新分配，与 GSEKit 无关，导致插件查不到模板、流程执行失败，
+用户必须重新编辑并保存每一条流程才能恢复。
+
+只有 `config_templates.id` 需要对齐。插件没有保存版本 ID（插件模式下 BSCP 自行取最新版本），
+`templates.id` 与 `template_revisions.id` 无需处理。
+
+本命令是一次性的存量修复。`migrate` 流程已同步改造为写入时直接复用 GSEKit ID，
+后续批次迁移不会再产生同类问题，也不需要再跑本命令。
+
+### 命令格式
+
+```bash
+./bk-bscp-gsekit-migration align-template-id -c <配置文件> [选项]
+```
+
+### 可用选项
+
+| 选项 | 说明 |
+|---|---|
+| `-c, --config` | 配置文件路径（必填） |
+| `--dry-run` | 只输出报告不改数据。默认行为，不传 `--execute` 即等于试跑 |
+| `--execute` | 真正执行搬迁。与 `--dry-run` 互斥，必须显式传入 |
+| `-o, --output` | 报告输出路径，默认 `align-template-id-report-<YYYYMMDD-HHMMSS>.json` |
+
+这是全库操作，不接受 `--biz-ids`：`[1, 预留基线)` 区间要一次性清空，按业务分批做不出正确结果。
+
+### 执行阶段
+
+| 阶段 | 内容 |
+|---|---|
+| 0 体检 | 读 GSEKit `gsekit_configtemplate` 的 `AUTO_INCREMENT`，达到预留基线则失败退出；读 BSCP `config_templates` 全量与 `id_generators` 水位；存在 `status = 'running'` 的 `task_batches` 则拒绝执行 |
+| 1 建映射 | 按 `(biz_id, name)` 在 GSEKit 中匹配，得出每条记录的目标 ID 与分类 |
+| 2 报告 | 报告 JSON 落盘。`--dry-run` 到此结束 |
+| 3 执行 | 先独立提交水位抬高，再在单个事务内腾空、入位、改写引用、收尾水位 |
+| 4 校验 | 三项只读断言 |
+
+预留基线取 `AUTO_INCREMENT` 而非 `MAX(config_template_id)`：GSEKit 的模板是硬删除且主键不回收，
+`MAX` 会明显低于真实水位。
+
+### 匹配策略
+
+只用 `(业务, 模板名)` 匹配。GSEKit 侧 `unique_together (bk_biz_id, template_name)`，
+BSCP 侧 `uniqueIndex (biz_id, name)`，且迁移时 `config_templates.name` 直接取
+`gsekit.template_name`，所以这是双侧唯一的天然键。
+
+盲区是业务在 BSCP 侧改过模板名。执行前已核对存量数据：15 条被改动过的记录里，
+4 条属于迁移产物，全部未改名，名字匹配 100% 命中，**不存在真实改过名的迁移产物**。
+因此不再保留版本 ID 回溯之类的兜底策略。
+
+历史数据里 GSEKit 版本 ID 唯一的残留痕迹是 `template_revisions.revision_name`
+的 `v<config_version_id>` 形式，但 BSCP 页面更新模板时填入的默认版本名同样是 `v` 加数字
+（时间戳形式），格式本身不能作为判据，一旦真的需要回溯必须逐个反查 GSEKit 才能锚定。
+
+### 分类与处理
+
+| 分类 | 含义 | 处理 |
+|---|---|---|
+| `FORCED_NATIVE` | `biz_id` 等于 `migration.native_biz_id` | 搬到预留区，不做名字匹配 |
+| `MATCHED_NAME` | 名字在 GSEKit 同业务下命中 | 自动对齐到该 ID。已经相等的记录完全不动 |
+| `UNMATCHED_NATIVE` | 未命中，特征像 BSCP 自建 | 搬到预留区 |
+| `UNMATCHED_UNKNOWN` | 未命中，特征却像迁移产物 | 阻塞执行，在报告中列出交人工处理 |
+
+后两者的区分判据是 `creator` 等于配置里的 `migration.creator`（例如 `xiaolnwang`）。
+判据不精确，因此误判方向刻意保守：把自建误判成 `UNMATCHED_UNKNOWN` 只是多一次人工确认，
+反之会导致漏对齐、问题残留。判据不参与"对齐到哪个 ID"的决策，只决定是否需要人工介入。
+
+`migration.native_biz_id` 指定的业务是例外，它在判据之前先被拦下。这个业务在 BSCP
+侧的模板是人工自建的，与 GSEKit 无对应关系，按 `creator` 判据会被整批误判成
+`UNMATCHED_UNKNOWN` 从而阻塞执行。因此整批归入自建区，即便某条记录的名字
+恰好与 GSEKit 撞上也不对齐——那只是巧合，不是同一份模板。`precheck-align-template-id`
+对这个业务的处理与此一致，同样整批跳过。示例配置里写的是 `100148`。
+
+已经落在预留区的自建模板不会被搬动，省掉一次无谓的引用改写。
+
+### 搬迁算法
+
+`[1, 预留基线)` 整个区间一次性清空并永久划归 GSEKit 对齐专用，代价是所有 BSCP
+自建模板的 ID 都会变一次。相比只移动真正冲突的行，全区腾空避免了残留记录成为
+后续每批迁移的冲突源。
+
+每一条要移动的记录都先搬到高位临时 ID，再落到终值，不做"目标必然空闲"的一步到位优化：
+搬迁会让一行的新 ID 恰好是另一行的旧 ID，少走一次中转就可能撞主键。
+
+三处引用同步改写——`config_instances.config_template_id`、`task_batches.task_data`
+里的 `config_template_ids` 数组、`audits` 中 `res_type = 'config_template'` 的 `res_id`。
+前两处用单条 `CASE WHEN` 语句在同一语句内基于原值求值，逐条 UPDATE 会让先改出来的值
+被后一条再次改掉。BSCP 不使用外键约束，改主键既不级联也不报错，漏改一处只会留下静默的脏数据。
+
+### 报告样例
+
+```json
+{
+  "generated_at": "2026-08-13T10:24:05+08:00",
+  "dry_run": true,
+  "executed": false,
+  "reserve_base": 20000,
+  "gsekit_auto_increment": 11249,
+  "id_generator_max_id": 203,
+  "summary": {
+    "MATCHED_NAME": 166,
+    "UNMATCHED_NATIVE": 37
+  },
+  "records": [
+    {
+      "bscp_id": 55,
+      "biz_id": 5000079,
+      "name": "server.conf",
+      "classification": "MATCHED_NAME",
+      "gsekit_id_by_name": 11120,
+      "final_new_id": 11120,
+      "decision_source": "name"
+    }
+  ],
+  "moves": [
+    { "old_id": 55, "temp_id": 20001, "final_id": 11120 }
+  ],
+  "reference_impact": {
+    "config_instances": 1842,
+    "task_batches": 26,
+    "audits": 97
+  }
+}
+```
+
+`moves` 段是执行失败时人工回滚的唯一依据，务必保留报告文件。
+
+### 使用示例
+
+```bash
+# 1. 先试跑，检查报告
+./bk-bscp-gsekit-migration align-template-id -c migration.yaml
+
+# 2. 确认报告里 UNMATCHED_UNKNOWN 为 0 后执行
+./bk-bscp-gsekit-migration align-template-id -c migration.yaml --execute
+
+# 3. 指定报告路径
+./bk-bscp-gsekit-migration align-template-id -c migration.yaml --execute -o align-report.json
+```
+
+`UNMATCHED_UNKNOWN` 非空时即使传了 `--execute` 也会被拒绝，此时应先人工核对报告里
+列出的记录，确认它们到底是自建模板还是漏匹配的迁移产物。
+
+### 并发与停机
+
+水位抬高是一个可以独立先提交的原子操作，它一旦生效，之后任何并发新建拿到的 ID
+都落在预留区，不可能撞进 GSEKit 区间。剩下的搬迁只和存量的两百多行竞争，
+在单个事务内完成，耗时毫秒到秒级。配合阶段 0 的"无进行中任务"检查，不需要停机窗口。
+
+### 手工验证步骤
+
+单元测试只覆盖纯函数（分类判定、搬迁规划、`CASE WHEN` 生成、`task_data` 改写）。
+集成、幂等、回滚需要在真实库上手工验证：
+
+1. **试跑**：`--dry-run` 看报告，确认 `UNMATCHED_UNKNOWN` 为 0，
+   `moves` 条数与 `MATCHED_NAME` 里 ID 不相等的条数加上 `UNMATCHED_NATIVE` 条数吻合。
+2. **执行**：`--execute` 后确认阶段 4 三项断言全部 PASS。
+3. **抽查**：取报告里几条 `moves`，在库里核对 `config_templates.id` 已是 GSEKit ID，
+   且对应的 `config_instances.config_template_id` 一并改过。
+4. **验幂等**：再跑一次 `--execute`，`moves` 应为空、断言全部 PASS。
+5. **端到端**：在 bk-sops 里执行一条此前失败的流程，确认插件能查到模板。
+6. **回滚（如需要）**：按报告 `moves` 段反向执行——先把 `final_id` 搬到 `temp_id`，
+   再搬回 `old_id`，同时用 `final_id → old_id` 的映射反向改写三处引用。
+   `id_generators.max_id` 不必回退，水位只增不减是安全的。
+
+### 与 migrate 的关系
+
+`migrate` 流程已一并改造：
+
+- `config_templates.id` 直接复用 `tmpl.ConfigTemplateID`，不再走 `id_generators`。
+  `templates` 与 `template_revisions` 的 ID 分配方式不变。
+- 每批迁移开始前校验本批业务的 GSEKit `config_template_id` 最大值，
+  达到预留基线则拒绝迁移，避免静默覆盖 BSCP 自建模板的 ID。
+- 迁移结束后把 `id_generators` 中 `config_templates` 的水位抬到预留基线之上，
+  否则后续自建模板会分配到已被迁移数据占用的低位 ID。
+- 顺带修复了读取待迁移模板的分页查询缺少 `ORDER BY` 的既有缺陷。MySQL 不保证无序分页
+  跨批次的结果稳定，可能重复返回部分行（撞唯一索引后在 `continue_on_error` 为真时被静默跳过）
+  并遗漏另一部分行。触发条件是单业务模板数超过 `batch_size`，已迁移业务中最多的仅 64 条，
+  存量迁移大概率未触发，但后续业务需要这个修复。

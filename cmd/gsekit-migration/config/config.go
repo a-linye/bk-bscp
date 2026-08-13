@@ -50,11 +50,26 @@ type MigrationConfig struct {
 	BatchSize int `yaml:"batch_size"`
 	// ContinueOnError if true, will continue migration even if some records fail
 	ContinueOnError bool `yaml:"continue_on_error"`
+	// ConfigTemplateIDReserveBase 是 config_templates.id 的预留基线。
+	// [1, base) 归 GSEKit 对齐专用，迁移时直接复用 GSEKit 的 config_template_id；
+	// [base, ∞) 归 BSCP 自建模版，由 id_generators 分配。
+	// GSEKit 侧水位涨到基线时迁移与对齐都会硬失败，届时需调大此值。
+	ConfigTemplateIDReserveBase uint32 `yaml:"config_template_id_reserve_base"`
+	// NativeBizID 是 BSCP 自建业务。该业务的 config_templates 与 GSEKit
+	// 无对应关系，creator 特征会把它们误判成迁移产物。align-template-id 把它
+	// 整批搬到预留区且不做名字匹配；precheck-align-template-id 整批跳过。
+	// 为 0 表示没有例外业务。
+	NativeBizID uint32 `yaml:"native_biz_id"`
 }
 
 // HasBizFilter returns true if business ID filter is configured
 func (m *MigrationConfig) HasBizFilter() bool {
 	return len(m.BizIDs) > 0
+}
+
+// IsNativeBiz 判断业务是否为配置中的自建业务。
+func (m *MigrationConfig) IsNativeBiz(bizID uint32) bool {
+	return m.NativeBizID != 0 && m.NativeBizID == bizID
 }
 
 // SourceConfig contains source (GSEKit) environment configuration
@@ -179,6 +194,10 @@ func (c *Config) setDefaults() {
 
 	if c.Migration.BatchSize <= 0 {
 		c.Migration.BatchSize = 500
+	}
+
+	if c.Migration.ConfigTemplateIDReserveBase == 0 {
+		c.Migration.ConfigTemplateIDReserveBase = 20000
 	}
 
 	setMySQLDefaults(&c.Source.MySQL)

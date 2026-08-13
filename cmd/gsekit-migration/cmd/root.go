@@ -47,6 +47,20 @@ var (
 	compareRenderCreateDir       bool
 	compareRenderArtifactDir     string
 	compareRenderIgnoreOrder     bool
+
+	// align-template-id 的命令行参数
+	// alignDryRun 对应 --dry-run：只出报告不改数据。默认为 true，
+	// 因此不传任何参数就是试跑；显式传入并同时传 --execute 时报冲突。
+	alignDryRun bool
+	// alignExecute 对应 --execute：真正执行搬迁。必须显式传入，
+	// 是唯一会写目标库的开关。
+	alignExecute bool
+	// alignOutput 对应 -o/--output：报告 JSON 的落盘路径。
+	// 执行失败时这份报告是人工回滚的唯一依据，务必保留。
+	alignOutput string
+
+	// precheck-align-template-id 的报告输出路径
+	precheckAlignOutput string
 )
 
 // rootCmd represents the base command
@@ -85,6 +99,8 @@ func init() {
 	rootCmd.AddCommand(generateMockCmd)
 	rootCmd.AddCommand(compareRenderCmd)
 	rootCmd.AddCommand(preflightCmd)
+	rootCmd.AddCommand(precheckAlignTemplateIDCmd)
+	rootCmd.AddCommand(alignTemplateIDCmd)
 }
 
 func initConfig() {
@@ -459,6 +475,88 @@ to control where the reports are stored.`,
 	},
 }
 
+// precheckAlignTemplateIDCmd 在 align-template-id 之前只读确认迁移产物能否按名命中 GSEKit。
+// 与对齐命令无耦合：不改库、不阻塞对齐；有 ALERT 时非 0 退出，是否继续对齐由运维自行判断。
+var precheckAlignTemplateIDCmd = &cobra.Command{
+	Use:   "precheck-align-template-id",
+	Short: "Precheck that migration artifacts still match GSEKit by (biz_id, name)",
+	Long: `Read-only precheck before align-template-id.
+
+Scans BSCP config_templates created by migration.creator
+(excluding the business in migration.native_biz_id),
+and checks each can be found in GSEKit by (biz_id, name). Hits are OK; misses are ALERT.
+
+This command does not modify data and does not invoke align-template-id.`,
+	PreRunE: requireConfig,
+	Run: func(cmd *cobra.Command, args []string) {
+		prechecker, err := migrator.NewTemplateIDPrechecker(cfg, migrator.PrecheckAlignOptions{
+			OutputPath: precheckAlignOutput,
+		})
+		if err != nil {
+			fmt.Printf("Error initializing prechecker: %v\n", err)
+			os.Exit(1)
+		}
+		defer prechecker.Close()
+
+		report, err := prechecker.Run()
+		if report != nil {
+			migrator.PrintPrecheckAlignReport(report)
+		}
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+// alignTemplateIDCmd represents the align-template-id command
+var alignTemplateIDCmd = &cobra.Command{
+	Use:   "align-template-id",
+	Short: "Align existing config_templates.id to GSEKit config_template_id",
+	Long: `Align the primary key of already-migrated config_templates to the GSEKit
+config_template_id, so that bk-sops pipelines holding GSEKit IDs keep working.
+
+The command runs in four stages:
+  0. preflight  - snapshot GSEKit watermark, BSCP templates and id_generators,
+                  and refuse to run while any task_batch is still running
+  1. mapping    - match each BSCP template to GSEKit by (biz_id, name)
+  2. report     - write the JSON report; dry-run stops here
+  3. execute    - evacuate the GSEKit range, place templates on their final ids,
+                  rewrite references in config_instances / task_batches / audits
+  4. verify     - read-only assertions over the result
+
+This is a whole-database operation, so it takes no --biz-ids. Templates that look
+like migration artifacts but match nothing block execution and are listed in the
+report for manual handling.`,
+	PreRunE: requireConfig,
+	Run: func(cmd *cobra.Command, args []string) {
+		// --dry-run 默认为 true，只有用户显式传了它才算和 --execute 冲突
+		if alignExecute && cmd.Flags().Changed("dry-run") && alignDryRun {
+			fmt.Println("Error: --execute and --dry-run are mutually exclusive")
+			os.Exit(1)
+		}
+
+		aligner, err := migrator.NewTemplateIDAligner(cfg, migrator.AlignOptions{
+			Execute:    alignExecute,
+			OutputPath: alignOutput,
+		})
+		if err != nil {
+			fmt.Printf("Error initializing aligner: %v\n", err)
+			os.Exit(1)
+		}
+		defer aligner.Close()
+
+		report, err := aligner.Run()
+		if report != nil {
+			migrator.PrintAlignReport(report)
+		}
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	migrateCmd.Flags().BoolVarP(&confirmMigrate, "yes", "y", false, "Skip confirmation prompt")
 	migrateCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
@@ -480,6 +578,18 @@ func init() {
 		"Business ID for mock data generation (overrides config, default 2)")
 	generateMockCmd.Flags().IntVar(&maxProcesses, "max-processes", 20,
 		"Maximum number of processes to include in mock data")
+
+	precheckAlignTemplateIDCmd.Flags().StringVarP(&precheckAlignOutput, "output", "o",
+		fmt.Sprintf("precheck-align-template-id-report-%s.json", time.Now().Format("20060102-150405")),
+		"Output file path for the JSON report")
+
+	alignTemplateIDCmd.Flags().BoolVar(&alignDryRun, "dry-run", true,
+		"Only produce the report without changing any data (default)")
+	alignTemplateIDCmd.Flags().BoolVar(&alignExecute, "execute", false,
+		"Actually perform the alignment; mutually exclusive with --dry-run")
+	alignTemplateIDCmd.Flags().StringVarP(&alignOutput, "output", "o",
+		fmt.Sprintf("align-template-id-report-%s.json", time.Now().Format("20060102-150405")),
+		"Output file path for the JSON report")
 
 	compareRenderCmd.Flags().StringVar(&bizIDs, "biz-ids", "",
 		"Comma-separated list of business IDs to compare (required)")

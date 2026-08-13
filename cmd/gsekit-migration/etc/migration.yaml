@@ -6,6 +6,12 @@ migration:
   biz_ids: []
   batch_size: 500
   continue_on_error: false
+  # config_templates.id 的预留基线：[1, base) 复用 GSEKit 的 config_template_id，
+  # [base, ∞) 留给 BSCP 自建模版。GSEKit 水位涨到基线时迁移会硬失败，届时调大此值。
+  config_template_id_reserve_base: 20000
+  # 自建业务：align-template-id 整批搬到预留区且不做名字匹配，
+  # precheck-align-template-id 整批跳过。0 或不填表示没有例外业务。
+  native_biz_id: 11111
 
 source:
   mysql:

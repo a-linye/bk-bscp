@@ -51,3 +51,16 @@ func TestValidatePassesWithGSEConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestIsNativeBiz(t *testing.T) {
+	cfg := &MigrationConfig{NativeBizID: 100148}
+	if !cfg.IsNativeBiz(100148) {
+		t.Fatal("expected 100148 to be native")
+	}
+	if cfg.IsNativeBiz(2) {
+		t.Fatal("did not expect biz 2 to be native")
+	}
+	if (&MigrationConfig{}).IsNativeBiz(100148) {
+		t.Fatal("unset native_biz_id should match nothing")
+	}
+}

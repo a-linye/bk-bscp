@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"strings"
 	"time"
 )
@@ -79,6 +80,10 @@ func (GSEKitConfigTemplateBindingRelationship) TableName() string {
 // nolint:gocyclo,funlen
 func (m *Migrator) migrateConfigTemplates() error {
 	log.Println("=== Step 4: Migrating config templates ===")
+
+	if err := m.checkConfigTemplateIDReserveBase(); err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 	batchSize := m.cfg.Migration.BatchSize
@@ -153,7 +158,10 @@ func (m *Migrator) migrateConfigTemplates() error {
 		offset := 0
 		for {
 			var templates []GSEKitConfigTemplate
+			// 分页必须带排序：MySQL 不保证无序分页跨批次的结果稳定，
+			// 否则可能重复返回部分行（撞唯一索引后被静默跳过）并遗漏另一部分行
 			if err := m.sourceDB.Where("bk_biz_id = ?", bizID).
+				Order("config_template_id ASC").
 				Offset(offset).Limit(batchSize).
 				Find(&templates).Error; err != nil {
 				return fmt.Errorf("read gsekit_configtemplate batch for biz %d offset %d failed: %w", bizID, offset, err)
@@ -272,10 +280,14 @@ func (m *Migrator) migrateConfigTemplates() error {
 				}
 
 				// 4. Create config_templates record with binding info
-				configTemplateID, err := m.idGen.NextID("config_templates")
-				if err != nil {
-					return fmt.Errorf("allocate config_template id failed: %w", err)
+				// 主键直接复用 GSEKit 的 config_template_id：bk-sops 流程里保存的就是这个 ID，
+				// 迁移后两侧必须一致，否则插件执行时查不到模版。
+				// templates 与 template_revisions 的 ID 仍由 id_generators 分配。
+				if tmpl.ConfigTemplateID <= 0 || tmpl.ConfigTemplateID > math.MaxUint32 {
+					return fmt.Errorf("gsekit config_template_id %d is out of uint32 range",
+						tmpl.ConfigTemplateID)
 				}
+				configTemplateID := uint32(tmpl.ConfigTemplateID)
 
 				// Determine highlight_style from active version's file_format
 				highlightStyle := mapHighlightStyle(versions)
@@ -302,7 +314,7 @@ func (m *Migrator) migrateConfigTemplates() error {
 					}
 				}
 
-				if err = m.targetDB.Exec(
+				if err := m.targetDB.Exec(
 					"INSERT INTO config_templates (id, name, highlight_style, biz_id, template_id, "+
 						"cc_template_process_ids, cc_process_ids, tenant_id, "+
 						"creator, reviser, created_at, updated_at) "+
@@ -343,8 +355,49 @@ func (m *Migrator) migrateConfigTemplates() error {
 			spaceInfo.TemplateSetID, len(templateIDs), bizID)
 	}
 
+	if err := m.raiseConfigTemplateWatermark(); err != nil {
+		return err
+	}
+
 	logUploadStats(cosUploaded, cosSkipped, cosFailed)
 	log.Printf("  Total config templates migrated: %d, revisions: %d", totalTemplates, totalRevisions)
+	return nil
+}
+
+// checkConfigTemplateIDReserveBase 确认本批业务的 GSEKit 模版 ID 都在预留基线之下。
+// 迁移把 config_template_id 直接当作 BSCP 主键写入，一旦某个 ID 触到基线就会撞进
+// BSCP 自建模版的地盘。这种情况必须显式失败，而不是静默覆盖别人的记录。
+// 恢复办法是调大 migration.config_template_id_reserve_base 并重跑 align-template-id。
+func (m *Migrator) checkConfigTemplateIDReserveBase() error {
+	reserveBase := m.cfg.Migration.ConfigTemplateIDReserveBase
+
+	var maxID uint32
+	if err := m.sourceDB.Raw(
+		"SELECT COALESCE(MAX(config_template_id), 0) FROM gsekit_configtemplate WHERE bk_biz_id IN ?",
+		m.cfg.Migration.BizIDs).Scan(&maxID).Error; err != nil {
+		return fmt.Errorf("read max gsekit config_template_id failed: %w", err)
+	}
+
+	if maxID >= reserveBase {
+		return fmt.Errorf("gsekit config_template_id reaches %d which is at or beyond the reserve base %d, "+
+			"raise migration.config_template_id_reserve_base and re-run align-template-id before migrating",
+			maxID, reserveBase)
+	}
+
+	log.Printf("  Config template id reserve base: %d, max gsekit id in this batch: %d", reserveBase, maxID)
+	return nil
+}
+
+// raiseConfigTemplateWatermark 把 id_generators 的 config_templates 水位抬到预留基线之上。
+// 主键改为复用 GSEKit ID 后不再经过 id_generators，水位必须单独抬高，
+// 否则后续 BSCP 自建模版会分配到已被迁移数据占用的低位 ID。
+// 护栏已保证本批最大 GSEKit ID 低于基线，抬到基线即足够；EnsureAtLeast 内部只增不减。
+func (m *Migrator) raiseConfigTemplateWatermark() error {
+	reserveBase := m.cfg.Migration.ConfigTemplateIDReserveBase
+	if err := m.idGen.EnsureAtLeast("config_templates", reserveBase); err != nil {
+		return err
+	}
+	log.Printf("  Raised id_generators watermark for config_templates to at least %d", reserveBase)
 	return nil
 }
 

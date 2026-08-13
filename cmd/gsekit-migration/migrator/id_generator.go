@@ -62,6 +62,50 @@ func (g *IDGenerator) NextID(resource string) (uint32, error) {
 	return maxID, nil
 }
 
+// EnsureAtLeast 保证资源水位不低于 minID，只增不减。
+// 供 align-template-id 与 migrate 共用：两者都需要把 config_templates 的水位
+// 顶到预留基线之上，此后并发新建拿到的 ID 都落不进 GSEKit 区间。
+func (g *IDGenerator) EnsureAtLeast(resource string, minID uint32) error {
+	return ensureIDWatermark(g.db, resource, minID)
+}
+
+// CurrentMaxID 读取资源当前水位，资源不存在时返回 0。
+func (g *IDGenerator) CurrentMaxID(resource string) (uint32, error) {
+	var maxID uint32
+	if err := g.db.Raw("SELECT `max_id` FROM `id_generators` WHERE `resource` = ?", resource).
+		Scan(&maxID).Error; err != nil {
+		return 0, fmt.Errorf("failed to get max_id for %s: %w", resource, err)
+	}
+	return maxID, nil
+}
+
+// ensureIDWatermark 把水位抬到不低于 minID，可用于事务内外任一 db 句柄。
+func ensureIDWatermark(db *gorm.DB, resource string, minID uint32) error {
+	// 不能像 NextID 那样靠 RowsAffected 判断资源是否存在：水位已达标时
+	// UPDATE 不改变任何值，MySQL 同样返回 0，会被误判成资源不存在而重复插入。
+	var count int64
+	if err := db.Raw("SELECT COUNT(*) FROM `id_generators` WHERE `resource` = ?", resource).
+		Scan(&count).Error; err != nil {
+		return fmt.Errorf("failed to check id_generator for %s: %w", resource, err)
+	}
+
+	if count == 0 {
+		if err := db.Exec(
+			"INSERT INTO `id_generators` (`resource`, `max_id`, `updated_at`) VALUES (?, ?, ?)",
+			resource, minID, time.Now()).Error; err != nil {
+			return fmt.Errorf("failed to create id_generator for %s: %w", resource, err)
+		}
+		return nil
+	}
+
+	if err := db.Exec(
+		"UPDATE `id_generators` SET `max_id` = GREATEST(`max_id`, ?), `updated_at` = ? WHERE `resource` = ?",
+		minID, time.Now(), resource).Error; err != nil {
+		return fmt.Errorf("failed to raise id_generator watermark for %s: %w", resource, err)
+	}
+	return nil
+}
+
 // BatchNextID allocates count new IDs for the given resource, returns them as a slice
 func (g *IDGenerator) BatchNextID(resource string, count int) ([]uint32, error) {
 	if count <= 0 {
