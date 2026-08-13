@@ -1268,20 +1268,10 @@
             "fuzzy": true
         },
         {
-            "id": "no config templates found for biz {BizID}",
-            "message": "no config templates found for biz {BizID}",
-            "translation": "no config templates found for biz {BizID}",
+            "id": "no executable config bindings in the operate range",
+            "message": "no executable config bindings in the operate range",
+            "translation": "no executable config bindings in the operate range",
             "translatorComment": "Copied from source.",
-            "placeholders": [
-                {
-                    "id": "BizID",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "bizID"
-                }
-            ],
             "fuzzy": true
         },
         {
