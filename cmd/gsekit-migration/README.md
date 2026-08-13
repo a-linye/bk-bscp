@@ -122,6 +122,7 @@ bk-bscp-gsekit-migration migrate -c etc/migration.yaml --biz-ids 100 -y
 
 - 执行迁移前，工具会自动检查目标库中是否已存在对应业务的迁移数据（通过 `template_spaces` 表中 `name=config_delivery` 的记录判断）。
 - 如果检测到业务已迁移，工具将**拒绝执行**并提示先执行 `cleanup` 命令清除旧数据后再重试。
+- 写入 `config_templates` 前会检查本批 GSEKit `config_template_id` 是否已在目标库被占用。主键直接复用 GSEKit ID，若冲突则**整单拒绝迁移**（不受 `continue_on_error` 影响），提示先跑 `align-template-id` 把自建模版腾出 GSEKit 区间，或 `cleanup` 残留数据后再重试。
 
 ### 执行结果
 
@@ -611,6 +612,8 @@ BSCP 侧 `uniqueIndex (biz_id, name)`，且迁移时 `config_templates.name` 直
   `templates` 与 `template_revisions` 的 ID 分配方式不变。
 - 每批迁移开始前校验本批业务的 GSEKit `config_template_id` 最大值，
   达到预留基线则拒绝迁移，避免静默覆盖 BSCP 自建模板的 ID。
+- 同一时机还会查出这些 GSEKit ID 是否已存在于 BSCP `config_templates`。
+  有冲突则拒绝迁移并列出占用行（id / biz_id / name / creator），避免 INSERT 撞主键。
 - 迁移结束后把 `id_generators` 中 `config_templates` 的水位抬到预留基线之上，
   否则后续自建模板会分配到已被迁移数据占用的低位 ID。
 - 顺带修复了读取待迁移模板的分页查询缺少 `ORDER BY` 的既有缺陷。MySQL 不保证无序分页

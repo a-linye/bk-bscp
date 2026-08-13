@@ -165,6 +165,18 @@ func (m *Migrator) isBizMigrated(bizID uint32) (bool, error) {
 	return count > 0, nil
 }
 
+// precheck 在任何写入之前做硬失败校验：业务是否已迁过、GSEKit 模版 ID
+// 是否越出预留基线、目标库 config_templates 主键是否已被占用。
+func (m *Migrator) precheck() error {
+	if err := m.CheckAlreadyMigrated(); err != nil {
+		return err
+	}
+	if err := m.checkConfigTemplateIDReserveBase(); err != nil {
+		return err
+	}
+	return m.checkConfigTemplateIDConflict()
+}
+
 // CheckAlreadyMigrated checks all biz IDs and returns an error listing
 // which ones have already been migrated, so the user can re-check the command.
 func (m *Migrator) CheckAlreadyMigrated() error {
@@ -196,8 +208,7 @@ func (m *Migrator) Run() (*MigrationReport, error) {
 	log.Printf("Multi-tenant: %v, Tenant ID: %q, Batch Size: %d",
 		m.cfg.Migration.MultiTenant, m.cfg.Migration.TenantID, m.cfg.Migration.BatchSize)
 
-	// Check for already-migrated biz IDs; abort immediately if any found (defensive)
-	if err := m.CheckAlreadyMigrated(); err != nil {
+	if err := m.precheck(); err != nil {
 		report.Success = false
 		report.Errors = append(report.Errors, err.Error())
 		report.Duration = time.Since(report.StartTime)

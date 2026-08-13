@@ -81,10 +81,6 @@ func (GSEKitConfigTemplateBindingRelationship) TableName() string {
 func (m *Migrator) migrateConfigTemplates() error {
 	log.Println("=== Step 4: Migrating config templates ===")
 
-	if err := m.checkConfigTemplateIDReserveBase(); err != nil {
-		return err
-	}
-
 	ctx := context.Background()
 	batchSize := m.cfg.Migration.BatchSize
 	creator := m.cfg.Migration.Creator
@@ -362,6 +358,97 @@ func (m *Migrator) migrateConfigTemplates() error {
 	logUploadStats(cosUploaded, cosSkipped, cosFailed)
 	log.Printf("  Total config templates migrated: %d, revisions: %d", totalTemplates, totalRevisions)
 	return nil
+}
+
+const (
+	// configTemplateIDConflictChunkSize 限制单次 IN 查询的 ID 数量。
+	configTemplateIDConflictChunkSize = 1000
+	// maxConfigTemplateIDConflictDetails 是报错时列出的冲突行上限。
+	maxConfigTemplateIDConflictDetails = 20
+)
+
+// existingConfigTemplate 是目标库 config_templates 里与待写入 ID 冲突的一行。
+type existingConfigTemplate struct {
+	ID       uint32 `gorm:"column:id"`
+	BizID    uint32 `gorm:"column:biz_id"`
+	Name     string `gorm:"column:name"`
+	Creator  string `gorm:"column:creator"`
+	TenantID string `gorm:"column:tenant_id"`
+}
+
+// checkConfigTemplateIDConflict 确认本批 GSEKit 模版 ID 在目标库 config_templates
+// 中尚未被占用。主键直接复用 GSEKit ID 后，残留的自建模版或未对齐的旧数据都会
+// 让 INSERT 撞主键；必须在写入前显式失败，而不是落到 continue_on_error 的静默跳过。
+// 恢复办法是先跑 align-template-id 把自建模版腾出 GSEKit 区间，或 cleanup 残留数据。
+func (m *Migrator) checkConfigTemplateIDConflict() error {
+	var sourceIDs []uint32
+	if err := m.sourceDB.Raw(
+		"SELECT config_template_id FROM gsekit_configtemplate WHERE bk_biz_id IN ?",
+		m.cfg.Migration.BizIDs).Scan(&sourceIDs).Error; err != nil {
+		return fmt.Errorf("read gsekit config_template_id for conflict check failed: %w", err)
+	}
+	if len(sourceIDs) == 0 {
+		return nil
+	}
+
+	conflicts, err := m.loadExistingConfigTemplatesByIDs(sourceIDs)
+	if err != nil {
+		return err
+	}
+
+	if err := configTemplateIDConflictError(conflicts); err != nil {
+		return err
+	}
+
+	log.Printf("  Config template id conflict check passed: %d gsekit ids, none occupied in BSCP",
+		len(sourceIDs))
+	return nil
+}
+
+// loadExistingConfigTemplatesByIDs 按主键查出目标库里已存在的 config_templates。
+func (m *Migrator) loadExistingConfigTemplatesByIDs(ids []uint32) ([]existingConfigTemplate, error) {
+	conflicts := make([]existingConfigTemplate, 0)
+	for start := 0; start < len(ids); start += configTemplateIDConflictChunkSize {
+		end := start + configTemplateIDConflictChunkSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		var chunk []existingConfigTemplate
+		if err := m.targetDB.Raw(
+			"SELECT id, biz_id, name, creator, tenant_id FROM config_templates WHERE id IN ?",
+			ids[start:end]).Scan(&chunk).Error; err != nil {
+			return nil, fmt.Errorf("query config_templates for id conflict failed: %w", err)
+		}
+		conflicts = append(conflicts, chunk...)
+	}
+	return conflicts, nil
+}
+
+// configTemplateIDConflictError 把冲突行整理成硬失败错误。无冲突时返回 nil。
+func configTemplateIDConflictError(conflicts []existingConfigTemplate) error {
+	if len(conflicts) == 0 {
+		return nil
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "config_templates primary key conflict: %d GSEKit id(s) already exist in BSCP:\n",
+		len(conflicts))
+
+	shown := len(conflicts)
+	if shown > maxConfigTemplateIDConflictDetails {
+		shown = maxConfigTemplateIDConflictDetails
+	}
+	for _, c := range conflicts[:shown] {
+		fmt.Fprintf(&b, "  id=%d biz_id=%d name=%q creator=%q tenant_id=%q\n",
+			c.ID, c.BizID, c.Name, c.Creator, c.TenantID)
+	}
+	if len(conflicts) > maxConfigTemplateIDConflictDetails {
+		fmt.Fprintf(&b, "  ... and %d more\n", len(conflicts)-maxConfigTemplateIDConflictDetails)
+	}
+	b.WriteString("run align-template-id to evacuate native templates from the GSEKit id range, " +
+		"or cleanup leftover data, then retry")
+	return fmt.Errorf("%s", b.String())
 }
 
 // checkConfigTemplateIDReserveBase 确认本批业务的 GSEKit 模版 ID 都在预留基线之下。
