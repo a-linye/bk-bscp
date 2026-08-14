@@ -19,9 +19,12 @@
   import { Ellipsis } from 'bkui-vue/lib/icon';
   import { IAppItem } from '../../../../../../types/app';
   import { useRouter } from 'vue-router';
+  import { storeToRefs } from 'pinia';
+  import useGlobalStore from '../../../../../store/global';
 
   const { t } = useI18n();
   const router = useRouter();
+  const { hideNav } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     app: IAppItem;
@@ -73,9 +76,12 @@
   ];
 
   const handleJump = (name: string) => {
+    // 当前处于 iframe 内嵌（hideNav=true）时，新标签页需携带 hideNav=1，保持隐藏导航栏
+    const query = hideNav.value ? { hideNav: '1' } : {};
     const routeData = router.resolve({
       name,
       params: { spaceId: props.spaceId, appId: props.app.id },
+      query,
     });
     window.open(routeData.href, '_blank');
   };

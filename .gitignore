@@ -26,3 +26,18 @@ render/python/dist/
 render/python/build/
 .ftp
 .codex
+
+### Local Agent Skills ###
+.agents/skills/*
+!.agents/skills/bscp-file-config/
+!.agents/skills/bscp-kv-config/
+
+**/.graphify_root
+**/.graphify_python
+docs/dev-map/cache/
+docs/dev-map/cost.json
+graphify-out/
+!docs/dev-map/
+docs/dev-map/*
+!docs/dev-map/README.md
+!docs/dev-map/graph.json

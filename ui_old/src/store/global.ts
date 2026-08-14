@@ -14,6 +14,7 @@ export default defineStore('global', () => {
   const showNotice = ref(false); // 是否展示消息通知
   const showApplyPermDialog = ref(false); // 资源无权限申请弹窗
   const showPermApplyPage = ref(false); // 无业务查看权限时，申请页面
+  const hideNav = ref(false); // URL 参数 hideNav=1 时隐藏顶部导航栏（iframe 内嵌场景），初始化后保持
   const applyPermUrl = ref(''); // 跳转到权限中心的申请链接
   const applyPermResource = ref<IPermissionResource[]>([]); // 无权限提示页的action
   const loginOriginUrl = ref(''); // 登录页的origin url
@@ -71,6 +72,7 @@ export default defineStore('global', () => {
     showNotice,
     showApplyPermDialog,
     showPermApplyPage,
+    hideNav,
     applyPermUrl,
     applyPermResource,
     permissionQuery,

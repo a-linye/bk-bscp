@@ -367,7 +367,7 @@
     if (entries.length === 0) return;
     entries.forEach((entry) => {
       const [searchKey, searchValue]: [string, any] = entry;
-      if (searchKey === 'heartTime') return;
+      if (searchKey === 'heartTime' || searchKey === 'hideNav') return;
       const { name, value, children } = CLIENT_SEARCH_DATA.find((item) => item.value === searchKey)!;
       if (value === 'pull_time') {
         dateTime.value = searchValue.split(' - ');

@@ -153,7 +153,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 	scriptName := BuildScriptNameByFileMode("release", commonPayload, fileMode)
 	command := BuildScriptCommand(storeDir, scriptName, fileMode)
 
-	executionUser := GetExecutionUser(fileMode, e.GseConf.ScriptExecuteUser)
+	executionUser := GetExecutionUser(fileMode)
 
 	logs.Infof("[ReleaseConfig STEP]: script prepared, batch_id=%d, command=%s, user=%s, target=%s",
 		payload.BatchID, command, executionUser, fullPath)

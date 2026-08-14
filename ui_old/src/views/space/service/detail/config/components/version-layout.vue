@@ -29,18 +29,16 @@
 <style lang="scss" scoped>
   .version-layout-container {
     position: fixed;
-    top: 52px;
+    top: calc(var(--header-height, 52px) + var(--notice-height, 0px));
     left: 0;
     bottom: 0;
     right: 0;
-    height: calc(100vh - 52px);
+    height: calc(100vh - var(--header-height, 52px) - var(--notice-height, 0px));
     background: #ffffff;
     z-index: 2000;
     &.show-notice {
-      top: 92px;
-      height: calc(100vh - 92px);
       &.without-footer {
-        height: calc(100vh - 88px);
+        height: calc(100vh - var(--header-height, 52px) - var(--notice-height, 0px) + 4px);
       }
     }
     &.without-footer {
