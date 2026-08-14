@@ -216,9 +216,9 @@ func (s *Service) GenerateConfig(ctx context.Context, req *pbds.GenerateConfigRe
 	return &pbds.GenerateConfigResp{BatchId: batchID}, nil
 }
 
-// buildConfigTemplateGroups 根据操作范围构建配置模版组
+// buildConfigTemplateGroups 按插件 operate_range 算出本次要执行的配置模版组。
 func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRange *pbproc.OperateRange) ([]*pbcin.ConfigTemplateGroup, error) {
-	// 根据操作范围查询匹配的进程列表
+	// 1. 用表达式圈定当前业务、当前环境下的进程。未命中任何进程时直接失败，不再往下算模版。
 	processes, err := s.dao.Process().GetByOperateRange(kt, bizID, operateRange)
 	if err != nil {
 		logs.Errorf("get processes by operate range failed, err: %v, rid: %s", err, kt.Rid)
@@ -235,23 +235,18 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 			i18n.T(kt, "no processes found for biz %d with provided operate range", bizID))
 	}
 
-	// 提取所有进程的 CcProcessID
-	ccProcessIDs := make([]uint32, 0, len(processes))
-	for _, process := range processes {
-		ccProcessIDs = append(ccProcessIDs, process.Attachment.CcProcessID)
-	}
-
-	// 确定需要下发的配置模版列表
+	// 2. 确定候选模版集合
+	//    - 指定了模版 ID：先按当前业务校验全部存在，任一缺失则整单失败，不部分执行。
+	//    - 未指定（含全是 0/空项）：取出业务下全部模版作为候选，后续只保留范围内进程已绑定的。
 	var configTemplates []*table.ConfigTemplate
-	if len(operateRange.GetConfigTemplateIds()) > 0 {
-		// 根据配置模版ID查询
-		configTemplates, err = s.getConfigTemplatesByIDs(kt, bizID, operateRange.GetConfigTemplateIds())
+	specifiedIDs := dedupConfigTemplateIDs(operateRange.GetConfigTemplateIds())
+	if len(specifiedIDs) > 0 {
+		configTemplates, err = s.getConfigTemplatesByIDs(kt, bizID, specifiedIDs)
 		if err != nil {
 			logs.Errorf("get config templates by ids failed, err: %v, rid: %s", err, kt.Rid)
 			return nil, err
 		}
 	} else {
-		// 未指定则下发所有配置模版
 		configTemplates, err = s.getAllConfigTemplates(kt, bizID)
 		if err != nil {
 			logs.Errorf("get all config templates failed, err: %v, rid: %s", err, kt.Rid)
@@ -260,12 +255,13 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 		}
 	}
 
+	// 业务下没有任何候选模版时，范围内进程也就没有可执行绑定。
 	if len(configTemplates) == 0 {
 		return nil, errf.Errorf(errf.RecordNotFound, "%s",
-			i18n.T(kt, "no config templates found for biz %d", bizID))
+			i18n.T(kt, "no executable config bindings in the operate range"))
 	}
 
-	// 查询所有配置模版的最新版本
+	// 3. 批量查出候选模版的最新版本，供后面给真正有绑定的模版填 version。
 	templateIDs := make([]uint32, 0, len(configTemplates))
 	for _, configTemplate := range configTemplates {
 		templateIDs = append(templateIDs, configTemplate.Attachment.TemplateID)
@@ -277,15 +273,25 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 			i18n.T(kt, "list latest revisions failed, err: %v", err))
 	}
 
-	// 构建 templateID -> latestRevision 的映射
 	revisionMap := make(map[uint32]*table.TemplateRevision, len(latestRevisions))
 	for _, revision := range latestRevisions {
 		revisionMap[revision.Attachment.TemplateID] = revision
 	}
 
-	// 为每个配置模版构建配置模版组
+	// 4. 按绑定关系过滤并组装模版组：每个候选模版只保留范围内已绑定它的进程。
+	//    过滤后一个组都没有，说明范围内有进程但没有任何可执行绑定，创建失败且不产生批任务。
 	configTemplateGroups := make([]*pbcin.ConfigTemplateGroup, 0, len(configTemplates))
 	for _, configTemplate := range configTemplates {
+		// 该模版已绑定的全部 CCProcessID
+		boundIDs, bindErr := boundCcProcessIDs(kt, s.dao, bizID, configTemplate)
+		if bindErr != nil {
+			return nil, bindErr
+		}
+		// 与本次范围内进程取交集；空交集则该模版本轮跳过
+		matched := filterBoundCcProcessIDs(processes, boundIDs)
+		if len(matched) == 0 {
+			continue
+		}
 		latestRevision, ok := revisionMap[configTemplate.Attachment.TemplateID]
 		if !ok {
 			logs.Errorf("latest revision not found for template_id: %d, config_template_id: %d, rid: %s",
@@ -293,14 +299,15 @@ func (s *Service) buildConfigTemplateGroups(kt *kit.Kit, bizID uint32, operateRa
 			return nil, errf.Errorf(errf.RecordNotFound, "%s",
 				i18n.T(kt, "latest revision not found for template %d", configTemplate.Attachment.TemplateID))
 		}
-
-		// 构建配置模版组
-		group := &pbcin.ConfigTemplateGroup{
+		configTemplateGroups = append(configTemplateGroups, &pbcin.ConfigTemplateGroup{
 			ConfigTemplateId:        configTemplate.ID,
 			ConfigTemplateVersionId: latestRevision.ID,
-			CcProcessIds:            ccProcessIDs,
-		}
-		configTemplateGroups = append(configTemplateGroups, group)
+			CcProcessIds:            matched,
+		})
+	}
+	if len(configTemplateGroups) == 0 {
+		return nil, errf.Errorf(errf.RecordNotFound, "%s",
+			i18n.T(kt, "no executable config bindings in the operate range"))
 	}
 
 	return configTemplateGroups, nil
@@ -754,11 +761,26 @@ func newFilterOptions(latestRevision *table.TemplateRevision, choices []*pbcin.C
 // isBindRelation 判断进程和配置模版的绑定关系是否正常，避免配置生成过程中进程与配置模版解绑
 func isBindRelation(kt *kit.Kit, dao dao.Set, bizID uint32, processes []*table.Process,
 	configTemplate *table.ConfigTemplate) (bool, error) {
+	boundIDs, err := boundCcProcessIDs(kt, dao, bizID, configTemplate)
+	if err != nil {
+		return false, err
+	}
+	for _, process := range processes {
+		if !slices.Contains(boundIDs, process.Attachment.CcProcessID) {
+			return false, errf.Errorf(errf.FailedPrecondition, "%s",
+				i18n.T(kt, "process %d is not in the config template", process.Attachment.CcProcessID))
+		}
+	}
+	return true, nil
+}
+
+// boundCcProcessIDs 返回配置模版已绑定的 CC 进程 ID（进程实例绑定 + 所属进程模板绑定）。
+func boundCcProcessIDs(kt *kit.Kit, dao dao.Set, bizID uint32,
+	configTemplate *table.ConfigTemplate) ([]uint32, error) {
 	var (
 		templateBoundProcesses []*table.Process
 		err                    error
 	)
-	// 获取CcProcessID，其中模版进程ID列表对应多个进程
 	templateProcessIDs := configTemplate.Attachment.CcTemplateProcessIDs
 	if len(templateProcessIDs) != 0 {
 		templateBoundProcesses, _, err = dao.Process().List(kt, bizID, &pbproc.ProcessSearchCondition{
@@ -767,24 +789,47 @@ func isBindRelation(kt *kit.Kit, dao dao.Set, bizID uint32, processes []*table.P
 			All: true,
 		})
 		if err != nil {
-			return false, errf.Errorf(errf.DBOpFailed, "%s",
+			return nil, errf.Errorf(errf.DBOpFailed, "%s",
 				i18n.T(kt, "list processes by template process ids failed, err: %v", err))
 		}
 	}
-	templateBoundProcessIDs := make([]uint32, 0, len(templateBoundProcesses)+len(configTemplate.Attachment.CcProcessIDs))
+	boundIDs := make([]uint32, 0, len(templateBoundProcesses)+len(configTemplate.Attachment.CcProcessIDs))
 	for _, process := range templateBoundProcesses {
-		templateBoundProcessIDs = append(templateBoundProcessIDs, process.Attachment.CcProcessID)
+		boundIDs = append(boundIDs, process.Attachment.CcProcessID)
 	}
-	templateBoundProcessIDs = append(templateBoundProcessIDs, configTemplate.Attachment.CcProcessIDs...)
+	boundIDs = append(boundIDs, configTemplate.Attachment.CcProcessIDs...)
+	return boundIDs, nil
+}
 
-	// 判断进程是否在配置模版关联的进程ID列表中
-	for _, process := range processes {
-		if !slices.Contains(templateBoundProcessIDs, process.Attachment.CcProcessID) {
-			return false, errf.Errorf(errf.FailedPrecondition, "%s",
-				i18n.T(kt, "process %d is not in the config template", process.Attachment.CcProcessID))
+// filterBoundCcProcessIDs 从范围内进程中筛出已绑定该模版的 CcProcessID，保持范围内出现顺序并去重。
+func filterBoundCcProcessIDs(processes []*table.Process, boundIDs []uint32) []uint32 {
+	boundSet := make(map[uint32]struct{}, len(boundIDs))
+	for _, id := range boundIDs {
+		if id == 0 {
+			continue
 		}
+		boundSet[id] = struct{}{}
 	}
-	return true, nil
+	matched := make([]uint32, 0)
+	seen := make(map[uint32]struct{})
+	for _, process := range processes {
+		if process == nil || process.Attachment == nil {
+			continue
+		}
+		id := process.Attachment.CcProcessID
+		if id == 0 {
+			continue
+		}
+		if _, ok := boundSet[id]; !ok {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		matched = append(matched, id)
+	}
+	return matched
 }
 
 // ConfigGenerateStatus 获取配置生成状态

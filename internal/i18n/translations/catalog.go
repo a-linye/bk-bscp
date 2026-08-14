@@ -338,7 +338,7 @@ var messageKeyToIndex = map[string]int{
 	"memo is required, can not be empty":                                                    384,
 	"no available space or packages":                                                        169,
 	"no available topo nodes":                                                               173,
-	"no config templates found for biz %d":                                                  86,
+	"no executable config bindings in the operate range":                                    86,
 	"no permission to approve":                                                              284,
 	"no permission to approve this ticket":                                                  279,
 	"no process instances found for process IDs %v":                                         243,
@@ -518,114 +518,114 @@ var enIndex = []uint32{ // 453 elements
 	0x00000bde, 0x00000c4b, 0x00000c89, 0x00000ca4,
 	0x00000d0c, 0x00000d38, 0x00000d5f, 0x00000d72,
 	0x00000da1, 0x00000dc0, 0x00000de7, 0x00000e00,
-	0x00000e32, 0x00000e6f, 0x00000e9b, 0x00000ec3,
-	0x00000eec, 0x00000f19, 0x00000f42, 0x00000f72,
-	0x00000f9c, 0x00000fd6, 0x00001001, 0x0000102a,
+	0x00000e32, 0x00000e6f, 0x00000e9b, 0x00000ece,
+	0x00000ef7, 0x00000f24, 0x00000f4d, 0x00000f7d,
+	0x00000fa7, 0x00000fe1, 0x0000100c, 0x00001035,
 	// Entry 60 - 7F
-	0x00001053, 0x00001073, 0x0000109e, 0x000010ce,
-	0x00001100, 0x0000112c, 0x00001149, 0x00001167,
-	0x0000118d, 0x000011a9, 0x000011bf, 0x000011e0,
-	0x000011f3, 0x00001210, 0x0000122a, 0x0000125c,
-	0x00001287, 0x000012b1, 0x000012d4, 0x000012f7,
-	0x00001325, 0x00001350, 0x0000136d, 0x000013a4,
-	0x000013e7, 0x00001479, 0x000014e8, 0x0000154a,
-	0x00001578, 0x00001598, 0x000015cb, 0x00001616,
+	0x0000105e, 0x0000107e, 0x000010a9, 0x000010d9,
+	0x0000110b, 0x00001137, 0x00001154, 0x00001172,
+	0x00001198, 0x000011b4, 0x000011ca, 0x000011eb,
+	0x000011fe, 0x0000121b, 0x00001235, 0x00001267,
+	0x00001292, 0x000012bc, 0x000012df, 0x00001302,
+	0x00001330, 0x0000135b, 0x00001378, 0x000013af,
+	0x000013f2, 0x00001484, 0x000014f3, 0x00001555,
+	0x00001583, 0x000015a3, 0x000015d6, 0x00001621,
 	// Entry 80 - 9F
-	0x00001643, 0x0000168d, 0x000016f6, 0x0000171b,
-	0x00001741, 0x00001770, 0x00001795, 0x000017b7,
-	0x000017d7, 0x000017f5, 0x00001818, 0x0000183e,
-	0x00001868, 0x0000188d, 0x000018b6, 0x000018d5,
-	0x000018fc, 0x00001919, 0x0000192c, 0x00001950,
-	0x00001995, 0x000019af, 0x00001a1d, 0x00001a71,
-	0x00001acb, 0x00001aee, 0x00001b42, 0x00001b88,
-	0x00001bb1, 0x00001be5, 0x00001c03, 0x00001c36,
+	0x0000164e, 0x00001698, 0x00001701, 0x00001726,
+	0x0000174c, 0x0000177b, 0x000017a0, 0x000017c2,
+	0x000017e2, 0x00001800, 0x00001823, 0x00001849,
+	0x00001873, 0x00001898, 0x000018c1, 0x000018e0,
+	0x00001907, 0x00001924, 0x00001937, 0x0000195b,
+	0x000019a0, 0x000019ba, 0x00001a28, 0x00001a7c,
+	0x00001ad6, 0x00001af9, 0x00001b4d, 0x00001b93,
+	0x00001bbc, 0x00001bf0, 0x00001c0e, 0x00001c41,
 	// Entry A0 - BF
-	0x00001c62, 0x00001cae, 0x00001cd5, 0x00001d1d,
-	0x00001d7f, 0x00001da8, 0x00001dff, 0x00001e3c,
-	0x00001e76, 0x00001eb2, 0x00001ed1, 0x00001f09,
-	0x00001f32, 0x00001f55, 0x00001f6d, 0x00001f87,
-	0x00001fb3, 0x00001fd5, 0x0000200a, 0x00002051,
-	0x00002075, 0x000020a5, 0x000020cf, 0x000020f2,
-	0x00002137, 0x00002163, 0x0000219b, 0x000021d7,
-	0x00002216, 0x00002242, 0x00002271, 0x0000229f,
+	0x00001c6d, 0x00001cb9, 0x00001ce0, 0x00001d28,
+	0x00001d8a, 0x00001db3, 0x00001e0a, 0x00001e47,
+	0x00001e81, 0x00001ebd, 0x00001edc, 0x00001f14,
+	0x00001f3d, 0x00001f60, 0x00001f78, 0x00001f92,
+	0x00001fbe, 0x00001fe0, 0x00002015, 0x0000205c,
+	0x00002080, 0x000020b0, 0x000020da, 0x000020fd,
+	0x00002142, 0x0000216e, 0x000021a6, 0x000021e2,
+	0x00002221, 0x0000224d, 0x0000227c, 0x000022aa,
 	// Entry C0 - DF
-	0x000022d5, 0x000022fb, 0x00002324, 0x00002360,
-	0x00002389, 0x000023b6, 0x000023e3, 0x0000240d,
-	0x00002441, 0x0000247b, 0x0000249e, 0x000024c4,
-	0x000024e7, 0x00002513, 0x00002544, 0x0000256e,
-	0x00002594, 0x000025a9, 0x000025cc, 0x000025f1,
-	0x00002610, 0x00002635, 0x00002667, 0x00002689,
-	0x000026ae, 0x000026ee, 0x0000270b, 0x00002728,
-	0x0000275e, 0x0000277f, 0x00002795, 0x000027b0,
+	0x000022e0, 0x00002306, 0x0000232f, 0x0000236b,
+	0x00002394, 0x000023c1, 0x000023ee, 0x00002418,
+	0x0000244c, 0x00002486, 0x000024a9, 0x000024cf,
+	0x000024f2, 0x0000251e, 0x0000254f, 0x00002579,
+	0x0000259f, 0x000025b4, 0x000025d7, 0x000025fc,
+	0x0000261b, 0x00002640, 0x00002672, 0x00002694,
+	0x000026b9, 0x000026f9, 0x00002716, 0x00002733,
+	0x00002769, 0x0000278a, 0x000027a0, 0x000027bb,
 	// Entry E0 - FF
-	0x000027dd, 0x00002808, 0x0000282f, 0x00002855,
-	0x00002874, 0x00002897, 0x000028e2, 0x0000291c,
-	0x00002954, 0x0000298e, 0x000029d1, 0x00002a14,
-	0x00002a39, 0x00002a61, 0x00002aa1, 0x00002ad1,
-	0x00002afb, 0x00002b1a, 0x00002b3b, 0x00002b76,
-	0x00002ba7, 0x00002bcc, 0x00002bfe, 0x00002c2f,
-	0x00002c5d, 0x00002c93, 0x00002ccc, 0x00002d0f,
-	0x00002d4f, 0x00002d88, 0x00002dbf, 0x00002dfb,
+	0x000027e8, 0x00002813, 0x0000283a, 0x00002860,
+	0x0000287f, 0x000028a2, 0x000028ed, 0x00002927,
+	0x0000295f, 0x00002999, 0x000029dc, 0x00002a1f,
+	0x00002a44, 0x00002a6c, 0x00002aac, 0x00002adc,
+	0x00002b06, 0x00002b25, 0x00002b46, 0x00002b81,
+	0x00002bb2, 0x00002bd7, 0x00002c09, 0x00002c3a,
+	0x00002c68, 0x00002c9e, 0x00002cd7, 0x00002d1a,
+	0x00002d5a, 0x00002d93, 0x00002dca, 0x00002e06,
 	// Entry 100 - 11F
-	0x00002e28, 0x00002e6f, 0x00002ea0, 0x00002eda,
-	0x00002ee2, 0x00002ef3, 0x00002efc, 0x00002f07,
-	0x00002f10, 0x00002f1a, 0x00002f25, 0x00002f38,
-	0x00002f4b, 0x00002f53, 0x00002f5d, 0x00002f6e,
-	0x00002f75, 0x00002f7d, 0x00002f85, 0x00002f8e,
-	0x00002fbf, 0x00002fea, 0x00003019, 0x00003037,
-	0x0000305c, 0x0000307e, 0x000030b4, 0x000030eb,
-	0x00003100, 0x00003119, 0x0000314c, 0x00003182,
+	0x00002e33, 0x00002e7a, 0x00002eab, 0x00002ee5,
+	0x00002eed, 0x00002efe, 0x00002f07, 0x00002f12,
+	0x00002f1b, 0x00002f25, 0x00002f30, 0x00002f43,
+	0x00002f56, 0x00002f5e, 0x00002f68, 0x00002f79,
+	0x00002f80, 0x00002f88, 0x00002f90, 0x00002f99,
+	0x00002fca, 0x00002ff5, 0x00003024, 0x00003042,
+	0x00003067, 0x00003089, 0x000030bf, 0x000030f6,
+	0x0000310b, 0x00003124, 0x00003157, 0x0000318d,
 	// Entry 120 - 13F
-	0x000031c2, 0x00003203, 0x0000323b, 0x0000327c,
-	0x000032bd, 0x000032ec, 0x0000332b, 0x00003366,
-	0x0000338b, 0x000033bc, 0x000033e5, 0x0000340a,
-	0x0000342d, 0x00003458, 0x00003478, 0x000034a0,
-	0x000034d0, 0x000034f3, 0x000034ff, 0x0000352f,
-	0x00003570, 0x0000358c, 0x000035d1, 0x00003602,
-	0x00003647, 0x0000367b, 0x000036a9, 0x000036d4,
-	0x0000370e, 0x00003745, 0x0000376e, 0x000037a0,
+	0x000031cd, 0x0000320e, 0x00003246, 0x00003287,
+	0x000032c8, 0x000032f7, 0x00003336, 0x00003371,
+	0x00003396, 0x000033c7, 0x000033f0, 0x00003415,
+	0x00003438, 0x00003463, 0x00003483, 0x000034ab,
+	0x000034db, 0x000034fe, 0x0000350a, 0x0000353a,
+	0x0000357b, 0x00003597, 0x000035dc, 0x0000360d,
+	0x00003652, 0x00003686, 0x000036b4, 0x000036df,
+	0x00003719, 0x00003750, 0x00003779, 0x000037ab,
 	// Entry 140 - 15F
-	0x000037d6, 0x00003810, 0x00003847, 0x00003872,
-	0x000038ab, 0x000038cf, 0x00003919, 0x00003941,
-	0x00003974, 0x0000398f, 0x000039b6, 0x000039cd,
-	0x000039fe, 0x00003a2f, 0x00003a3a, 0x00003a59,
-	0x00003a77, 0x00003a95, 0x00003ac7, 0x00003afb,
-	0x00003b65, 0x00003b71, 0x00003b81, 0x00003b94,
-	0x00003ba7, 0x00003bf3, 0x00003c1f, 0x00003c47,
-	0x00003c69, 0x00003c9d, 0x00003cc8, 0x00003cf8,
+	0x000037e1, 0x0000381b, 0x00003852, 0x0000387d,
+	0x000038b6, 0x000038da, 0x00003924, 0x0000394c,
+	0x0000397f, 0x0000399a, 0x000039c1, 0x000039d8,
+	0x00003a09, 0x00003a3a, 0x00003a45, 0x00003a64,
+	0x00003a82, 0x00003aa0, 0x00003ad2, 0x00003b06,
+	0x00003b70, 0x00003b7c, 0x00003b8c, 0x00003b9f,
+	0x00003bb2, 0x00003bfe, 0x00003c2a, 0x00003c52,
+	0x00003c74, 0x00003ca8, 0x00003cd3, 0x00003d03,
 	// Entry 160 - 17F
-	0x00003d1e, 0x00003d3a, 0x00003d5e, 0x00003d86,
-	0x00003da6, 0x00003dd0, 0x00003e1c, 0x00003e42,
-	0x00003e8a, 0x00003ec2, 0x00003efe, 0x00003f3b,
-	0x00003f63, 0x00003f74, 0x00003f9f, 0x00003fcb,
-	0x00003fdf, 0x00003ff0, 0x00004005, 0x00004012,
-	0x00004025, 0x00004036, 0x0000405d, 0x00004087,
-	0x000040b8, 0x000040f3, 0x00004114, 0x00004137,
-	0x00004184, 0x000041a1, 0x000041c9, 0x000041f3,
+	0x00003d29, 0x00003d45, 0x00003d69, 0x00003d91,
+	0x00003db1, 0x00003ddb, 0x00003e27, 0x00003e4d,
+	0x00003e95, 0x00003ecd, 0x00003f09, 0x00003f46,
+	0x00003f6e, 0x00003f7f, 0x00003faa, 0x00003fd6,
+	0x00003fea, 0x00003ffb, 0x00004010, 0x0000401d,
+	0x00004030, 0x00004041, 0x00004068, 0x00004092,
+	0x000040c3, 0x000040fe, 0x0000411f, 0x00004142,
+	0x0000418f, 0x000041ac, 0x000041d4, 0x000041fe,
 	// Entry 180 - 19F
-	0x0000422f, 0x00004252, 0x00004275, 0x000042d1,
-	0x000042f2, 0x00004315, 0x000043a3, 0x000043f6,
-	0x00004478, 0x00004513, 0x00004535, 0x00004560,
-	0x000045c9, 0x000045ef, 0x00004617, 0x0000463c,
-	0x00004662, 0x00004674, 0x00004683, 0x00004698,
-	0x000046a8, 0x000046c3, 0x000046e1, 0x00004707,
-	0x00004726, 0x00004749, 0x0000475b, 0x0000476e,
-	0x0000478f, 0x000047ae, 0x000047e8, 0x0000481f,
+	0x0000423a, 0x0000425d, 0x00004280, 0x000042dc,
+	0x000042fd, 0x00004320, 0x000043ae, 0x00004401,
+	0x00004483, 0x0000451e, 0x00004540, 0x0000456b,
+	0x000045d4, 0x000045fa, 0x00004622, 0x00004647,
+	0x0000466d, 0x0000467f, 0x0000468e, 0x000046a3,
+	0x000046b3, 0x000046ce, 0x000046ec, 0x00004712,
+	0x00004731, 0x00004754, 0x00004766, 0x00004779,
+	0x0000479a, 0x000047b9, 0x000047f3, 0x0000482a,
 	// Entry 1A0 - 1BF
-	0x0000483e, 0x0000485b, 0x0000487b, 0x0000489e,
-	0x000048b5, 0x000048f0, 0x00004916, 0x00004958,
-	0x00004985, 0x00004994, 0x000049ab, 0x000049b6,
-	0x000049be, 0x000049c4, 0x000049c9, 0x000049d1,
-	0x000049d8, 0x000049dd, 0x000049e6, 0x000049f1,
-	0x000049ff, 0x00004a0e, 0x00004a1a, 0x00004a24,
-	0x00004a38, 0x00004a48, 0x00004a57, 0x00004a7e,
-	0x00004a95, 0x00004acf, 0x00004b0d, 0x00004b51,
+	0x00004849, 0x00004866, 0x00004886, 0x000048a9,
+	0x000048c0, 0x000048fb, 0x00004921, 0x00004963,
+	0x00004990, 0x0000499f, 0x000049b6, 0x000049c1,
+	0x000049c9, 0x000049cf, 0x000049d4, 0x000049dc,
+	0x000049e3, 0x000049e8, 0x000049f1, 0x000049fc,
+	0x00004a0a, 0x00004a19, 0x00004a25, 0x00004a2f,
+	0x00004a43, 0x00004a53, 0x00004a62, 0x00004a89,
+	0x00004aa0, 0x00004ada, 0x00004b18, 0x00004b5c,
 	// Entry 1C0 - 1DF
-	0x00004b63, 0x00004b9a, 0x00004bc6, 0x00004bf1,
-	0x00004c14,
+	0x00004b6e, 0x00004ba5, 0x00004bd1, 0x00004bfc,
+	0x00004c1f,
 } // Size: 1836 bytes
 
-const enData string = "" + // Size: 19476 bytes
+const enData string = "" + // Size: 19487 bytes
 	"\x02id is required\x02invalid file name\x02read file failed, err: %[1]v" +
 	"\x02create directory failed, err: %[1]v\x02create temporary directory fa" +
 	"iled, err: %[1]v\x02decompress the file. The size of file %[1]s exceeds " +
@@ -682,241 +682,241 @@ const enData string = "" + // Size: 19476 bytes
 	"g template version id is required\x02process list is required\x02get pro" +
 	"cesses by operate range failed, err: %[1]v\x02no processes found for biz" +
 	" %[1]d with provided operate range\x02get all config templates failed, e" +
-	"rr: %[1]v\x02no config templates found for biz %[1]d\x02list latest revi" +
-	"sions failed, err: %[1]v\x02latest revision not found for template %[1]d" +
-	"\x02list config templates failed, err: %[1]v\x02list config templates by" +
-	" ids failed, err: %[1]v\x02config templates not found for ids: %[1]s\x02" +
-	"list processes by template process ids failed, err: %[1]v\x02list filter" +
-	"ed processes failed, err: %[1]v\x02get process instances failed, err: %[" +
-	"1]v\x02list config instances failed, err: %[1]v\x02get template failed, " +
-	"err: %[1]v\x02process not found for cc process id: %[1]d\x02get latest t" +
-	"emplate revision failed, err: %[1]v\x02list template revisions by ids fa" +
-	"iled, err: %[1]v\x02process %[1]d is not in the config template\x02task " +
-	"storage not initialized\x02list tasks failed, err: %[1]v\x02get common p" +
-	"ayload failed, err: %[1]v\x02get task failed, err: %[1]v\x02task not fou" +
-	"nd: %[1]s\x02config payload not found in task\x02biz_id is required\x02t" +
-	"emplate_content is required\x02cc_process_id is required\x02query proces" +
-	"s by cc_process_id failed, err: %[1]v\x02process not found for cc_proces" +
-	"s_id: %[1]d\x02query process instance failed, err: %[1]v\x02expand gincl" +
-	"ude failed, err: %[1]v\x02render template failed, err: %[1]v\x02get batc" +
-	"h failed, batch_id: %[1]d, err: %[2]v\x02batch %[1]d is not a config gen" +
-	"erate batch\x02list task failed, err: %[1]v\x02batch %[1]s total count i" +
-	"s 0, there is no task to push\x02waiting for tasks of batch %[1]s to set" +
-	"tle is canceled, err: %[2]v\x02the success task count of batch %[1]s doe" +
-	"s not match its total count (settled %[2]s), still inconsistent after wa" +
-	"iting %[3]s, config push aborted\x02batch %[1]s is still running (comple" +
-	"ted %[2]s), please wait for the config generation to finish before pushi" +
-	"ng\x02batch %[1]s has %[2]s failed task(s) (success %[3]s), please regen" +
-	"erate the config before pushing\x02get source batch task data failed, er" +
-	"r: %[1]v\x02create batch failed, err: %[1]v\x02check running config push" +
-	" tasks failed, err: %[1]v\x02config template already has running push ta" +
-	"sks, please wait for completion\x02get config template %[1]d failed, err" +
-	": %[2]v\x02get latest template revision for config template %[1]d failed" +
-	", err: %[2]v\x02config template %[1]d version is not the latest, current" +
-	": %[2]d, latest: %[3]d, please regenerate config\x02config payload is ni" +
-	"l for task %[1]s\x02process payload is nil for task %[1]s\x02config temp" +
-	"late id is not valid for task %[1]s\x02no valid tasks found for batch %[" +
-	"1]d\x02get task batch failed, err: %[1]v\x02task batch %[1]d does not ex" +
-	"ist\x02unknown operation type: %[1]s\x02regenerate task failed, err: %[1" +
-	"]v\x02query failed tasks failed, err: %[1]v\x02reset counts for retry fa" +
-	"iled, err: %[1]v\x02retry failed task failed, err: %[1]v\x02config templ" +
-	"ate version id is not latest\x02get process failed, err: %[1]v\x02some p" +
-	"rocesses not found for biz %[1]d\x02invalid binding relationship\x02no t" +
-	"asks to create\x02unsupported config task mode: %[1]v\x02create run conf" +
-	"ig generation or verification task failed, err: %[1]v\x02payload not fou" +
-	"nd in task\x02config instance not found, biz_id=%[1]d, config_template_i" +
-	"d=%[2]d, cc_process_id=%[3]d, module_inst_seq=%[4]d\x02template not matc" +
-	"h template revision, template_id=%[1]d, template_revision_id=%[2]d\x02do" +
-	"wnload template config failed, template id: %[1]d, name: %[2]s, path: %[" +
-	"3]s, err: %[4]v\x02get config item failed, err: %[1]v\x02the config item" +
-	" %[1]s under this service already exists and cannot be created again\x02" +
-	"delete one app template binding instance by app id failed, err: %[1]s" +
-	"\x02batch create contents failed, err: %[1]s\x02delete one app template " +
-	"variable failed, err: %[1]s\x02the data has not been deleted\x02get the " +
-	"latest released version failed, err: %[1]v\x02get the published config f" +
-	"ailed, err: %[1]v\x02recovery failed. A file with the same path exists a" +
-	"nd is not in a new state\x02recover config item failed, err: %[1]v\x02ge" +
-	"t records greater than the latest released version failed, err: %[1]v" +
-	"\x02the total number of config items(including template and non-template" +
-	")\x0a\x09\x09\x09exceeded the limit %[1]d\x02obtain the number of config" +
-	"uration items\x02get template binding relationships through business and" +
-	" service IDs failed, err: %[1]s\x02get reference template set under this" +
-	" app failed, err: %[1]s\x02list template sets by template set ids failed" +
-	", err: %[1]s\x02remove the template set bound to the app failed, err: %[" +
-	"1]s\x02no available space or packages\x02list config instances by templa" +
-	"te ID failed, err: %[1]v\x02list templates by IDs failed, err: %[1]v\x02" +
-	"find topo brief failed, err: %[1]v\x02no available topo nodes\x02no vali" +
-	"d module IDs found\x02fetch all module details failed, err: %[1]v\x02lis" +
-	"t processes failed, err: %[1]v\x02get config template by unique key fail" +
-	"ed, err: %[1]v\x02the same template name already exists under this %[1]d" +
-	" business: %[2]s\x02get template set failed, err: %[1]v\x02create templa" +
-	"te and revision failed, err: %[1]v\x02create config template failed, err" +
-	": %[1]v\x02create template failed, err: %[1]v\x02version number %[1]s al" +
-	"ready exists. Please change it and try again.\x02create template revisio" +
-	"n failed, err: %[1]v\x02batch add templates to template sets failed, err" +
-	": %[1]s\x02get default template configuration space failed, err: %[1]v" +
-	"\x02create default template configuration space failed, err: %[1]v\x02ge" +
-	"t default template set failed, err: %[1]v\x02create default template set" +
-	" failed, err: %[1]v\x02fetch all service template failed, err: %[1]v\x02" +
-	"batch process by service templates failed, err: %[1]v\x02list proc templ" +
-	"ate failed, err: %[1]v\x02list service instance failed, err: %[1]v\x02ba" +
-	"tch process count by service instances failed, err: %[1]v\x02list proces" +
-	"s instance failed, err: %[1]v\x02get biz object attributes failed, err: " +
-	"%[1]v\x02get config template by ID failed, err: %[1]v\x02update config t" +
-	"emplate failed, err: %[1]v\x02list processes by cc process IDs failed, e" +
-	"rr: %[1]v\x02list processes by process template IDs failed, err: %[1]v" +
-	"\x02update template failed, err: %[1]v\x02get template by ID failed, err" +
-	": %[1]v\x02delete template failed, err: %[1]v\x02delete template revisio" +
-	"n failed, err: %[1]v\x02delete template from all sets failed, err: %[1]v" +
-	"\x02delete config template failed, err: %[1]v\x02commit transaction fail" +
-	"ed, err: %[1]v\x02path cannot be empty\x02path cannot contain null chara" +
-	"cter\x02path contains invalid segment: %[1]s\x02hook name %[1]s already " +
-	"exists\x02get excluded hook failed, err: %[1]s\x02retrieve the reference" +
-	"d script failed, err: %[1]s\x02get kv (%[1]d) failed, err: %[2]v\x02get " +
-	"app fail, key: %[1]s, err: %[2]v\x02kv type does not match the data type" +
-	" defined in the application\x02create kv failed, err: %[1]v\x02update kv" +
-	" failed, err: %[1]v\x02get a list of expired certificates failed, err: %" +
-	"[1]v\x02get key value failed, err: %[1]v\x02not a KV type service\x02lis" +
-	"t kv failed, err: %[1]v\x02batch import of KV config failed, err: %[1]v" +
-	"\x02the type of config item %[1]s is incorrect\x02clearing draft area fa" +
-	"iled, err: %[1]v\x02batch upsert vault failed, err: %[1]v\x02there are d" +
-	"uplicate keys %[1]s\x02get excluded kv failed, err: %[1]s\x02count the n" +
-	"umber of kV files that have not been deleted failed, err: %[1]v\x02the t" +
-	"otal number of config items exceeded the limit %[1]d\x02get process inst" +
-	"ances by process IDs failed, err: %[1]v\x02list config templates by CC p" +
-	"rocess ID failed, err: %[1]v\x02list config templates by CC template pro" +
-	"cess ID failed, err: %[1]v\x02when ProcessInstanceId is specified, only " +
-	"one ProcessId is allowed\x02operate type is not supported: %[1]v\x02quer" +
-	"y_status operation is not supported\x02no process instances found for pr" +
-	"ocesses matching operate range\x02get process instances by IDs failed, e" +
-	"rr: %[1]v\x02process instances not found for IDs %[1]v\x02process not fo" +
-	"und for id %[1]d\x02get processes failed, err: %[1]v\x02no processes fou" +
-	"nd for biz %[1]d with provided process IDs\x02no process instances found" +
-	" for process IDs %[1]v\x02create task batch failed, err: %[1]v\x02update" +
-	" process instance status failed, err: %[1]v\x02process not found in proc" +
-	"essMap, processID=%[1]d\x02build process operate task failed, err: %[1]v" +
-	"\x02list process filter options (sets) failed, err: %[1]v\x02list proces" +
-	"s filter options (modules) failed, err: %[1]v\x02list process filter opt" +
-	"ions (service instances) failed, err: %[1]v\x02list process filter optio" +
-	"ns (CC process IDs) failed, err: %[1]v\x02list process filter options (a" +
-	"liases) failed, err: %[1]v\x02list failed tasks from task storage failed" +
-	", err: %[1]v\x02list processes failed for process instance topo, err: %[" +
-	"1]v\x02unsupported managed status for delete: %[1]s\x02unsupported proce" +
-	"ss state for delete: status=%[1]s managedStatus=%[2]s\x02delete process " +
-	"instance %[1]d failed, err: %[2]v\x02list process filter options (inner " +
-	"IP) failed, err: %[1]v\x02Running\x02PartiallyRunning\x02Starting\x02Res" +
-	"tarting\x02Stopping\x02Reloading\x02NotRunning\x02StartingManagement\x02" +
-	"StoppingManagement\x02Managed\x02Unmanaged\x02PartiallyManaged\x02Normal" +
-	"\x02Deleted\x02Updated\x02Abnormal\x02release %[1]s is deprecated, can n" +
-	"ot be submited\x02there is a release in publishing currently\x02release " +
-	"%[1]s is deprecated, can not be revoke\x02invalid publish_status: %[1]s" +
-	"\x02no permission to approve this ticket\x02release name %[1]s already e" +
-	"xists\x02revoked not allowed, current publish status is: %[1]s\x02reject" +
-	"ed not allowed, current publish status is: %[1]s\x02reason can not empty" +
-	"\x02no permission to approve\x02pass not allowed, current publish status" +
-	" is: %[1]s\x02publish not allowed, current publish status is: %[1]s\x02t" +
-	"his ticket has been revoked, no further processing is required\x02this t" +
-	"icket has been finished, no further processing is required\x02approval h" +
-	"as been revoked, invalid tikcet status: %[1]s\x02this ticket has been re" +
-	"jected, no further processing is required\x02this ticket has been approv" +
-	"ed, no further processing is required\x02create release failed there is " +
-	"a file conflict\x02create release failed there is a certificate expirati" +
-	"on exists\x02get the package associated with the app failed, err: %[1]v" +
-	"\x02get template file failed, err: %[1]v\x02process config view is not e" +
-	"nabled for biz %[1]d\x02create sync cmdb task failed, err: %[1]v\x02get " +
-	"business data failed, err: %[1]v\x02list task batch failed, err: %[1]v" +
-	"\x02list distinct executors failed, err: %[1]v\x02task storage is not in" +
-	"itialized\x02get task batch %[1]d failed, err: %[2]v\x02list tasks from " +
-	"task storage failed, err: %[1]v\x02list tasks returned nil pagination" +
-	"\x02task is nil\x02get common payload from task failed, err: %[1]v\x02li" +
-	"st tasks from task storage failed for status %[1]s, err: %[2]v\x02invali" +
-	"d %[1]s format: %[2]v\x02reset task batch counts for retry failed, batch" +
-	"ID: %[1]d, err: %[2]v\x02operate process step not found for taskID: %[1]" +
-	"s\x02get operate payload from task step failed, taskID: %[1]s, err: %[2]" +
-	"v\x02get process instance by ID %[1]d failed, err: %[2]v\x02process inst" +
-	"ance with ID %[1]d does not exist\x02retry failed task %[1]s failed, err" +
-	": %[2]v\x02get app template bindings by template set ids, err: %[1]s\x02" +
-	"batch update app template binding's failed, err: %[1]s\x02get template s" +
-	"et data failed, err: %[1]s\x02there is no template file under this templ" +
-	"ate set\x02delete template from template sets failed, err: %[1]v\x02get " +
-	"app template bindings by template set ids, err: %[1]v\x02batch update ap" +
-	"p template binding's failed, err: %[1]v\x02list templates by tuple faile" +
-	"d, err: %[1]v\x02list app template bindings by app ids failed, err: %[1]" +
-	"s\x02get template set failed, err: %[1]s\x02the total number of template" +
-	" set %[1]s templates exceeded the limit %[2]d\x02list apps by app ids fa" +
-	"iled, err: %[1]s\x02count the number of app configs failed, err: %[1]s" +
-	"\x02template set data is empty\x02list templates data failed, err: %[1]s" +
-	"\x02template data is empty\x02list templates revisions data failed, err:" +
-	" %[1]s\x02same template variable name %[1]s already exists\x02app is nil" +
-	"\x02create data failed, err: %[1]v\x02create app failed, err: %[1]v\x02u" +
-	"pdate app failed, err: %[1]s\x02count app %[1]d's config items failed, e" +
-	"rr: %[2]v\x02get app %[1]d's template binding failed, err: %[2]v\x02the " +
-	"total number of app %[1]d's config items(including template and non-temp" +
-	"late)exceeded the limit %[2]d\x02hook is nil\x02Unnamed Version\x02appID" +
-	" can not be 0\x02bizID can not be 0\x02the total number of template set " +
-	"%[1]d's templates exceeded the limit %[2]d\x02validate templates exist f" +
-	"ailed, err: %[1]v\x02template space id in %[1]v is not exist\x02template" +
-	" id in %[1]v is not exist\x02validate template releases exist failed, er" +
-	"r: %[1]v\x02template revision id in %[1]v is not exist\x02validate templ" +
-	"ate sets exist failed, err: %[1]v\x02template set id in %[1]v is not exi" +
-	"st\x02template %[1]d is not exist\x02template release %[1]d is not exist" +
-	"\x02get template release failed, err: %[1]v\x02template set %[1]d is not" +
-	" exist\x02get template set count failed, err: %[1]v\x02there are templat" +
-	"e sets under the template space, need to delete them first\x02get templa" +
-	"te count failed, err: %[1]v\x02there are templates under the template sp" +
-	"ace, need to delete them first\x02validate templates in a template set f" +
-	"ailed, err: %[1]v\x02template id in %[1]v is not belong to template set " +
-	"id %[2]d\x02get 'kv_type' as a string \x0a\x09\x09from kv.Data failed, e" +
-	"rr: %[1]v\x02value type assertion failed, err: %[1]v\x02authorize failed" +
-	"\x02get permission to apply failed, err: %[1]v\x02grpc status with detai" +
-	"ls failed, err: %[1]v\x02db operation failed\x02invalid argument\x02id s" +
-	"hould not be set\x02spec not set\x02attachment not set\x02revision not s" +
-	"et\x02invalid path %[1]s, length should >= 1\x02invalid path %[1]s, leng" +
-	"th should <= 1024\x02invalid path %[1]s, the path must start with '/'" +
-	"\x02invalid path %[1]s, the pathcannot contain consecutive '/'\x02invali" +
-	"d path, length should >= 1\x02invalid path, length should <= 256\x02inva" +
-	"lid path,path does not conform to the win file path format specification" +
-	"\x02reload file path is required\x02invalid reload file path, should <= " +
-	"128\x02reload file path is not the absolute path\x02%[1]s sub path is sy" +
-	"stem reserved path, do not allow to use\x02memo is required, can not be " +
-	"empty\x02invalid memo, length should <= 200\x02resource name '%[1]s' is " +
-	"prefixed with '%[2]s' is reserved name, which is not allows to use\x02in" +
-	"valid name, length should >= 1\x02invalid name, length should <= 128\x02" +
-	"invalid name: %[1]s, only allows to include english、numbers、underscore (" +
-	"_)、hyphen (-), and must start and end with an english、numbers\x02invalid" +
-	" name, length should >= 9 and must start with prefix bk_bscp_ (ignore ca" +
-	"se)\x02invalid name: %[1]s, only allows to include english、numbers、under" +
-	"score (_), and must start with prefix bk_bscp_ (ignore case)\x02invalid " +
-	"name: %[1]s, only allows to include Chinese, English,numbers, underscore" +
-	" (_),hyphen (-), and must start and end with Chinese, English, or a numb" +
-	"er\x02invalid name, length should <= 64\x02invalid name %[1]s, name cann" +
-	"ot all be '.'\x02invalid name %[1]s, only allows Chinese, English, numbe" +
-	"rs, underscore (_), hyphen (-), dot (.) and space\x02invalid namespace, " +
-	"length should >= 1\x02invalid namespace, length should <= 128\x02invalid" +
-	" username, length should >= 1\x02invalid username, length should <= 32" +
-	"\x02id can not be set\x02invalid biz id\x02invalid spec, is nil\x02app s" +
-	"pec is nil\x02unknown config type: %[1]s\x02app's type can not be update" +
-	"d\x02not support table config type for now\x02unsupported config type: %" +
-	"[1]s\x02unsupported app reload type: %[1]s\x02invalid data-type\x02spec " +
-	"should be set\x02invalid commit spec's content id\x02commit spec's conte" +
-	"nt is empty\x02verify Windows file paths failed, path: %[1]s, err: %[2]v" +
-	"\x02verify Unix file paths failed, path: %[1]s, err: %[2]v\x02unsupporte" +
-	"d file format: %[1]s\x02unsupported file mode: %[1]s\x02unsupported file" +
-	" charset: %[1]s\x02unsupported highlight style: %[1]s\x02content id can " +
-	"not set\x02invalid content signature, should be config's sha256 value" +
-	"\x02content signature should be lowercase\x02invalid origin content sign" +
-	"ature, should be config's sha256 value\x02origin content signature shoul" +
-	"d be lowercase\x02invalid app id\x02invalid config item id\x02ConfigFile" +
-	"\x02Process\x02Start\x02Stop\x02Restart\x02Reload\x02Kill\x02Register" +
-	"\x02Unregister\x02ConfigPublish\x02ConfigGenerate\x02ConfigCheck\x02Exec" +
-	"uting\x02ExecutionSuccessful\x02ExecutionFailed\x02PartialFailure\x02def" +
-	"ault_val %[1]s is not a number type\x02invalid base directory\x02get abs" +
-	"olute base path failed, baseDir: %[1]s, err: %[2]v\x02get absolute desti" +
-	"nation path failed, path: %[1]s, err: %[2]v\x02calculate relative path f" +
-	"ailed, base: %[1]s, dst: %[2]s, err: %[3]v\x02invalid file path\x02creat" +
-	"e parent directory failed, dir: %[1]s, err: %[2]v\x02create file failed," +
-	" path: %[1]s, err: %[2]v\x02write file failed, path: %[1]s, err: %[2]v" +
-	"\x02%[1]s and %[2]s path file conflict"
+	"rr: %[1]v\x02no executable config bindings in the operate range\x02list " +
+	"latest revisions failed, err: %[1]v\x02latest revision not found for tem" +
+	"plate %[1]d\x02list config templates failed, err: %[1]v\x02list config t" +
+	"emplates by ids failed, err: %[1]v\x02config templates not found for ids" +
+	": %[1]s\x02list processes by template process ids failed, err: %[1]v\x02" +
+	"list filtered processes failed, err: %[1]v\x02get process instances fail" +
+	"ed, err: %[1]v\x02list config instances failed, err: %[1]v\x02get templa" +
+	"te failed, err: %[1]v\x02process not found for cc process id: %[1]d\x02g" +
+	"et latest template revision failed, err: %[1]v\x02list template revision" +
+	"s by ids failed, err: %[1]v\x02process %[1]d is not in the config templa" +
+	"te\x02task storage not initialized\x02list tasks failed, err: %[1]v\x02g" +
+	"et common payload failed, err: %[1]v\x02get task failed, err: %[1]v\x02t" +
+	"ask not found: %[1]s\x02config payload not found in task\x02biz_id is re" +
+	"quired\x02template_content is required\x02cc_process_id is required\x02q" +
+	"uery process by cc_process_id failed, err: %[1]v\x02process not found fo" +
+	"r cc_process_id: %[1]d\x02query process instance failed, err: %[1]v\x02e" +
+	"xpand ginclude failed, err: %[1]v\x02render template failed, err: %[1]v" +
+	"\x02get batch failed, batch_id: %[1]d, err: %[2]v\x02batch %[1]d is not " +
+	"a config generate batch\x02list task failed, err: %[1]v\x02batch %[1]s t" +
+	"otal count is 0, there is no task to push\x02waiting for tasks of batch " +
+	"%[1]s to settle is canceled, err: %[2]v\x02the success task count of bat" +
+	"ch %[1]s does not match its total count (settled %[2]s), still inconsist" +
+	"ent after waiting %[3]s, config push aborted\x02batch %[1]s is still run" +
+	"ning (completed %[2]s), please wait for the config generation to finish " +
+	"before pushing\x02batch %[1]s has %[2]s failed task(s) (success %[3]s), " +
+	"please regenerate the config before pushing\x02get source batch task dat" +
+	"a failed, err: %[1]v\x02create batch failed, err: %[1]v\x02check running" +
+	" config push tasks failed, err: %[1]v\x02config template already has run" +
+	"ning push tasks, please wait for completion\x02get config template %[1]d" +
+	" failed, err: %[2]v\x02get latest template revision for config template " +
+	"%[1]d failed, err: %[2]v\x02config template %[1]d version is not the lat" +
+	"est, current: %[2]d, latest: %[3]d, please regenerate config\x02config p" +
+	"ayload is nil for task %[1]s\x02process payload is nil for task %[1]s" +
+	"\x02config template id is not valid for task %[1]s\x02no valid tasks fou" +
+	"nd for batch %[1]d\x02get task batch failed, err: %[1]v\x02task batch %[" +
+	"1]d does not exist\x02unknown operation type: %[1]s\x02regenerate task f" +
+	"ailed, err: %[1]v\x02query failed tasks failed, err: %[1]v\x02reset coun" +
+	"ts for retry failed, err: %[1]v\x02retry failed task failed, err: %[1]v" +
+	"\x02config template version id is not latest\x02get process failed, err:" +
+	" %[1]v\x02some processes not found for biz %[1]d\x02invalid binding rela" +
+	"tionship\x02no tasks to create\x02unsupported config task mode: %[1]v" +
+	"\x02create run config generation or verification task failed, err: %[1]v" +
+	"\x02payload not found in task\x02config instance not found, biz_id=%[1]d" +
+	", config_template_id=%[2]d, cc_process_id=%[3]d, module_inst_seq=%[4]d" +
+	"\x02template not match template revision, template_id=%[1]d, template_re" +
+	"vision_id=%[2]d\x02download template config failed, template id: %[1]d, " +
+	"name: %[2]s, path: %[3]s, err: %[4]v\x02get config item failed, err: %[1" +
+	"]v\x02the config item %[1]s under this service already exists and cannot" +
+	" be created again\x02delete one app template binding instance by app id " +
+	"failed, err: %[1]s\x02batch create contents failed, err: %[1]s\x02delete" +
+	" one app template variable failed, err: %[1]s\x02the data has not been d" +
+	"eleted\x02get the latest released version failed, err: %[1]v\x02get the " +
+	"published config failed, err: %[1]v\x02recovery failed. A file with the " +
+	"same path exists and is not in a new state\x02recover config item failed" +
+	", err: %[1]v\x02get records greater than the latest released version fai" +
+	"led, err: %[1]v\x02the total number of config items(including template a" +
+	"nd non-template)\x0a\x09\x09\x09exceeded the limit %[1]d\x02obtain the n" +
+	"umber of configuration items\x02get template binding relationships throu" +
+	"gh business and service IDs failed, err: %[1]s\x02get reference template" +
+	" set under this app failed, err: %[1]s\x02list template sets by template" +
+	" set ids failed, err: %[1]s\x02remove the template set bound to the app " +
+	"failed, err: %[1]s\x02no available space or packages\x02list config inst" +
+	"ances by template ID failed, err: %[1]v\x02list templates by IDs failed," +
+	" err: %[1]v\x02find topo brief failed, err: %[1]v\x02no available topo n" +
+	"odes\x02no valid module IDs found\x02fetch all module details failed, er" +
+	"r: %[1]v\x02list processes failed, err: %[1]v\x02get config template by " +
+	"unique key failed, err: %[1]v\x02the same template name already exists u" +
+	"nder this %[1]d business: %[2]s\x02get template set failed, err: %[1]v" +
+	"\x02create template and revision failed, err: %[1]v\x02create config tem" +
+	"plate failed, err: %[1]v\x02create template failed, err: %[1]v\x02versio" +
+	"n number %[1]s already exists. Please change it and try again.\x02create" +
+	" template revision failed, err: %[1]v\x02batch add templates to template" +
+	" sets failed, err: %[1]s\x02get default template configuration space fai" +
+	"led, err: %[1]v\x02create default template configuration space failed, e" +
+	"rr: %[1]v\x02get default template set failed, err: %[1]v\x02create defau" +
+	"lt template set failed, err: %[1]v\x02fetch all service template failed," +
+	" err: %[1]v\x02batch process by service templates failed, err: %[1]v\x02" +
+	"list proc template failed, err: %[1]v\x02list service instance failed, e" +
+	"rr: %[1]v\x02batch process count by service instances failed, err: %[1]v" +
+	"\x02list process instance failed, err: %[1]v\x02get biz object attribute" +
+	"s failed, err: %[1]v\x02get config template by ID failed, err: %[1]v\x02" +
+	"update config template failed, err: %[1]v\x02list processes by cc proces" +
+	"s IDs failed, err: %[1]v\x02list processes by process template IDs faile" +
+	"d, err: %[1]v\x02update template failed, err: %[1]v\x02get template by I" +
+	"D failed, err: %[1]v\x02delete template failed, err: %[1]v\x02delete tem" +
+	"plate revision failed, err: %[1]v\x02delete template from all sets faile" +
+	"d, err: %[1]v\x02delete config template failed, err: %[1]v\x02commit tra" +
+	"nsaction failed, err: %[1]v\x02path cannot be empty\x02path cannot conta" +
+	"in null character\x02path contains invalid segment: %[1]s\x02hook name %" +
+	"[1]s already exists\x02get excluded hook failed, err: %[1]s\x02retrieve " +
+	"the referenced script failed, err: %[1]s\x02get kv (%[1]d) failed, err: " +
+	"%[2]v\x02get app fail, key: %[1]s, err: %[2]v\x02kv type does not match " +
+	"the data type defined in the application\x02create kv failed, err: %[1]v" +
+	"\x02update kv failed, err: %[1]v\x02get a list of expired certificates f" +
+	"ailed, err: %[1]v\x02get key value failed, err: %[1]v\x02not a KV type s" +
+	"ervice\x02list kv failed, err: %[1]v\x02batch import of KV config failed" +
+	", err: %[1]v\x02the type of config item %[1]s is incorrect\x02clearing d" +
+	"raft area failed, err: %[1]v\x02batch upsert vault failed, err: %[1]v" +
+	"\x02there are duplicate keys %[1]s\x02get excluded kv failed, err: %[1]s" +
+	"\x02count the number of kV files that have not been deleted failed, err:" +
+	" %[1]v\x02the total number of config items exceeded the limit %[1]d\x02g" +
+	"et process instances by process IDs failed, err: %[1]v\x02list config te" +
+	"mplates by CC process ID failed, err: %[1]v\x02list config templates by " +
+	"CC template process ID failed, err: %[1]v\x02when ProcessInstanceId is s" +
+	"pecified, only one ProcessId is allowed\x02operate type is not supported" +
+	": %[1]v\x02query_status operation is not supported\x02no process instanc" +
+	"es found for processes matching operate range\x02get process instances b" +
+	"y IDs failed, err: %[1]v\x02process instances not found for IDs %[1]v" +
+	"\x02process not found for id %[1]d\x02get processes failed, err: %[1]v" +
+	"\x02no processes found for biz %[1]d with provided process IDs\x02no pro" +
+	"cess instances found for process IDs %[1]v\x02create task batch failed, " +
+	"err: %[1]v\x02update process instance status failed, err: %[1]v\x02proce" +
+	"ss not found in processMap, processID=%[1]d\x02build process operate tas" +
+	"k failed, err: %[1]v\x02list process filter options (sets) failed, err: " +
+	"%[1]v\x02list process filter options (modules) failed, err: %[1]v\x02lis" +
+	"t process filter options (service instances) failed, err: %[1]v\x02list " +
+	"process filter options (CC process IDs) failed, err: %[1]v\x02list proce" +
+	"ss filter options (aliases) failed, err: %[1]v\x02list failed tasks from" +
+	" task storage failed, err: %[1]v\x02list processes failed for process in" +
+	"stance topo, err: %[1]v\x02unsupported managed status for delete: %[1]s" +
+	"\x02unsupported process state for delete: status=%[1]s managedStatus=%[2" +
+	"]s\x02delete process instance %[1]d failed, err: %[2]v\x02list process f" +
+	"ilter options (inner IP) failed, err: %[1]v\x02Running\x02PartiallyRunni" +
+	"ng\x02Starting\x02Restarting\x02Stopping\x02Reloading\x02NotRunning\x02S" +
+	"tartingManagement\x02StoppingManagement\x02Managed\x02Unmanaged\x02Parti" +
+	"allyManaged\x02Normal\x02Deleted\x02Updated\x02Abnormal\x02release %[1]s" +
+	" is deprecated, can not be submited\x02there is a release in publishing " +
+	"currently\x02release %[1]s is deprecated, can not be revoke\x02invalid p" +
+	"ublish_status: %[1]s\x02no permission to approve this ticket\x02release " +
+	"name %[1]s already exists\x02revoked not allowed, current publish status" +
+	" is: %[1]s\x02rejected not allowed, current publish status is: %[1]s\x02" +
+	"reason can not empty\x02no permission to approve\x02pass not allowed, cu" +
+	"rrent publish status is: %[1]s\x02publish not allowed, current publish s" +
+	"tatus is: %[1]s\x02this ticket has been revoked, no further processing i" +
+	"s required\x02this ticket has been finished, no further processing is re" +
+	"quired\x02approval has been revoked, invalid tikcet status: %[1]s\x02thi" +
+	"s ticket has been rejected, no further processing is required\x02this ti" +
+	"cket has been approved, no further processing is required\x02create rele" +
+	"ase failed there is a file conflict\x02create release failed there is a " +
+	"certificate expiration exists\x02get the package associated with the app" +
+	" failed, err: %[1]v\x02get template file failed, err: %[1]v\x02process c" +
+	"onfig view is not enabled for biz %[1]d\x02create sync cmdb task failed," +
+	" err: %[1]v\x02get business data failed, err: %[1]v\x02list task batch f" +
+	"ailed, err: %[1]v\x02list distinct executors failed, err: %[1]v\x02task " +
+	"storage is not initialized\x02get task batch %[1]d failed, err: %[2]v" +
+	"\x02list tasks from task storage failed, err: %[1]v\x02list tasks return" +
+	"ed nil pagination\x02task is nil\x02get common payload from task failed," +
+	" err: %[1]v\x02list tasks from task storage failed for status %[1]s, err" +
+	": %[2]v\x02invalid %[1]s format: %[2]v\x02reset task batch counts for re" +
+	"try failed, batchID: %[1]d, err: %[2]v\x02operate process step not found" +
+	" for taskID: %[1]s\x02get operate payload from task step failed, taskID:" +
+	" %[1]s, err: %[2]v\x02get process instance by ID %[1]d failed, err: %[2]" +
+	"v\x02process instance with ID %[1]d does not exist\x02retry failed task " +
+	"%[1]s failed, err: %[2]v\x02get app template bindings by template set id" +
+	"s, err: %[1]s\x02batch update app template binding's failed, err: %[1]s" +
+	"\x02get template set data failed, err: %[1]s\x02there is no template fil" +
+	"e under this template set\x02delete template from template sets failed, " +
+	"err: %[1]v\x02get app template bindings by template set ids, err: %[1]v" +
+	"\x02batch update app template binding's failed, err: %[1]v\x02list templ" +
+	"ates by tuple failed, err: %[1]v\x02list app template bindings by app id" +
+	"s failed, err: %[1]s\x02get template set failed, err: %[1]s\x02the total" +
+	" number of template set %[1]s templates exceeded the limit %[2]d\x02list" +
+	" apps by app ids failed, err: %[1]s\x02count the number of app configs f" +
+	"ailed, err: %[1]s\x02template set data is empty\x02list templates data f" +
+	"ailed, err: %[1]s\x02template data is empty\x02list templates revisions " +
+	"data failed, err: %[1]s\x02same template variable name %[1]s already exi" +
+	"sts\x02app is nil\x02create data failed, err: %[1]v\x02create app failed" +
+	", err: %[1]v\x02update app failed, err: %[1]s\x02count app %[1]d's confi" +
+	"g items failed, err: %[2]v\x02get app %[1]d's template binding failed, e" +
+	"rr: %[2]v\x02the total number of app %[1]d's config items(including temp" +
+	"late and non-template)exceeded the limit %[2]d\x02hook is nil\x02Unnamed" +
+	" Version\x02appID can not be 0\x02bizID can not be 0\x02the total number" +
+	" of template set %[1]d's templates exceeded the limit %[2]d\x02validate " +
+	"templates exist failed, err: %[1]v\x02template space id in %[1]v is not " +
+	"exist\x02template id in %[1]v is not exist\x02validate template releases" +
+	" exist failed, err: %[1]v\x02template revision id in %[1]v is not exist" +
+	"\x02validate template sets exist failed, err: %[1]v\x02template set id i" +
+	"n %[1]v is not exist\x02template %[1]d is not exist\x02template release " +
+	"%[1]d is not exist\x02get template release failed, err: %[1]v\x02templat" +
+	"e set %[1]d is not exist\x02get template set count failed, err: %[1]v" +
+	"\x02there are template sets under the template space, need to delete the" +
+	"m first\x02get template count failed, err: %[1]v\x02there are templates " +
+	"under the template space, need to delete them first\x02validate template" +
+	"s in a template set failed, err: %[1]v\x02template id in %[1]v is not be" +
+	"long to template set id %[2]d\x02get 'kv_type' as a string \x0a\x09\x09f" +
+	"rom kv.Data failed, err: %[1]v\x02value type assertion failed, err: %[1]" +
+	"v\x02authorize failed\x02get permission to apply failed, err: %[1]v\x02g" +
+	"rpc status with details failed, err: %[1]v\x02db operation failed\x02inv" +
+	"alid argument\x02id should not be set\x02spec not set\x02attachment not " +
+	"set\x02revision not set\x02invalid path %[1]s, length should >= 1\x02inv" +
+	"alid path %[1]s, length should <= 1024\x02invalid path %[1]s, the path m" +
+	"ust start with '/'\x02invalid path %[1]s, the pathcannot contain consecu" +
+	"tive '/'\x02invalid path, length should >= 1\x02invalid path, length sho" +
+	"uld <= 256\x02invalid path,path does not conform to the win file path fo" +
+	"rmat specification\x02reload file path is required\x02invalid reload fil" +
+	"e path, should <= 128\x02reload file path is not the absolute path\x02%[" +
+	"1]s sub path is system reserved path, do not allow to use\x02memo is req" +
+	"uired, can not be empty\x02invalid memo, length should <= 200\x02resourc" +
+	"e name '%[1]s' is prefixed with '%[2]s' is reserved name, which is not a" +
+	"llows to use\x02invalid name, length should >= 1\x02invalid name, length" +
+	" should <= 128\x02invalid name: %[1]s, only allows to include english、nu" +
+	"mbers、underscore (_)、hyphen (-), and must start and end with an english、" +
+	"numbers\x02invalid name, length should >= 9 and must start with prefix b" +
+	"k_bscp_ (ignore case)\x02invalid name: %[1]s, only allows to include eng" +
+	"lish、numbers、underscore (_), and must start with prefix bk_bscp_ (ignore" +
+	" case)\x02invalid name: %[1]s, only allows to include Chinese, English,n" +
+	"umbers, underscore (_),hyphen (-), and must start and end with Chinese, " +
+	"English, or a number\x02invalid name, length should <= 64\x02invalid nam" +
+	"e %[1]s, name cannot all be '.'\x02invalid name %[1]s, only allows Chine" +
+	"se, English, numbers, underscore (_), hyphen (-), dot (.) and space\x02i" +
+	"nvalid namespace, length should >= 1\x02invalid namespace, length should" +
+	" <= 128\x02invalid username, length should >= 1\x02invalid username, len" +
+	"gth should <= 32\x02id can not be set\x02invalid biz id\x02invalid spec," +
+	" is nil\x02app spec is nil\x02unknown config type: %[1]s\x02app's type c" +
+	"an not be updated\x02not support table config type for now\x02unsupporte" +
+	"d config type: %[1]s\x02unsupported app reload type: %[1]s\x02invalid da" +
+	"ta-type\x02spec should be set\x02invalid commit spec's content id\x02com" +
+	"mit spec's content is empty\x02verify Windows file paths failed, path: %" +
+	"[1]s, err: %[2]v\x02verify Unix file paths failed, path: %[1]s, err: %[2" +
+	"]v\x02unsupported file format: %[1]s\x02unsupported file mode: %[1]s\x02" +
+	"unsupported file charset: %[1]s\x02unsupported highlight style: %[1]s" +
+	"\x02content id can not set\x02invalid content signature, should be confi" +
+	"g's sha256 value\x02content signature should be lowercase\x02invalid ori" +
+	"gin content signature, should be config's sha256 value\x02origin content" +
+	" signature should be lowercase\x02invalid app id\x02invalid config item " +
+	"id\x02ConfigFile\x02Process\x02Start\x02Stop\x02Restart\x02Reload\x02Kil" +
+	"l\x02Register\x02Unregister\x02ConfigPublish\x02ConfigGenerate\x02Config" +
+	"Check\x02Executing\x02ExecutionSuccessful\x02ExecutionFailed\x02PartialF" +
+	"ailure\x02default_val %[1]s is not a number type\x02invalid base directo" +
+	"ry\x02get absolute base path failed, baseDir: %[1]s, err: %[2]v\x02get a" +
+	"bsolute destination path failed, path: %[1]s, err: %[2]v\x02calculate re" +
+	"lative path failed, base: %[1]s, dst: %[2]s, err: %[3]v\x02invalid file " +
+	"path\x02create parent directory failed, dir: %[1]s, err: %[2]v\x02create" +
+	" file failed, path: %[1]s, err: %[2]v\x02write file failed, path: %[1]s," +
+	" err: %[2]v\x02%[1]s and %[2]s path file conflict"
 
 var zhIndex = []uint32{ // 453 elements
 	// Entry 0 - 1F
@@ -943,114 +943,114 @@ var zhIndex = []uint32{ // 453 elements
 	0x00000a8b, 0x00000ae2, 0x00000b0d, 0x00000b30,
 	0x00000ba1, 0x00000bc6, 0x00000beb, 0x00000c00,
 	0x00000c22, 0x00000c3d, 0x00000c5e, 0x00000c77,
-	0x00000ca8, 0x00000cdb, 0x00000d06, 0x00000d27,
-	0x00000d4c, 0x00000d6d, 0x00000d92, 0x00000dbf,
-	0x00000de7, 0x00000e1a, 0x00000e42, 0x00000e67,
+	0x00000ca8, 0x00000cdb, 0x00000d06, 0x00000d2e,
+	0x00000d53, 0x00000d74, 0x00000d99, 0x00000dc6,
+	0x00000dee, 0x00000e21, 0x00000e49, 0x00000e6e,
 	// Entry 60 - 7F
-	0x00000e8c, 0x00000eab, 0x00000ed2, 0x00000efd,
-	0x00000f2a, 0x00000f4b, 0x00000f64, 0x00000f83,
-	0x00000fa8, 0x00000fc7, 0x00000fde, 0x00000ffd,
-	0x00001010, 0x0000102d, 0x00001047, 0x00001079,
-	0x000010a3, 0x000010c8, 0x000010e9, 0x00001108,
-	0x00001138, 0x0000115c, 0x0000117b, 0x000011b8,
-	0x000011f6, 0x00001271, 0x000012cb, 0x0000132c,
-	0x0000135a, 0x00001379, 0x000013b0, 0x000013ed,
+	0x00000e93, 0x00000eb2, 0x00000ed9, 0x00000f04,
+	0x00000f31, 0x00000f52, 0x00000f6b, 0x00000f8a,
+	0x00000faf, 0x00000fce, 0x00000fe5, 0x00001004,
+	0x00001017, 0x00001034, 0x0000104e, 0x00001080,
+	0x000010aa, 0x000010cf, 0x000010f0, 0x0000110f,
+	0x0000113f, 0x00001163, 0x00001182, 0x000011bf,
+	0x000011fd, 0x00001278, 0x000012d2, 0x00001333,
+	0x00001361, 0x00001380, 0x000013b7, 0x000013f4,
 	// Entry 80 - 9F
-	0x00001417, 0x00001450, 0x000014ac, 0x000014cd,
-	0x000014ee, 0x00001511, 0x00001532, 0x00001557,
-	0x00001572, 0x0000158c, 0x000015b1, 0x000015d6,
-	0x000015fb, 0x00001620, 0x00001644, 0x00001663,
-	0x00001684, 0x0000169a, 0x000016b3, 0x000016d9,
-	0x0000170d, 0x00001726, 0x00001790, 0x000017de,
-	0x0000182e, 0x00001850, 0x0000188e, 0x000018b9,
-	0x000018de, 0x00001903, 0x0000191c, 0x00001947,
+	0x0000141e, 0x00001457, 0x000014b3, 0x000014d4,
+	0x000014f5, 0x00001518, 0x00001539, 0x0000155e,
+	0x00001579, 0x00001593, 0x000015b8, 0x000015dd,
+	0x00001602, 0x00001627, 0x0000164b, 0x0000166a,
+	0x0000168b, 0x000016a1, 0x000016ba, 0x000016e0,
+	0x00001714, 0x0000172d, 0x00001797, 0x000017e5,
+	0x00001835, 0x00001857, 0x00001895, 0x000018c0,
+	0x000018e5, 0x0000190a, 0x00001923, 0x0000194e,
 	// Entry A0 - BF
-	0x00001972, 0x000019be, 0x000019e0, 0x00001a1a,
-	0x00001a59, 0x00001a6f, 0x00001ab1, 0x00001ae8,
-	0x00001b1e, 0x00001b3d, 0x00001b5c, 0x00001b8f,
-	0x00001bb6, 0x00001bdb, 0x00001bf7, 0x00001c12,
-	0x00001c3d, 0x00001c5c, 0x00001c90, 0x00001cbe,
-	0x00001ce0, 0x00001d08, 0x00001d2d, 0x00001d4c,
-	0x00001d7b, 0x00001da0, 0x00001dce, 0x00001dff,
-	0x00001e30, 0x00001e58, 0x00001e80, 0x00001eab,
+	0x00001979, 0x000019c5, 0x000019e7, 0x00001a21,
+	0x00001a60, 0x00001a76, 0x00001ab8, 0x00001aef,
+	0x00001b25, 0x00001b44, 0x00001b63, 0x00001b96,
+	0x00001bbd, 0x00001be2, 0x00001bfe, 0x00001c19,
+	0x00001c44, 0x00001c63, 0x00001c97, 0x00001cc5,
+	0x00001ce7, 0x00001d0f, 0x00001d34, 0x00001d53,
+	0x00001d82, 0x00001da7, 0x00001dd5, 0x00001e06,
+	0x00001e37, 0x00001e5f, 0x00001e87, 0x00001eb2,
 	// Entry C0 - DF
-	0x00001edf, 0x00001f04, 0x00001f29, 0x00001f60,
-	0x00001f85, 0x00001fb0, 0x00001fdd, 0x00002002,
-	0x00002031, 0x00002064, 0x00002083, 0x000020aa,
-	0x000020c9, 0x000020ee, 0x00002122, 0x00002147,
-	0x00002166, 0x00002179, 0x00002196, 0x000021b3,
-	0x000021d0, 0x000021fb, 0x00002223, 0x00002248,
-	0x00002273, 0x000022ad, 0x000022c8, 0x000022e3,
-	0x00002313, 0x00002332, 0x0000234a, 0x0000236b,
+	0x00001ee6, 0x00001f0b, 0x00001f30, 0x00001f67,
+	0x00001f8c, 0x00001fb7, 0x00001fe4, 0x00002009,
+	0x00002038, 0x0000206b, 0x0000208a, 0x000020b1,
+	0x000020d0, 0x000020f5, 0x00002129, 0x0000214e,
+	0x0000216d, 0x00002180, 0x0000219d, 0x000021ba,
+	0x000021d7, 0x00002202, 0x0000222a, 0x0000224f,
+	0x0000227a, 0x000022b4, 0x000022cf, 0x000022ea,
+	0x0000231a, 0x00002339, 0x00002351, 0x00002372,
 	// Entry E0 - FF
-	0x00002392, 0x000023b5, 0x000023d7, 0x00002400,
-	0x00002416, 0x0000243d, 0x00002475, 0x00002497,
-	0x000024ca, 0x000024ff, 0x0000253a, 0x00002570,
-	0x00002590, 0x000025ac, 0x000025da, 0x00002608,
-	0x00002630, 0x0000264f, 0x0000266e, 0x0000269d,
-	0x000026c8, 0x000026ed, 0x00002718, 0x00002746,
-	0x00002771, 0x000027a4, 0x000027d7, 0x00002810,
-	0x00002847, 0x0000287a, 0x000028ae, 0x000028e2,
+	0x00002399, 0x000023bc, 0x000023de, 0x00002407,
+	0x0000241d, 0x00002444, 0x0000247c, 0x0000249e,
+	0x000024d1, 0x00002506, 0x00002541, 0x00002577,
+	0x00002597, 0x000025b3, 0x000025e1, 0x0000260f,
+	0x00002637, 0x00002656, 0x00002675, 0x000026a4,
+	0x000026cf, 0x000026f4, 0x0000271f, 0x0000274d,
+	0x00002778, 0x000027ab, 0x000027de, 0x00002817,
+	0x0000284e, 0x00002881, 0x000028b5, 0x000028e9,
 	// Entry 100 - 11F
-	0x00002908, 0x00002949, 0x00002973, 0x000029a8,
-	0x000029b2, 0x000029c2, 0x000029cc, 0x000029d6,
-	0x000029e0, 0x000029ea, 0x000029f4, 0x00002a01,
-	0x00002a0e, 0x00002a18, 0x00002a22, 0x00002a2f,
-	0x00002a36, 0x00002a40, 0x00002a4a, 0x00002a51,
-	0x00002a75, 0x00002a8e, 0x00002ab2, 0x00002acd,
-	0x00002ae9, 0x00002b04, 0x00002b34, 0x00002b61,
-	0x00002b74, 0x00002b84, 0x00002bb1, 0x00002be1,
+	0x0000290f, 0x00002950, 0x0000297a, 0x000029af,
+	0x000029b9, 0x000029c9, 0x000029d3, 0x000029dd,
+	0x000029e7, 0x000029f1, 0x000029fb, 0x00002a08,
+	0x00002a15, 0x00002a1f, 0x00002a29, 0x00002a36,
+	0x00002a3d, 0x00002a47, 0x00002a51, 0x00002a58,
+	0x00002a7c, 0x00002a95, 0x00002ab9, 0x00002ad4,
+	0x00002af0, 0x00002b0b, 0x00002b3b, 0x00002b68,
+	0x00002b7b, 0x00002b8b, 0x00002bb8, 0x00002be8,
 	// Entry 120 - 13F
-	0x00002c0c, 0x00002c37, 0x00002c69, 0x00002c9a,
-	0x00002ccb, 0x00002cf3, 0x00002d21, 0x00002d4f,
-	0x00002d74, 0x00002d9b, 0x00002dc4, 0x00002de9,
-	0x00002e0e, 0x00002e39, 0x00002e52, 0x00002e7c,
-	0x00002eaa, 0x00002ec6, 0x00002ed3, 0x00002f01,
-	0x00002f3d, 0x00002f59, 0x00002f9a, 0x00002fc4,
-	0x00003007, 0x00003039, 0x00003057, 0x00003081,
-	0x000030ba, 0x000030eb, 0x00003113, 0x00003135,
+	0x00002c13, 0x00002c3e, 0x00002c70, 0x00002ca1,
+	0x00002cd2, 0x00002cfa, 0x00002d28, 0x00002d56,
+	0x00002d7b, 0x00002da2, 0x00002dcb, 0x00002df0,
+	0x00002e15, 0x00002e40, 0x00002e59, 0x00002e83,
+	0x00002eb1, 0x00002ecd, 0x00002eda, 0x00002f08,
+	0x00002f44, 0x00002f60, 0x00002fa1, 0x00002fcb,
+	0x0000300e, 0x00003040, 0x0000305e, 0x00003088,
+	0x000030c1, 0x000030f2, 0x0000311a, 0x0000313c,
 	// Entry 140 - 15F
-	0x00003166, 0x0000319f, 0x000031d0, 0x000031ef,
-	0x00003225, 0x00003247, 0x0000328e, 0x000032b8,
-	0x000032e3, 0x000032fc, 0x00003321, 0x00003334,
-	0x0000335f, 0x00003389, 0x00003396, 0x000033af,
-	0x000033ce, 0x000033ed, 0x0000341f, 0x00003455,
-	0x000034a5, 0x000034b5, 0x000034c5, 0x000034d5,
-	0x000034e5, 0x0000352e, 0x00003559, 0x0000357f,
-	0x0000359f, 0x000035d0, 0x000035f6, 0x00003627,
+	0x0000316d, 0x000031a6, 0x000031d7, 0x000031f6,
+	0x0000322c, 0x0000324e, 0x00003295, 0x000032bf,
+	0x000032ea, 0x00003303, 0x00003328, 0x0000333b,
+	0x00003366, 0x00003390, 0x0000339d, 0x000033b6,
+	0x000033d5, 0x000033f4, 0x00003426, 0x0000345c,
+	0x000034ac, 0x000034bc, 0x000034cc, 0x000034dc,
+	0x000034ec, 0x00003535, 0x00003560, 0x00003586,
+	0x000035a6, 0x000035d7, 0x000035fd, 0x0000362e,
 	// Entry 160 - 17F
-	0x0000364d, 0x00003664, 0x00003681, 0x000036a6,
-	0x000036c3, 0x000036ee, 0x0000371e, 0x00003743,
-	0x0000376d, 0x0000379e, 0x000037d3, 0x00003814,
-	0x00003836, 0x00003843, 0x00003862, 0x0000388c,
-	0x0000389b, 0x000038a8, 0x000038bd, 0x000038d1,
-	0x000038eb, 0x00003903, 0x0000392b, 0x00003956,
-	0x00003989, 0x000039c2, 0x000039e2, 0x00003a04,
-	0x00003a3d, 0x00003a5c, 0x00003a8a, 0x00003ab5,
+	0x00003654, 0x0000366b, 0x00003688, 0x000036ad,
+	0x000036ca, 0x000036f5, 0x00003725, 0x0000374a,
+	0x00003774, 0x000037a5, 0x000037da, 0x0000381b,
+	0x0000383d, 0x0000384a, 0x00003869, 0x00003893,
+	0x000038a2, 0x000038af, 0x000038c4, 0x000038d8,
+	0x000038f2, 0x0000390a, 0x00003932, 0x0000395d,
+	0x00003990, 0x000039c9, 0x000039e9, 0x00003a0b,
+	0x00003a44, 0x00003a63, 0x00003a91, 0x00003abc,
 	// Entry 180 - 19F
-	0x00003aeb, 0x00003b0c, 0x00003b2e, 0x00003b7f,
-	0x00003b9f, 0x00003bbf, 0x00003c46, 0x00003c99,
-	0x00003d12, 0x00003dab, 0x00003dcc, 0x00003dfe,
-	0x00003e70, 0x00003e96, 0x00003ebe, 0x00003ee1,
-	0x00003f05, 0x00003f15, 0x00003f2a, 0x00003f37,
-	0x00003f4a, 0x00003f68, 0x00003f81, 0x00003f9d,
-	0x00003fbe, 0x00003fdf, 0x00003ff8, 0x00004005,
-	0x00004018, 0x00004025, 0x00004060, 0x00004098,
+	0x00003af2, 0x00003b13, 0x00003b35, 0x00003b86,
+	0x00003ba6, 0x00003bc6, 0x00003c4d, 0x00003ca0,
+	0x00003d19, 0x00003db2, 0x00003dd3, 0x00003e05,
+	0x00003e77, 0x00003e9d, 0x00003ec5, 0x00003ee8,
+	0x00003f0c, 0x00003f1c, 0x00003f31, 0x00003f3e,
+	0x00003f51, 0x00003f6f, 0x00003f88, 0x00003fa4,
+	0x00003fc5, 0x00003fe6, 0x00003fff, 0x0000400c,
+	0x0000401f, 0x0000402c, 0x00004067, 0x0000409f,
 	// Entry 1A0 - 1BF
-	0x000040b9, 0x000040da, 0x000040fd, 0x0000411d,
-	0x0000412a, 0x00004159, 0x0000416f, 0x000041a7,
-	0x000041c3, 0x000041d5, 0x000041ea, 0x000041f7,
-	0x000041fe, 0x00004205, 0x0000420c, 0x00004213,
-	0x0000421a, 0x00004227, 0x0000422e, 0x0000423b,
-	0x00004248, 0x00004255, 0x00004262, 0x0000426f,
-	0x0000427c, 0x00004289, 0x00004296, 0x000042bb,
-	0x000042ce, 0x00004309, 0x00004341, 0x0000437f,
+	0x000040c0, 0x000040e1, 0x00004104, 0x00004124,
+	0x00004131, 0x00004160, 0x00004176, 0x000041ae,
+	0x000041ca, 0x000041dc, 0x000041f1, 0x000041fe,
+	0x00004205, 0x0000420c, 0x00004213, 0x0000421a,
+	0x00004221, 0x0000422e, 0x00004235, 0x00004242,
+	0x0000424f, 0x0000425c, 0x00004269, 0x00004276,
+	0x00004283, 0x00004290, 0x0000429d, 0x000042c2,
+	0x000042d5, 0x00004310, 0x00004348, 0x00004386,
 	// Entry 1C0 - 1DF
-	0x00004395, 0x000043c3, 0x000043ef, 0x0000441b,
-	0x0000443e,
+	0x0000439c, 0x000043ca, 0x000043f6, 0x00004422,
+	0x00004445,
 } // Size: 1836 bytes
 
-const zhData string = "" + // Size: 17470 bytes
+const zhData string = "" + // Size: 17477 bytes
 	"\x02id不能为空\x02无效的文件名\x02读取文件失败, err: %[1]v\x02创建目录失败, err: %[1]v\x02创建临时" +
 	"目录失败, err: %[1]v\x02解压文件失败, 文件 %[1]s 的大小超过了最大限制阈值 %[2]s\x02解压失败, err: " +
 	"%[1]v\x02上传文件失败, err: %[1]v\x02获取模板配置失败, err: %[1]v\x02上传完成\x02上传完成, %[1" +
@@ -1077,71 +1077,71 @@ const zhData string = "" + // Size: 17470 bytes
 	"类型\x02服务 %[1]s 的配置项总数（包括模板和非模板）超过单服务最大配置文件数量限制 %[2]d\x02校验分页参数失败, err:" +
 	" %[1]v\x02获取配置模板失败, err: %[1]v\x02业务ID不能为空\x02至少需要一个配置模板组\x02配置模板ID不能为空" +
 	"\x02配置模板版本ID不能为空\x02进程列表不能为空\x02根据操作范围获取进程失败, err: %[1]v\x02业务%[1]d在指定操作" +
-	"范围内未找到进程\x02获取所有配置模板失败, err: %[1]v\x02业务%[1]d未找到配置模板\x02列出最新版本失败, err:" +
-	" %[1]v\x02模板%[1]d未找到最新版本\x02列出配置模板失败, err: %[1]v\x02根据ID列出配置模板失败, err: %" +
-	"[1]v\x02以下ID的配置模板未找到: %[1]s\x02根据模板进程ID列出进程失败, err: %[1]v\x02列出过滤后进程失败, " +
-	"err: %[1]v\x02获取进程实例失败, err: %[1]v\x02列出配置实例失败, err: %[1]v\x02获取模板失败, er" +
-	"r: %[1]v\x02根据cc进程ID未找到进程: %[1]d\x02获取最新模板版本失败, err: %[1]v\x02根据ID列出模板版本" +
-	"失败, err: %[1]v\x02进程%[1]d不在配置模板中\x02任务存储未初始化\x02列出任务失败, err: %[1]v\x02" +
-	"获取公共负载失败, err: %[1]v\x02获取任务失败, err: %[1]v\x02任务未找到: %[1]s\x02任务中未找到配置" +
-	"负载\x02biz_id不能为空\x02template_content不能为空\x02cc_process_id不能为空\x02根据cc_" +
-	"process_id查询进程失败, err: %[1]v\x02根据cc_process_id未找到进程: %[1]d\x02查询进程实例失败," +
-	" err: %[1]v\x02展开ginclude失败, err: %[1]v\x02渲染模板失败, err: %[1]v\x02获取批次失败," +
-	" batch_id: %[1]d, err: %[2]v\x02批次%[1]d不是配置生成批次\x02列出任务失败, err: %[1]v" +
-	"\x02批次 %[1]s 的任务总数为 0，没有可下发的任务\x02等待批次 %[1]s 的任务状态落库被取消, err: %[2]v\x02批" +
-	"次 %[1]s 的成功任务数与批次总数不一致（已落库 %[2]s）,等待 %[3]s 后仍不一致, 已终止下发\x02批次 %[1]s 仍在" +
-	"执行中（已完成 %[2]s）,请等待配置生成结束后再下发\x02批次 %[1]s 存在 %[2]s 个失败任务（成功 %[3]s）,需先重新" +
-	"生成配置后再下发\x02获取源批次任务数据失败, err: %[1]v\x02创建批次失败, err: %[1]v\x02检查运行中的配置下" +
-	"发任务失败, err: %[1]v\x02配置模板已有运行中的下发任务，请等待完成\x02获取配置模板%[1]d失败, err: %[2]v" +
-	"\x02获取配置模板%[1]d的最新版本失败, err: %[2]v\x02配置模板%[1]d版本不是最新的, 当前: %[2]d, 最新: %" +
-	"[3]d, 请重新生成配置\x02任务%[1]s的配置负载为空\x02任务%[1]s的进程负载为空\x02任务%[1]s的配置模板ID无效" +
-	"\x02批次%[1]d未找到有效任务\x02获取任务批次失败, err: %[1]v\x02任务批次%[1]d不存在\x02未知操作类型: %[" +
-	"1]s\x02重新生成任务失败, err: %[1]v\x02查询失败任务失败, err: %[1]v\x02重置重试计数失败, err: %[" +
-	"1]v\x02重试失败任务失败, err: %[1]v\x02配置模板版本ID不是最新的\x02获取进程失败, err: %[1]v\x02业务" +
-	"%[1]d部分进程未找到\x02无效的绑定关系\x02没有可创建的任务\x02不支持的配置任务模式: %[1]v\x02创建配置生成或校验任务失" +
-	"败, err: %[1]v\x02任务中未找到负载\x02配置实例未找到, biz_id=%[1]d, config_template_id" +
-	"=%[2]d, cc_process_id=%[3]d, module_inst_seq=%[4]d\x02模板与模板版本不匹配, templa" +
-	"te_id=%[1]d, template_revision_id=%[2]d\x02下载模板配置失败, 模板id: %[1]d, name: " +
-	"%[2]s, path: %[3]s, err: %[4]v\x02获取配置项失败, err: %[1]v\x02此服务下的配置项 %[1]s " +
-	"已存在，无法再次创建\x02移除服务模板套餐失败, err: %[1]s\x02批量创建内容失败, err: %[1]s\x02删除模板变量" +
-	"失败, err: %[1]s\x02配置项没有被删除\x02获取最新发布版本失败, err: %[1]v\x02获取已发布的配置失败, er" +
-	"r: %[1]v\x02恢复失败。具有相同路径的文件已存在，但未处于新状态\x02恢复配置项失败, err: %[1]v\x02获取大于最新发布" +
-	"版本的记录失败, err: %[1]v\x02配置项总数（包括模板和非模板）超出限制%[1]d\x02获取配置项数量\x02通过业务和服务I" +
-	"D获取模板绑定关系失败, err: %[1]s\x02获取该服务下的引用模板集失败, err: %[1]s\x02按模板套餐ID列出模板套餐失败" +
-	", err: %[1]s\x02移除套餐失败, err: %[1]s\x02没有可用的空间或套餐\x02根据模板ID列出配置实例失败, err:" +
-	" %[1]v\x02根据ID列出模板失败, err: %[1]v\x02查找拓扑摘要失败, err: %[1]v\x02没有可用的拓扑节点" +
-	"\x02未找到有效的模块ID\x02获取所有模块详情失败, err: %[1]v\x02列出进程失败, err: %[1]v\x02根据唯一键获" +
-	"取配置模板失败, err: %[1]v\x02此业务%[1]d下已存在同名模板: %[2]s\x02获取模板集失败, err: %[1]v" +
-	"\x02创建模板和版本失败, err: %[1]v\x02创建配置模板失败, err: %[1]v\x02创建模板失败, err: %[1]v" +
-	"\x02版本号 %[1]s 已存在，请更换后重试\x02创建模板版本失败, err: %[1]v\x02模板集批量添加模板失败, err: %[" +
-	"1]s\x02获取默认模板配置空间失败, err: %[1]v\x02创建默认模板配置空间失败, err: %[1]v\x02获取默认模板集失败" +
-	", err: %[1]v\x02创建默认模板集失败, err: %[1]v\x02获取所有服务模板失败, err: %[1]v\x02按服务模板" +
-	"批量处理进程失败, err: %[1]v\x02列出进程模板失败, err: %[1]v\x02列出服务实例失败, err: %[1]v" +
-	"\x02按服务实例批量统计进程数失败, err: %[1]v\x02列出进程实例失败, err: %[1]v\x02获取业务对象属性失败, er" +
-	"r: %[1]v\x02根据ID获取配置模板失败, err: %[1]v\x02更新配置模板失败, err: %[1]v\x02根据CC进程ID" +
-	"列出进程失败, err: %[1]v\x02根据进程模板ID列出进程失败, err: %[1]v\x02更新模板失败, err: %[1]v" +
-	"\x02根据ID获取模板失败, err: %[1]v\x02删除模板失败, err: %[1]v\x02删除模板版本失败, err: %[1]v" +
-	"\x02从所有模板集中删除模板失败, err: %[1]v\x02删除配置模板失败, err: %[1]v\x02提交事务失败, err: %[" +
-	"1]v\x02路径不能为空\x02路径不能包含null字符\x02路径包含无效段: %[1]s\x02脚本名称 %[1]s 已存在\x02获取排" +
-	"除后的脚本失败, err: %[1]s\x02检索引用的脚本失败, err: %[1]s\x02获取 kv (%[1]d) 失败, err:" +
-	" %[2]v\x02获取服务失败, key: %[1]s, err: %[2]v\x02kv 类型与服务类型中定义的数据类型不匹配\x02创建k" +
-	"v失败, err: %[1]v\x02更新kv失败, err: %[1]v\x02获取过期证书列表失败，错误：%[1]v\x02获取键值失败, " +
-	"err: %[1]v\x02不是kv类型的服务\x02获取kv列表失败, err: %[1]v\x02批量导入KV配置失败, err: %[1]" +
-	"v\x02配置项 %[1]s 的类型不正确\x02清除草稿区失败, err: %[1]v\x02批量更新vault失败，错误：%[1]v\x02" +
-	"存在重复的 %[1]s\x02获取排除后的kv失败, err: %[1]s\x02统计未删除的kV文件数量失败，错误：%[1]v\x02配置" +
-	"项总数超出限制 %[1]d\x02根据进程ID获取进程实例失败, err: %[1]v\x02根据CC进程ID列出配置模板失败, err: " +
-	"%[1]v\x02根据CC模板进程ID列出配置模板失败, err: %[1]v\x02指定了ProcessInstanceId时只允许一个Pro" +
-	"cessId\x02不支持的操作类型: %[1]v\x02不支持query_status操作\x02操作范围内未找到匹配的进程实例\x02根据I" +
-	"Ds获取进程实例失败, err: %[1]v\x02以下ID的进程实例未找到: %[1]v\x02根据ID未找到进程: %[1]d\x02获取进" +
-	"程失败, err: %[1]v\x02业务%[1]d在指定进程ID下未找到进程\x02以下进程ID未找到进程实例: %[1]v\x02创建任" +
-	"务批次失败, err: %[1]v\x02更新进程实例状态失败, err: %[1]v\x02processMap中未找到进程, proce" +
-	"ssID=%[1]d\x02构建进程操作任务失败, err: %[1]v\x02列出进程过滤选项(集群)失败, err: %[1]v\x02列出" +
-	"进程过滤选项(模块)失败, err: %[1]v\x02列出进程过滤选项(服务实例)失败, err: %[1]v\x02列出进程过滤选项(C" +
-	"C进程ID)失败, err: %[1]v\x02列出进程过滤选项(别名)失败, err: %[1]v\x02从任务存储列出失败任务失败, err" +
-	": %[1]v\x02为进程实例拓扑列出进程失败, err: %[1]v\x02不支持删除的管理状态: %[1]s\x02不支持删除的进程状态:" +
-	" status=%[1]s managedStatus=%[2]s\x02删除进程实例%[1]d失败, err: %[2]v\x02列出进程过滤" +
-	"选项(内网IP)失败, err: %[1]v\x02运行中\x02部分运行中\x02启动中\x02重启中\x02停止中\x02重载中\x02" +
-	"未运行\x02启动托管\x02停止托管\x02已托管\x02未托管\x02部分托管\x02正常\x02已删除\x02有更新\x02异常" +
+	"范围内未找到进程\x02获取所有配置模板失败, err: %[1]v\x02范围内没有可执行的配置绑定\x02列出最新版本失败, err: " +
+	"%[1]v\x02模板%[1]d未找到最新版本\x02列出配置模板失败, err: %[1]v\x02根据ID列出配置模板失败, err: %[" +
+	"1]v\x02以下ID的配置模板未找到: %[1]s\x02根据模板进程ID列出进程失败, err: %[1]v\x02列出过滤后进程失败, e" +
+	"rr: %[1]v\x02获取进程实例失败, err: %[1]v\x02列出配置实例失败, err: %[1]v\x02获取模板失败, err" +
+	": %[1]v\x02根据cc进程ID未找到进程: %[1]d\x02获取最新模板版本失败, err: %[1]v\x02根据ID列出模板版本失" +
+	"败, err: %[1]v\x02进程%[1]d不在配置模板中\x02任务存储未初始化\x02列出任务失败, err: %[1]v\x02获" +
+	"取公共负载失败, err: %[1]v\x02获取任务失败, err: %[1]v\x02任务未找到: %[1]s\x02任务中未找到配置负" +
+	"载\x02biz_id不能为空\x02template_content不能为空\x02cc_process_id不能为空\x02根据cc_p" +
+	"rocess_id查询进程失败, err: %[1]v\x02根据cc_process_id未找到进程: %[1]d\x02查询进程实例失败, " +
+	"err: %[1]v\x02展开ginclude失败, err: %[1]v\x02渲染模板失败, err: %[1]v\x02获取批次失败, " +
+	"batch_id: %[1]d, err: %[2]v\x02批次%[1]d不是配置生成批次\x02列出任务失败, err: %[1]v\x02" +
+	"批次 %[1]s 的任务总数为 0，没有可下发的任务\x02等待批次 %[1]s 的任务状态落库被取消, err: %[2]v\x02批次 " +
+	"%[1]s 的成功任务数与批次总数不一致（已落库 %[2]s）,等待 %[3]s 后仍不一致, 已终止下发\x02批次 %[1]s 仍在执行中（" +
+	"已完成 %[2]s）,请等待配置生成结束后再下发\x02批次 %[1]s 存在 %[2]s 个失败任务（成功 %[3]s）,需先重新生成配置" +
+	"后再下发\x02获取源批次任务数据失败, err: %[1]v\x02创建批次失败, err: %[1]v\x02检查运行中的配置下发任务失" +
+	"败, err: %[1]v\x02配置模板已有运行中的下发任务，请等待完成\x02获取配置模板%[1]d失败, err: %[2]v\x02" +
+	"获取配置模板%[1]d的最新版本失败, err: %[2]v\x02配置模板%[1]d版本不是最新的, 当前: %[2]d, 最新: %[3" +
+	"]d, 请重新生成配置\x02任务%[1]s的配置负载为空\x02任务%[1]s的进程负载为空\x02任务%[1]s的配置模板ID无效\x02批" +
+	"次%[1]d未找到有效任务\x02获取任务批次失败, err: %[1]v\x02任务批次%[1]d不存在\x02未知操作类型: %[1]s" +
+	"\x02重新生成任务失败, err: %[1]v\x02查询失败任务失败, err: %[1]v\x02重置重试计数失败, err: %[1]v" +
+	"\x02重试失败任务失败, err: %[1]v\x02配置模板版本ID不是最新的\x02获取进程失败, err: %[1]v\x02业务%[1" +
+	"]d部分进程未找到\x02无效的绑定关系\x02没有可创建的任务\x02不支持的配置任务模式: %[1]v\x02创建配置生成或校验任务失败, " +
+	"err: %[1]v\x02任务中未找到负载\x02配置实例未找到, biz_id=%[1]d, config_template_id=%[2]" +
+	"d, cc_process_id=%[3]d, module_inst_seq=%[4]d\x02模板与模板版本不匹配, template_id" +
+	"=%[1]d, template_revision_id=%[2]d\x02下载模板配置失败, 模板id: %[1]d, name: %[2]s" +
+	", path: %[3]s, err: %[4]v\x02获取配置项失败, err: %[1]v\x02此服务下的配置项 %[1]s 已存在，无" +
+	"法再次创建\x02移除服务模板套餐失败, err: %[1]s\x02批量创建内容失败, err: %[1]s\x02删除模板变量失败, e" +
+	"rr: %[1]s\x02配置项没有被删除\x02获取最新发布版本失败, err: %[1]v\x02获取已发布的配置失败, err: %[1]" +
+	"v\x02恢复失败。具有相同路径的文件已存在，但未处于新状态\x02恢复配置项失败, err: %[1]v\x02获取大于最新发布版本的记录失败" +
+	", err: %[1]v\x02配置项总数（包括模板和非模板）超出限制%[1]d\x02获取配置项数量\x02通过业务和服务ID获取模板绑定关系" +
+	"失败, err: %[1]s\x02获取该服务下的引用模板集失败, err: %[1]s\x02按模板套餐ID列出模板套餐失败, err: " +
+	"%[1]s\x02移除套餐失败, err: %[1]s\x02没有可用的空间或套餐\x02根据模板ID列出配置实例失败, err: %[1]v" +
+	"\x02根据ID列出模板失败, err: %[1]v\x02查找拓扑摘要失败, err: %[1]v\x02没有可用的拓扑节点\x02未找到有效" +
+	"的模块ID\x02获取所有模块详情失败, err: %[1]v\x02列出进程失败, err: %[1]v\x02根据唯一键获取配置模板失败" +
+	", err: %[1]v\x02此业务%[1]d下已存在同名模板: %[2]s\x02获取模板集失败, err: %[1]v\x02创建模板和版" +
+	"本失败, err: %[1]v\x02创建配置模板失败, err: %[1]v\x02创建模板失败, err: %[1]v\x02版本号 %" +
+	"[1]s 已存在，请更换后重试\x02创建模板版本失败, err: %[1]v\x02模板集批量添加模板失败, err: %[1]s\x02获取" +
+	"默认模板配置空间失败, err: %[1]v\x02创建默认模板配置空间失败, err: %[1]v\x02获取默认模板集失败, err: " +
+	"%[1]v\x02创建默认模板集失败, err: %[1]v\x02获取所有服务模板失败, err: %[1]v\x02按服务模板批量处理进程失" +
+	"败, err: %[1]v\x02列出进程模板失败, err: %[1]v\x02列出服务实例失败, err: %[1]v\x02按服务实例" +
+	"批量统计进程数失败, err: %[1]v\x02列出进程实例失败, err: %[1]v\x02获取业务对象属性失败, err: %[1]" +
+	"v\x02根据ID获取配置模板失败, err: %[1]v\x02更新配置模板失败, err: %[1]v\x02根据CC进程ID列出进程失败," +
+	" err: %[1]v\x02根据进程模板ID列出进程失败, err: %[1]v\x02更新模板失败, err: %[1]v\x02根据ID获" +
+	"取模板失败, err: %[1]v\x02删除模板失败, err: %[1]v\x02删除模板版本失败, err: %[1]v\x02从所有" +
+	"模板集中删除模板失败, err: %[1]v\x02删除配置模板失败, err: %[1]v\x02提交事务失败, err: %[1]v" +
+	"\x02路径不能为空\x02路径不能包含null字符\x02路径包含无效段: %[1]s\x02脚本名称 %[1]s 已存在\x02获取排除后的" +
+	"脚本失败, err: %[1]s\x02检索引用的脚本失败, err: %[1]s\x02获取 kv (%[1]d) 失败, err: %[" +
+	"2]v\x02获取服务失败, key: %[1]s, err: %[2]v\x02kv 类型与服务类型中定义的数据类型不匹配\x02创建kv失败" +
+	", err: %[1]v\x02更新kv失败, err: %[1]v\x02获取过期证书列表失败，错误：%[1]v\x02获取键值失败, err" +
+	": %[1]v\x02不是kv类型的服务\x02获取kv列表失败, err: %[1]v\x02批量导入KV配置失败, err: %[1]v" +
+	"\x02配置项 %[1]s 的类型不正确\x02清除草稿区失败, err: %[1]v\x02批量更新vault失败，错误：%[1]v\x02存" +
+	"在重复的 %[1]s\x02获取排除后的kv失败, err: %[1]s\x02统计未删除的kV文件数量失败，错误：%[1]v\x02配置项" +
+	"总数超出限制 %[1]d\x02根据进程ID获取进程实例失败, err: %[1]v\x02根据CC进程ID列出配置模板失败, err: %" +
+	"[1]v\x02根据CC模板进程ID列出配置模板失败, err: %[1]v\x02指定了ProcessInstanceId时只允许一个Proc" +
+	"essId\x02不支持的操作类型: %[1]v\x02不支持query_status操作\x02操作范围内未找到匹配的进程实例\x02根据ID" +
+	"s获取进程实例失败, err: %[1]v\x02以下ID的进程实例未找到: %[1]v\x02根据ID未找到进程: %[1]d\x02获取进程" +
+	"失败, err: %[1]v\x02业务%[1]d在指定进程ID下未找到进程\x02以下进程ID未找到进程实例: %[1]v\x02创建任务" +
+	"批次失败, err: %[1]v\x02更新进程实例状态失败, err: %[1]v\x02processMap中未找到进程, proces" +
+	"sID=%[1]d\x02构建进程操作任务失败, err: %[1]v\x02列出进程过滤选项(集群)失败, err: %[1]v\x02列出进" +
+	"程过滤选项(模块)失败, err: %[1]v\x02列出进程过滤选项(服务实例)失败, err: %[1]v\x02列出进程过滤选项(CC" +
+	"进程ID)失败, err: %[1]v\x02列出进程过滤选项(别名)失败, err: %[1]v\x02从任务存储列出失败任务失败, er" +
+	"r: %[1]v\x02为进程实例拓扑列出进程失败, err: %[1]v\x02不支持删除的管理状态: %[1]s\x02不支持删除的进程状态" +
+	": status=%[1]s managedStatus=%[2]s\x02删除进程实例%[1]d失败, err: %[2]v\x02列出进程过" +
+	"滤选项(内网IP)失败, err: %[1]v\x02运行中\x02部分运行中\x02启动中\x02重启中\x02停止中\x02重载中" +
+	"\x02未运行\x02启动托管\x02停止托管\x02已托管\x02未托管\x02部分托管\x02正常\x02已删除\x02有更新\x02异常" +
 	"\x02版本%[1]s已弃用，无法提交\x02当前有版本在上线\x02版本%[1]s已弃用，无法撤消\x02上线状态无效：%[1]s\x02没有" +
 	"权限批准此工单\x02版本名称%[1]s已存在\x02不允许撤销，当前上线状态为：%[1]s\x02无法拒绝，当前上线状态为：%[1]s" +
 	"\x02原因不能为空\x02无权限审批\x02无法通过，当前上线状态为：%[1]s\x02不允许上线，当前上线状态为：%[1]s\x02此单据已" +
@@ -1197,4 +1197,4 @@ const zhData string = "" + // Size: 17470 bytes
 	"\x02无效的文件路径\x02创建父目录失败, dir: %[1]s, err: %[2]v\x02创建文件失败, path: %[1]s, e" +
 	"rr: %[2]v\x02文件写入失败, path: %[1]s, err: %[2]v\x02%[1]s 与 %[2]s 路径文件冲突"
 
-	// Total table size 40618 bytes (39KiB); checksum: 325A5816
+	// Total table size 40636 bytes (39KiB); checksum: 464137EA

@@ -1096,19 +1096,9 @@
             ]
         },
         {
-            "id": "no config templates found for biz {BizID}",
-            "message": "no config templates found for biz {BizID}",
-            "translation": "业务{BizID}未找到配置模板",
-            "placeholders": [
-                {
-                    "id": "BizID",
-                    "string": "%[1]d",
-                    "type": "uint32",
-                    "underlyingType": "uint32",
-                    "argNum": 1,
-                    "expr": "bizID"
-                }
-            ]
+            "id": "no executable config bindings in the operate range",
+            "message": "no executable config bindings in the operate range",
+            "translation": "范围内没有可执行的配置绑定"
         },
         {
             "id": "list latest revisions failed, err: {Err}",
