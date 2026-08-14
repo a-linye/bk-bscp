@@ -26,20 +26,24 @@
               show-overflow-tooltip
               :border="['outer']"
               :data="tableData">
-              <bk-table-column :label="t('项目名称')" :min-width="280">
+              <bk-table-column :label="t('项目名称')" :min-width="180" prop="spec.name" show-overflow-tooltip>
+              </bk-table-column>
+              <bk-table-column :label="t('项目ID')" :min-width="180">
                 <template #default="{ row }">
-                  <div class="project-name-cell">
-                    <span v-overflow-title class="name">{{ row.spec?.name }}</span>
-                    <span class="code">{{ row.spec?.key }}</span>
+                  <div class="project-key-cell">
+                    <span v-overflow-title class="code">{{ row.spec?.key }}</span>
+                    <Copy class="copy-icon" @click="handleCopyText(row.spec.key)" />
                   </div>
                 </template>
               </bk-table-column>
-              <bk-table-column :label="t('项目描述')" :min-width="630">
+              <bk-table-column :label="t('项目描述')" :min-width="630" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.spec?.memo || '--' }}</template>
               </bk-table-column>
               <bk-table-column :label="t('环境数')" :width="100">
                 <template #default="{ row }">
-                  <span class="env-count">{{ row.spec?.env_count }}</span>
+                  <span
+                    class="env-count"
+                    @click="handleToEnvManage(row)">{{ row.spec?.env_count }}</span>
                 </template>
               </bk-table-column>
               <bk-table-column :label="t('服务点数')" :width="100">
@@ -95,7 +99,8 @@
 <script setup lang="ts">
   import { ref, onMounted, watch, h } from 'vue';
   import { useI18n } from 'vue-i18n';
-  import { Plus } from 'bkui-vue/lib/icon';
+  import { useRouter } from 'vue-router';
+  import { Plus, Copy } from 'bkui-vue/lib/icon';
   import { storeToRefs } from 'pinia';
   import Message from 'bkui-vue/lib/message';
   import useGlobalStore from '../../../store/global';
@@ -106,9 +111,10 @@
   import { InfoBox } from 'bkui-vue';
   import { getProjectList, deleteProject } from '../../../api/project';
   import type { IProjectItem } from '../../../../types/project';
-  import { datetimeFormat } from '../../../utils';
+  import { datetimeFormat, copyToClipBoard } from '../../../utils';
 
   const { t } = useI18n();
+  const router = useRouter();
   const { spaceId } = storeToRefs(useGlobalStore());
   const { pagination, updatePagination } = useTablePagination('projectList');
 
@@ -225,6 +231,26 @@
     updatePagination('limit', val);
     loadProjectList();
   };
+
+  // 复制项目 Key
+  const handleCopyText = (key: string) => {
+    copyToClipBoard(key);
+    Message({
+      theme: 'success',
+      message: t('项目 Key 已成功复制到剪贴板'),
+    });
+  };
+
+  // 跳转到环境管理页面
+  const handleToEnvManage = (row: IProjectItem) => {
+    router.push({
+      name: 'env-manage',
+      params: {
+        spaceId: spaceId.value,
+        projectId: String(row.id),
+      },
+    });
+  };
 </script>
 
 <style lang="scss" scoped>
@@ -264,29 +290,35 @@
     background-color: #fff;
   }
 
-  .project-name-cell {
+  .project-key-cell {
     display: flex;
     align-items: center;
     width: 100%;
     overflow: hidden;
-    .name {
+    .code {
       display: block;
       color: #313238;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: calc(100% - 100px);
+      max-width: calc(100% - 24px);
     }
-    .code {
+    .copy-icon {
       flex-shrink: 0;
-      margin-left: 16px;
+      margin-left: 8px;
+      font-size: 16px;
       color: #979ba5;
-      font-size: 12px;
+      cursor: pointer;
+      color: #979BA5;
+      &:hover {
+       color: #3a84ff;
+      }
     }
   }
 
   .env-count {
     color: #3A84FF;
+    cursor: pointer;
   }
 
   .action-btns {

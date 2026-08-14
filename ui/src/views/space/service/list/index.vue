@@ -1,16 +1,14 @@
 <template>
-  <div>
-    <EnvAlertBar
-      :model-value="envId"
-      @change="handleEnvChange" />
-    <div class="service-wrap">
-      <ServiceListContent
-        :space-id="spaceId"
-        :env-id="envId"
-        :perm-check-loading="permCheckLoading"
-        :has-create-service-perm="hasCreateServicePerm" />
-      <AppFooter />
-    </div>
+  <EnvAlertBar
+    :model-value="envId"
+    @change="handleEnvChange" />
+  <div class="service-wrap">
+    <ServiceListContent
+      :space-id="spaceId"
+      :env-id="envId"
+      :perm-check-loading="permCheckLoading"
+      :has-create-service-perm="hasCreateServicePerm" />
+    <AppFooter />
   </div>
 </template>
 <script setup lang="ts">
@@ -80,7 +78,7 @@
     display: flex;
     flex-direction: column;
     background: #f5f7fa;
-    height: calc(100vh - 88px);
+    height: calc(100% - 36px);
     width: 100%;
   }
 </style>

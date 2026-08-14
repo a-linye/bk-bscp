@@ -41,6 +41,7 @@
   import { IRecordQuery } from '../../../../types/record';
   import { IAppItem } from '../../../../types/app';
   import EnvSelector from '../../../components/env-selector.vue';
+  import { IEnvItem } from '../../../../types/env';
 
   const route = useRoute();
   const router = useRouter();
@@ -119,8 +120,10 @@
   };
 
 
-  const handleEnvChange = () => {
-    isRecord.value = false;
+  const handleEnvChange = (_: IEnvItem, isManual: boolean) => {
+    if (isManual) {
+      isRecord.value = false;
+    }
   };
 
   onMounted(() => {

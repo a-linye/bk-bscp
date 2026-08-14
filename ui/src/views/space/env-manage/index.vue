@@ -1,6 +1,11 @@
 <template>
   <section class="env-manage-page">
-    <div class="env-manage-title">{{ t('环境管理') }}</div>
+    <div class="env-manage-title">
+      <ArrowsLeft class="arrow-icon" @click="goToProjectPage" />
+      <span>{{ t('环境管理') }}</span>
+      <span class="divider"></span>
+      <span class="project-text">{{ t('当前项目') }}：{{ currentProjectText }}</span>
+    </div>
     <div class="env-manage-content">
       <div class="operate-area">
         <div class="btns">
@@ -47,6 +52,7 @@
                     <div class="card-header">
                       <div class="header-left">
                         <div class="env-name" v-overflow-title>{{ item.spec.name }}</div>
+                        <Copy class="copy-icon" @click="handleCopyText(item.spec.name)" />
                         <div class="service-count">{{ t('共N个服务', { count: item.spec.app_count }) }}</div>
                       </div>
                       <div class="action-btns">
@@ -94,7 +100,8 @@
 <script setup lang="ts">
   import { ref, computed, onMounted, watch, h } from 'vue';
   import { useI18n } from 'vue-i18n';
-  import { Plus } from 'bkui-vue/lib/icon';
+  import { useRouter } from 'vue-router';
+  import { ArrowsLeft, Plus, Copy } from 'bkui-vue/lib/icon';
   import { storeToRefs } from 'pinia';
   import Message from 'bkui-vue/lib/message';
   import { InfoBox } from 'bkui-vue';
@@ -102,13 +109,27 @@
   import EnvFormDialog from './components/env-form-dialog.vue';
   import SearchSelector from '../../../components/search-selector.vue';
   import tableEmpty from '../../../components/table/table-empty.vue';
+  import useBizProjectText from '../../../utils/hooks/use-biz-project-text';
   import { getEnvList, deleteEnv } from '../../../api/env';
   import { IEnvItem, EnvType } from '../../../../types/env';
   import { ENV_TYPE_OPTIONS } from '../../../constants/env';
-  import { datetimeFormat } from '../../../utils';
+  import { datetimeFormat, copyToClipBoard } from '../../../utils';
 
   const { t } = useI18n();
   const { spaceId, projectId } = storeToRefs(useGlobalStore());
+  const router = useRouter();
+  const { bizProjectText: currentProjectText, ensureProjectList } = useBizProjectText();
+
+  // 返回空间首页
+  const goToProjectPage = () => {
+    router.push({
+      name: 'project-manage',
+      params: {
+        spaceId: spaceId.value,
+        projectId: projectId.value,
+      },
+    });
+  };
 
   const listLoading = ref(false);
   const isSearchEmpty = ref(false);
@@ -143,11 +164,13 @@
   watch(
     () => spaceId.value,
     async () => {
+      ensureProjectList();
       await loadEnvList();
     },
   );
 
   onMounted(async () => {
+    ensureProjectList();
     await loadEnvList();
   });
 
@@ -233,6 +256,15 @@
       },
     });
   };
+
+  // 复制环境名称
+  const handleCopyText = (name: string) => {
+    copyToClipBoard(name);
+    Message({
+      theme: 'success',
+      message: t('环境名称已成功复制到剪贴板'),
+    });
+  };
 </script>
 
 <style lang="scss" scoped>
@@ -242,11 +274,31 @@
   }
 
   .env-manage-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 14px 24px;
     height: 52px;
     background-color: #fff;
     line-height: 24px;
     box-shadow: 0 2px 4px #0D191929;
+
+    .arrow-icon {
+      font-size: 20px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .divider {
+      display: inline-block;
+      width: 1px;
+      height: 12px;
+      background-color: #C4C6CC;
+    }
+
+    .project-text {
+      color: #979BA5;
+    }
   }
 
   .env-manage-content {
@@ -336,7 +388,6 @@
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
       min-width: 0;
     }
     .env-name {
@@ -349,8 +400,20 @@
       min-width: 0;
     }
 
+    .copy-icon {
+      flex-shrink: 0;
+      margin-left: 4px;
+      font-size: 16px;
+      color: #979ba5;
+      cursor: pointer;
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
     .service-count {
       padding: 0 8px;
+      margin-left: 8px;
       font-size: 12px;
       color: #979ba5;
       background-color: #F0F1F5;

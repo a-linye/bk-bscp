@@ -24,7 +24,7 @@
         </template>
       </EnvSelector>
       <!-- 选择服务 -->
-      <ServiceSelector class="sel-service" :env-id="localEnvId" @change="selectService">
+      <ServiceSelector class="sel-service" :value="appId" :env-id="localEnvId" @change="selectService">
         <template #trigger>
           <div class="selector-trigger">
             <bk-overflow-title v-if="serviceName" class="app-name" type="tips">
@@ -158,6 +158,8 @@
     // 无数据模板
     return Exception;
   });
+
+  const appId = computed(() => Number(route.params.appId));
 
   // 服务切换
   const selectService = async (service: IAppItem) => {

@@ -20,6 +20,14 @@
             </div>
           </div>
         </li>
+        <div v-if="isTemplate && !item.topoParentName" class="invalid-template-row">
+          <span class="process-name">{{ $t('这是一个进程') }}</span>
+          <span class="warning-text">
+            <i class="bk-bscp-icon icon-warning-circle-fill"></i>
+            {{ $t('模板失效，进程已不再关联') }}
+          </span>
+          <span class="remove-link" @click="emits('remove', item, index)">{{ $t('移除此进程') }}</span>
+        </div>
       </template>
     </ul>
   </div>
@@ -78,12 +86,11 @@
     }
 
     .process-list {
+      > *:not(:last-child) {
+        margin-bottom: 4px;
+      }
       .process-item {
         display: flex;
-
-        &:not(:last-child) {
-          margin-bottom: 4px;
-        }
 
         .white-card {
           display: flex;
@@ -133,6 +140,34 @@
               color: #3a84ff;
             }
           }
+        }
+      }
+      .invalid-template-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 32px;
+        padding: 0 12.5px;
+        background-color: #fff5e6;
+        font-size: 12px;
+        .process-name {
+          color: #979ba5;
+          margin-right: 12.5px;
+        }
+        .warning-text {
+          display: flex;
+          align-items: center;
+          color: #4D4F56;
+          .bk-bscp-icon {
+            color: #F59500;
+            font-size: 16px;
+            margin-right: 4px;
+          }
+        }
+        .remove-link {
+          color: #3a84ff;
+          cursor: pointer;
+          margin-left: 16px;
         }
       }
     }
