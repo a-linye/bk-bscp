@@ -101,39 +101,56 @@ func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) 
 
 	kt := kit.FromGrpcContext(ctx)
 
-	var metaHeader string
-	if sm := md.Get(constant.SidecarMetaKey); len(sm) != 0 {
-		metaHeader = sm[0]
-	}
+	var (
+		sm            *sfs.SidecarMetaHeader
+		needWriteBack bool
+	)
 
-	sm := new(sfs.SidecarMetaHeader)
-	if len(metaHeader) != 0 {
+	if smHeaders := md.Get(constant.SidecarMetaKey); len(smHeaders) != 0 && len(smHeaders[0]) != 0 {
+		metaHeader := smHeaders[0]
+		sm = new(sfs.SidecarMetaHeader)
 		if errJ := jsoni.UnmarshalFromString(metaHeader, sm); errJ != nil {
 			return nil, fmt.Errorf("parse sidecar meta failed, err: %v", errJ)
 		}
+
+		// sidecar-meta header 中可能未携带 project_key/env_name（如老版本 sidecar），
+		// 此时从请求体的 AppMeta 补充，与下游 resolveProjectEnvFromReq 的合并逻辑保持一致。
+		if sm.ProjectKey == "" || sm.EnvName == "" {
+			if appMeta := extractAppMeta(req); appMeta != nil {
+				if sm.ProjectKey == "" && appMeta.GetProjectKey() != "" {
+					sm.ProjectKey = appMeta.GetProjectKey()
+					needWriteBack = true // 标记已被变更，避免后续二次 JSON 序列化对比
+				}
+				if sm.EnvName == "" && appMeta.GetEnvName() != "" {
+					sm.EnvName = appMeta.GetEnvName()
+					needWriteBack = true // 标记已被变更
+				}
+			}
+		}
 	} else {
 		// HTTP 请求无 sidecar-meta header，从 AppMeta 合成
-		am, ok := req.(interface{ GetAppMeta() *pbfs.AppMeta })
-		if !ok || am.GetAppMeta() == nil {
-			return nil, errors.New("invalid request without 'metadata' header from sidecar")
+		appMeta := extractAppMeta(req)
+		if appMeta == nil {
+			return nil, errors.New("invalid request without 'metadata' header from sidecar or valid AppMeta")
 		}
+
 		sm = &sfs.SidecarMetaHeader{
 			BizID:       bizID,
 			Fingerprint: httpGatewayFingerprint,
-			ProjectKey:  am.GetAppMeta().GetProjectKey(),
-			EnvName:     am.GetAppMeta().GetEnvName(),
+			ProjectKey:  appMeta.GetProjectKey(),
+			EnvName:     appMeta.GetEnvName(),
 			Token:       token,
 		}
+		needWriteBack = true
 	}
 
 	if errV := sm.Validate(); errV != nil {
 		return nil, fmt.Errorf("invalid sidecar meta, err: %v", errV)
 	}
 
-	// HTTP 请求没有 sidecar-meta header，从 AppMeta 合成后需要写回 incoming metadata，
-	// 否则后续 FeedUnaryUpdateLastConsumedTimeInterceptor 和 handler 中的
-	// ParseFeedIncomingContext 会因缺少 sidecar-meta header 而失败。
-	if len(metaHeader) == 0 {
+	// 若补全了字段或本身无 header，则需要写回 incoming metadata，
+	// 供后续 Interceptor 和 Handler 的 ParseFeedIncomingContext 使用。
+	if needWriteBack {
 		encoded, errE := sm.Encode()
 		if errE != nil {
 			return nil, fmt.Errorf("encode sidecar meta failed, err: %v", errE)
@@ -160,9 +177,17 @@ func (s *Service) authorize(ctx context.Context, req interface{}, bizID uint32) 
 		return nil, status.Errorf(codes.PermissionDenied, "credential is disabled")
 	}
 
-	// 获取scope，到下一步处理
+	// 获取 scope，写到 ctx 供下一步处理
 	ctx = withCredential(ctx, cred)
 	return ctx, nil
+}
+
+// 辅助函数：解耦并安全提取 AppMeta
+func extractAppMeta(req interface{}) *pbfs.AppMeta {
+	if am, ok := req.(interface{ GetAppMeta() *pbfs.AppMeta }); ok && am != nil {
+		return am.GetAppMeta()
+	}
+	return nil
 }
 
 // FeedEnsureTenantInterceptor extracts biz_id from all requests (new + legacy) and resolves tenant_id.
