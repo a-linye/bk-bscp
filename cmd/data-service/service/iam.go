@@ -29,6 +29,7 @@ func (s *Service) ListInstances(ctx context.Context, req *pbds.ListInstancesReq)
 		ResourceType: req.ResourceType,
 		ParentType:   req.ParentType,
 		ParentID:     req.ParentId,
+		Keyword:      req.GetKeyword(),
 		Page:         req.Page.BasePage(),
 	}
 

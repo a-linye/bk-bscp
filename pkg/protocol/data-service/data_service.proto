@@ -2224,6 +2224,8 @@ message ListInstancesReq {
   string parent_type = 2;
   string parent_id = 3;
   pbbase.BasePage page = 4;
+  // keyword 对实例 display_name / id 做包含匹配；空则不过滤。IAM V3/V4 共用。
+  string keyword = 5;
 }
 
 message ListInstancesResp {
