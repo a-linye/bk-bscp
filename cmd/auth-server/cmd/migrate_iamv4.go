@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/model"
@@ -29,6 +30,12 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
+
+// iamV4TenantID 调用权限中心时携带的租户 ID，由 --tenant-id 指定。
+//
+// 多租户环境的网关要求 X-Bk-Tenant-Id 非空，缺失时直接返回跨租户禁止而非继续调用；
+// 权限模型本身不属于任何租户，取默认租户即可，环境的租户 ID 不是 default 时用该 flag 覆盖。
+var iamV4TenantID string
 
 var migrateInitIAMV4Cmd = &cobra.Command{
 	Use:   "init-iam-v4",
@@ -72,13 +79,12 @@ var migratePruneIAMV4Cmd = &cobra.Command{
 
 // runIAMV4Diff 对比本地模型与 IAM V4 线上状态
 func runIAMV4Diff() error {
-	kt := &kit.Kit{Ctx: context.Background()}
 	syncer, err := prepareIAMV4()
 	if err != nil {
 		return err
 	}
 
-	plan, err := syncer.Plan(kt)
+	plan, err := syncer.Plan(newIAMV4Kit())
 	if err != nil {
 		return err
 	}
@@ -94,11 +100,12 @@ func runIAMV4Diff() error {
 
 // runIAMV4Sync 同步 IAM V4 模型
 func runIAMV4Sync(allowDelete bool) error {
-	kt := &kit.Kit{Ctx: context.Background()}
 	syncer, err := prepareIAMV4()
 	if err != nil {
 		return errors.Wrap(err, "prepare iam v4 syncer")
 	}
+
+	kt := newIAMV4Kit()
 
 	plan, err := syncer.Plan(kt)
 	if err != nil {
@@ -160,6 +167,12 @@ func confirmDeletion(plan *modelsync.Plan) error {
 	return nil
 }
 
+// newIAMV4Kit 构造调用权限中心的 kit，租户 ID 必须落在 kit 上，
+// 客户端据此填充 X-Bk-Tenant-Id 请求头。
+func newIAMV4Kit() *kit.Kit {
+	return &kit.Kit{Ctx: context.Background(), TenantID: iamV4TenantID}
+}
+
 // prepareIAMV4 构建 IAM V4 同步器
 func prepareIAMV4() (*modelsync.Syncer, error) {
 	if err := cc.LoadSettings(SysOpt.Sys); err != nil {
@@ -167,6 +180,10 @@ func prepareIAMV4() (*modelsync.Syncer, error) {
 	}
 
 	logs.InitLogger(cc.AuthServer().Log.Logs())
+
+	if iamV4TenantID == "" {
+		return nil, errors.New("租户 ID 为空，请用 --tenant-id 指定")
+	}
 
 	settings := cc.AuthServer().IAM.V4
 	if err := checkIAMV4Settings(settings); err != nil {
@@ -190,8 +207,8 @@ func prepareIAMV4() (*modelsync.Syncer, error) {
 		return nil, err
 	}
 
-	fmt.Printf("网关 %s，系统 %s，回调地址 %s\n",
-		settings.GatewayURL, settings.SystemID, spec.CallbackURL)
+	fmt.Printf("网关 %s，系统 %s，回调地址 %s，租户 %s\n",
+		settings.GatewayURL, settings.SystemID, spec.CallbackURL, iamV4TenantID)
 
 	return syncer, nil
 }
@@ -234,7 +251,11 @@ func checkIAMV4Settings(settings cc.IAMV4) error {
 }
 
 func init() {
-	migrateCmd.AddCommand(migrateInitIAMV4Cmd)
-	migrateCmd.AddCommand(migrateDiffIAMV4Cmd)
-	migrateCmd.AddCommand(migratePruneIAMV4Cmd)
+	for _, sub := range []*cobra.Command{
+		migrateInitIAMV4Cmd, migrateDiffIAMV4Cmd, migratePruneIAMV4Cmd,
+	} {
+		sub.Flags().StringVar(&iamV4TenantID, "tenant-id", constant.DefaultTenantID,
+			"the tenant id carried in the X-Bk-Tenant-Id header when requesting bkiam")
+		migrateCmd.AddCommand(sub)
+	}
 }
