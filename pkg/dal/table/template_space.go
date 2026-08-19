@@ -15,6 +15,7 @@ package table
 import (
 	"errors"
 
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/validator"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
@@ -72,7 +73,7 @@ func (t *TemplateSpace) ValidateCreate(kit *kit.Kit) error {
 		return errors.New(i18n.T(kit, "attachment not set"))
 	}
 
-	if err := t.Attachment.Validate(kit); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
@@ -104,7 +105,7 @@ func (t *TemplateSpace) ValidateUpdate(kit *kit.Kit) error {
 		return errors.New(i18n.T(kit, "attachment should be set"))
 	}
 
-	if err := t.Attachment.Validate(kit); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
@@ -129,7 +130,7 @@ func (t *TemplateSpace) ValidateDelete(kit *kit.Kit) error {
 		return errors.New(i18n.T(kit, "attachment should be set"))
 	}
 
-	if err := t.Attachment.Validate(kit); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
@@ -168,9 +169,14 @@ type TemplateSpaceAttachment struct {
 }
 
 // Validate whether template space attachment is valid or not.
-func (t *TemplateSpaceAttachment) Validate(kit *kit.Kit) error {
+// allowGlobalProject 用于业务级共享的系统内置空间（config_delivery），其 project_id 固定为 0。
+func (t *TemplateSpaceAttachment) Validate(kit *kit.Kit, allowGlobalProject bool) error {
 	if t.BizID <= 0 {
 		return errors.New(i18n.T(kit, "invalid attachment biz id"))
+	}
+
+	if allowGlobalProject && t.ProjectID == constant.GlobalProjectID {
+		return nil
 	}
 
 	if t.ProjectID <= 0 {

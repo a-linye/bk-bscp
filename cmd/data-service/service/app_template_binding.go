@@ -254,9 +254,14 @@ func (s *Service) ListAppBoundTmplRevisions(ctx context.Context,
 	for _, b := range atb[0].Spec.Bindings {
 		for _, r := range b.TemplateRevisions {
 			d := tmplRevisionMap[r.TemplateRevisionID]
+			// 空间被删除、绑定残留脏 id 等场景 map 会缺行，不应以空指针崩溃暴露
+			spaceName := ""
+			if space := tmplSpaceMap[d.Attachment.TemplateSpaceID]; space != nil {
+				spaceName = space.Spec.Name
+			}
 			details = append(details, &pbatb.AppBoundTmplRevision{
 				TemplateSpaceId:      d.Attachment.TemplateSpaceID,
-				TemplateSpaceName:    tmplSpaceMap[d.Attachment.TemplateSpaceID].Spec.Name,
+				TemplateSpaceName:    spaceName,
 				TemplateSetId:        b.TemplateSetID,
 				TemplateSetName:      tmplSetMap[b.TemplateSetID].Spec.Name,
 				TemplateId:           d.Attachment.TemplateID,

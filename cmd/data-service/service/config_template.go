@@ -568,6 +568,8 @@ func (s *Service) getOrCreateTemplateSpace(kit *kit.Kit, bizID uint32, now time.
 		Spec: &table.TemplateSpaceSpec{Name: constant.CONFIG_DELIVERY},
 		Attachment: &table.TemplateSpaceAttachment{
 			BizID: bizID, TenantID: kit.TenantID,
+			// 业务级共享，不归属任何项目
+			ProjectID: constant.GlobalProjectID,
 		},
 		Revision: &table.Revision{
 			Creator: kit.User, CreatedAt: now,

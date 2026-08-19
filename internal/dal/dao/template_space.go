@@ -134,7 +134,9 @@ func (dao *templateSpaceDao) GetBizTemplateSpaceByName(kit *kit.Kit, bizID uint3
 func (dao *templateSpaceDao) Get(kit *kit.Kit, bizID, projectID, id uint32) (*table.TemplateSpace, error) {
 	m := dao.genQ.TemplateSpace
 
-	return dao.genQ.TemplateSpace.WithContext(kit.Ctx).Where(m.ID.Eq(id), m.BizID.Eq(bizID), m.ProjectID.Eq(projectID)).Take()
+	// 业务级共享空间（config_delivery）固定使用 project_id = 0，放行项目维度过滤
+	return dao.genQ.TemplateSpace.WithContext(kit.Ctx).
+		Where(m.ID.Eq(id), m.BizID.Eq(bizID), m.ProjectID.In(projectID, cs.GlobalProjectID)).Take()
 }
 
 // Create one template space instance.
@@ -449,7 +451,8 @@ func (dao *templateSpaceDao) GetByUniqueKey(kit *kit.Kit, bizID, projectID uint3
 	m := dao.genQ.TemplateSpace
 	q := dao.genQ.TemplateSpace.WithContext(kit.Ctx)
 
-	templateSpace, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID), m.Name.Eq(name)).Take()
+	// 放行哨兵值后，任意项目下查 config_delivery 会命中全局那行并报"已存在"，属纵深防御的期望行为
+	templateSpace, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.In(projectID, cs.GlobalProjectID), m.Name.Eq(name)).Take()
 	if err != nil {
 		return nil, fmt.Errorf("get template space failed, err: %v", err)
 	}
@@ -461,7 +464,8 @@ func (dao *templateSpaceDao) GetByUniqueKey(kit *kit.Kit, bizID, projectID uint3
 func (dao *templateSpaceDao) ListByIDs(kit *kit.Kit, bizID, projectID uint32, ids []uint32) ([]*table.TemplateSpace, error) {
 	m := dao.genQ.TemplateSpace
 	q := dao.genQ.TemplateSpace.WithContext(kit.Ctx)
-	result, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID), m.ID.In(ids...)).Find()
+	// 业务级共享空间（config_delivery）固定使用哨兵值 project_id = 0，放行项目维度过滤
+	result, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.In(projectID, cs.GlobalProjectID), m.ID.In(ids...)).Find()
 	if err != nil {
 		return nil, err
 	}

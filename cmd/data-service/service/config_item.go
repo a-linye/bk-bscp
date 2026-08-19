@@ -1732,9 +1732,14 @@ func (s *Service) getConfigTemplateSet(grpcKit *kit.Kit, bizID, projectID, appID
 
 	details := make([]*pbtset.TemplateSetBriefInfo, len(tmplSets))
 	for idx, t := range tmplSets {
+		// 空间被删除、绑定残留脏 id 等场景 map 会缺行，不应以空指针崩溃暴露
+		spaceName := ""
+		if space := tmplSpaceMap[t.Attachment.TemplateSpaceID]; space != nil {
+			spaceName = space.Spec.Name
+		}
 		details[idx] = &pbtset.TemplateSetBriefInfo{
 			TemplateSpaceId:   t.Attachment.TemplateSpaceID,
-			TemplateSpaceName: tmplSpaceMap[t.Attachment.TemplateSpaceID].Spec.Name,
+			TemplateSpaceName: spaceName,
 			TemplateSetId:     t.ID,
 			TemplateSetName:   tmplSetMap[t.ID].Spec.Name,
 		}

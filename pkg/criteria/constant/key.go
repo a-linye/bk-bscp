@@ -236,3 +236,9 @@ const (
 	// CONFIG_DELIVERY 默认模板配置空间
 	CONFIG_DELIVERY = "config_delivery"
 )
+
+// GlobalProjectID 业务级共享资源的项目。
+// 项目 id 由 id_generators 从 1 开始分配，0 永不与真实项目冲突。
+// config_delivery 模板空间服务于进程配置管理，产品上不引入项目概念，固定使用该值。
+// 不可改用 NULL：唯一索引中 NULL ≠ NULL，会让业务内唯一性彻底失效且无法自愈。
+const GlobalProjectID uint32 = 0
