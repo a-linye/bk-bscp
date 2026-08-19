@@ -557,7 +557,7 @@
       InfoBox({
         title: t('确定禁用此密钥'),
         subTitle: t('禁用密钥后，使用此密钥的应用将无法正常使用 SDK/API 拉取配置'),
-        'ext-cls': 'info-box-style',
+        class: 'info-box-style',
         confirmText: t('禁用'),
         cancelText: t('取消'),
         onConfirm: async () => {
@@ -742,6 +742,9 @@
     background: #ffffff;
   }
   .credential-table {
+    :deep(colgroup col):nth-child(3) {
+      width: auto !important;
+    }
     :deep(.bk-table-body) {
       max-height: calc(100vh - 280px);
       overflow: auto;

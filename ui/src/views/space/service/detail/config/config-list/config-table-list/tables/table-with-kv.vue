@@ -2,6 +2,7 @@
   <bk-loading :loading="loading">
     <bk-table
       class="config-table"
+      :key="isUnNamedVersion"
       :border="['outer']"
       :data="configList"
       :remote-pagination="true"
@@ -689,6 +690,10 @@
     }
   }
   .config-table {
+    :deep(colgroup col):nth-child(2),
+    :deep(colgroup col):nth-child(3) {
+      width: auto !important;
+    }
     .config-name {
       display: flex;
       align-items: center;

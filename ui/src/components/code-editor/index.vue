@@ -225,6 +225,7 @@
 
     editor.onDidChangeModelContent(() => {
       localVal.value = editor.getValue();
+      if (localVal.value === props.modelValue) return;
       validate(localVal.value);
       emit('update:modelValue', localVal.value);
       emit('change', localVal.value);

@@ -242,7 +242,7 @@
           h('div', { class: 'env-delete-tip' }, t('删除该环境后将无法恢复，请谨慎操作')),
         ])
       ),
-      'ext-cls': 'env-info-box',
+      class: 'env-info-box',
       confirmText: t('删除'),
       cancelText: t('取消'),
       onConfirm: async () => {

@@ -11,6 +11,8 @@
       :config="configForm"
       :content="content"
       :bk-biz-id="props.bkBizId"
+      :project-id="projectId"
+      :env-id="envId"
       :id="props.appId"
       @change="handleFormChange" />
     <section class="action-btns">

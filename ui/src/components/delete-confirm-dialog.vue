@@ -4,7 +4,7 @@
     :title="title"
     :theme="'primary'"
     quick-close
-    ext-cls="delete-confirm-dialog"
+    class="delete-confirm-dialog"
     @closed="handleClose">
     <slot></slot>
     <template #footer>

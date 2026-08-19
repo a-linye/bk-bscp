@@ -425,6 +425,8 @@
         cursor: pointer;
         &.selected td {
           background: #e1ecff !important;
+          border-top-color: #e1ecff;
+          border-right-color: #e1ecff !important;
         }
       }
     }

@@ -12,6 +12,8 @@
         :config="configForm as IConfigKvItem"
         :content="content"
         :bk-biz-id="props.bkBizId"
+        :project-id="projectId"
+        :env-id="envId"
         :id="props.appId"
         :edit-mode="true"
         @change="handleChange" />

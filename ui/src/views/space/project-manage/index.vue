@@ -204,7 +204,7 @@
           h('div', { class: 'pro-delete-tip' }, t('删除该项目后将无法恢复，请谨慎操作')),
         ])
       ),
-      'ext-cls': 'pro-info-box',
+      class: 'pro-info-box',
       confirmText: t('删除'),
       cancelText: t('取消'),
       onConfirm: async () => {

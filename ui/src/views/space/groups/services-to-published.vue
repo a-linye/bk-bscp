@@ -12,7 +12,7 @@
           :pagination="pagination"
           show-overflow-tooltip
           @page-limit-change="handlePageLimitChange"
-          @page-value-change="loadServicesList">
+          @page-value-change="handlePageValueChange">
           <bk-table-column :label="t('服务名称')" prop="app_name"></bk-table-column>
           <bk-table-column :label="t('环境')">
             <template #default="{ row }">
@@ -128,6 +128,11 @@
       params: routeParmas,
     });
     return href;
+  };
+
+  const handlePageValueChange = (val: number) => {
+    updatePagination('current', val);
+    loadServicesList();
   };
 
   const handlePageLimitChange = (val: number) => {
