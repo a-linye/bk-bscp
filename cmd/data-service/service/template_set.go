@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/search"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
@@ -506,6 +507,12 @@ func (s *Service) ListTmplSetsOfBiz(ctx context.Context, req *pbds.ListTmplSetsO
 
 	details := make([]*pbtset.TemplateSetOfBizDetail, 0)
 	for _, t := range tmplSpaces {
+		// 业务级共享的系统内置空间 config_delivery（project_id 固定为 0）服务于进程配置管理，
+		// 产品上不引入项目维度，不在此业务模板空间列表中返回，不影响其他空间。
+		if t.Spec.Name == constant.CONFIG_DELIVERY && t.Attachment.ProjectID == constant.GlobalProjectID {
+			delete(tmplSetsMap, t.ID)
+			continue
+		}
 		details = append(details, &pbtset.TemplateSetOfBizDetail{
 			TemplateSpaceId:   t.ID,
 			TemplateSpaceName: t.Spec.Name,

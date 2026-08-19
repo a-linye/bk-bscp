@@ -268,6 +268,8 @@ func (dao *templateSpaceDao) List(kit *kit.Kit, bizID, projectID uint32, s searc
 		}
 	}
 
+	// 业务级共享的系统内置空间 config_delivery（project_id 固定为 0，服务于进程配置管理，
+	// 产品上不引入项目维度）不在此业务模板空间列表中返回，避免污染业务空间列表，不影响其他空间。
 	conds = append(conds, m.Name.Neq(cs.CONFIG_DELIVERY))
 
 	d := q.Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID)).Where(conds...).Order(m.Name)
