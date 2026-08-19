@@ -130,7 +130,8 @@ func (dao *hookDao) CountNumberUnReferences(kit *kit.Kit, bizID, projectID uint3
 	} else if opt.NotTag {
 		// when the length of tags is 2, it must be '[]'
 		// It could also be null
-		q = q.Where(h.Tags.Length().Eq(2)).Or(h.Tags.Length().Eq(4))
+		// Where 内嵌表示括号, 否则 Or 会绕过前面的过滤条件
+		q = q.Where(q.Where(h.Tags.Length().Eq(2)).Or(h.Tags.Length().Eq(4)))
 	}
 
 	return q.LeftJoin(rh, h.ID.EqCol(rh.HookID)).Where(rh.HookID.IsNull()).Count()
@@ -214,7 +215,8 @@ func (dao *hookDao) ListWithRefer(kit *kit.Kit, opt *types.ListHooksWithReferOpt
 	} else if opt.NotTag {
 		// when the length of tags is 2, it must be '[]'
 		// It could also be null
-		q = q.Where(h.Tags.Length().Eq(2)).Or(h.Tags.Length().Eq(4))
+		// Where 内嵌表示括号, 否则 Or 会绕过前面的过滤条件
+		q = q.Where(q.Where(h.Tags.Length().Eq(2)).Or(h.Tags.Length().Eq(4)))
 	}
 
 	if opt.SearchKey != "" {
