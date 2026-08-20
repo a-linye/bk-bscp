@@ -817,7 +817,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps:list": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/list": {
       "post": {
         "summary": "按 space 查询 app 信息",
         "operationId": "Config_ListAppsBySpaceRest2",
@@ -915,7 +915,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps:clone": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/clone": {
       "post": {
         "summary": "克隆服务",
         "operationId": "Config_CloneApp2",
@@ -5376,7 +5376,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/hooks:batch_delete": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/hooks/batch_delete": {
       "post": {
         "summary": "批量删除脚本",
         "operationId": "Config_BatchDeleteHook2",
@@ -5466,7 +5466,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/hooks:tags": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/hooks/query/tags": {
       "get": {
         "summary": "获取脚本标签列表",
         "operationId": "Config_ListHookTags2",
@@ -7211,7 +7211,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_spaces:createDefault": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_spaces/default": {
       "post": {
         "summary": "创建模板默认空间(仅由系统本身调用)",
         "operationId": "Config_CreateDefaultTmplSpace2",
@@ -14534,7 +14534,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables:batch_delete": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables/batch_delete": {
       "post": {
         "summary": "批量删除模板变量",
         "operationId": "Config_BatchDeleteTemplateVariable2",
@@ -14624,7 +14624,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables:list": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables/list": {
       "post": {
         "summary": "获取模板变量列表",
         "operationId": "Config_ListTemplateVariables2",
@@ -14714,7 +14714,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables:import": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables/import": {
       "post": {
         "summary": "批量导入简单文件模板变量",
         "operationId": "Config_ImportTemplateVariables2",
@@ -14808,7 +14808,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables:import/{format}": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/template_variables/import/{format}": {
       "post": {
         "operationId": "Config_ImportOtherFormatTemplateVariables2",
         "responses": {
@@ -16090,7 +16090,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:batch_delete": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups/batch_delete": {
       "post": {
         "summary": "批量删除分组",
         "operationId": "Config_BatchDeleteGroups2",
@@ -16493,7 +16493,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:search": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName}": {
       "get": {
         "summary": "按名称获取分组",
         "operationId": "Config_GetGroupByName3",
@@ -16531,8 +16531,8 @@
           {
             "name": "groupName",
             "description": "分组名",
-            "in": "query",
-            "required": false,
+            "in": "path",
+            "required": true,
             "type": "string"
           }
         ],
@@ -16589,7 +16589,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:selector/{labelName}": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/selector/{labelName}": {
       "get": {
         "summary": "分组选择器",
         "operationId": "Config_ListGroupSelector2",
@@ -24826,7 +24826,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects:list": {
+    "/api/v1/config/biz/{bizId}/projects/list": {
       "post": {
         "summary": "项目管理",
         "operationId": "Config_ListProjects",
@@ -25035,7 +25035,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:list": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/list": {
       "post": {
         "summary": "环境管理",
         "operationId": "Config_ListEnvironments",
@@ -25284,7 +25284,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects:query_by_key": {
+    "/api/v1/config/biz/{bizId}/projects/query/by_key": {
       "get": {
         "summary": "根据项目key获取项目",
         "operationId": "Config_GetProjectByKey",
@@ -25324,7 +25324,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name": {
       "get": {
         "summary": "根据环境名称获取环境",
         "operationId": "Config_GetEnvironmentByName",

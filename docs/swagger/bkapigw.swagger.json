@@ -1947,7 +1947,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:search": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName}": {
       "get": {
         "summary": "按名称获取分组",
         "operationId": "Config_GetGroupByName3",
@@ -1985,8 +1985,8 @@
           {
             "name": "groupName",
             "description": "分组名",
-            "in": "query",
-            "required": false,
+            "in": "path",
+            "required": true,
             "type": "string"
           }
         ],
@@ -4752,7 +4752,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects:list": {
+    "/api/v1/config/biz/{bizId}/projects/list": {
       "post": {
         "summary": "项目管理",
         "operationId": "Config_ListProjects",
@@ -4961,7 +4961,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:list": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/list": {
       "post": {
         "summary": "环境管理",
         "operationId": "Config_ListEnvironments",
@@ -5210,7 +5210,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects:query_by_key": {
+    "/api/v1/config/biz/{bizId}/projects/query/by_key": {
       "get": {
         "summary": "根据项目key获取项目",
         "operationId": "Config_GetProjectByKey",
@@ -5250,7 +5250,7 @@
         ]
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name": {
       "get": {
         "summary": "根据环境名称获取环境",
         "operationId": "Config_GetEnvironmentByName",

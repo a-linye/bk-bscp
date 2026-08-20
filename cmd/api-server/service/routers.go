@@ -112,28 +112,43 @@ func (p *proxy) routers() http.Handler {
 		r.Use(view.Generic(p.authorizer))
 
 		// 项目和环境相关路由
+		//
+		// 集合下的字面量动作段（list/query/clone/batch_delete 等）必须显式注册为静态路由。
+		// chi 的匹配优先级为 静态段 > 参数段 > catch-all，若不注册，这些段会被同级的
+		// {project_id}/{env_id}/{app_id} 等参数节点捕获，交给 ID 校验中间件解析而报 400，
+		// 根本到不了 cfgSvrMux。新增此类路径时需同步在此登记。
 		r.Route("/biz/{biz_id}/projects", func(r chi.Router) {
 			r.Mount("/", p.cfgSvrMux)
+			r.Handle("/list", p.cfgSvrMux)
+			r.Handle("/query/*", p.cfgSvrMux)
 			r.Route("/{project_id}", func(r chi.Router) {
 				r.Use(p.authorizer.VerifyProjectExists) // 校验 Project 是否存在
 				r.Mount("/", p.cfgSvrMux)
 
 				// 环境相关
+				r.Handle("/envs/list", p.cfgSvrMux)
+				r.Handle("/envs/query/*", p.cfgSvrMux)
 				r.Route("/envs/{env_id}", func(r chi.Router) {
 					r.Use(p.authorizer.VerifyEnvExists) // 校验 Env 归属于该项目
 					r.Mount("/", p.cfgSvrMux)
 					// 服务相关
+					r.Handle("/apps/list", p.cfgSvrMux)
+					r.Handle("/apps/clone", p.cfgSvrMux)
 					r.Route("/apps/{app_id}", func(r chi.Router) {
 						r.Use(p.AppProjectEnvVerified) // 校验 App 归属于该项目+环境
 						r.Mount("/", p.cfgSvrMux)
 					})
 				})
 				// 脚本相关
+				r.Handle("/hooks/batch_delete", p.cfgSvrMux)
+				r.Handle("/hooks/query/*", p.cfgSvrMux)
 				r.Route("/hooks/{hook_id}", func(r chi.Router) {
 					r.Use(p.HookProjectVerified) // 校验 Hook 归属于该项目
 					r.Mount("/", p.cfgSvrMux)
 				})
 				// 分组相关
+				r.Handle("/groups/batch_delete", p.cfgSvrMux)
+				r.Handle("/groups/query/*", p.cfgSvrMux)
 				r.Route("/groups/{group_id}", func(r chi.Router) {
 					r.Use(p.GroupProjectVerified) // 校验 Group 归属于该项目
 					r.Mount("/", p.cfgSvrMux)
@@ -142,6 +157,7 @@ func (p *proxy) routers() http.Handler {
 				r.Route("/template_spaces", func(r chi.Router) {
 					r.Use(p.CheckDefaultTmplSpace) // 没有默认模版空间则创建
 					r.Mount("/", p.cfgSvrMux)
+					r.Handle("/default", p.cfgSvrMux)
 					r.Route("/{template_space_id}", func(r chi.Router) {
 						r.Use(p.TemplateSpaceProjectVerified) // 校验 TemplateSpace 归属于该项目
 						r.Mount("/", p.cfgSvrMux)
@@ -150,6 +166,10 @@ func (p *proxy) routers() http.Handler {
 				// 模板变量相关
 				r.Route("/template_variables", func(r chi.Router) {
 					r.Mount("/", p.cfgSvrMux)
+					r.Handle("/list", p.cfgSvrMux)
+					r.Handle("/batch_delete", p.cfgSvrMux)
+					r.Handle("/import", p.cfgSvrMux)
+					r.Handle("/import/*", p.cfgSvrMux)
 					r.Route("/{template_variable_id}", func(r chi.Router) {
 						r.Use(p.TemplateVariableProjectVerified) // 校验 TemplateVariable 归属于该项目
 						r.Mount("/", p.cfgSvrMux)

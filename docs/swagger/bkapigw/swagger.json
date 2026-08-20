@@ -1331,6 +1331,104 @@
         }
       }
     },
+    "/api/v1/config/biz/{bizId}/projects/list": {
+      "post": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "项目管理",
+        "operationId": "Config_ListProjects",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigListProjectsBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListProjectsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
+    "/api/v1/config/biz/{bizId}/projects/query/by_key": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "根据项目key获取项目",
+        "operationId": "Config_GetProjectByKey",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "项目key",
+            "name": "projectKey",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProjectResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
     "/api/v1/config/biz/{bizId}/projects/{projectId}": {
       "get": {
         "tags": [
@@ -1523,6 +1621,120 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbcsCreateEnvironmentResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/list": {
+      "post": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "环境管理",
+        "operationId": "Config_ListEnvironments",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "项目ID",
+            "name": "projectId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ConfigListEnvironmentsBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsListEnvironmentsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "根据环境名称获取环境",
+        "operationId": "Config_GetEnvironmentByName",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "项目ID",
+            "name": "projectId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "环境名称",
+            "name": "envName",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetEnvironmentResp"
             }
           },
           "default": {
@@ -3107,121 +3319,7 @@
         }
       }
     },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:list": {
-      "post": {
-        "tags": [
-          "Config"
-        ],
-        "summary": "环境管理",
-        "operationId": "Config_ListEnvironments",
-        "parameters": [
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "业务ID",
-            "name": "bizId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "项目ID",
-            "name": "projectId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ConfigListEnvironmentsBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/pbcsListEnvironmentsResp"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
-      }
-    },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name": {
-      "get": {
-        "tags": [
-          "Config"
-        ],
-        "summary": "根据环境名称获取环境",
-        "operationId": "Config_GetEnvironmentByName",
-        "parameters": [
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "业务ID",
-            "name": "bizId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "项目ID",
-            "name": "projectId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "description": "环境名称",
-            "name": "envName",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/pbcsGetEnvironmentResp"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
-      }
-    },
-    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:search": {
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName}": {
       "get": {
         "tags": [
           "Config"
@@ -3249,7 +3347,8 @@
             "type": "string",
             "description": "分组名",
             "name": "groupName",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -3323,104 +3422,6 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbcsListTemplatesNotBoundResp"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
-      }
-    },
-    "/api/v1/config/biz/{bizId}/projects:list": {
-      "post": {
-        "tags": [
-          "Config"
-        ],
-        "summary": "项目管理",
-        "operationId": "Config_ListProjects",
-        "parameters": [
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "业务ID",
-            "name": "bizId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ConfigListProjectsBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/pbcsListProjectsResp"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "x-bk-apigateway-resource": {
-          "isPublic": true,
-          "allowApplyPermission": true,
-          "authConfig": {
-            "appVerifiedRequired": true,
-            "userVerifiedRequired": true,
-            "resourcePermissionRequired": true
-          }
-        }
-      }
-    },
-    "/api/v1/config/biz/{bizId}/projects:query_by_key": {
-      "get": {
-        "tags": [
-          "Config"
-        ],
-        "summary": "根据项目key获取项目",
-        "operationId": "Config_GetProjectByKey",
-        "parameters": [
-          {
-            "type": "integer",
-            "format": "int64",
-            "description": "业务ID",
-            "name": "bizId",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "description": "项目key",
-            "name": "projectKey",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/pbcsGetProjectResp"
             }
           },
           "default": {
