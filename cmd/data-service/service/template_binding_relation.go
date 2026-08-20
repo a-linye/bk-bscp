@@ -918,10 +918,8 @@ func (s *Service) ListTmplSetBoundUnnamedApps(ctx context.Context, req *pbds.Lis
 }
 
 // ListMultiTmplSetBoundUnnamedApps list template set bound unnamed app details.
-//
 // nolint:funlen
 func (s *Service) ListMultiTmplSetBoundUnnamedApps(ctx context.Context, req *pbds.ListMultiTmplSetBoundUnnamedAppsReq) (
-
 	*pbds.ListMultiTmplSetBoundUnnamedAppsResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 

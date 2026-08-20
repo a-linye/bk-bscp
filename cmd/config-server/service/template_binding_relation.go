@@ -446,6 +446,7 @@ func (s *Service) ListMultiTmplSetBoundUnnamedApps(ctx context.Context, req *pbc
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListMultiTmplSetBoundUnnamedApps(grpcKit.RpcCtx(), r)
