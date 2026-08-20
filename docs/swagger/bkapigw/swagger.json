@@ -59,13 +59,13 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse"
+                  "$ref": "#/definitions/rest.OKResponse"
                 },
                 {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_internal_dal_repository.ObjectMetadata"
+                      "$ref": "#/definitions/repository.ObjectMetadata"
                     }
                   }
                 }
@@ -131,13 +131,13 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse"
+                  "$ref": "#/definitions/rest.OKResponse"
                 },
                 {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/cmd_api-server_service.DownloadURLResponse"
+                      "$ref": "#/definitions/service.DownloadURLResponse"
                     }
                   }
                 }
@@ -198,13 +198,13 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse"
+                  "$ref": "#/definitions/rest.OKResponse"
                 },
                 {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_internal_dal_repository.ObjectMetadata"
+                      "$ref": "#/definitions/repository.ObjectMetadata"
                     }
                   }
                 }
@@ -270,13 +270,13 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse"
+                  "$ref": "#/definitions/rest.OKResponse"
                 },
                 {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_internal_dal_repository.ObjectMetadata"
+                      "$ref": "#/definitions/repository.ObjectMetadata"
                     }
                   }
                 }
@@ -3165,6 +3165,62 @@
         }
       }
     },
+    "/api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "根据环境名称获取环境",
+        "operationId": "Config_GetEnvironmentByName",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "项目ID",
+            "name": "projectId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "环境名称",
+            "name": "envName",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetEnvironmentResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
     "/api/v1/config/biz/{bizId}/projects/{projectId}/groups:search": {
       "get": {
         "tags": [
@@ -3317,6 +3373,54 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/pbcsListProjectsResp"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "x-bk-apigateway-resource": {
+          "isPublic": true,
+          "allowApplyPermission": true,
+          "authConfig": {
+            "appVerifiedRequired": true,
+            "userVerifiedRequired": true,
+            "resourcePermissionRequired": true
+          }
+        }
+      }
+    },
+    "/api/v1/config/biz/{bizId}/projects:query_by_key": {
+      "get": {
+        "tags": [
+          "Config"
+        ],
+        "summary": "根据项目key获取项目",
+        "operationId": "Config_GetProjectByKey",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "description": "业务ID",
+            "name": "bizId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "项目key",
+            "name": "projectKey",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/pbcsGetProjectResp"
             }
           },
           "default": {
@@ -6610,13 +6714,13 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse"
+                  "$ref": "#/definitions/rest.OKResponse"
                 },
                 {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/cmd_api-server_service.FeatureFlags"
+                      "$ref": "#/definitions/service.FeatureFlags"
                     }
                   }
                 }
@@ -7605,83 +7709,7 @@
         }
       }
     },
-    "cmd_api-server_service.DownloadURLResponse": {
-      "type": "object",
-      "properties": {
-        "download_url": {
-          "type": "string"
-        },
-        "expire_seconds": {
-          "type": "integer"
-        }
-      }
-    },
-    "cmd_api-server_service.FeatureFlags": {
-      "type": "object",
-      "properties": {
-        "BIZ_VIEW": {
-          "description": "BizView 是否开启业务体验",
-          "type": "boolean"
-        },
-        "ENABLE_TENANT_MODE": {
-          "description": "EnableTenantMode 是否开启租户模式",
-          "type": "boolean"
-        },
-        "PROCESS_CONFIG_VIEW": {
-          "description": "ProcessConfigView 进程与配置管理是否可见",
-          "type": "boolean"
-        },
-        "RESOURCE_LIMIT": {
-          "description": "ResourceLimit 业务资源限制",
-          "allOf": [
-            {
-              "$ref": "#/definitions/github_com_TencentBlueKing_bk-bscp_pkg_cc.ResourceLimit"
-            }
-          ]
-        },
-        "TENANT_MODE": {
-          "description": "TenantMode 租户模式",
-          "type": "string"
-        },
-        "TRPC_GO_PLUGIN": {
-          "description": "TrpcGoPlugin trpc go plugin",
-          "allOf": [
-            {
-              "$ref": "#/definitions/cmd_api-server_service.TrpcGoPlugin"
-            }
-          ]
-        }
-      }
-    },
-    "cmd_api-server_service.TrpcGoPlugin": {
-      "type": "object",
-      "properties": {
-        "bscp_module_domain": {
-          "type": "string"
-        },
-        "enable": {
-          "type": "boolean"
-        },
-        "module_domain": {
-          "type": "string"
-        }
-      }
-    },
-    "github_com_TencentBlueKing_bk-bscp_internal_dal_repository.ObjectMetadata": {
-      "type": "object",
-      "properties": {
-        "byte_size": {
-          "type": "integer"
-        },
-        "md5": {
-          "type": "string"
-        },
-        "sha256": {
-          "type": "string"
-        }
-      }
-    },
-    "github_com_TencentBlueKing_bk-bscp_pkg_cc.ResourceLimit": {
+    "cc.ResourceLimit": {
       "type": "object",
       "properties": {
         "appConfigCnt": {
@@ -7700,12 +7728,6 @@
           "description": "TmplSetTmplCnt 单个模版套餐下允许创建的模版数，默认为2000",
           "type": "integer"
         }
-      }
-    },
-    "github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse": {
-      "type": "object",
-      "properties": {
-        "data": {}
       }
     },
     "pbappApp": {
@@ -10569,6 +10591,26 @@
         "NULL_VALUE"
       ]
     },
+    "repository.ObjectMetadata": {
+      "type": "object",
+      "properties": {
+        "byte_size": {
+          "type": "integer"
+        },
+        "md5": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      }
+    },
+    "rest.OKResponse": {
+      "type": "object",
+      "properties": {
+        "data": {}
+      }
+    },
     "rpcStatus": {
       "type": "object",
       "properties": {
@@ -10584,6 +10626,68 @@
           }
         },
         "message": {
+          "type": "string"
+        }
+      }
+    },
+    "service.DownloadURLResponse": {
+      "type": "object",
+      "properties": {
+        "download_url": {
+          "type": "string"
+        },
+        "expire_seconds": {
+          "type": "integer"
+        }
+      }
+    },
+    "service.FeatureFlags": {
+      "type": "object",
+      "properties": {
+        "BIZ_VIEW": {
+          "description": "BizView 是否开启业务体验",
+          "type": "boolean"
+        },
+        "ENABLE_TENANT_MODE": {
+          "description": "EnableTenantMode 是否开启租户模式",
+          "type": "boolean"
+        },
+        "PROCESS_CONFIG_VIEW": {
+          "description": "ProcessConfigView 进程与配置管理是否可见",
+          "type": "boolean"
+        },
+        "RESOURCE_LIMIT": {
+          "description": "ResourceLimit 业务资源限制",
+          "allOf": [
+            {
+              "$ref": "#/definitions/cc.ResourceLimit"
+            }
+          ]
+        },
+        "TENANT_MODE": {
+          "description": "TenantMode 租户模式",
+          "type": "string"
+        },
+        "TRPC_GO_PLUGIN": {
+          "description": "TrpcGoPlugin trpc go plugin",
+          "allOf": [
+            {
+              "$ref": "#/definitions/service.TrpcGoPlugin"
+            }
+          ]
+        }
+      }
+    },
+    "service.TrpcGoPlugin": {
+      "type": "object",
+      "properties": {
+        "bscp_module_domain": {
+          "type": "string"
+        },
+        "enable": {
+          "type": "boolean"
+        },
+        "module_domain": {
           "type": "string"
         }
       }

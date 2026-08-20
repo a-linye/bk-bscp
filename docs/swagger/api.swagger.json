@@ -36507,6 +36507,11 @@
         "envDisplay": {
           "type": "string",
           "description": "环境"
+        },
+        "envId": {
+          "type": "integer",
+          "format": "int64",
+          "description": "环境ID"
         }
       },
       "description": "TemplateRevisionBoundUnnamedAppDetail is template release bound unnamed app detail."

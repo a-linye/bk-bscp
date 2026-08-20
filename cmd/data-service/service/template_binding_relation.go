@@ -684,6 +684,7 @@ func (s *Service) ListTmplRevisionBoundUnnamedApps(ctx context.Context, req *pbd
 			AppId:      id,
 			AppName:    appMap[id].Spec.Name,
 			EnvDisplay: appMap[id].Spec.EnvDisplay,
+			EnvId:      appMap[id].EnvID,
 		})
 	}
 

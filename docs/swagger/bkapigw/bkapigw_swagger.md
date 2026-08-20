@@ -56,6 +56,7 @@
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/config_items/{id} | [Config_GetConfigItem3](#config-get-config-item3) | 获取文件配置项 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_GetConfigTemplate](#config-get-config-template) | 获取配置模板 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId} | [Config_GetEnvironment](#config-get-environment) | 获取环境详情 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name | [Config_GetEnvironmentByName](#config-get-environment-by-name) | 根据环境名称获取环境 |
 | GET | /api/v1/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName](#config-get-group-by-name) | 按名称获取分组 |
 | GET | /api/v1/inner/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName2](#config-get-group-by-name2) | 按名称获取分组 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search | [Config_GetGroupByName3](#config-get-group-by-name3) | 按名称获取分组 |
@@ -63,6 +64,7 @@
 | GET | /api/v1/inner/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance_topo | [Config_GetProcessInstanceTopo](#config-get-process-instance-topo) | 进程实例拓扑 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId} | [Config_GetProject](#config-get-project) | 获取项目详情 |
+| GET | /api/v1/config/biz/{bizId}/projects:query_by_key | [Config_GetProjectByKey](#config-get-project-by-key) | 根据项目key获取项目 |
 | GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName](#config-get-release-by-name) | 按服务版本名 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName2](#config-get-release-by-name2) | 按服务版本名 |
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName3](#config-get-release-by-name3) | 按服务版本名 |
@@ -2239,6 +2241,40 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-get-environment-by-name"></span> 根据环境名称获取环境 (*Config_GetEnvironmentByName*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| envName | string |  | 环境名称 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-get-group-by-name"></span> 按名称获取分组 (*Config_GetGroupByName*)
 
 ```
@@ -2459,6 +2495,39 @@ GET /api/v1/config/biz/{bizId}/projects/{projectId}
 
 ```bash
 GET /api/v1/config/biz/{bizId}/projects/{projectId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-get-project-by-key"></span> 根据项目key获取项目 (*Config_GetProjectByKey*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects:query_by_key
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectKey | string |  | 项目key |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects:query_by_key HTTP/1.1
 Content-Type: application/json
 
 
@@ -5043,9 +5112,9 @@ GET /api/v1/inner/feature_flags
 | data.BIZ_VIEW | boolean | BizView 是否开启业务体验 |
 | data.ENABLE_TENANT_MODE | boolean | EnableTenantMode 是否开启租户模式 |
 | data.PROCESS_CONFIG_VIEW | boolean | ProcessConfigView 进程与配置管理是否可见 |
-| data.RESOURCE_LIMIT | [CmdAPIServerServiceFeatureFlags](#cmd-api-server-service-feature-flags) | ResourceLimit 业务资源限制 |
+| data.RESOURCE_LIMIT | [ServiceFeatureFlags](#service-feature-flags) | ResourceLimit 业务资源限制 |
 | data.TENANT_MODE | string | TenantMode 租户模式 |
-| data.TRPC_GO_PLUGIN | [CmdAPIServerServiceFeatureFlags](#cmd-api-server-service-feature-flags) | TrpcGoPlugin trpc go plugin |
+| data.TRPC_GO_PLUGIN | [ServiceFeatureFlags](#service-feature-flags) | TrpcGoPlugin trpc go plugin |
 
 
 
@@ -5732,77 +5801,7 @@ Content-Type: application/json
 
 
 
-### <span id="cmd-api-server-service-download-url-response"></span> cmd_api-server_service.DownloadURLResponse
-
-
-  
-
-
-
-**Properties**
-
-| Name | Type | Go type | Required | Default | Description | Example |
-|------|------|---------|:--------:| ------- |-------------|---------|
-| download_url | string| `string` |  | |  |  |
-| expire_seconds | integer| `int64` |  | |  |  |
-
-
-
-### <span id="cmd-api-server-service-feature-flags"></span> cmd_api-server_service.FeatureFlags
-
-
-  
-
-
-
-**Properties**
-
-| Name | Type | Go type | Required | Default | Description | Example |
-|------|------|---------|:--------:| ------- |-------------|---------|
-| BIZ_VIEW | boolean| `bool` |  | | BizView 是否开启业务体验 |  |
-| ENABLE_TENANT_MODE | boolean| `bool` |  | | EnableTenantMode 是否开启租户模式 |  |
-| PROCESS_CONFIG_VIEW | boolean| `bool` |  | | ProcessConfigView 进程与配置管理是否可见 |  |
-| RESOURCE_LIMIT | [CmdAPIServerServiceFeatureFlags](#cmd-api-server-service-feature-flags)| `CmdAPIServerServiceFeatureFlags` |  | | ResourceLimit 业务资源限制 |  |
-| TENANT_MODE | string| `string` |  | | TenantMode 租户模式 |  |
-| TRPC_GO_PLUGIN | [CmdAPIServerServiceFeatureFlags](#cmd-api-server-service-feature-flags)| `CmdAPIServerServiceFeatureFlags` |  | | TrpcGoPlugin trpc go plugin |  |
-
-
-
-### <span id="cmd-api-server-service-trpc-go-plugin"></span> cmd_api-server_service.TrpcGoPlugin
-
-
-  
-
-
-
-**Properties**
-
-| Name | Type | Go type | Required | Default | Description | Example |
-|------|------|---------|:--------:| ------- |-------------|---------|
-| bscp_module_domain | string| `string` |  | |  |  |
-| enable | boolean| `bool` |  | |  |  |
-| module_domain | string| `string` |  | |  |  |
-
-
-
-### <span id="github-com-tencent-blue-king-bk-bscp-internal-dal-repository-object-metadata"></span> github_com_TencentBlueKing_bk-bscp_internal_dal_repository.ObjectMetadata
-
-
-  
-
-
-
-**Properties**
-
-| Name | Type | Go type | Required | Default | Description | Example |
-|------|------|---------|:--------:| ------- |-------------|---------|
-| byte_size | integer| `int64` |  | |  |  |
-| md5 | string| `string` |  | |  |  |
-| sha256 | string| `string` |  | |  |  |
-
-
-
-### <span id="github-com-tencent-blue-king-bk-bscp-pkg-cc-resource-limit"></span> github_com_TencentBlueKing_bk-bscp_pkg_cc.ResourceLimit
+### <span id="cc-resource-limit"></span> cc.ResourceLimit
 
 
   
@@ -5817,21 +5816,6 @@ Content-Type: application/json
 | maxFileSize | integer| `int64` |  | | MaxFileSize 配置文件大小上限，单位 MB，默认为200MB |  |
 | maxUploadContentLength | integer| `int64` |  | | MaxUploadContentLength 最大内容长度 |  |
 | tmplSetTmplCnt | integer| `int64` |  | | TmplSetTmplCnt 单个模版套餐下允许创建的模版数，默认为2000 |  |
-
-
-
-### <span id="github-com-tencent-blue-king-bk-bscp-pkg-rest-o-k-response"></span> github_com_TencentBlueKing_bk-bscp_pkg_rest.OKResponse
-
-
-  
-
-
-
-**Properties**
-
-| Name | Type | Go type | Required | Default | Description | Example |
-|------|------|---------|:--------:| ------- |-------------|---------|
-| data | [interface{}](#interface)| `interface{}` |  | |  |  |
 
 
 
@@ -8076,6 +8060,38 @@ any
 
 
 
+### <span id="repository-object-metadata"></span> repository.ObjectMetadata
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| byte_size | integer| `int64` |  | |  |  |
+| md5 | string| `string` |  | |  |  |
+| sha256 | string| `string` |  | |  |  |
+
+
+
+### <span id="rest-o-k-response"></span> rest.OKResponse
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| data | [interface{}](#interface)| `interface{}` |  | |  |  |
+
+
+
 ### <span id="rpc-status"></span> rpcStatus
 
 
@@ -8090,5 +8106,58 @@ any
 | code | int32 (formatted integer)| `int32` |  | |  |  |
 | details | \[\][ProtobufAny](#protobuf-any)| `[]*ProtobufAny` |  | |  |  |
 | message | string| `string` |  | |  |  |
+
+
+
+### <span id="service-download-url-response"></span> service.DownloadURLResponse
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| download_url | string| `string` |  | |  |  |
+| expire_seconds | integer| `int64` |  | |  |  |
+
+
+
+### <span id="service-feature-flags"></span> service.FeatureFlags
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| BIZ_VIEW | boolean| `bool` |  | | BizView 是否开启业务体验 |  |
+| ENABLE_TENANT_MODE | boolean| `bool` |  | | EnableTenantMode 是否开启租户模式 |  |
+| PROCESS_CONFIG_VIEW | boolean| `bool` |  | | ProcessConfigView 进程与配置管理是否可见 |  |
+| RESOURCE_LIMIT | [ServiceFeatureFlags](#service-feature-flags)| `ServiceFeatureFlags` |  | | ResourceLimit 业务资源限制 |  |
+| TENANT_MODE | string| `string` |  | | TenantMode 租户模式 |  |
+| TRPC_GO_PLUGIN | [ServiceFeatureFlags](#service-feature-flags)| `ServiceFeatureFlags` |  | | TrpcGoPlugin trpc go plugin |  |
+
+
+
+### <span id="service-trpc-go-plugin"></span> service.TrpcGoPlugin
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bscp_module_domain | string| `string` |  | |  |  |
+| enable | boolean| `bool` |  | |  |  |
+| module_domain | string| `string` |  | |  |  |
 
 
