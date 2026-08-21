@@ -47,7 +47,7 @@ export const getSpaceFeatureFlag = (biz: string) =>
  * @returns
  */
 export const getAppList = (biz_id: string, projectId: string, envId: string, query: IAppListQuery = {}) =>
-  http.post(`config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps:list`, query).then((resp) => {
+  http.post(`config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/list`, query).then((resp) => {
     resp.data.details.forEach((item: IAppItem) => {
       // @ts-ignore
       item.permissions = resp.web_annotations.perms[item.id] || {};
@@ -118,7 +118,7 @@ export const updateApp = (params: any) => {
  * @returns
  */
 export const cloneApp = (biz_id: string, projectId: string, envId: string, params: any) => {
-  return http.post(`config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps:clone`, { ...params, biz_id }).then((resp) => resp.data);
+  return http.post(`config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/clone`, { ...params, biz_id }).then((resp) => resp.data);
 };
 
 /**

@@ -77,7 +77,7 @@ export const deleteScript = (biz_id: string, projectId: string, id: number) =>
  */
 export const batchDeleteScript = (biz_id: string, projectId: string, ids: number[], exclusion_operation: boolean) =>
   http
-    .post(`/config/biz/${biz_id}/projects/${projectId}/hooks:batch_delete`, { force: false, ids, exclusion_operation })
+    .post(`/config/biz/${biz_id}/projects/${projectId}/hooks/batch_delete`, { force: false, ids, exclusion_operation })
     .then((res) => res.data);
 
 /**
@@ -87,7 +87,7 @@ export const batchDeleteScript = (biz_id: string, projectId: string, ids: number
  * @returns
  */
 export const getScriptTagList = (biz_id: string, projectId: string) =>
-  http.get(`/config/biz/${biz_id}/projects/${projectId}/hooks:tags`).then((res) => res.data);
+  http.get(`/config/biz/${biz_id}/projects/${projectId}/hooks/query/tags`).then((res) => res.data);
 
 /**
  * 获取脚本版本列表

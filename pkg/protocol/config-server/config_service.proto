@@ -104,7 +104,7 @@ service Config {
       post: "/api/v1/config/list/app/app/biz_id/{biz_id}"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:list"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/list"
         body: "*"
       }
     };
@@ -116,7 +116,7 @@ service Config {
       post: "/api/v1/config/biz/{biz_id}/clone_app"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:clone"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/clone"
         body: "*"
       }
     };
@@ -453,7 +453,7 @@ service Config {
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/hooks/batch_delete"
       body: "*"
-      additional_bindings { post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:batch_delete" body: "*" }
+      additional_bindings { post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/batch_delete" body: "*" }
     };
   }
   // 更新脚本
@@ -478,7 +478,7 @@ service Config {
     option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/hook_tags"
-      additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:tags" }
+      additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/query/tags" }
     };
   }
   // 获取脚本
@@ -640,7 +640,7 @@ service Config {
       post: "/api/v1/config/template_spaces/default"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces:createDefault"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces/default"
         body: "*"
       }
     };
@@ -1336,7 +1336,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       post: "/api/v1/config/biz/{biz_id}/template_variables/batch_delete"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:batch_delete"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/batch_delete"
         body: "*"
       }
     };
@@ -1361,7 +1361,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       post: "/api/v1/config/biz/{biz_id}/template_variables/list"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:list"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/list"
         body: "*"
       }
     };
@@ -1373,7 +1373,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       post: "/api/v1/config/biz/{biz_id}/template_variables/import"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import"
         body: "*"
       }
     };
@@ -1385,7 +1385,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       post: "/api/v1/config/biz/{biz_id}/template_variables/{format}/import"
       body: "*"
       additional_bindings {
-        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import/{format}"
+        post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import/{format}"
         body: "*"
       }
     };
@@ -1486,7 +1486,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/groups/batch_delete"
       body: "*"
-      additional_bindings { post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:batch_delete" body: "*" }
+      additional_bindings { post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/batch_delete" body: "*" }
     };
   }
   // 更新分组
@@ -1530,7 +1530,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/groups/query/name/{group_name}"
       additional_bindings { get: "/api/v1/inner/config/biz/{biz_id}/groups/query/name/{group_name}" }
-      additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:search" }
+      additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/name/{group_name}" }
     };
   }
   // 获取分组
@@ -1546,7 +1546,9 @@ option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.method_visibility).restriction = "INTERNAL";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/groups/selector/{label_name}"
-      additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:selector/{label_name}" }
+      additional_bindings {
+        get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/selector/{label_name}"
+      }
     };
   }
   // 发布指定版本
@@ -2399,7 +2401,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc ListProjects(ListProjectsReq) returns (ListProjectsResp) {
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
-      post: "/api/v1/config/biz/{biz_id}/projects:list"
+      post: "/api/v1/config/biz/{biz_id}/projects/list"
       body: "*"
     };
   }
@@ -2442,7 +2444,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc ListEnvironments(ListEnvironmentsReq) returns (ListEnvironmentsResp) {
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
-      post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:list"
+      post: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/list"
       body: "*"
     };
   }
@@ -2485,7 +2487,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc GetProjectByKey(GetProjectByKeyReq) returns (GetProjectResp) {
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
-      get: "/api/v1/config/biz/{biz_id}/projects:query_by_key"
+      get: "/api/v1/config/biz/{biz_id}/projects/query/by_key"
     };
   }
 
@@ -2493,7 +2495,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   rpc GetEnvironmentByName(GetEnvironmentByNameReq) returns (GetEnvironmentResp) {
     option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
-      get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:query_by_name"
+      get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/query/by_name"
     };
   }
 

@@ -56,15 +56,15 @@
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/config_items/{id} | [Config_GetConfigItem3](#config-get-config-item3) | 获取文件配置项 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_GetConfigTemplate](#config-get-config-template) | 获取配置模板 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId} | [Config_GetEnvironment](#config-get-environment) | 获取环境详情 |
-| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name | [Config_GetEnvironmentByName](#config-get-environment-by-name) | 根据环境名称获取环境 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name | [Config_GetEnvironmentByName](#config-get-environment-by-name) | 根据环境名称获取环境 |
 | GET | /api/v1/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName](#config-get-group-by-name) | 按名称获取分组 |
 | GET | /api/v1/inner/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName2](#config-get-group-by-name2) | 按名称获取分组 |
-| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search | [Config_GetGroupByName3](#config-get-group-by-name3) | 按名称获取分组 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName} | [Config_GetGroupByName3](#config-get-group-by-name3) | 按名称获取分组 |
 | GET | /api/v1/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView](#config-get-process-config-view) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/inner/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance_topo | [Config_GetProcessInstanceTopo](#config-get-process-instance-topo) | 进程实例拓扑 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId} | [Config_GetProject](#config-get-project) | 获取项目详情 |
-| GET | /api/v1/config/biz/{bizId}/projects:query_by_key | [Config_GetProjectByKey](#config-get-project-by-key) | 根据项目key获取项目 |
+| GET | /api/v1/config/biz/{bizId}/projects/query/by_key | [Config_GetProjectByKey](#config-get-project-by-key) | 根据项目key获取项目 |
 | GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName](#config-get-release-by-name) | 按服务版本名 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName2](#config-get-release-by-name2) | 按服务版本名 |
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName3](#config-get-release-by-name3) | 按服务版本名 |
@@ -78,7 +78,7 @@
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/config_items | [Config_ListConfigItems3](#config-list-config-items3) | 获取文件配置项列表 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate](#config-list-config-template) | 配置模板列表 |
 | POST | /api/v1/inner/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate2](#config-list-config-template2) | 配置模板列表 |
-| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs:list | [Config_ListEnvironments](#config-list-environments) | 环境管理 |
+| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/list | [Config_ListEnvironments](#config-list-environments) | 环境管理 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs](#config-list-kvs) | 获取键值配置项列表 |
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs2](#config-list-kvs2) | 获取键值配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/kvs/list | [Config_ListKvs3](#config-list-kvs3) | 获取键值配置项列表 |
@@ -88,7 +88,7 @@
 进程列表 |
 | POST | /api/v1/config/biz_id/{bizId}/process/inner_ips | [Config_ListProcessInnerIPs](#config-list-process-inner-i-ps) | 进程 IP 查询：按 expression_scope 过滤命中进程，返回去重后的内网 IP 列表（对齐 gsekit process_status） |
 | POST | /api/v1/inner/config/biz_id/{bizId}/process/inner_ips | [Config_ListProcessInnerIPs2](#config-list-process-inner-i-ps2) | 进程 IP 查询：按 expression_scope 过滤命中进程，返回去重后的内网 IP 列表（对齐 gsekit process_status） |
-| POST | /api/v1/config/biz/{bizId}/projects:list | [Config_ListProjects](#config-list-projects) | 项目管理 |
+| POST | /api/v1/config/biz/{bizId}/projects/list | [Config_ListProjects](#config-list-projects) | 项目管理 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems](#config-list-released-config-items) | 获取已发布文件配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems2](#config-list-released-config-items2) | 获取已发布文件配置项列表 |
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems3](#config-list-released-config-items3) | 获取已发布文件配置项列表 |
@@ -2244,7 +2244,7 @@ Content-Type: application/json
 ### <span id="config-get-environment-by-name"></span> 根据环境名称获取环境 (*Config_GetEnvironmentByName*)
 
 ```
-GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name
 ```
 
 #### 输入参数
@@ -2263,7 +2263,7 @@ GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name
 #### 输入示例
 
 ```bash
-GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs:query_by_name HTTP/1.1
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/query/by_name HTTP/1.1
 Content-Type: application/json
 
 
@@ -2346,7 +2346,7 @@ Content-Type: application/json
 ### <span id="config-get-group-by-name3"></span> 按名称获取分组 (*Config_GetGroupByName3*)
 
 ```
-GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName}
 ```
 
 #### 输入参数
@@ -2354,8 +2354,8 @@ GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search
 | 参数名称 | 类型 | 是否必填 | 描述 |
 |------|--------|------|---------|
 | bizId | int64 (formatted integer) | ✓ | 业务ID |
+| groupName | string | ✓ | 分组名 |
 | projectId | int64 (formatted integer) | ✓ | 项目ID |
-| groupName | string |  | 分组名 |
 
 #### 输出参数
 
@@ -2365,7 +2365,7 @@ GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search
 #### 输入示例
 
 ```bash
-GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups:search HTTP/1.1
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName} HTTP/1.1
 Content-Type: application/json
 
 
@@ -2509,7 +2509,7 @@ Content-Type: application/json
 ### <span id="config-get-project-by-key"></span> 根据项目key获取项目 (*Config_GetProjectByKey*)
 
 ```
-GET /api/v1/config/biz/{bizId}/projects:query_by_key
+GET /api/v1/config/biz/{bizId}/projects/query/by_key
 ```
 
 #### 输入参数
@@ -2527,7 +2527,7 @@ GET /api/v1/config/biz/{bizId}/projects:query_by_key
 #### 输入示例
 
 ```bash
-GET /api/v1/config/biz/{bizId}/projects:query_by_key HTTP/1.1
+GET /api/v1/config/biz/{bizId}/projects/query/by_key HTTP/1.1
 Content-Type: application/json
 
 
@@ -3163,7 +3163,7 @@ Content-Type: application/json
 ### <span id="config-list-environments"></span> 环境管理 (*Config_ListEnvironments*)
 
 ```
-POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs:list
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/list
 ```
 
 #### 输入参数
@@ -3185,7 +3185,7 @@ POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs:list
 #### 输入示例
 
 ```bash
-POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs:list HTTP/1.1
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/list HTTP/1.1
 Content-Type: application/json
 
 {
@@ -3707,7 +3707,7 @@ Content-Type: application/json
 ### <span id="config-list-projects"></span> 项目管理 (*Config_ListProjects*)
 
 ```
-POST /api/v1/config/biz/{bizId}/projects:list
+POST /api/v1/config/biz/{bizId}/projects/list
 ```
 
 #### 输入参数
@@ -3728,7 +3728,7 @@ POST /api/v1/config/biz/{bizId}/projects:list
 #### 输入示例
 
 ```bash
-POST /api/v1/config/biz/{bizId}/projects:list HTTP/1.1
+POST /api/v1/config/biz/{bizId}/projects/list HTTP/1.1
 Content-Type: application/json
 
 {

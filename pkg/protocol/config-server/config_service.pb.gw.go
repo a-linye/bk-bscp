@@ -28717,10 +28717,6 @@ func local_request_Config_GetGroupByName_1(ctx context.Context, marshaler runtim
 
 }
 
-var (
-	filter_Config_GetGroupByName_2 = &utilities.DoubleArray{Encoding: map[string]int{"biz_id": 0, "bizId": 1, "project_id": 2, "projectId": 3}, Base: []int{1, 1, 2, 3, 4, 0, 0, 0, 0}, Check: []int{0, 1, 1, 1, 1, 2, 3, 4, 5}}
-)
-
 func request_Config_GetGroupByName_2(ctx context.Context, marshaler runtime.Marshaler, client ConfigClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetGroupByNameReq
 	var metadata runtime.ServerMetadata
@@ -28752,11 +28748,14 @@ func request_Config_GetGroupByName_2(ctx context.Context, marshaler runtime.Mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "project_id", err)
 	}
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	val, ok = pathParams["group_name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "group_name")
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Config_GetGroupByName_2); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+
+	protoReq.GroupName, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "group_name", err)
 	}
 
 	msg, err := client.GetGroupByName(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -28795,11 +28794,14 @@ func local_request_Config_GetGroupByName_2(ctx context.Context, marshaler runtim
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "project_id", err)
 	}
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	val, ok = pathParams["group_name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "group_name")
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Config_GetGroupByName_2); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+
+	protoReq.GroupName, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "group_name", err)
 	}
 
 	msg, err := server.GetGroupByName(ctx, &protoReq)
@@ -44691,7 +44693,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListAppsBySpaceRest", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:list"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListAppsBySpaceRest", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -44741,7 +44743,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/CloneApp", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:clone"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/CloneApp", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/clone"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -46391,7 +46393,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteHook", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:batch_delete"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteHook", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -46541,7 +46543,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListHookTags", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:tags"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListHookTags", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/query/tags"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -47316,7 +47318,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/CreateDefaultTmplSpace", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces:createDefault"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/CreateDefaultTmplSpace", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces/default"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -50241,7 +50243,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteTemplateVariable", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:batch_delete"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteTemplateVariable", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -50341,7 +50343,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:list"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -50391,7 +50393,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ImportTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ImportTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -50441,7 +50443,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ImportOtherFormatTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import/{format}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ImportOtherFormatTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import/{format}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -50941,7 +50943,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteGroups", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:batch_delete"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/BatchDeleteGroups", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -51216,7 +51218,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetGroupByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:search"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetGroupByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/name/{group_name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -51316,7 +51318,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListGroupSelector", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:selector/{label_name}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListGroupSelector", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/selector/{label_name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55041,7 +55043,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListProjects", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects:list"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListProjects", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55166,7 +55168,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListEnvironments", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:list"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/ListEnvironments", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55291,7 +55293,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetProjectByKey", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects:query_by_key"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetProjectByKey", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/query/by_key"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55316,7 +55318,7 @@ func RegisterConfigHandlerServer(ctx context.Context, mux *runtime.ServeMux, ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetEnvironmentByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:query_by_name"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/pbcs.Config/GetEnvironmentByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/query/by_name"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55713,7 +55715,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListAppsBySpaceRest", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:list"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListAppsBySpaceRest", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -55757,7 +55759,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/CloneApp", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps:clone"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/CloneApp", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/clone"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -57209,7 +57211,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteHook", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:batch_delete"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteHook", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -57341,7 +57343,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListHookTags", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks:tags"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListHookTags", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/query/tags"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -58023,7 +58025,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/CreateDefaultTmplSpace", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces:createDefault"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/CreateDefaultTmplSpace", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_spaces/default"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -60597,7 +60599,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteTemplateVariable", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:batch_delete"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteTemplateVariable", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -60685,7 +60687,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:list"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -60729,7 +60731,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ImportTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ImportTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -60773,7 +60775,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ImportOtherFormatTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables:import/{format}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ImportOtherFormatTemplateVariables", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/template_variables/import/{format}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -61213,7 +61215,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteGroups", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:batch_delete"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/BatchDeleteGroups", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/batch_delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -61455,7 +61457,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetGroupByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:search"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetGroupByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/name/{group_name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -61543,7 +61545,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListGroupSelector", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups:selector/{label_name}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListGroupSelector", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/selector/{label_name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -64821,7 +64823,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListProjects", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects:list"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListProjects", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -64931,7 +64933,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListEnvironments", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:list"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/ListEnvironments", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -65041,7 +65043,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetProjectByKey", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects:query_by_key"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetProjectByKey", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/query/by_key"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -65063,7 +65065,7 @@ func RegisterConfigHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetEnvironmentByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs:query_by_name"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/pbcs.Config/GetEnvironmentByName", runtime.WithHTTPPathPattern("/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/query/by_name"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -65133,11 +65135,11 @@ var (
 
 	pattern_Config_ListAppsBySpaceRest_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 4, 2, 5, 1, 0, 4, 1, 5, 5}, []string{"api", "v1", "config", "list", "app", "biz_id"}, ""))
 
-	pattern_Config_ListAppsBySpaceRest_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8, 2, 9}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id", "apps"}, "list"))
+	pattern_Config_ListAppsBySpaceRest_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8, 2, 9, 2, 10}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id", "apps", "list"}, ""))
 
 	pattern_Config_CloneApp_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "config", "biz", "biz_id", "clone_app"}, ""))
 
-	pattern_Config_CloneApp_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8, 2, 9}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id", "apps"}, "clone"))
+	pattern_Config_CloneApp_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8, 2, 9, 2, 10}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id", "apps", "clone"}, ""))
 
 	pattern_Config_CreateConfigItem_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 4, 2, 5, 1, 0, 4, 1, 5, 5, 2, 6, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "create", "config_item", "app_id", "biz_id"}, ""))
 
@@ -65269,7 +65271,7 @@ var (
 
 	pattern_Config_BatchDeleteHook_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "hooks", "batch_delete"}, ""))
 
-	pattern_Config_BatchDeleteHook_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "hooks"}, "batch_delete"))
+	pattern_Config_BatchDeleteHook_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "hooks", "batch_delete"}, ""))
 
 	pattern_Config_UpdateHook_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "hooks", "hook_id"}, ""))
 
@@ -65281,7 +65283,7 @@ var (
 
 	pattern_Config_ListHookTags_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "config", "biz", "biz_id", "hook_tags"}, ""))
 
-	pattern_Config_ListHookTags_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "hooks"}, "tags"))
+	pattern_Config_ListHookTags_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8, 2, 9}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "hooks", "query", "tags"}, ""))
 
 	pattern_Config_GetHook_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "hooks", "hook_id"}, ""))
 
@@ -65343,7 +65345,7 @@ var (
 
 	pattern_Config_CreateDefaultTmplSpace_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "config", "template_spaces", "default"}, ""))
 
-	pattern_Config_CreateDefaultTmplSpace_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_spaces"}, "createDefault"))
+	pattern_Config_CreateDefaultTmplSpace_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_spaces", "default"}, ""))
 
 	pattern_Config_ListTmplSpacesByIDs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_spaces", "list_by_ids"}, ""))
 
@@ -65577,7 +65579,7 @@ var (
 
 	pattern_Config_BatchDeleteTemplateVariable_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "batch_delete"}, ""))
 
-	pattern_Config_BatchDeleteTemplateVariable_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables"}, "batch_delete"))
+	pattern_Config_BatchDeleteTemplateVariable_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables", "batch_delete"}, ""))
 
 	pattern_Config_UpdateTemplateVariable_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "template_variable_id"}, ""))
 
@@ -65585,15 +65587,15 @@ var (
 
 	pattern_Config_ListTemplateVariables_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "list"}, ""))
 
-	pattern_Config_ListTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables"}, "list"))
+	pattern_Config_ListTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables", "list"}, ""))
 
 	pattern_Config_ImportTemplateVariables_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "import"}, ""))
 
-	pattern_Config_ImportTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables"}, "import"))
+	pattern_Config_ImportTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables", "import"}, ""))
 
 	pattern_Config_ImportOtherFormatTemplateVariables_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "format", "import"}, ""))
 
-	pattern_Config_ImportOtherFormatTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables:import", "format"}, ""))
+	pattern_Config_ImportOtherFormatTemplateVariables_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8, 1, 0, 4, 1, 5, 9}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "template_variables", "import", "format"}, ""))
 
 	pattern_Config_GetTemplateVariable_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "template_variables", "template_variable_id"}, ""))
 
@@ -65633,7 +65635,7 @@ var (
 
 	pattern_Config_BatchDeleteGroups_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "groups", "batch_delete"}, ""))
 
-	pattern_Config_BatchDeleteGroups_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups"}, "batch_delete"))
+	pattern_Config_BatchDeleteGroups_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups", "batch_delete"}, ""))
 
 	pattern_Config_UpdateGroup_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "groups", "group_id"}, ""))
 
@@ -65655,7 +65657,7 @@ var (
 
 	pattern_Config_GetGroupByName_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6, 2, 7, 2, 8, 1, 0, 4, 1, 5, 9}, []string{"api", "v1", "inner", "config", "biz", "biz_id", "groups", "query", "name", "group_name"}, ""))
 
-	pattern_Config_GetGroupByName_2 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups"}, "search"))
+	pattern_Config_GetGroupByName_2 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8, 2, 9, 1, 0, 4, 1, 5, 10}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups", "query", "name", "group_name"}, ""))
 
 	pattern_Config_GetGroup_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "groups", "group_id"}, ""))
 
@@ -65663,7 +65665,7 @@ var (
 
 	pattern_Config_ListGroupSelector_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6, 1, 0, 4, 1, 5, 7}, []string{"api", "v1", "config", "biz", "biz_id", "groups", "selector", "label_name"}, ""))
 
-	pattern_Config_ListGroupSelector_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups:selector", "label_name"}, ""))
+	pattern_Config_ListGroupSelector_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8, 2, 9, 1, 0, 4, 1, 5, 10}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "groups", "query", "selector", "label_name"}, ""))
 
 	pattern_Config_Publish_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 5, 2, 6, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 7, 2, 8, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "config", "update", "strategy", "publish", "release_id", "app_id", "biz_id"}, ""))
 
@@ -65961,7 +65963,7 @@ var (
 
 	pattern_Config_GetProcessConfigView_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "inner", "config", "biz_id", "process_config_view"}, ""))
 
-	pattern_Config_ListProjects_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "config", "biz", "biz_id", "projects"}, "list"))
+	pattern_Config_ListProjects_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "list"}, ""))
 
 	pattern_Config_GetProject_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id"}, ""))
 
@@ -65971,7 +65973,7 @@ var (
 
 	pattern_Config_DeleteProject_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id"}, ""))
 
-	pattern_Config_ListEnvironments_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs"}, "list"))
+	pattern_Config_ListEnvironments_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "list"}, ""))
 
 	pattern_Config_GetEnvironment_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id"}, ""))
 
@@ -65981,9 +65983,9 @@ var (
 
 	pattern_Config_DeleteEnvironment_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 8}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "env_id"}, ""))
 
-	pattern_Config_GetProjectByKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "config", "biz", "biz_id", "projects"}, "query_by_key"))
+	pattern_Config_GetProjectByKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "query", "by_key"}, ""))
 
-	pattern_Config_GetEnvironmentByName_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs"}, "query_by_name"))
+	pattern_Config_GetEnvironmentByName_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 2, 8, 2, 9}, []string{"api", "v1", "config", "biz", "biz_id", "projects", "project_id", "envs", "query", "by_name"}, ""))
 
 	pattern_Config_EnsureDefaultProjectEnv_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "config", "biz_id", "ensure_default_project_env"}, ""))
 )

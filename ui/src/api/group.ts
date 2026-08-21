@@ -95,7 +95,7 @@ export const deleteGroup = (biz_id: string, group_id: number, projectId?: string
  * @returns
  */
 export const batchDeleteGroup = (biz_id: string, projectId?: string, ids: number[]) =>
-  http.post(`/config/biz/${biz_id}/projects/${projectId}/groups:batch_delete`, { ids });
+  http.post(`/config/biz/${biz_id}/projects/${projectId}/groups/batch_delete`, { ids });
 
 /**
  * 获取分组已上线服务
@@ -116,4 +116,4 @@ export const getGroupReleasedApps = (biz_id: string, group_id: number, params: I
  * @returns
  */
 export const getGroupSelector = (biz_id: string, label_name: string, projectId: string) =>
-  http.get(`/config/biz/${biz_id}/projects/${projectId}/groups:selector/${label_name}`).then((res) => res.data);
+  http.get(`/config/biz/${biz_id}/projects/${projectId}/groups/query/selector/${label_name}`).then((res) => res.data);

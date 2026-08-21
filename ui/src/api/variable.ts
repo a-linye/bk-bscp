@@ -12,7 +12,7 @@ import { IVariableEditParams, IVariableImportParams } from '../../types/variable
 export const getVariableList = (biz_id: string, project_id: string, params: ICommonQuery) => {
   // 兼容处理：若 project_id 为空，使用无项目路径（配置模板等 space-level 场景）
   const path = project_id
-    ? `/config/biz/${biz_id}/projects/${project_id}/template_variables:list`
+    ? `/config/biz/${biz_id}/projects/${project_id}/template_variables/list`
     : `/config/biz/${biz_id}/template_variables/list`;
   return http.post(path, params).then((res) => res.data);
 };
@@ -60,7 +60,7 @@ export const deleteVariable = (biz_id: string, project_id: string, template_vari
  * @param exclusion_operation 是否跨页
  */
 export const batchDeleteVariable = (biz_id: string, project_id: string, ids: number[], exclusion_operation: boolean) =>
-  http.post(`/config/biz/${biz_id}/projects/${project_id}/template_variables:batch_delete`, { ids, exclusion_operation });
+  http.post(`/config/biz/${biz_id}/projects/${project_id}/template_variables/batch_delete`, { ids, exclusion_operation });
 
 /**
  * 获取未命名版本服务变量列表
@@ -151,7 +151,7 @@ export const getReleasedAppVariablesCitedDetail = (
  * @returns
  */
 export const importVariablesText = (biz_id: string, project_id: string, params: IVariableImportParams) =>
-  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables:import`, params);
+  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables/import`, params);
 
 /**
  * 批量导入JSON
@@ -161,7 +161,7 @@ export const importVariablesText = (biz_id: string, project_id: string, params: 
  * @returns
  */
 export const importVariablesJSON = (biz_id: string, project_id: string, content: string) =>
-  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables:import/json`, { data: content });
+  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables/import/json`, { data: content });
 
 /**
  * 批量导入YAML
@@ -171,7 +171,7 @@ export const importVariablesJSON = (biz_id: string, project_id: string, content:
  * @returns
  */
 export const importVariablesYaml = (biz_id: string, project_id: string, content: string) =>
-  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables:import/yaml`, { data: content });
+  http.post(`config/biz/${biz_id}/projects/${project_id}/template_variables/import/yaml`, { data: content });
 
 /**
  * 导出变量
