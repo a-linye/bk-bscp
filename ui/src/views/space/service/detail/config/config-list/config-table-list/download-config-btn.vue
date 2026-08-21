@@ -57,6 +57,7 @@
         const res = await getTemplateVersionDetail(
           bkBizId,
           projectId.value,
+          envId,
           appId,
           versionData.value.id,
           id);

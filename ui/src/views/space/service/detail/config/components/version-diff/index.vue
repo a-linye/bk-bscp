@@ -308,5 +308,8 @@
     .bk-modal-body {
       transform: none;
     }
+    .bk-sideslider-footer {
+      padding: 0;
+    }
   }
 </style>

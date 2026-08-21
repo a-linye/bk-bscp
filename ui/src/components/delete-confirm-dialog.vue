@@ -49,6 +49,9 @@
       .bk-dialog-header .bk-dialog-title {
         white-space: normal;
       }
+      .bk-dialog-content {
+        line-height: 1.5;
+      }
     }
   }
 </style>

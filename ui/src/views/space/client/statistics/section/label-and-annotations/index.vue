@@ -49,6 +49,8 @@
           :select-dimension="selectDimension.minorDimension"
           :drill-dimension="selectDimension.drillDownDimension"
           :bk-biz-id="bkBizId"
+          :project-id="projectId"
+          :env-id="envId"
           :app-id="appId"
           :is-stack="selectDimension.isStack"
           @select="handleSelectDimension" />

@@ -639,12 +639,13 @@ export const getTemplateVersionsDetailByIds = (biz_id: string, projectId: string
 export const getTemplateVersionDetail = (
   biz_id: string,
   projectId: string,
+  envId: string,
   app_id: number,
   release_id: number,
   template_revision_id: number,
 ) =>
   http
-    .get(`/config/biz/${biz_id}/projects/${projectId}/apps/${app_id}/releases/${release_id}/template_revisions/${template_revision_id}`)
+    .get(`/config/biz/${biz_id}/projects/${projectId}/envs/${envId}/apps/${app_id}/releases/${release_id}/template_revisions/${template_revision_id}`)
     .then((res) => res.data);
 
 /**

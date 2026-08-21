@@ -4,8 +4,7 @@
     :title="t('批量导入')"
     :theme="'primary'"
     width="960"
-    height="720"
-    ext-cls="import-file-dialog"
+    class="import-file-dialog"
     :before-close="handleBeforeClose"
     :quick-close="false"
     @closed="handleClose">
@@ -620,9 +619,18 @@
 
 <style lang="scss">
   .import-file-dialog {
+    .bk-dialog-header {
+      padding-bottom: 12px;
+    }
+    .bk-modal-wrapper {
+      height: 720px;
+    }
     .bk-modal-content {
-      height: calc(100% - 50px) !important;
+      height: calc(100% - 103px) !important;
       overflow: auto;
+    }
+    .bk-dialog-content {
+      margin-top: 0;
     }
   }
 </style>

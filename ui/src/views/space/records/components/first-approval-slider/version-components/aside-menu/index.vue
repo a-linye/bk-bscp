@@ -14,6 +14,7 @@
         :current-version-id="props.currentVersionId"
         :selected-id="props.selectedKvConfigId"
         :actived="selectedType === 'config'"
+        :env-id="envId"
         :app-id="props.appId"
         @selected="handleSelect($event, 'config')"
         @render="emits('render', $event)" />
@@ -46,6 +47,7 @@
     unNamedVersionVariables?: IVariableEditParams[];
     selectedConfig?: IConfigDiffSelected;
     selectedKvConfigId?: number;
+    envId: string;
     appId: number;
   }>();
 

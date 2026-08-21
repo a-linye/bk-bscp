@@ -594,7 +594,7 @@
     const resp = await approve(
       props.spaceId,
       props.projectId,
-      props.envId,
+      confirmData.value.envId,
       confirmData.value.serviceId,
       confirmData.value.releaseId,
       { publish_status: APPROVE_STATUS.already_publish,});

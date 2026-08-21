@@ -208,7 +208,7 @@
         <bk-table :data="appList" :max-height="maxTableHeight" :empty-text="t('暂无未命名版本引用此脚本')">
           <bk-table-column :label="t('引用此脚本的服务')">
             <template #default="{ row }">
-              <div class="app-info" @click="goToConfigPageImport(row.app_id)">
+              <div class="app-info" @click="goToConfigPageImport(row)">
                 <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                 <LinkToApp class="link-icon" :id="row.app_id" :auto-jump="true" />
               </div>
@@ -262,6 +262,7 @@
   interface IAppItem {
     app_id: number;
     app_name: string;
+    env_id: string;
   }
   const showCreateScript = ref(false);
   const showCiteSlider = ref(false);
@@ -472,10 +473,11 @@
     };
     const res = await getScriptCiteList(spaceId.value, projectId.value, script.hook.id, params);
     const allAppInfo = res.details.map((item: any) => {
-      const { app_id, app_name } = item;
+      const { app_id, app_name, env_id } = item;
       return {
         app_id,
         app_name,
+        env_id,
       };
     });
     appList.value = Array.from(
@@ -503,10 +505,10 @@
     getScripts();
   };
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IAppItem) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
     });
     window.open(href, '_blank');
   };

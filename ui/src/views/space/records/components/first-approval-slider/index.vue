@@ -3,6 +3,7 @@
     :btn-loading="props.btnLoading"
     :show="props.show"
     :current-version="props.currentVersion"
+    :env-id="envId"
     :app-id="props.appId"
     @publish="emits('publish')"
     @update:show="emits('close')">
@@ -14,6 +15,8 @@
           <ReleasedGroupViewer
             placement="bottom-start"
             :bk-biz-id="props.bkBizId"
+            :project-id="projectId"
+            :env-id="envId"
             :app-id="props.appId"
             :groups="props.currentVersionGroups"
             :is-pending="true">
@@ -31,6 +34,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     show: boolean;
     currentVersion: IConfigVersion; // 当前版本详情信息

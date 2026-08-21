@@ -15,7 +15,7 @@
         <bk-table-column :label="t('配置文件版本')">{{ props.config.name }}</bk-table-column>
         <bk-table-column :label="t('引用此配置文件的服务')">
           <template #default="{ row }">
-            <bk-link v-if="row.app_id" class="link-btn" theme="primary" target="_blank" :href="getHref(row.app_id)">
+            <bk-link v-if="row.app_id" class="link-btn" theme="primary" target="_blank" :href="getHref(row)">
               {{ row.app_name }}
             </bk-link>
           </template>
@@ -96,8 +96,8 @@
     loading.value = false;
   };
 
-  const getHref = (id: number) => {
-    const { href } = router.resolve({ name: 'service-config', params: { spaceId: props.spaceId, appId: id } });
+  const getHref = (row: IAppBoundByTemplateDetailItem) => {
+    const { href } = router.resolve({ name: 'service-config', params: { spaceId: props.spaceId, envId: row.env_id, appId: row.app_id } });
     return href;
   };
 

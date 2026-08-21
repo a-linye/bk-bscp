@@ -226,7 +226,7 @@
       @apply-perm="checkPermBeforeOperate" />
   </section>
   <bk-dialog
-    ext-cls="delete-service-dialog"
+    class="delete-service-dialog"
     v-model:is-show="isShowDeleteDialog"
     :theme="'primary'"
     :dialog-type="'operation'"
@@ -756,6 +756,9 @@
       }
       tbody td .cell {
         overflow: visible !important;
+        .overflow-popover-reference {
+          display: block !important;
+        }
       }
     }
     .credential-edit {
@@ -886,11 +889,13 @@
 <style lang="scss">
   .delete-service-dialog {
     top: 40% !important;
-    .bk-modal-body {
-      padding-bottom: 104px !important;
-    }
     .bk-modal-header {
       display: none;
+    }
+    .bk-dialog-content {
+      margin-top: 0;
+      margin-bottom: 0;
+      line-height: 1.5;
     }
     .bk-modal-footer {
       height: auto !important;

@@ -1,7 +1,7 @@
 <template>
   <bk-dialog
     :is-show="isShow"
-    ext-cls="batch-op-process-dialog"
+    class="batch-op-process-dialog"
     :dialog-type="'operation'"
     header-align="center"
     :draggable="false"
@@ -93,10 +93,12 @@
       padding-top: 24px !important;
     }
     .bk-modal-content {
-      padding: 0 32px !important;
       height: auto !important;
       overflow: auto;
       min-height: 0 !important;
+    }
+    .bk-dialog-content {
+      padding: 0 32px !important;
     }
     .bk-modal-footer {
       display: none;

@@ -60,7 +60,7 @@
                   }" />
                 <LinkToApp class="link-icon" :id="row.app_id" />
               </div>
-              <div v-else-if="row.app_id" class="app-info" @click="goToConfigPage(row.app_id)">
+              <div v-else-if="row.app_id" class="app-info" @click="goToConfigPage(row)">
                 <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                 <LinkToApp class="link-icon" :id="row.app_id" />
               </div>
@@ -182,10 +182,10 @@
     emits('toggleBtnDisabled', false);
   };
 
-  const goToConfigPage = (id: number) => {
+  const goToConfigPage = (row: IPackagesCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
     });
     window.open(href, '_blank');
   };

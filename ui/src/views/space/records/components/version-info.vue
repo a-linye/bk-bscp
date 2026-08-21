@@ -4,6 +4,8 @@
     <FirstApprovalSlider
       :btn-loading="btnLoading"
       :bk-biz-id="spaceId"
+      :project-id="projectId"
+      :env-id="envId"
       :app-id="appId"
       :show="show"
       :current-version="versionData"
@@ -80,7 +82,16 @@
   watch(
     () => props.show,
     (newV) => {
-      newV ? init() : serviceStore.$reset();
+      if (newV) {
+        init();
+      } else {
+        // 通过 v-if 卸载 FirstApprovalSlider 及其子组件。
+        // 注意：store 的重置不要放在这里（即使配合 nextTick），因为 show 变化经多层
+        // emits 冒泡到这里存在时序差异，无法保证 Configs/ConfigsKv 已先卸载，
+        // 提前重置会触发 isFileType 变化导致其被重新挂载并发起多余请求。
+        // 真正安全的重置时机见 init() 开头（此时 loading 已为 true，内容处于卸载状态）。
+        loading.value = true;
+      }
     },
   );
 
@@ -88,6 +99,8 @@
     const { spaceId, projectId, envId, appId, releaseId } = props;
     try {
       loading.value = true;
+      // 在内容卸载状态下重置 store，避免影响仍可能挂载中的 Configs/ConfigsKv
+      serviceStore.$reset();
       const [versionRes, groupRes, appDetailRes] = await Promise.all([
         getConfigVersionList(spaceId, appId, projectId, envId, { start: 0, all: true }), // 所有版本
         getServiceGroupList(spaceId, appId, projectId, envId), // 所有分组

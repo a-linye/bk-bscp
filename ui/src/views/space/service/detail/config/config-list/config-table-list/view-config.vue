@@ -288,11 +288,12 @@
     try {
       detailLoading.value = true;
       let template_space_id;
-      const { bkBizId, appId, projectId, id } = props;
+      const { bkBizId, appId, projectId, envId, id } = props;
       if (versionData.value.id) {
         const res = await getTemplateVersionDetail(
           bkBizId,
           projectId,
+          envId,
           appId,
           versionData.value.id,
           id);

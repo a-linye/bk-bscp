@@ -10,12 +10,14 @@
     <div style="margin-bottom: 8px">
       {{ t('一旦删除，该操作将无法撤销，以下服务配置的未命名版本中引用该套餐的内容也将清除') }}
     </div>
-    <div class="service-table">
-      <bk-loading style="min-height: 200px" :loading="appsLoading">
-        <bk-table :data="appList" :max-height="maxTableHeight" :empty-text="t('暂无未命名版本引用此套餐')">
+    <div
+      class="service-table"
+      :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '200px', overflowY: 'auto' }">
+      <bk-loading style="display: block; width: 100%" :loading="appsLoading">
+        <bk-table :data="appList" :empty-text="t('暂无未命名版本引用此套餐')">
           <bk-table-column :label="t('引用此套餐的服务')">
             <template #default="{ row }">
-              <div class="app-info" @click="goToConfigPageImport(row.app_id)">
+              <div class="app-info" @click="goToConfigPageImport(row)">
                 <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                 <LinkToApp class="link-icon" :id="row.app_id" :auto-jump="true" />
               </div>
@@ -73,10 +75,10 @@
     },
   );
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IPackageCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
       query: { pkg_id: currentTemplateSpace.value },
     });
     window.open(href, '_blank');

@@ -153,7 +153,7 @@
   <bk-dialog
     v-model:is-show="approvalDialogShow"
     ref="dialog"
-    ext-cls="confirm-dialog"
+    class="confirm-dialog"
     footer-align="center"
     :confirm-text="t('再想想')"
     :cancel-text="t('仍要关闭')"
@@ -211,7 +211,7 @@
       {
         required: true,
         message: t('指定审批人不能为空'),
-        validator: (value: string) => value.length,
+        validator: (value: string) => !!value?.length,
       },
     ],
     name: [
@@ -342,7 +342,7 @@
   .project-env-section {
     position: relative;
     left: -24px;
-    min-width: 640px;
+    min-width: 636px;
     padding: 24px;
     margin-bottom: 24px;
     background-color: #F5F7FA;
@@ -436,32 +436,12 @@
       }
     }
   }
-  :deep(.confirm-dialog) {
-    .bk-modal-body {
-      padding-bottom: 0;
-    }
-    .bk-modal-content {
-      padding: 0 32px;
-      height: auto;
-      max-height: none;
-      min-height: auto;
-      border-radius: 2px;
-    }
-    .bk-modal-footer {
-      position: relative;
-      padding: 24px 0;
-      height: auto;
-      border: none;
-    }
-    .bk-dialog-footer .bk-button {
-      min-width: 88px;
-    }
-  }
   .tip-icon__wrap {
     margin: 0 auto;
     width: 42px;
     height: 42px;
     position: relative;
+    isolation: isolate;
     &::after {
       content: '';
       position: absolute;
@@ -487,5 +467,33 @@
   }
   .user-selector {
     min-width: 100%;
+  }
+</style>
+<style lang="scss">
+  .confirm-dialog {
+    .bk-modal-body {
+      padding-bottom: 0;
+    }
+    .bk-dialog-header {
+      padding-bottom: 12px;
+    }
+    .bk-dialog-content {
+      padding: 0 32px;
+      margin-top: 0;
+      margin-bottom: 0;
+      height: auto;
+      max-height: none;
+      min-height: auto;
+      border-radius: 2px;
+    }
+    .bk-dialog-footer {
+      position: relative;
+      padding: 24px 0;
+      height: auto;
+      border: none;
+    }
+    .bk-dialog-footer .bk-button {
+      min-width: 88px;
+    }
   }
 </style>

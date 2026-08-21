@@ -5,6 +5,7 @@ import useGlobalStore from './global';
 
 interface IAppData {
   id: number | string;
+  env_id: string;
   spec: {
     name: string;
     config_type: string;
@@ -17,6 +18,7 @@ export default defineStore('service', () => {
   // 服务详情数据
   const appData = ref<IAppData>({
     id: '',
+    env_id: '',
     spec: {
       name: '',
       config_type: 'file',

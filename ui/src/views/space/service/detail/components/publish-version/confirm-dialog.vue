@@ -242,6 +242,7 @@
           return true;
         },
         message: t('不能选择过去的时间'),
+        trigger: 'change'
       },
     ],
   };
