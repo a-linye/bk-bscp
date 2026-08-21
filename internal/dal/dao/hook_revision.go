@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	rawgen "gorm.io/gen"
+	"gorm.io/gen/field"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
@@ -308,10 +309,13 @@ func (dao *hookRevisionDao) ListHookRevisionReferences(kit *kit.Kit, opt *types.
 
 	if opt.SearchKey != "" {
 		searchKey := "(?i)" + opt.SearchKey
-		// Where 内嵌表示括号, 例如: q.Where(q.Where(a).Or(b)) => (a or b)
-		// 参考: https://gorm.io/zh_CN/gen/query.html#Group-%E6%9D%A1%E4%BB%B6
-		query = query.Where(query.Where(
-			a.Name.Regexp(searchKey)).Or(r.Name.Regexp(searchKey)).Or(rh.HookRevisionName.Regexp(searchKey)))
+		// field.Or 整体生成带括号的 OR 条件, 嵌套 query.Where(...).Or(...) 会生成无括号的
+		// AND/OR 混合 SQL, AND 优先级高于 OR, 导致绕过 hook/biz 过滤条件
+		query = query.Where(field.Or(
+			a.Name.Regexp(searchKey),
+			r.Name.Regexp(searchKey),
+			rh.HookRevisionName.Regexp(searchKey),
+		))
 	}
 
 	count, err = query.Order(rh.ID.Desc()).ScanByPage(&details, opt.Page.Offset(), opt.Page.LimitInt())
