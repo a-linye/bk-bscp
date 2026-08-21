@@ -137,8 +137,9 @@ func (taskMgr *TaskManager) Dispatch(t *itypes.Task) {
 }
 
 // EnsureTable auto migration
+// 传入 bk-bscp 侧的表结构，避免框架默认结构把负载字段建成 text 导致超长负载被静默截断
 func (taskMgr *TaskManager) EnsureTable(ctx context.Context) error {
-	return task.GetGlobalStorage().EnsureTable(ctx)
+	return task.GetGlobalStorage().EnsureTable(ctx, &Record{}, &StepRecord{})
 }
 
 func parseTLSConfig(tlsConfig *cc.TLSConfig) (*tls.Config, error) {
