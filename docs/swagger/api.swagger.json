@@ -36332,6 +36332,15 @@
         "appName": {
           "type": "string",
           "description": "服务名"
+        },
+        "envDisplay": {
+          "type": "string",
+          "description": "环境"
+        },
+        "envId": {
+          "type": "integer",
+          "format": "int64",
+          "description": "环境ID"
         }
       },
       "description": "MultiTemplateSetBoundUnnamedAppDetail is template set bound unnamed app detail."

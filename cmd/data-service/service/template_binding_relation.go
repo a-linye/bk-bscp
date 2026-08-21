@@ -1001,6 +1001,8 @@ func (s *Service) ListMultiTmplSetBoundUnnamedApps(ctx context.Context, req *pbd
 				TemplateSetName: tmplSetMap[tmplSetID].Spec.Name,
 				AppId:           id,
 				AppName:         appMap[id].Spec.Name,
+				EnvDisplay:      appMap[id].Spec.EnvDisplay,
+				EnvId:           appMap[id].EnvID,
 			})
 		}
 
