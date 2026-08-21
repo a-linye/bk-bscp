@@ -711,6 +711,10 @@ func (cm ClientMode) String() string {
 type ClientMetricData struct {
 	MessagingType uint32
 	Payload       []byte
+	// TenantID 由 feed-server 在入队前按请求上下文解析并写入。cache-service 消费时直接沿用，
+	// 不再按 biz_id 反查租户，避免反查缓存陈旧或两侧租户开关不一致时把客户端数据写到错误的租户下。
+	// 旧版本 feed-server 入队的数据不带该字段，消费侧需保留反查兜底。
+	TenantID string `json:",omitempty"`
 }
 
 // HeartbeatItem 单个服务心跳数据

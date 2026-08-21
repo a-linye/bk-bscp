@@ -159,8 +159,11 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 	vcClient := map[string]*pbclient.Client{}
 	vcClientEvent := map[string]*pbce.ClientEvent{}
 
-	clientMetricData := sfs.ClientMetricData{}
+	// feed-server 入队时按请求上下文写入的租户，key 为 bizID
+	payloadTenants := make(map[uint32]string)
+
 	for _, v := range payload {
+		clientMetricData := sfs.ClientMetricData{}
 		err := jsoni.Unmarshal([]byte(v), &clientMetricData)
 		if err != nil {
 			return err
@@ -171,6 +174,9 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 			hb := new(sfs.HeartbeatItem)
 			if err := hb.Decode(clientMetricData.Payload); err != nil {
 				return err
+			}
+			if clientMetricData.TenantID != "" {
+				payloadTenants[hb.BasicData.BizID] = clientMetricData.TenantID
 			}
 
 			clientMetric, errHb := hb.PbClientMetric()
@@ -191,6 +197,9 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 			vc := new(sfs.VersionChangePayload)
 			if err := vc.Decode(clientMetricData.Payload); err != nil {
 				return err
+			}
+			if clientMetricData.TenantID != "" {
+				payloadTenants[vc.BasicData.BizID] = clientMetricData.TenantID
 			}
 
 			clientMetric, errCeVc := vc.PbClientMetric()
@@ -225,19 +234,10 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 		clientEventData = append(clientEventData, v)
 	}
 
-	var bizTenantMap map[uint32]string
-	var err error
-	if cc.G().FeatureFlags.EnableMultiTenantMode {
-		bizTenantMap, err = cm.buildBizTenantMapMultiTenant(kt, clientData)
-		if err != nil {
-			logs.Errorf("build biz tenant map multi tenant failed, rid: %s, err: %s", kt.Rid, err.Error())
-			return err
-		}
-	} else {
-		kt = kt.Clone()
-		kt.TenantID = constant.DefaultTenantID
-		kt.Ctx = kt.RpcCtx()
-		bizTenantMap = buildBizTenantMapDefaultTenant(clientData)
+	bizTenantMap, err := cm.buildBizTenantMap(kt, clientData, payloadTenants)
+	if err != nil {
+		logs.Errorf("build biz tenant map failed, rid: %s, err: %s", kt.Rid, err.Error())
+		return err
 	}
 
 	tenantClients := make(map[string][]*pbclient.Client)
@@ -265,35 +265,42 @@ func (cm *ClientMetric) handleClientMetricData(kt *kit.Kit, payload []string) er
 	return nil
 }
 
-// buildBizTenantMapMultiTenant 按 bizID 解析租户
-func (cm *ClientMetric) buildBizTenantMapMultiTenant(kt *kit.Kit, clientData []*pbclient.Client) (map[uint32]string, error) {
-	bizTenantMap := make(map[uint32]string)
+// buildBizTenantMap 解析每个业务对应的租户。
+//
+// 优先使用 feed-server 入队时写入 payload 的租户：它是按 sidecar 请求上下文解析出来的，
+// 与该次上报真实所属的租户一致。只有旧版本 feed-server 入队的数据不带租户时，才退化为按
+// biz_id 反查。反查依赖 Redis 中 biz→tenant 的缓存，缓存陈旧时会把数据写到错误的租户下。
+func (cm *ClientMetric) buildBizTenantMap(kt *kit.Kit, clientData []*pbclient.Client,
+	payloadTenants map[uint32]string) (map[uint32]string, error) {
+
+	bizTenantMap := make(map[uint32]string, len(payloadTenants))
 	for _, item := range clientData {
 		bizID := item.Attachment.BizId
 		if _, ok := bizTenantMap[bizID]; ok {
 			continue
 		}
+
+		if tenantID := payloadTenants[bizID]; tenantID != "" {
+			bizTenantMap[bizID] = tenantID
+			continue
+		}
+
+		if !cc.G().FeatureFlags.EnableMultiTenantMode {
+			bizTenantMap[bizID] = constant.DefaultTenantID
+			continue
+		}
+
 		tenantID, err := cm.op.GetTenantIDByBiz(kt, bizID, false)
 		if err != nil {
 			logs.Errorf("resolve tenant id for biz %d failed, rid: %s, err: %s", bizID, kt.Rid, err.Error())
 			return nil, err
 		}
+		if tenantID == "" {
+			return nil, fmt.Errorf("resolve empty tenant id for biz %d in multi-tenant mode", bizID)
+		}
 		bizTenantMap[bizID] = tenantID
 	}
 	return bizTenantMap, nil
-}
-
-// buildBizTenantMapDefaultTenant 单租户模式：所有 biz 统一映射到默认租户。
-func buildBizTenantMapDefaultTenant(clientData []*pbclient.Client) map[uint32]string {
-	m := make(map[uint32]string)
-	for _, item := range clientData {
-		bizID := item.Attachment.BizId
-		if _, ok := m[bizID]; ok {
-			continue
-		}
-		m[bizID] = constant.DefaultTenantID
-	}
-	return m
 }
 
 // matchKeys xxx

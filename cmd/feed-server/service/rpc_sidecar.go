@@ -192,6 +192,14 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	// sidecar 不携带租户信息，正常情况下 FeedEnsureTenantInterceptor 已解析并写入 metadata。
+	// 这里再兜底一次，确保上报数据入队时能带上租户，否则 cache-service 落库会退化成反查。
+	if im.Meta.BizID != 0 {
+		if errT := s.bll.AppCache().EnsureTenantID(im.Kit, im.Meta.BizID); errT != nil {
+			logs.Errorf("ensure tenant id failed, biz: %d, err: %v, rid: %s", im.Meta.BizID, errT, im.Kit.Rid)
+		}
+	}
+
 	projectID, envID, err := resolveProjectEnv(im, s.bll.AppCache())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -261,6 +269,7 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 			clientMetricData[appID] = &sfs.ClientMetricData{
 				MessagingType: msg.Type,
 				Payload:       payload,
+				TenantID:      im.Kit.TenantID,
 			}
 
 			s.clientEventChangeRecord(vc.BasicData, vc.Application)
@@ -302,6 +311,7 @@ func (s *Service) Messaging(ctx context.Context, msg *pbfs.MessagingMeta) (*pbfs
 					clientMetricData[appID] = &sfs.ClientMetricData{
 						MessagingType: msg.Type,
 						Payload:       marshal,
+						TenantID:      im.Kit.TenantID,
 					}
 				}
 			}
