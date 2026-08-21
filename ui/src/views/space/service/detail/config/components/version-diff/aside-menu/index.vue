@@ -3,6 +3,8 @@
     <div class="config-list-apart" :class="{ 'config-list-kv': !isFileType }">
       <Configs
         v-if="isFileType"
+        :project-id="props.projectId"
+        :env-id="props.envId"
         :base-version-id="props.baseVersionId"
         :current-version-id="props.currentVersionId"
         :un-named-version-variables="props.unNamedVersionVariables"
@@ -14,6 +16,8 @@
       <ConfigsKv
         v-else
         :app-id="props.appId"
+        :project-id="props.projectId"
+        :env-id="props.envId"
         :base-version-id="props.baseVersionId"
         :current-version-id="props.currentVersionId"
         :selected-id="props.selectedKvConfigId"
@@ -24,6 +28,8 @@
     </div>
     <Scripts
       v-if="isFileType"
+      :project-id="props.projectId"
+      :env-id="props.envId"
       :base-version-id="props.baseVersionId"
       :current-version-id="props.currentVersionId"
       :actived="selectedType === 'script'"
@@ -47,6 +53,8 @@
 
   const props = defineProps<{
     appId?: number;
+    projectId: string;
+    envId: string;
     baseVersionId: number;
     currentVersionId: number;
     unNamedVersionVariables?: IVariableEditParams[];

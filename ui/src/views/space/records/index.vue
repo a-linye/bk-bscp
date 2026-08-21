@@ -26,7 +26,6 @@
     <record-table
       :space-id="spaceId"
       :project-id="projectId"
-      :env-id="envId"
       :search-params="searchParams"
       @handle-table-filter="optionParams = $event" />
   </section>

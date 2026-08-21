@@ -3,6 +3,7 @@
     :btn-loading="props.btnLoading"
     :show="props.show"
     :current-version="props.currentVersion"
+    :project-id="projectId"
     :env-id="envId"
     :app-id="props.appId"
     @publish="emits('publish')"

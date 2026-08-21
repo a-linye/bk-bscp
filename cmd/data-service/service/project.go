@@ -219,9 +219,10 @@ func (s *Service) CreateProject(ctx context.Context, req *pbds.CreateProjectReq)
 	// 3. 在同一事务中自动创建默认生产环境
 	_, err = s.dao.Environment().CreateWithTx(kt, tx, &table.Environment{
 		Spec: &table.EnvironmentSpec{
-			Name: table.DefaultEnvName,
-			Type: table.EnvironmentTypeProd,
-			Memo: "Default production environment automatically created.",
+			Name:      table.DefaultEnvName,
+			Type:      table.EnvironmentTypeProd,
+			Memo:      "Default production environment automatically created.",
+			Protected: true,
 		},
 		Attachment: &table.EnvironmentAttachment{
 			TenantID:  kt.TenantID,

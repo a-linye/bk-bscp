@@ -135,6 +135,8 @@
   const { t, locale } = useI18n();
   const props = withDefaults(
     defineProps<{
+      projectId: string;
+      envId: string;
       currentVersionId: number;
       unNamedVersionVariables?: IVariableEditParams[]; // 未命名版本变量列表
       baseVersionId: number | undefined;
@@ -152,8 +154,6 @@
 
   const route = useRoute();
   const bkBizId = ref(String(route.params.spaceId));
-  const projectId = ref(String(route.params.projectId));
-  const envId = ref(String(route.params.envId));
   const { appData } = storeToRefs(useServiceStore());
 
   const diffCount = ref(0);
@@ -265,13 +265,13 @@
     let configsRes;
 
     if (unNamedVersion) {
-      configsRes = await getConfigList(bkBizId.value, appData.value.id as number, projectId.value, envId.value, params);
+      configsRes = await getConfigList(bkBizId.value, appData.value.id as number, props.projectId, props.envId, params);
     } else {
       configsRes = await getReleasedConfigList(
         bkBizId.value,
         appData.value.id as number,
-        projectId.value,
-        envId.value,
+        props.projectId,
+        props.envId,
         id,
         params);
     }
@@ -317,13 +317,13 @@
     };
     let res;
     if (unNamedVersion) {
-      res = await getBoundTemplates(bkBizId.value, appData.value.id as number, projectId.value, envId.value, params);
+      res = await getBoundTemplates(bkBizId.value, appData.value.id as number, props.projectId, props.envId, params);
     } else {
       res = await getBoundTemplatesByAppVersion(
         bkBizId.value,
         appData.value.id as number,
-        projectId.value,
-        envId.value,
+        props.projectId,
+        props.envId,
         id,
         params);
     }
@@ -380,8 +380,8 @@
     }
     const res = await getReleasedAppVariables(
       bkBizId.value,
-      projectId.value,
-      envId.value,
+      props.projectId,
+      props.envId,
       appData.value.id as number,
       id);
     return res.details;

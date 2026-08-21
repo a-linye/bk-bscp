@@ -9,6 +9,8 @@
       <div v-if="!loading" class="version-diff-content">
         <AsideMenu
           :app-id="props.appId"
+          :project-id="props.projectId"
+          :env-id="props.envId"
           :base-version-id="selectedBaseVersion"
           :current-version-id="currentVersion.id"
           :un-named-version-variables="props.unNamedVersionVariables"

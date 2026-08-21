@@ -347,7 +347,6 @@
     defineProps<{
       spaceId: string;
       projectId: string;
-      envId: string;
       searchParams: IRecordQuery;
     }>(),
     {
@@ -548,7 +547,7 @@
     repealDialogShow.value = true;
     const matchVersion = row.audit.spec.res_instance.match(/config_release_name:([^\n]*)/);
     const matchGroup = row.audit.spec.res_instance.match(/config_release_scope:([^\n]*)/);
-    rowEnvId.value = props.envId || row.app.env_id;
+    rowEnvId.value = row.app.env_id;
     rowAppId.value = row.audit.attachment.app_id;
     rowReleaseId.value = row.strategy.release_id;
     confirmData.value = {
@@ -564,7 +563,7 @@
 
   // 确认上线
   const handlePublishClick = async (row: IRowData) => {
-    await getAllGroupData(row.audit.attachment.app_id, props.envId || row.app.env_id);
+    await getAllGroupData(row.audit.attachment.app_id, row.app.env_id);
     const publishGroupIds = row.strategy.scope.groups.map((group) => group.id);
     const matchVersion = row.audit.spec.res_instance.match(/config_release_name:([^\n]*)/);
     if (publishGroupIds.length === 0) {
@@ -584,7 +583,7 @@
       version: matchVersion ? matchVersion[1] : '--',
       group: '',
       memo: row.strategy.memo,
-      envId: props.envId || row.app.env_id,
+      envId: row.app.env_id,
       serviceId: row.audit.attachment.app_id,
       releaseId: row.strategy.release_id,
     };
@@ -676,7 +675,7 @@
     const url = router.resolve({
       name: 'service-config',
       params: {
-        envId: props.envId || row.app?.env_id,
+        envId: row.app?.env_id,
         appId: row.audit.attachment.app_id,
         versionId: row.strategy.release_id,
       },
@@ -710,7 +709,7 @@
   // 去审批
   const handleApproval = debounce(
     (row: IRowData, firstPublish = false) => {
-      rowEnvId.value = props.envId || row.app.env_id;
+      rowEnvId.value = row.app.env_id;
       rowAppId.value = row.audit?.attachment.app_id;
       rowReleaseId.value = row.strategy?.release_id;
       // 当前row已上线版本的分组id,为空表示全部分组上线

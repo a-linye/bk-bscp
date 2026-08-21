@@ -85,6 +85,7 @@
       // baseVersionId: number | undefined;
       selectedId: number;
       actived: boolean;
+      projectId: string;
       envId: string;
       appId: number;
     }>(),
@@ -101,7 +102,6 @@
   const SINGLE_LINE_TYPE = ['string', 'number', 'password', 'secret_key', 'token'];
 
   const bkBizId = ref(String(route.params.spaceId));
-  const projectId = ref(String(route.params.projectId));
   const diffCount = ref(0);
   const selected = ref();
   const currentList = ref<IConfigKvType[]>([]);
@@ -168,7 +168,7 @@
     const res = await getReleaseKvList(
       bkBizId.value,
       props.appId,
-      projectId.value,
+      props.projectId,
       props.envId,
       releaseId,
       { start: 0, all: true }

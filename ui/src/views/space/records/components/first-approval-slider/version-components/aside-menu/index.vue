@@ -7,6 +7,9 @@
         :un-named-version-variables="props.unNamedVersionVariables"
         :selected-config="props.selectedConfig"
         :actived="selectedType === 'config'"
+        :project-id="projectId"
+        :env-id="envId"
+        :app-id="props.appId"
         @selected="handleSelect($event, 'config')"
         @render="emits('render', $event)" />
       <ConfigsKv
@@ -14,6 +17,7 @@
         :current-version-id="props.currentVersionId"
         :selected-id="props.selectedKvConfigId"
         :actived="selectedType === 'config'"
+        :project-id="projectId"
         :env-id="envId"
         :app-id="props.appId"
         @selected="handleSelect($event, 'config')"
@@ -23,6 +27,9 @@
       v-if="isFileType"
       :current-version-id="props.currentVersionId"
       :actived="selectedType === 'script'"
+      :project-id="projectId"
+      :env-id="envId"
+      :app-id="props.appId"
       @selected="handleSelect($event, 'script')" />
   </div>
 </template>
@@ -47,6 +54,7 @@
     unNamedVersionVariables?: IVariableEditParams[];
     selectedConfig?: IConfigDiffSelected;
     selectedKvConfigId?: number;
+    projectId: string;
     envId: string;
     appId: number;
   }>();

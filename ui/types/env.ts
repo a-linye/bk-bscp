@@ -22,7 +22,6 @@ export interface IEnvItem {
     protected?: boolean;
     display_order?: number;
     app_count?: number;
-    is_default: boolean;
   };
   attachment: {
     tenant_id?: string;

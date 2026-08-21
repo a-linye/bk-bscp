@@ -64,9 +64,7 @@
   import { ref, computed, watch, onMounted, nextTick } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { useRoute } from 'vue-router';
-  import { storeToRefs } from 'pinia';
   import { Search, RightShape } from 'bkui-vue/lib/icon';
-  import useServiceStore from '../../../../../../../store/service';
   import { datetimeFormat, byteUnitConverse } from '../../../../../../../utils';
   import { joinPathName } from '../../../../../../../utils/config';
   import { ICommonQuery } from '../../../../../../../../types/index';
@@ -135,6 +133,9 @@
   const { t, locale } = useI18n();
   const props = withDefaults(
     defineProps<{
+      projectId: string;
+      envId: string;
+      appId: number;
       currentVersionId: number;
       unNamedVersionVariables?: IVariableEditParams[]; // 未命名版本变量列表
       selectedConfig: IConfigDiffSelected;
@@ -150,8 +151,6 @@
 
   const route = useRoute();
   const bkBizId = ref(String(route.params.spaceId));
-  const projectId = ref(String(route.params.projectId));
-  const { appData } = storeToRefs(useServiceStore());
 
   const diffCount = ref(0);
   const selected = ref<IConfigDiffSelected>({ pkgId: 0, id: 0, version: 0 });
@@ -261,21 +260,20 @@
       all: true,
     };
     let configsRes;
-    const { env_id, id: appId } = appData.value;
     if (unNamedVersion) {
       configsRes = await getConfigList(
         bkBizId.value,
-        appId as number,
-        projectId.value,
-        env_id,
+        props.appId,
+        props.projectId,
+        props.envId,
         params
       );
     } else {
       configsRes = await getReleasedConfigList(
         bkBizId.value,
-        appId as number,
-        projectId.value,
-        env_id,
+        props.appId,
+        props.projectId,
+        props.envId,
         id,
         params
       );
@@ -321,20 +319,19 @@
       all: true,
     };
     let res;
-    const { env_id, id: appId } = appData.value;
     if (unNamedVersion) {
       res = await getBoundTemplates(
         bkBizId.value,
-        appId as number,
-        projectId.value,
-        env_id,
+        props.appId,
+        props.projectId,
+        props.envId,
         params);
     } else {
       res = await getBoundTemplatesByAppVersion(
         bkBizId.value,
-        appId as number,
-        projectId.value,
-        env_id,
+        props.appId,
+        props.projectId,
+        props.envId,
         id,
         params
       );
@@ -390,12 +387,11 @@
     if (id === undefined || isUnNamedVersion(id)) {
       return [];
     }
-    const { env_id, id: appId } = appData.value;
     const res = await getReleasedAppVariables(
       bkBizId.value,
-      projectId.value,
-      env_id,
-      appId as number,
+      props.projectId,
+      props.envId,
+      props.appId,
       id);
     return res.details;
   };
@@ -693,7 +689,7 @@
         size: byteUnitConverse(Number(byte_size)),
       };
     }
-    const configContent = await downloadConfigContent(bkBizId.value, appData.value.id as number, signature);
+    const configContent = await downloadConfigContent(bkBizId.value, props.appId, signature);
     return String(configContent);
   };
 

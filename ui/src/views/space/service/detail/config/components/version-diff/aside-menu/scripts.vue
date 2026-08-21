@@ -21,11 +21,11 @@
   const { t } = useI18n();
   const route = useRoute();
   const bkBizId = ref(String(route.params.spaceId));
-  const projectId = ref(String(route.params.projectId));
-  const envId = ref(String(route.params.envId));
   const { appData } = storeToRefs(useServiceStore());
 
   const props = defineProps<{
+    projectId: string;
+    envId: string;
     currentVersionId: number;
     baseVersionId: number;
     actived: boolean;
@@ -113,8 +113,8 @@
     const scriptSetting = await getConfigScript(
       bkBizId.value,
       appData.value.id as number,
-      projectId.value,
-      envId.value,
+      props.projectId,
+      props.envId,
       id);
     const { pre_hook, post_hook } = scriptSetting;
     scriptDetailList.value[0][type] = {

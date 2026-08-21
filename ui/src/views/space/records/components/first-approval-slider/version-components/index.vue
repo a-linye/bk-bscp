@@ -8,6 +8,7 @@
     <bk-loading class="loading-wrapper" :loading="loading">
       <div v-if="!loading" class="version-diff-content">
         <AsideMenu
+          :project-id="projectId"
           :env-id="envId"
           :app-id="props.appId"
           :current-version-id="currentVersion.id"
@@ -83,6 +84,7 @@
     selectedKvConfigId?: number; // 选中的kv类型配置id
     isApprovalMode?: boolean; // 是否审批模式(操作记录-去审批-拒绝)
     btnLoading?: boolean;
+    projectId: string;
     envId: string;
     appId: number;
   }>();

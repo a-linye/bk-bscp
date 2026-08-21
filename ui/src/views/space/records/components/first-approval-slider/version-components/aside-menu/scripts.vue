@@ -12,8 +12,6 @@
   import { ref, onMounted, watch } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { useRoute } from 'vue-router';
-  import { storeToRefs } from 'pinia';
-  import useServiceStore from '../../../../../../../store/service';
   import { getConfigScript } from '../../../../../../../api/config';
   // import { getDiffType } from '../../../../../../../utils/index';
   import MenuList from './menu-list.vue';
@@ -21,9 +19,11 @@
   const { t } = useI18n();
   const route = useRoute();
   const bkBizId = ref(String(route.params.spaceId));
-  const { appData } = storeToRefs(useServiceStore());
 
   const props = defineProps<{
+    projectId: string;
+    envId: string;
+    appId: number;
     currentVersionId: number;
     // baseVersionId: number;
     actived: boolean;
@@ -108,7 +108,12 @@
   };
 
   const getScriptDetail = async (id: number, type: 'current' | 'base') => {
-    const scriptSetting = await getConfigScript(bkBizId.value, appData.value.id as number, id);
+    const scriptSetting = await getConfigScript(
+      bkBizId.value,
+      props.appId,
+      props.projectId,
+      props.envId,
+      id);
     const { pre_hook, post_hook } = scriptSetting;
     scriptDetailList.value[0][type] = {
       language: pre_hook.type,
