@@ -312,6 +312,57 @@ func TestBuildWindowsPushScriptGuardsDecodeAndMkdir(t *testing.T) {
 	assert.Less(t, mkdirAt, decodeAt)
 }
 
+// TestBuildWindowsPushScriptChunksBase64 base64 曾经整份写在一行 `echo <b64> > "!BSCP_TMP!"` 里。
+// cmd.exe 解析批处理时单行有约 8191 字符的上限，超出部分被静默丢弃，配置超过 6 KB 左右就会被截断；
+// 而 certutil 会把残缺的 base64 照样解码出一个语法上看起来正常的文件，move 与退出码全部正常，
+// 下发任务报成功，只有人工比对配置才能发现机器上少了一大段。
+func TestBuildWindowsPushScriptChunksBase64(t *testing.T) {
+	// 取一份远超单行上限的配置：64 KB 原始内容对应约 87 KB base64
+	raw := strings.Repeat("<add key=\"k\" value=\"v\" />\n", 2621)
+	require.Greater(t, len(raw), 64*1024)
+	b64 := base64.StdEncoding.EncodeToString([]byte(raw))
+
+	builder := &ScriptBuilder{FileMode: table.Windows}
+	script, err := builder.BuildConfigPushScript(
+		b64, `D:\bdo\Tmp\GB.BlackDesert.Trade.Web\Web.config`, "", "Administrator", "Administrators")
+	require.NoError(t, err)
+
+	// cmd 会把超长行截断，脚本里任何一行都不允许触到上限
+	for i, line := range strings.Split(script, "\n") {
+		assert.LessOrEqual(t, len(line), 8191,
+			"第 %d 行触到 cmd 的单行上限，内容会被静默截断", i+1)
+	}
+
+	writes := windowsB64WriteRe.FindAllStringSubmatch(script, -1)
+	require.NotEmpty(t, writes, "base64 必须按行写入中转文件")
+
+	var rebuilt strings.Builder
+	for _, m := range writes {
+		// 切分点必须落在 base64 四字符组的边界上，否则 certutil 解不出原字节
+		assert.Zero(t, len(m[1])%4, "每行 base64 长度必须是 4 的倍数")
+		rebuilt.WriteString(m[1])
+	}
+	assert.Equal(t, b64, rebuilt.String(), "逐行拼回来必须与原 base64 完全一致，不能有丢失")
+
+	// 重定向必须在 echo 之前：`echo x > f` 会把 `>` 前的空格写进文件，而且 base64 含数字时
+	// `echo ...1>f` 的末位数字会被 cmd 当成重定向句柄吃掉，两种情况都会静默改变内容
+	assert.NotRegexp(t, `echo [A-Za-z0-9+/=]+ *>`, script,
+		"base64 行不能把重定向写在行尾")
+}
+
+// TestBuildWindowsPushScriptHandlesEmptyContent 空内容也必须把中转文件建出来，
+// 否则后面的存在性检查会把它报成含义完全不同的 WRITE_TMP_FAILED。
+func TestBuildWindowsPushScriptHandlesEmptyContent(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows}
+	script, err := builder.BuildConfigPushScript(
+		"", `D:\bdo\Tmp\Web_IDIP_API\Web.config`, "", "Administrator", "Administrators")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, `>>"!BSCP_TMP!" echo.`)
+}
+
+var windowsB64WriteRe = regexp.MustCompile(`(?m)^>>"!BSCP_TMP!" echo ([A-Za-z0-9+/=]+)$`)
+
 var windowsTempVarRe = regexp.MustCompile(`(?m)^set "(BSCP_TMP|BSCP_OUT)=(.+)"$`)
 
 // windowsTempPaths 取出脚本里声明的 base64 中转文件与解码产物路径

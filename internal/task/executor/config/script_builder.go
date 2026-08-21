@@ -295,11 +295,12 @@ if exist "!TARGET_PATH!" (
 
 REM 5. 写入配置文件（base64 解码）。临时文件与目标同目录，保证后续 move 在同卷内原子完成；
 REM    文件名后缀由服务端生成，全局唯一，避免同主机并发任务互相覆盖。
+REM    base64 由服务端切成多行追加写入，单行绝不能超过 cmd 的行长上限，详见 windowsB64ChunkSize。
 set "BSCP_TMP=!TARGET_DIR!!TARGET_NAME!.bscp.%s.b64"
 set "BSCP_OUT=!TARGET_DIR!!TARGET_NAME!.bscp.%s.out"
 del /f /q "!BSCP_TMP!" >nul 2>&1
 del /f /q "!BSCP_OUT!" >nul 2>&1
-echo %s > "!BSCP_TMP!"
+%s
 if not exist "!BSCP_TMP!" (
     echo WRITE_TMP_FAILED
     exit /b 1
@@ -334,7 +335,41 @@ dir "%%TARGET_PATH%%"
 certutil -hashfile "%%TARGET_PATH%%" MD5
 
 endlocal
-`, winPath, maxBackups, token, token, base64Content, owner, owner, group), nil
+`, winPath, maxBackups, token, token, buildWindowsB64WriteLines(base64Content), owner, owner, group), nil
+}
+
+// windowsB64ChunkSize 是 base64 中转文件每行写入的字符数。
+// cmd.exe 解析批处理时单行有约 8191 字符的上限，超出部分被静默丢弃。整份 base64 写在一行里，
+// 配置超过 6 KB 左右就会被截断，而 certutil 仍会把残缺的 base64 解码成一个语法上"看起来正常"
+// 的文件，move 和退出码全部正常，下发任务照样报成功——故障只能靠人工比对配置才能发现。
+// 必须是 4 的倍数，否则行尾会切在 base64 四字符组中间。
+const windowsB64ChunkSize = 1024
+
+// buildWindowsB64WriteLines 把 base64 内容切成多行 echo，逐行追加进中转文件。
+//
+// 重定向写在 echo 之前而不是行尾，有两个原因：
+// 一是 `echo x > f` 会把 `>` 前的那个空格一起写进文件；
+// 二是 base64 字母表含数字，`echo ...1>f` 里的末位数字会被 cmd 当作重定向句柄吃掉，
+// 导致内容静默少一个字符。base64 字母表（A-Za-z0-9+/=）不含 cmd 元字符，无需转义。
+func buildWindowsB64WriteLines(base64Content string) string {
+	// 空内容也要把中转文件建出来，否则后面的存在性检查会报成含义不同的 WRITE_TMP_FAILED
+	if base64Content == "" {
+		return `>>"!BSCP_TMP!" echo.`
+	}
+
+	var b strings.Builder
+	for i := 0; i < len(base64Content); i += windowsB64ChunkSize {
+		end := i + windowsB64ChunkSize
+		if end > len(base64Content) {
+			end = len(base64Content)
+		}
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(`>>"!BSCP_TMP!" echo `)
+		b.WriteString(base64Content[i:end])
+	}
+	return b.String()
 }
 
 // buildWindowsMD5Script 构建 Windows MD5 校验脚本
