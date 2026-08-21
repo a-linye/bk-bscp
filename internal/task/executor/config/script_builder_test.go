@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -255,6 +256,75 @@ func TestLinuxPushScriptKeepsTargetIntactOnChownFailure(t *testing.T) {
 	assert.Equal(t, "old", string(got), "target file must keep its original content")
 
 	assertNoTempLeftover(t, dir)
+}
+
+// TestBuildWindowsPushScriptUsesUniqueTempPath 同一台主机上多个任务下发同名配置很常见
+// （若干个 .NET 服务各有一份 Web.config，只是目录不同）。这些任务曾经共用
+// %TEMP%\bscp_<文件名>_%RANDOM% 这一个命名空间，而 cmd 的 %RANDOM% 在进程启动时以系统时钟
+// 播种，被 GSE 同时拉起的脚本会取到相同的值：它们互相覆盖 base64 中转文件、互相删除解码
+// 产物，表现为 certutil 报 ERROR_FILE_EXISTS 或 move 找不到文件，甚至静默写入他人的内容。
+func TestBuildWindowsPushScriptUsesUniqueTempPath(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows}
+	build := func(absPath string) string {
+		script, err := builder.BuildConfigPushScript(
+			"Y29udGVudA==", absPath, "", "Administrator", "Administrators")
+		require.NoError(t, err)
+		return script
+	}
+
+	first := build(`D:\bdo\Tmp\GB.BlackDesert.Trade.Web\Web.config`)
+	second := build(`D:\bdo\Tmp\GB.BlackDesert.Trade.Web.Game\Web.config`)
+	// 同一目标路径重复构建（重试、或同一配置并发下发）同样不能复用临时文件名
+	third := build(`D:\bdo\Tmp\GB.BlackDesert.Trade.Web\Web.config`)
+
+	assert.NotContains(t, first, "%RANDOM%", "唯一性不能依赖 cmd 的 %RANDOM%")
+	assert.NotContains(t, first, "%TEMP%",
+		"临时文件必须与目标同目录：%TEMP% 全机共享，且跨卷 move 不是原子操作")
+
+	firstTmp, firstOut := windowsTempPaths(t, first)
+	secondTmp, secondOut := windowsTempPaths(t, second)
+	thirdTmp, thirdOut := windowsTempPaths(t, third)
+
+	assert.Contains(t, firstTmp, `!TARGET_DIR!!TARGET_NAME!.`, "临时文件应落在目标同目录")
+	assert.NotEqual(t, firstTmp, firstOut, "中转文件与解码产物不能同名")
+	assert.NotEqual(t, firstTmp, secondTmp)
+	assert.NotEqual(t, firstOut, secondOut)
+	assert.NotEqual(t, firstTmp, thirdTmp)
+	assert.NotEqual(t, firstOut, thirdOut)
+}
+
+// TestBuildWindowsPushScriptGuardsDecodeAndMkdir 覆盖两处会把错误藏起来的地方：
+// certutil 不带 -f 时拒绝覆盖已存在的输出文件；mkdir 失败若不拦截，错误会一路滑到 move。
+func TestBuildWindowsPushScriptGuardsDecodeAndMkdir(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\bdo\Tmp\Web_IDIP_API\Web.config`, "", "Administrator", "Administrators")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, `certutil -f -decode "!BSCP_TMP!" "!BSCP_OUT!"`)
+	assert.NotContains(t, script, `certutil -decode`, "缺少 -f 会报 0x80070050 ERROR_FILE_EXISTS")
+
+	mkdirAt := strings.Index(script, "MKDIR_FAILED")
+	decodeAt := strings.Index(script, "certutil -f -decode")
+	require.NotEqual(t, -1, mkdirAt, "建目录失败必须当场终止")
+	require.NotEqual(t, -1, decodeAt)
+	assert.Less(t, mkdirAt, decodeAt)
+}
+
+var windowsTempVarRe = regexp.MustCompile(`(?m)^set "(BSCP_TMP|BSCP_OUT)=(.+)"$`)
+
+// windowsTempPaths 取出脚本里声明的 base64 中转文件与解码产物路径
+func windowsTempPaths(t *testing.T, script string) (string, string) {
+	t.Helper()
+
+	paths := make(map[string]string, 2)
+	for _, m := range windowsTempVarRe.FindAllStringSubmatch(script, -1) {
+		paths[m[1]] = m[2]
+	}
+	require.Len(t, paths, 2, "script should declare both BSCP_TMP and BSCP_OUT")
+
+	return paths["BSCP_TMP"], paths["BSCP_OUT"]
 }
 
 func assertNoTempLeftover(t *testing.T, dir string) {

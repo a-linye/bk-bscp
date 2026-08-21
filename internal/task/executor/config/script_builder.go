@@ -13,9 +13,12 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -201,9 +204,27 @@ cat "$TARGET_PATH"
 
 // ---- Windows 脚本 ----
 
+// newTempToken 生成临时文件名后缀。
+// 唯一性必须由服务端保证，不能交给 cmd 的 %RANDOM%：它在 cmd 进程启动时以系统时钟播种，
+// 同一时刻被 GSE 拉起的多个脚本会取到完全相同的序列，临时文件因而互相覆盖、互相删除。
+func newTempToken() string {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 16)
+	}
+	return hex.EncodeToString(buf)
+}
+
 // buildWindowsPushScript 构建 Windows 配置下发脚本
+//
+// base64 中转文件与解码产物都放在目标同目录，而不是曾经的 %TEMP%：
+// 一是 %TEMP% 全机共享，同一台主机上多个任务下发同名配置（若干个 .NET 服务各有一份
+// Web.config，只是目录不同）会撞进同一个命名空间；
+// 二是 %TEMP% 与目标常常不在同一个卷上，move 会退化成「拷贝 + 删除」，
+// 业务进程有机会读到只写了一半的配置，放同目录后才能走同卷内的原子 rename。
 func (b *ScriptBuilder) buildWindowsPushScript(base64Content, absPath, owner, group string, maxBackups int) (string, error) {
 	winPath := ToWindowsPath(absPath)
+	token := newTempToken()
 
 	return fmt.Sprintf(`@echo off
 setlocal enabledelayedexpansion
@@ -217,8 +238,13 @@ for %%%%i in ("%%TARGET_PATH%%") do (
     set "TARGET_NAME=%%%%~nxi"
 )
 
-REM 2. 创建目标目录
-if not exist "%%TARGET_DIR%%" mkdir "%%TARGET_DIR%%"
+REM 2. 创建目标目录。临时文件也落在这里，建不出来就必须立刻失败，
+REM    否则错误会一路滑到后面的 move，报成含义完全不同的「找不到文件」。
+if not exist "!TARGET_DIR!" mkdir "!TARGET_DIR!"
+if not exist "!TARGET_DIR!" (
+    echo MKDIR_FAILED
+    exit /b 1
+)
 
 if exist "!TARGET_PATH!" (
     echo [INFO] 发现原文件，准备备份...
@@ -267,25 +293,29 @@ if exist "!TARGET_PATH!" (
     echo [INFO] 目标文件不存在，跳过备份。
 )
 
-REM 5. 写入配置文件（base64 解码），用目标文件名隔离临时文件避免并发碰撞
-set "BSCP_TMP=%%TEMP%%\bscp_!TARGET_NAME!_%%RANDOM%%.b64"
-set "BSCP_OUT=%%TEMP%%\bscp_!TARGET_NAME!_%%RANDOM%%.out"
+REM 5. 写入配置文件（base64 解码）。临时文件与目标同目录，保证后续 move 在同卷内原子完成；
+REM    文件名后缀由服务端生成，全局唯一，避免同主机并发任务互相覆盖。
+set "BSCP_TMP=!TARGET_DIR!!TARGET_NAME!.bscp.%s.b64"
+set "BSCP_OUT=!TARGET_DIR!!TARGET_NAME!.bscp.%s.out"
+del /f /q "!BSCP_TMP!" >nul 2>&1
+del /f /q "!BSCP_OUT!" >nul 2>&1
 echo %s > "!BSCP_TMP!"
 if not exist "!BSCP_TMP!" (
     echo WRITE_TMP_FAILED
     exit /b 1
 )
-certutil -decode "!BSCP_TMP!" "!BSCP_OUT!"
+REM certutil 默认拒绝覆盖已存在的输出文件，会报 0x80070050 ERROR_FILE_EXISTS，必须带 -f
+certutil -f -decode "!BSCP_TMP!" "!BSCP_OUT!"
 if !ERRORLEVEL! neq 0 (
     echo DECODE_FAILED
-    del "!BSCP_TMP!" 2>nul
-    del "!BSCP_OUT!" 2>nul
+    del /f /q "!BSCP_TMP!" >nul 2>&1
+    del /f /q "!BSCP_OUT!" >nul 2>&1
     exit /b 1
 )
-del "!BSCP_TMP!" 2>nul
+del /f /q "!BSCP_TMP!" >nul 2>&1
 move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul || (
     echo MOVE_FAILED
-    del "!BSCP_OUT!" 2>nul
+    del /f /q "!BSCP_OUT!" >nul 2>&1
     exit /b 1
 )
 
@@ -304,7 +334,7 @@ dir "%%TARGET_PATH%%"
 certutil -hashfile "%%TARGET_PATH%%" MD5
 
 endlocal
-`, winPath, maxBackups, base64Content, owner, owner, group), nil
+`, winPath, maxBackups, token, token, base64Content, owner, owner, group), nil
 }
 
 // buildWindowsMD5Script 构建 Windows MD5 校验脚本
