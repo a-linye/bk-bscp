@@ -38,9 +38,16 @@
           <ResetDefaultValue
             class="reset-default-btn"
             :bk-biz-id="bkBizId"
+            :project-id="projectId"
             :list="initialVariables"
             @reset="handleResetDefault" />
-          <VariablesTable ref="tableRef" :list="variableList" :editable="true" @change="handleVariablesChange" />
+          <VariablesTable
+            ref="tableRef"
+            :list="variableList"
+            :editable="true"
+            :project-id="projectId"
+            :env-id="envId"
+            @change="handleVariablesChange" />
         </div>
       </div>
     </bk-loading>
@@ -67,6 +74,8 @@
   const props = defineProps<{
     show: boolean;
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     isDiffSliderShow: boolean;
   }>();
@@ -103,7 +112,7 @@
       {
         validator: async (value: string) => {
           if (value.length > 0) {
-            const res = await createVersionNameCheck(props.bkBizId, props.appId, value);
+            const res = await createVersionNameCheck(props.bkBizId, props.appId, props.projectId, props.envId, value);
             return !res.data.exist;
           }
           return true;
@@ -135,7 +144,8 @@
 
   const getVariableList = async () => {
     loading.value = true;
-    const res = await getUnReleasedAppVariables(props.bkBizId, props.appId);
+    const { bkBizId, appId, projectId, envId} = props;
+    const res = await getUnReleasedAppVariables(bkBizId, projectId, envId, appId);
     initialVariables.value = res.details.slice();
     variableList.value = res.details.slice();
     loading.value = false;
@@ -160,7 +170,8 @@
         memo: formData.value.memo,
         variables: variableList.value,
       };
-      const res = await createVersion(props.bkBizId, props.appId, params);
+      const { bkBizId, appId, projectId, envId } = props;
+      const res = await createVersion(bkBizId, appId, projectId, envId, params);
       // 创建接口未返回完整的版本详情数据，在前端拼接最新版本数据，加载完版本列表后再更新
       const newVersionData = assign({}, GET_UNNAMED_VERSION_DATA(), {
         id: res.data.id,

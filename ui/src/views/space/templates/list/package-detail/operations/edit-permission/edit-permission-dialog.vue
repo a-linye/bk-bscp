@@ -72,7 +72,7 @@
             <bk-table-column :label="t('所在模板套餐')" prop="template_set_name"></bk-table-column>
             <bk-table-column :label="t('使用此套餐的服务')">
               <template #default="{ row }">
-                <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row.app_id)">
+                <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row)">
                   <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                   <LinkToApp class="link-icon" :id="row.app_id" />
                 </div>
@@ -107,7 +107,7 @@
   import useTemplateStore from '../../../../../../../store/template';
   import LinkToApp from '../../../components/link-to-app.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { currentTemplateSpace, currentPkg } = storeToRefs(useTemplateStore());
   const { t } = useI18n();
   const router = useRouter();
@@ -215,7 +215,7 @@
   // 配置项被套餐引用数据
   const loadCiteByPkgsCountList = async () => {
     const ids = props.configs!.map((item) => item.id);
-    const res = await getPackagesByTemplateIds(spaceId.value, currentTemplateSpace.value, ids);
+    const res = await getPackagesByTemplateIds(spaceId.value, projectId.value, currentTemplateSpace.value, ids);
     res.details.forEach((item) =>
       item.forEach((template) => {
         if (pkgsIds.value?.includes(template.template_set_id)) return;
@@ -236,6 +236,7 @@
     const template_set_ids: number[] = currentPkg.value === 'all' ? pkgsIds.value : [currentPkg.value as number];
     const res = await getUnNamedVersionAppsBoundByPackages(
       spaceId.value,
+      projectId.value,
       currentTemplateSpace.value,
       template_set_ids,
       params,
@@ -245,10 +246,10 @@
     tableLoading.value = false;
   };
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IPackagesCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
       query: { pkg_id: currentTemplateSpace.value },
     });
     window.open(href, '_blank');

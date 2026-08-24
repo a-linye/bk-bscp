@@ -234,6 +234,7 @@ func (s *AuthServerSetting) trySetDefault() {
 	s.FeatureFlags.trySetDefault()
 	s.ComponentRateLimit.trySetDefault()
 	s.ApiGateway.trySetDefault()
+	s.IAM.trySetDefault()
 }
 
 // Validate AuthServerSetting option.

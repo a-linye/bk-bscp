@@ -106,6 +106,7 @@
     :type="scriptDetail.spec.type"
     :crt-version="crtVersion as IScriptVersion"
     :space-id="spaceId"
+    :project-id="projectId"
     :script-id="scriptId" />
   <DeleteConfirmDialog
     v-model:is-show="isDeleteScriptVersionDialogShow"
@@ -149,7 +150,7 @@
   import DeleteConfirmDialog from '../../../../components/delete-confirm-dialog.vue';
   import SearchSelector from '../../../../components/search-selector.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { versionListPageShouldOpenEdit, versionListPageShouldOpenView } = storeToRefs(useScriptStore());
   const router = useRouter();
   const route = useRoute();
@@ -201,6 +202,7 @@
     if (scriptDetail.value.not_release_id) {
       unPublishVersion.value = await getScriptVersionDetail(
         spaceId.value,
+        projectId.value,
         scriptId.value,
         scriptDetail.value.not_release_id,
       );
@@ -223,7 +225,7 @@
   // 获取脚本详情
   const getScriptDetailData = async () => {
     detailLoading.value = true;
-    const res = await getScriptDetail(spaceId.value, scriptId.value);
+    const res = await getScriptDetail(spaceId.value, projectId.value, scriptId.value);
     const { name, type, releases } = res.spec;
     scriptDetail.value = { spec: { name, type }, not_release_id: releases.not_release_id };
     detailLoading.value = false;
@@ -237,7 +239,7 @@
       limit: pagination.value.limit,
     };
     params.search = searchQuery.value;
-    const res = await getScriptVersionList(spaceId.value, scriptId.value, params);
+    const res = await getScriptVersionList(spaceId.value, projectId.value, scriptId.value, params);
     versionList.value = res.details;
     pagination.value.count = res.count;
     versionLoading.value = false;
@@ -297,12 +299,13 @@
     InfoBox({
       title: t('确定上线此版本？'),
       subTitle: t('上线后，之前的线上版本将被置为「已下线」,若要使该版本在现网中生效，需要重新发布引用此脚本的服务'),
-      'ext-cls': 'info-box-style',
+      class: 'info-box-style',
       // infoType: 'warning',
+      width: 440,
       confirmText: t('确定'),
       cancelText: t('取消'),
       onConfirm: async () => {
-        await publishVersion(spaceId.value, scriptId.value, version.id);
+        await publishVersion(spaceId.value, projectId.value, scriptId.value, version.id);
         unPublishVersion.value = null;
         versionEditData.value.panelOpen = false;
         getVersionList();
@@ -321,7 +324,7 @@
   };
 
   const handleDeleteScriptVersionConfirm = async () => {
-    await deleteScriptVersion(spaceId.value, scriptId.value, deleteScriptVersionItem.value!.id);
+    await deleteScriptVersion(spaceId.value, projectId.value, scriptId.value, deleteScriptVersionItem.value!.id);
     if (versionList.value.length === 1 && pagination.value.current > 1) {
       pagination.value.current = pagination.value.current - 1;
     }
@@ -348,6 +351,7 @@
       scriptDetail.value.not_release_id = data.id;
       unPublishVersion.value = await getScriptVersionDetail(
         spaceId.value,
+        projectId.value,
         scriptId.value,
         scriptDetail.value.not_release_id,
       );

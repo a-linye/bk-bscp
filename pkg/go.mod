@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/render v1.0.3
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/go-resty/resty/v2 v2.12.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
@@ -24,6 +25,7 @@ require (
 	github.com/tjfoc/gmsm v1.4.1
 	go.etcd.io/etcd/client/v3 v3.5.9
 	go.uber.org/atomic v1.11.0
+	golang.org/x/sync v0.19.0
 	golang.org/x/text v0.32.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217
@@ -34,10 +36,7 @@ require (
 	k8s.io/klog/v2 v2.110.1
 )
 
-require (
-	github.com/bluele/gcache v0.0.2 // indirect
-	github.com/go-resty/resty/v2 v2.12.0 // indirect
-)
+require github.com/bluele/gcache v0.0.2
 
 require (
 	github.com/TencentBlueKing/bk-bscp v0.0.0-20260211040059-8dd6f4ab49a1

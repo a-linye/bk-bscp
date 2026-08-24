@@ -25,7 +25,7 @@ type CredentialScope interface {
 	// CreateWithTx create credential scope with transaction
 	CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, credential *table.CredentialScope) (uint32, error)
 	// Get get credential scopes
-	Get(kit *kit.Kit, credentialId, bizID uint32) ([]*table.CredentialScope, int64, error)
+	Get(kit *kit.Kit, credentialId, bizID, projectID uint32) ([]*table.CredentialScope, int64, error)
 	// ListAll list all credential scopes under the business
 	ListAll(kit *kit.Kit, bizID uint32) ([]*table.CredentialScope, error)
 	// DeleteWithTx delete credential scope with transaction
@@ -33,7 +33,7 @@ type CredentialScope interface {
 	// UpdateWithTx update credential scope with transaction
 	UpdateWithTx(kit *kit.Kit, tx *gen.QueryTx, credentialScope *table.CredentialScope) error
 	// DeleteByCredentialIDWithTx delete credential scope by credential id with transaction
-	DeleteByCredentialIDWithTx(kit *kit.Kit, tx *gen.QueryTx, bizID, credentialID uint32) error
+	DeleteByCredentialIDWithTx(kit *kit.Kit, tx *gen.QueryTx, bizID, projectID, credentialID uint32) error
 	// BatchDeleteWithTx batch delete credential scope with transaction
 	BatchDeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, bizID uint32, ids []uint32) error
 	// ListByCredentialIDs 按多个凭据 ID 列出
@@ -79,11 +79,11 @@ func (dao *credentialScopeDao) CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, g *ta
 }
 
 // Get get credential scope
-func (dao *credentialScopeDao) Get(kit *kit.Kit, credentialId, bizID uint32) ([]*table.CredentialScope, int64, error) {
+func (dao *credentialScopeDao) Get(kit *kit.Kit, credentialId, bizID, projectID uint32) ([]*table.CredentialScope, int64, error) {
 	m := dao.genQ.CredentialScope
 	q := dao.genQ.CredentialScope.WithContext(kit.Ctx)
 
-	result, err := q.Where(m.BizID.Eq(bizID), m.CredentialId.Eq(credentialId)).Find()
+	result, err := q.Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID), m.CredentialId.Eq(credentialId)).Find()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -138,7 +138,7 @@ func (dao *credentialScopeDao) UpdateWithTx(kit *kit.Kit, tx *gen.QueryTx, g *ta
 
 // DeleteByCredentialIDWithTx delete credential scope by credential id with transaction
 func (dao *credentialScopeDao) DeleteByCredentialIDWithTx(kit *kit.Kit, tx *gen.QueryTx,
-	bizID, credentialID uint32) error {
+	bizID, projectID, credentialID uint32) error {
 	if bizID == 0 {
 		return errors.New("biz id is 0")
 	}
@@ -146,7 +146,7 @@ func (dao *credentialScopeDao) DeleteByCredentialIDWithTx(kit *kit.Kit, tx *gen.
 		return errors.New("credential id is 0")
 	}
 	m := tx.CredentialScope
-	_, err := m.WithContext(kit.Ctx).Where(m.BizID.Eq(bizID), m.CredentialId.Eq(credentialID)).Delete()
+	_, err := m.WithContext(kit.Ctx).Where(m.BizID.Eq(bizID), m.ProjectID.Eq(projectID), m.CredentialId.Eq(credentialID)).Delete()
 	return err
 }
 

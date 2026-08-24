@@ -19,6 +19,7 @@ export interface ITemplateSpaceItem {
 // 模板套餐列表单条数据
 export interface ITemplatePackageItem {
   id: number;
+  env_apps: EnvAppsItem[];
   spec: {
     name: string;
     memo: string;
@@ -44,7 +45,10 @@ export interface IPackageMenuItem {
   name: string;
   count: number;
 }
-
+export interface EnvAppsItem {
+  env_id: string;
+  app_ids: number[];
+}
 // 模板套餐编辑参数
 export interface ITemplatePackageEditParams {
   template_set_id?: number;
@@ -52,7 +56,7 @@ export interface ITemplatePackageEditParams {
   memo: string;
   template_ids?: number[];
   public: boolean;
-  bound_apps: number[];
+  env_apps?: EnvAppsItem[];
   force?: boolean;
 }
 
@@ -84,12 +88,16 @@ export interface ITemplateCitedByPkgs {
 }
 
 // 单个模板套餐被多个服务引用数据
+import { EnvType } from './env';
 
 export interface IPackageCitedByApps {
   template_revision_id: number;
   template_revision_name: string;
   app_id: number;
   app_name: string;
+  env_id: string;
+  env_type?: EnvType; // 环境类型
+  env_name?: string;   // 环境名称
 }
 
 // 多个模板套餐被多个服务引用数据
@@ -102,6 +110,7 @@ export interface IPackagesCitedByApps {
   template_set_exceeds_limit?: boolean;
   app_exceeds_quantity?: number;
   template_set_exceeds_quantity?: number;
+  env_id: number;
 }
 
 // 模板被服务绑定或套餐引用计数详情
@@ -116,6 +125,7 @@ export interface ITemplateCitedCountDetailItem {
 export interface IAppBoundByTemplateDetailItem {
   template_revision_id: number;
   template_revision_name: string;
+  env_id: string;
   app_id: number;
   app_name: string;
 }

@@ -1,59 +1,64 @@
 <template>
   <bk-sideslider
-    ref="sideSliderRef"
     width="640"
     :title="t('查看配置文件')"
     :quick-close="true"
     :is-show="props.show"
     @closed="close"
     @shown="setEditorHeight">
-    <bk-loading :loading="detailLoading" class="config-loading-container">
-      <bk-tab v-model:active="activeTab" type="card-grid" ext-cls="view-config-tab">
-        <bk-tab-panel name="content" :label="t('配置文件信息')">
-          <bk-form label-width="100" form-type="vertical">
-            <bk-form-item :label="t('配置文件名')">{{ fileAP() }}</bk-form-item>
-            <bk-form-item :label="t('配置文件描述')">
-              <div class="memo">{{ configDetail.memo || configDetail.revision_memo || '--' }}</div>
-            </bk-form-item>
-            <bk-form-item :label="t('配置文件内容')">
-              <bk-loading
-                v-if="configDetail.file_type === 'binary'"
-                mode="spin"
-                theme="primary"
-                :opacity="0.6"
-                size="mini"
-                :title="t('文件下载中，请稍后')"
-                :loading="fileDownloading"
-                class="file-down-loading">
-                <div class="binary-file-card" @click="handleDownloadFile">
-                  <div class="basic-info">
-                    <TextFill class="file-icon" />
-                    <div class="content">
-                      <div class="name">{{ configDetail.name }}</div>
-                      <div class="time">{{ datetimeFormat(configDetail.update_at || configDetail.create_at) }}</div>
+    <bk-loading :loading="detailLoading">
+      <div class="config-loading-container" ref="loadingContainerRef">
+        <bk-tab v-model:active="activeTab" type="card-grid" ext-cls="view-config-tab">
+          <bk-tab-panel name="content" :label="t('配置文件信息')">
+            <bk-form label-width="100" form-type="vertical">
+              <bk-form-item :label="t('配置文件名')">{{ fileAP() }}</bk-form-item>
+              <bk-form-item :label="t('配置文件描述')">
+                <div class="memo">{{ configDetail.memo || configDetail.revision_memo || '--' }}</div>
+              </bk-form-item>
+              <bk-form-item :label="t('配置文件内容')">
+                <bk-loading
+                  v-if="configDetail.file_type === 'binary'"
+                  mode="spin"
+                  theme="primary"
+                  :opacity="0.6"
+                  size="mini"
+                  :title="t('文件下载中，请稍后')"
+                  :loading="fileDownloading"
+                  class="file-down-loading">
+                  <div class="binary-file-card" @click="handleDownloadFile">
+                    <div class="basic-info">
+                      <TextFill class="file-icon" />
+                      <div class="content">
+                        <div class="name">{{ configDetail.name }}</div>
+                        <div class="time">{{ datetimeFormat(configDetail.update_at || configDetail.create_at) }}</div>
+                      </div>
+                      <div class="size">{{ byteUnitConverse(Number(configDetail.byte_size)) }}</div>
                     </div>
-                    <div class="size">{{ byteUnitConverse(Number(configDetail.byte_size)) }}</div>
                   </div>
-                </div>
-              </bk-loading>
-              <ConfigContentEditor
-                v-else
-                :content="content as string"
-                :editable="false"
-                :show-tips="false"
-                :height="editorHeight"
-                :variables="variables" />
-            </bk-form-item>
-          </bk-form>
-        </bk-tab-panel>
-        <bk-tab-panel name="meta" :label="t('元数据')">
-          <ConfigContentEditor
-            language="json"
-            :content="JSON.stringify(configDetail, null, 2)"
-            :editable="false"
-            :show-tips="false" />
-        </bk-tab-panel>
-      </bk-tab>
+                </bk-loading>
+                <ConfigContentEditor
+                  v-else
+                  :content="content as string"
+                  :editable="false"
+                  :show-tips="false"
+                  :height="editorHeight"
+                  :variables="variables"
+                  :project-id="projectId"
+                  :env-id="envId" />
+              </bk-form-item>
+            </bk-form>
+          </bk-tab-panel>
+          <bk-tab-panel name="meta" :label="t('元数据')">
+            <ConfigContentEditor
+              language="json"
+              :content="JSON.stringify(configDetail, null, 2)"
+              :editable="false"
+              :show-tips="false"
+              :project-id="projectId"
+              :env-id="envId" />
+          </bk-tab-panel>
+        </bk-tab>
+      </div>
     </bk-loading>
     <section class="action-btns">
       <bk-button v-if="props.versionId === 0 && props.type === 'config'" theme="primary" @click="emits('openEdit')">{{
@@ -125,6 +130,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     id: number;
     versionId: number;
@@ -158,8 +165,8 @@
   const variables = ref<IVariableEditParams[]>([]);
   const variablesLoading = ref(false);
   const tplSpaceId = ref(0);
-  const sideSliderRef = ref();
   const editorHeight = ref(0);
+  const loadingContainerRef = ref<HTMLElement>();
   const fileDownloading = ref(false);
 
   watch(
@@ -200,8 +207,16 @@
   // 获取非模板套餐下配置文件详情配置，非文件类型配置文件内容下载内容，文件类型手动点击时再下载
   const getConfigDetail = async () => {
     try {
+      const { bkBizId, appId, projectId, envId, id } = props;
       if (versionData.value.id) {
-        const res = await getReleasedConfigItemDetail(props.bkBizId, props.appId, versionData.value.id, props.id);
+        const res = await getReleasedConfigItemDetail(
+          bkBizId,
+          appId,
+          projectId,
+          envId,
+          versionData.value.id,
+          id,
+        );
         const { content, memo } = res.config_item.commit_spec;
         const { byte_size, origin_byte_size, signature, origin_signature, md5 } = content;
         const { create_at, creator, update_at, reviser } = res.config_item.revision;
@@ -228,7 +243,7 @@
           // charset,
         });
       } else {
-        const res = await getConfigItemDetail(props.bkBizId, props.id, props.appId);
+        const res = await getConfigItemDetail(bkBizId, id, appId, projectId, envId);
         const { create_at, creator, update_at, reviser } = res.config_item.revision;
         const { name, memo, path, file_type, file_mode, permission } = res.config_item.spec;
         const { user, user_group, privilege } = permission;
@@ -258,7 +273,7 @@
       if (configDetail.value.file_type === 'binary') {
         content.value = { name: configDetail.value.name, size: configDetail.value.byte_size, signature };
       } else {
-        const configContent = await downloadConfigContent(props.bkBizId, props.appId, signature);
+        const configContent = await downloadConfigContent(bkBizId, appId, signature);
         content.value = String(configContent);
       }
     } catch (e) {
@@ -273,8 +288,15 @@
     try {
       detailLoading.value = true;
       let template_space_id;
+      const { bkBizId, appId, projectId, envId, id } = props;
       if (versionData.value.id) {
-        const res = await getTemplateVersionDetail(props.bkBizId, props.appId, versionData.value.id, props.id);
+        const res = await getTemplateVersionDetail(
+          bkBizId,
+          projectId,
+          envId,
+          appId,
+          versionData.value.id,
+          id);
         delete res.detail.update_at;
         delete res.detail.reviser;
         configDetail.value = sortObjectKeysByAscii({
@@ -286,9 +308,9 @@
         let res;
         if (props.isLatest) {
           // 版本为latest拉取最新版本 不传递版本名
-          res = await getTemplateConfigMeta(props.bkBizId, props.id);
+          res = await getTemplateConfigMeta(bkBizId, projectId, id);
         } else {
-          res = await getTemplateConfigMeta(props.bkBizId, props.id, props.versionName);
+          res = await getTemplateConfigMeta(bkBizId, projectId, id, props.versionName);
         }
         configDetail.value = sortObjectKeysByAscii({
           ...props.templateMeta,
@@ -309,7 +331,7 @@
           size: String(configDetail.value.byte_size),
         };
       } else {
-        const configContent = await downloadTemplateContent(props.bkBizId, template_space_id, signature);
+        const configContent = await downloadTemplateContent(bkBizId, template_space_id, signature);
         content.value = String(configContent);
       }
     } catch (e) {
@@ -321,7 +343,8 @@
 
   const getVariableList = async () => {
     variablesLoading.value = true;
-    const res = await getReleasedAppVariables(props.bkBizId, props.appId, props.versionId);
+    const { bkBizId, appId, projectId, envId, versionId } = props;
+    const res = await getReleasedAppVariables(bkBizId, projectId, envId, appId, versionId);
     variables.value = res.details;
     variablesLoading.value = false;
   };
@@ -338,8 +361,10 @@
 
   const setEditorHeight = () => {
     nextTick(() => {
-      const el = sideSliderRef.value.$el.querySelector('.config-loading-container');
-      editorHeight.value = el.offsetHeight > 510 ? el.offsetHeight - 400 : 300;
+      const el = loadingContainerRef.value;
+      if (el) {
+        editorHeight.value = el.offsetHeight > 510 ? el.offsetHeight - 400 : 300;
+      }
     });
   };
 

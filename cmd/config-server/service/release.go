@@ -48,6 +48,8 @@ func (s *Service) CreateRelease(ctx context.Context, req *pbcs.CreateReleaseReq)
 			Memo: req.Memo,
 		},
 		Variables: req.Variables,
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	rp, err := s.client.DS.CreateRelease(grpcKit.RpcCtx(), r)
 	if err != nil {
@@ -81,6 +83,8 @@ func (s *Service) ListReleases(ctx context.Context, req *pbcs.ListReleasesReq) (
 		Limit:      req.Limit,
 		All:        req.All,
 		SearchKey:  req.SearchKey,
+		ProjectId:  grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:      grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	rp, err := s.client.DS.ListReleases(grpcKit.RpcCtx(), r)
 	if err != nil {
@@ -224,6 +228,8 @@ func (s *Service) DeleteRelease(ctx context.Context, req *pbcs.DeleteReleaseReq)
 		BizId:     req.BizId,
 		AppId:     req.AppId,
 		ReleaseId: req.ReleaseId,
+		ProjectId: kt.ResolvedProjectID(req.ProjectId),
+		EnvId:     kt.ResolvedEnvID(req.EnvId),
 	}
 	_, err = s.client.DS.DeleteRelease(kt.RpcCtx(), r)
 	if err != nil {
@@ -277,8 +283,10 @@ func (s *Service) ListAllReleasedConfigItems(ctx context.Context, req *pbcs.List
 	}
 
 	resp, err := s.client.DS.ListAllReleasedConfigItems(kt.RpcCtx(), &pbds.ListAllReleasedConfigItemsReq{
-		BizId: req.BizId,
-		AppId: req.AppId,
+		BizId:     req.BizId,
+		AppId:     req.AppId,
+		ProjectId: kt.ResolvedProjectID(req.ProjectId),
+		EnvId:     kt.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		return nil, err
@@ -308,6 +316,8 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbcs.ApprovalCallba
 		ReleaseId:     req.GetReleaseId(),
 		CallbackToken: req.GetCallbackToken(),
 		Ticket:        req.GetTicket(),
+		ProjectId:     grpcKit.ResolvedProjectID(req.GetProjectId()),
+		EnvId:         grpcKit.ResolvedEnvID(req.GetEnvId()),
 	})
 	if err != nil {
 		return nil, err

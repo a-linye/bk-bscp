@@ -57,6 +57,8 @@ var (
 	lowSpaceIDKey     = strings.ToLower(constant.SpaceIDKey)
 	lowSpaceTypeIDKey = strings.ToLower(constant.SpaceTypeIDKey)
 	lowBizIDKey       = strings.ToLower(constant.BizIDKey)
+	lowProjectIDKey   = strings.ToLower(constant.ProjectIDKey)
+	lowEnvKey         = strings.ToLower(constant.EnvIDKey)
 	lowAppIDKey       = strings.ToLower(constant.AppIDKey)
 	lowOperateWayKey  = strings.ToLower(constant.OperateWayKey)
 )
@@ -122,7 +124,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 
 	bizIDs := md[lowBizIDKey]
 	if len(bizIDs) != 0 {
-		bizID, err := strconv.ParseUint(bizIDs[0], 10, 64)
+		bizID, err := strconv.ParseUint(bizIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowBizID %s", bizIDs[0])
 		} else {
@@ -131,11 +133,31 @@ func FromGrpcContext(ctx context.Context) *Kit {
 	}
 	appIDs := md[lowAppIDKey]
 	if len(appIDs) != 0 {
-		appID, err := strconv.ParseUint(appIDs[0], 10, 64)
+		appID, err := strconv.ParseUint(appIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowBizID %s", appIDs[0])
 		} else {
 			kit.AppID = uint32(appID)
+		}
+	}
+
+	projectIDs := md[lowProjectIDKey]
+	if len(projectIDs) != 0 {
+		projectID, err := strconv.ParseUint(projectIDs[0], 10, 32)
+		if err != nil {
+			klog.ErrorS(err, "parse lowProjectID %s", projectIDs[0])
+		} else {
+			kit.ProjectID = uint32(projectID)
+		}
+	}
+
+	envIDs := md[lowEnvKey]
+	if len(envIDs) != 0 {
+		envID, err := strconv.ParseUint(envIDs[0], 10, 32)
+		if err != nil {
+			klog.ErrorS(err, "parse lowEnvID %s", envIDs[0])
+		} else {
+			kit.EnvID = uint32(envID)
 		}
 	}
 
@@ -197,7 +219,8 @@ type Kit struct {
 	SpaceID     string // 应用对应的SpaceID
 	SpaceTypeID string // 应用对应的SpaceTypeID
 	TmplSpaceID uint32 // 配置模版对应的TemplateSpaceID
-
+	ProjectID   uint32 // 项目ID
+	EnvID       uint32 // 环境ID
 }
 
 // Clone clones a Kit
@@ -216,7 +239,26 @@ func (c *Kit) Clone() *Kit {
 		SpaceID:     c.SpaceID,
 		SpaceTypeID: c.SpaceTypeID,
 		TmplSpaceID: c.TmplSpaceID,
+		ProjectID:   c.ProjectID,
+		EnvID:       c.EnvID,
 	}
+}
+
+// ResolvedProjectID 返回有效的 ProjectID：优先使用请求传入的值，为 0 时 fallback 到 Kit 自身的值。
+// 用于 config-server 等场景：URL/metadata 中携带了 ProjectID 时优先使用，否则使用中间件已注入的默认值。
+func (k *Kit) ResolvedProjectID(fromReq uint32) uint32 {
+	if fromReq != 0 {
+		return fromReq
+	}
+	return k.ProjectID
+}
+
+// ResolvedEnvID 返回有效的 EnvID：优先使用请求传入的值，为 0 时 fallback 到 Kit 自身的值。
+func (k *Kit) ResolvedEnvID(fromReq uint32) uint32 {
+	if fromReq != 0 {
+		return fromReq
+	}
+	return k.EnvID
 }
 
 // WithSkipTenantFilter returns a cloned Kit whose context carries the skip-tenant-filter flag,
@@ -261,6 +303,8 @@ func (c *Kit) RPCMetaData() metadata.MD {
 		constant.SpaceTypeIDKey: c.SpaceTypeID,
 		constant.BizIDKey:       strconv.FormatUint(uint64(c.BizID), 10),
 		constant.AppIDKey:       strconv.FormatUint(uint64(c.AppID), 10),
+		constant.ProjectIDKey:   strconv.FormatUint(uint64(c.ProjectID), 10),
+		constant.EnvIDKey:       strconv.FormatUint(uint64(c.EnvID), 10),
 		constant.OperateWayKey:  c.OperateWay,
 	}
 

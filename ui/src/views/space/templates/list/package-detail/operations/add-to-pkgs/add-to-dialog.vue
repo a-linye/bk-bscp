@@ -1,6 +1,6 @@
 <template>
   <bk-dialog
-    ext-cls="add-configs-to-pkg-dialog"
+    class="add-configs-to-pkg-dialog"
     :confirm-text="t('添加')"
     :cancel-text="t('取消')"
     :width="640"
@@ -41,13 +41,15 @@
       <p class="tips">
         {{ t('以下服务配置的未命名版本中将添加已选配置文件的') }} <span class="notice">latest {{ t('版本') }}</span>
       </p>
-      <div class="service-table">
-        <bk-loading style="min-height: 100px" :loading="loading">
-          <bk-table :data="citedList" :max-height="maxTableHeight">
+      <div
+        class="service-table"
+        :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '100px', overflowY: 'auto' }">
+        <bk-loading style="display: block; width: 100%" :loading="loading">
+          <bk-table :data="citedList">
             <bk-table-column :label="t('目标模板套餐')" prop="template_set_name"></bk-table-column>
             <bk-table-column :label="t('使用此套餐的服务')">
               <template #default="{ row }">
-                <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row.app_id)">
+                <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row)">
                   <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                   <LinkToApp class="link-icon" :id="row.app_id" />
                 </div>
@@ -71,7 +73,7 @@
   import { addTemplateToPackage, getUnNamedVersionAppsBoundByPackages } from '../../../../../../../api/template';
   import LinkToApp from '../../../components/link-to-app.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { packageList, currentTemplateSpace, currentPkg } = storeToRefs(useTemplateStore());
   const { t } = useI18n();
 
@@ -131,10 +133,10 @@
     return `${path}/${name}`;
   });
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IPackagesCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
       query: { pkg_id: currentTemplateSpace.value },
     });
     window.open(href, '_blank');
@@ -149,6 +151,7 @@
     };
     const res = await getUnNamedVersionAppsBoundByPackages(
       spaceId.value,
+      projectId.value,
       currentTemplateSpace.value,
       selectedPkgs.value,
       params,
@@ -178,6 +181,7 @@
       const templateIds = props.value.map((item) => item.id);
       await addTemplateToPackage(
         spaceId.value,
+        projectId.value,
         currentTemplateSpace.value,
         templateIds,
         selectedPkgs.value,

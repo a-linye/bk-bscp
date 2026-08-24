@@ -19,9 +19,11 @@ var ResKind = resKind("resource-kind")
 
 type resKind string
 
-// AppID return the app id's resource kind
-func (rk resKind) AppID(bizID uint32, appName string) string {
-	return fmt.Sprintf("app-id-%d-%s", bizID, appName)
+// AppID return the app id's resource kind, scoped by project and env to match
+// the app id cache key's dimensions, so that same-name apps under different
+// projects/envs do not contend for the same refresh lock.
+func (rk resKind) AppID(bizID, projectID, envID uint32, appName string) string {
+	return fmt.Sprintf("app-id-%d-%d-%d-%s", bizID, projectID, envID, appName)
 }
 
 // TenantID return the tenant id's resource kind

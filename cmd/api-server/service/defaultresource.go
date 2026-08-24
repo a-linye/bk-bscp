@@ -13,50 +13,36 @@
 package service
 
 import (
-	"context"
 	"sync"
-
-	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
-	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
 )
 
-// bizsOfTS are bizs which already have default template spaces
-var bizsOfTS BizsOfTmplSpace
+// bizProject 默认模板空间的归属维度：业务 + 项目
+type bizProject struct {
+	bizID     uint32
+	projectID uint32
+}
 
-// BizsOfTmplSpace are bizs which already have default template spaces with a lock which can be used concurrently
+// bizsOfTS are biz+project pairs which already have default template spaces
+var bizsOfTS = BizsOfTmplSpace{pairs: make(map[bizProject]struct{})}
+
+// BizsOfTmplSpace are biz+project pairs which already have default template spaces
+// with a lock which can be used concurrently
 type BizsOfTmplSpace struct {
 	sync.Mutex
-	Bizs map[uint32]struct{}
+	pairs map[bizProject]struct{}
 }
 
-// Set save a key in the bizs map
-func (b *BizsOfTmplSpace) Set(key uint32) {
+// Set save a biz+project pair in the cache
+func (b *BizsOfTmplSpace) Set(bizID, projectID uint32) {
 	b.Lock()
 	defer b.Unlock()
-	b.Bizs[key] = struct{}{}
+	b.pairs[bizProject{bizID: bizID, projectID: projectID}] = struct{}{}
 }
 
-// Has judge if a key in the bizs map
-func (b *BizsOfTmplSpace) Has(key uint32) bool {
+// Has judge if a biz+project pair in the cache
+func (b *BizsOfTmplSpace) Has(bizID, projectID uint32) bool {
 	b.Lock()
 	defer b.Unlock()
-	_, has := b.Bizs[key]
+	_, has := b.pairs[bizProject{bizID: bizID, projectID: projectID}]
 	return has
-}
-
-// initBizsOfTmplSpaces get all bizs which already have default template spaces from db
-func (p *proxy) initBizsOfTmplSpaces() {
-	bizsOfTS.Bizs = make(map[uint32]struct{})
-
-	resp, err := p.cfgClient.GetAllBizsOfTmplSpaces(context.Background(), &pbbase.EmptyReq{})
-	if err != nil {
-		logs.Warnf("init bizs of template spaces from db failed, err: %v", err)
-		return
-	}
-
-	for _, bizID := range resp.BizIds {
-		// no need to use lock for init step
-		bizsOfTS.Bizs[bizID] = struct{}{}
-	}
-	logs.Infof("init bizs of template spaces success, len(biz):%d", len(resp.BizIds))
 }

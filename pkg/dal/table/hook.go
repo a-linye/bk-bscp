@@ -52,6 +52,11 @@ func (h *Hook) ResType() string {
 	return "hook"
 }
 
+// ProjectID AuditRes interface, 后续通过上下文透传。
+func (h *Hook) ProjectID() uint32 {
+	return 0
+}
+
 // ValidateCreate validate hook is valid or not when create it.
 func (h Hook) ValidateCreate(kit *kit.Kit) error {
 
@@ -214,8 +219,9 @@ var HookAttachmentColumnDescriptor = ColumnDescriptors{
 
 // HookAttachment defines the hook attachments.
 type HookAttachment struct {
-	BizID    uint32 `db:"biz_id" gorm:"column:biz_id"`
-	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
+	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
+	BizID     uint32 `db:"biz_id" gorm:"column:biz_id"`
+	ProjectID uint32 `json:"project_id" gorm:"column:project_id"`
 }
 
 // IsEmpty test whether hook attachment is empty or not.

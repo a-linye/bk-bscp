@@ -37,6 +37,8 @@ type PublishOption struct {
 	ApproverProgress string                 `json:"approver_progress"`
 	PubState         string                 `json:"pub_state"`
 	ApproveType      string                 `json:"approve_type"`
+	ProjectID        uint32                 `json:"project_id"`
+	EnvID            uint32                 `json:"env_id"`
 }
 
 // Validate options is valid or not.

@@ -13,46 +13,30 @@
         :resize="true"
         @input="change" />
     </bk-form-item>
-    <bk-form-item :label="t('服务可见范围')" property="public" required>
-      <bk-radio-group v-model="localVal.public" @change="change">
-        <bk-radio :label="true">{{ t('公开') }}</bk-radio>
-        <bk-radio :label="false">{{ t('指定服务') }}</bk-radio>
-      </bk-radio-group>
-      <bk-select
-        v-if="!localVal.public"
-        v-model="localVal.bound_apps"
-        class="service-selector"
-        multiple
-        filterable
-        :placeholder="t('请选择服务')"
-        :loading="serviceLoading"
-        @change="handleServiceChange">
-        <bk-option v-for="service in serviceList" :key="service.id" :label="service.spec.name" :value="service.id">
-        </bk-option>
-      </bk-select>
-      <p v-if="!localVal.public && deletedApps.length > 0" class="tips">
-        {{ t('提醒：修改可见范围后，服务') }}
-        <span v-for="item in deletedApps" :key="item.id">【{{ item.spec.name }}】</span>
-        {{ t('将不再引用此套餐') }}
-      </p>
-    </bk-form-item>
+    <service-scope-selector
+      ref="envAppRef"
+      :form-data="localVal"
+      :space-id="spaceId"
+      :project-id="projectId"
+      config-type="file"
+      :show-removed-tip="true"
+      :apps="apps"
+      @update:form-data="(val) => (localVal = val)"
+      @change="change" />
   </bk-form>
 </template>
 <script lang="ts" setup>
-  import { onMounted, ref, watch } from 'vue';
+  import { ref, watch } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { cloneDeep } from 'lodash';
-  import { storeToRefs } from 'pinia';
-  import useUserStore from '../../../../../store/user';
   import { ITemplatePackageEditParams } from '../../../../../../types/template';
-  import { getAppList } from '../../../../../api/index';
-  import { IAppItem } from '../../../../../../types/app';
+  import ServiceScopeSelector from '../../../../../components/service-scope-selector.vue';
 
-  const { userInfo } = storeToRefs(useUserStore());
   const { t } = useI18n();
 
   const props = defineProps<{
     spaceId: string;
+    projectId: string;
     data: ITemplatePackageEditParams;
     apps?: number[]; // 套餐绑定的服务，编辑时需要区分哪些服务被去掉
   }>();
@@ -61,28 +45,15 @@
 
   const localVal = ref<ITemplatePackageEditParams>(cloneDeep(props.data));
   const formRef = ref();
-  const serviceLoading = ref(false);
-  const serviceList = ref<IAppItem[]>([]);
-  const deletedApps = ref<IAppItem[]>([]);
   const rules = {
-    public: [
-      {
-        validator: (val: boolean) => {
-          if (!val && localVal.value.bound_apps.length === 0) {
-            return false;
-          }
-          return true;
-        },
-        message: t('指定服务不能为空'),
-      },
-    ],
     memo: [
       {
         validator: (value: string) => value.length <= 200,
-        message: t('最大长度200个字符'),
+        message: t('最大长度 200 个字符'),
       },
     ],
   };
+  const envAppRef = ref();
 
   watch(
     () => props.data,
@@ -91,59 +62,18 @@
     },
   );
 
-  onMounted(() => {
-    getServiceList();
-  });
-
-  const getServiceList = async () => {
-    serviceLoading.value = true;
-    try {
-      const bizId = props.spaceId;
-      const query = {
-        start: 0,
-        limit: 1000, // @todo 确认拉全量列表参数
-        operator: userInfo.value.username,
-      };
-      const resp = await getAppList(bizId, query);
-      serviceList.value = resp.details.filter((service: IAppItem) => service.spec.config_type === 'file');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      serviceLoading.value = false;
-    }
-  };
-
-  const handleServiceChange = () => {
-    const changed: IAppItem[] = [];
-    if (!localVal.value.public && props.apps) {
-      props.apps.forEach((id) => {
-        if (!localVal.value.bound_apps.includes(id)) {
-          const app = serviceList.value.find((item) => item.id === id);
-          if (app) {
-            changed.push(app);
-          }
-        }
-      });
-    }
-    deletedApps.value = changed;
-    change();
-  };
-
   const change = () => {
     emits('change', localVal.value);
   };
 
-  const validate = () => formRef.value.validate();
+  const validate = async () => {
+    console.log(formRef.value.validate() && envAppRef.value.validate());
+    return await formRef.value.validate() && envAppRef.value.validate();
+  };
 
   defineExpose({
     validate,
   });
 </script>
 <style lang="scss" scoped>
-  .tips {
-    margin: 8px 0;
-    line-height: 16px;
-    font-size: 12px;
-    color: #ff9c01;
-  }
 </style>

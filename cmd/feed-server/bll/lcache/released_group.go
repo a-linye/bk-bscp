@@ -56,7 +56,7 @@ type ReleasedGroup struct {
 }
 
 // Get the released group's local cache.
-func (s *ReleasedGroup) Get(kt *kit.Kit, bizID uint32, appID uint32) (
+func (s *ReleasedGroup) Get(kt *kit.Kit, bizID, projectID, envID uint32, appID uint32) (
 	[]*types.ReleasedGroupCache, error) {
 
 	list, hit, err := s.getReleasedGroupFromCache(kt, bizID, appID)
@@ -73,8 +73,10 @@ func (s *ReleasedGroup) Get(kt *kit.Kit, bizID uint32, appID uint32) (
 
 	// get the cache from cache service directly.
 	opt := &pbcs.ListAppReleasedGroupsReq{
-		BizId: bizID,
-		AppId: appID,
+		BizId:     bizID,
+		AppId:     appID,
+		ProjectId: projectID,
+		EnvId:     envID,
 	}
 	resp, err := s.cs.CS().ListAppReleasedGroups(kt.RpcCtx(), opt)
 	if err != nil {

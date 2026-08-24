@@ -34,6 +34,8 @@ import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "pkg/protocol/core/config-instance/config_instance.proto";
+import "pkg/protocol/core/project/project.proto";
+import "pkg/protocol/core/environment/environment.proto";
 
 package pbds;
 
@@ -124,6 +126,7 @@ service Data {
   rpc GetAllBizsOfTmplSpaces(pbbase.EmptyReq) returns (GetAllBizsOfTmplSpacesResp) {}
   rpc CreateDefaultTmplSpace(CreateDefaultTmplSpaceReq) returns (CreateResp) {}
   rpc ListTmplSpacesByIDs(ListTmplSpacesByIDsReq) returns (ListTmplSpacesByIDsResp) {}
+  rpc GetTemplateSpaceByID(GetTemplateSpaceByIDReq) returns (GetTemplateSpaceByIDResp) {}
 
   // template related interface.
   rpc CreateTemplate(CreateTemplateReq) returns (CreateResp) {}
@@ -210,6 +213,7 @@ service Data {
   rpc TemplateVariableFetchIDsExcluding(TemplateVariableFetchIDsExcludingReq)
       returns (TemplateVariableFetchIDsExcludingResp) {}
   rpc ImportTemplateVariables(ImportTemplateVariablesReq) returns (ImportTemplateVariablesResp) {}
+  rpc GetTemplateVariableByID(GetTemplateVariableByIDReq) returns (GetTemplateVariableByIDResp) {}
 
   // group related interface.
   rpc CreateGroup(CreateGroupReq) returns (CreateResp) {}
@@ -264,6 +268,7 @@ service Data {
 
   // client related interface
   rpc ListClients(ListClientsReq) returns (ListClientsResp) {};
+  rpc GetClientByID(GetClientByIDReq) returns (GetClientByIDResp) {};
   rpc RetryClients(RetryClientsReq) returns (pbbase.EmptyResp) {};
 
   // client event related interface
@@ -371,13 +376,69 @@ service Data {
 
   // 查询指定业务是否开启进程与配置管理可见性
   rpc GetProcessConfigView(GetProcessConfigViewReq) returns (GetProcessConfigViewResp) {}
+
+  // 项目管理
+  rpc ListProjects(ListProjectsReq) returns (ListProjectsResp) {}
+  // 获取项目详情
+  rpc GetProject(GetProjectReq) returns (GetProjectResp) {}
+  // 创建项目
+  rpc CreateProject(CreateProjectReq) returns (CreateResp) {}
+  // 更新项目
+  rpc UpdateProject(UpdateProjectReq) returns (pbbase.EmptyResp) {}
+  // 删除项目
+  rpc DeleteProject(DeleteProjectReq) returns (pbbase.EmptyResp) {}
+
+  // 环境管理
+  rpc ListEnvironments(ListEnvironmentsReq) returns (ListEnvironmentsResp) {}
+  // 获取环境详情
+  rpc GetEnvironment(GetEnvironmentReq) returns (GetEnvironmentResp) {}
+  // 创建环境
+  rpc CreateEnvironment(CreateEnvironmentReq) returns (CreateResp) {}
+  // 更新环境
+  rpc UpdateEnvironment(UpdateEnvironmentReq) returns (pbbase.EmptyResp) {}
+  // 删除环境
+  rpc DeleteEnvironment(DeleteEnvironmentReq) returns (pbbase.EmptyResp) {}
+  // 确保业务下的默认项目和默认环境存在，不存在则自动创建
+  rpc EnsureDefaultProjectEnv(EnsureDefaultProjectEnvReq) returns (EnsureDefaultProjectEnvResp) {}
+  // 根据业务和项目查询默认环境 ID
+  rpc GetDefaultEnvironment(GetDefaultEnvironmentReq) returns (GetDefaultEnvironmentResp) {}
+  // 根据业务ID和项目key查询项目
+  rpc GetProjectByKey(GetProjectByKeyReq) returns (GetProjectResp) {}
+  // 根据业务ID、项目ID和环境名称查询环境
+  rpc GetEnvironmentByName(GetEnvironmentByNameReq) returns (GetEnvironmentResp) {}
 }
+
+// 确保默认项目和环境存在的请求参数
+message EnsureDefaultProjectEnvReq {
+  uint32 biz_id = 1;
+}
+
+// 返回默认项目和环境的 ID
+message EnsureDefaultProjectEnvResp {
+  uint32 project_id = 1;
+  uint32 env_id = 2;
+}
+
+// 根据业务和项目查询默认环境的请求参数
+message GetDefaultEnvironmentReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+}
+
+// 返回默认环境完整信息
+message GetDefaultEnvironmentResp {
+  uint32 id = 1;
+  pbenvironment.EnvironmentSpec spec = 2;
+  pbenvironment.EnvironmentAttachment attachment = 3;
+}
+
 message UpdateCredentialScopesReq {
   uint32 biz_id = 1;
   uint32 credential_id = 2;
   repeated pbcrs.CredentialScopeSpec created = 3;
   repeated pbcrs.UpdateScopeSpec updated = 4;
   repeated uint32 deleted = 5;
+  uint32 project_id = 6;
 }
 message UpdateCredentialScopesResp {}
 
@@ -388,6 +449,8 @@ message CredentialScopePreviewReq {
   string search_value = 4;
   uint32 start = 5;
   uint32 limit = 6;
+  uint32 project_id = 7;
+  uint32 env_id = 8;
 }
 
 message CredentialScopePreviewResp {
@@ -409,6 +472,7 @@ message DeleteCredentialScopesResp {}
 message ListCredentialScopesReq {
   uint32 biz_id = 1;
   uint32 credential_id = 2;
+  uint32 project_id = 3;
 }
 
 message ListCredentialScopesResp {
@@ -435,6 +499,7 @@ message ListCredentialReq {
   bool all = 6;
   string enc_credential = 7;
   optional bool enable = 8;
+  uint32 project_id = 9;
 }
 
 message ListCredentialResp {
@@ -451,6 +516,7 @@ message UpdateCredentialReq {
 message CheckCredentialNameReq {
   uint32 biz_id = 1;
   string credential_name = 2;
+  uint32 project_id = 3;
 }
 
 message CheckCredentialNameResp {
@@ -477,6 +543,8 @@ message UpdateConfigHookReq {
   uint32 app_id = 2;
   uint32 pre_hook_id = 3;
   uint32 post_hook_id = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message GetConfigHookReq {
@@ -487,22 +555,29 @@ message GetConfigHookReq {
 message CreateAppReq {
   uint32 biz_id = 1;
   pbapp.AppSpec spec = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message UpdateAppReq {
-  uint32 id = 1;
+  uint32 app_id = 1;
   uint32 biz_id = 2;
   pbapp.AppSpec spec = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
-
 message DeleteAppReq {
-  uint32 id = 1;
+  uint32 app_id = 1;
   uint32 biz_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetAppReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetAppByIDReq {
@@ -512,16 +587,20 @@ message GetAppByIDReq {
 message GetAppByNameReq {
   uint32 biz_id = 1;
   string app_name = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppsRestReq {
-  string biz_id = 1;  // 多个以逗号分割
+  uint32 biz_id = 1;
   uint32 start = 2;
   uint32 limit = 3;
   bool all = 4;
   string top_ids = 5;
   string config_type = 6;
   google.protobuf.Struct search = 7;
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
 
 message ListAppsResp {
@@ -533,6 +612,8 @@ message ListAppsResp {
 
 message ListAppsByIDsReq {
   repeated uint32 ids = 1;
+  uint32 biz_id = 2;
+  uint32 project_id = 3;
 }
 
 message ListAppsByIDsResp {
@@ -543,6 +624,8 @@ message CreateConfigItemReq {
   pbci.ConfigItemAttachment config_item_attachment = 1;
   pbci.ConfigItemSpec config_item_spec = 2;
   pbcontent.ContentSpec content_spec = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message BatchUpsertConfigItemsReq {
@@ -561,6 +644,8 @@ message BatchUpsertConfigItemsReq {
     pbatb.TemplateBinding template_binding = 2;
   }
   repeated TemplateBinding bindings = 6;
+  uint32 project_id = 7;
+  uint32 env_id = 8;
 }
 
 message BatchUpsertConfigItemsResp {
@@ -571,27 +656,37 @@ message UpdateConfigItemReq {
   uint32 id = 1;
   pbci.ConfigItemAttachment attachment = 2;
   pbci.ConfigItemSpec spec = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message DeleteConfigItemReq {
   uint32 id = 1;
   pbci.ConfigItemAttachment attachment = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message UnDeleteConfigItemReq {
   uint32 id = 1;
   pbci.ConfigItemAttachment attachment = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message UndoConfigItemReq {
   uint32 id = 1;
   pbci.ConfigItemAttachment attachment = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetConfigItemReq {
   uint32 id = 1;
   uint32 biz_id = 2;
   uint32 app_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message ListConfigItemsReq {
@@ -604,6 +699,8 @@ message ListConfigItemsReq {
   bool all = 7;
   bool with_status = 8;
   repeated string status = 9;
+  uint32 project_id = 10;
+  uint32 env_id = 11;
 }
 
 message ListConfigItemsResp {
@@ -621,6 +718,8 @@ message ListReleasedConfigItemsReq {
   uint32 start = 5;
   uint32 limit = 6;
   bool all = 7;
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
 
 message ListReleasedConfigItemsResp {
@@ -631,6 +730,8 @@ message ListReleasedConfigItemsResp {
 message ListConfigItemCountReq {
   uint32 biz_id = 1;
   repeated uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListConfigItemCountResp {
@@ -645,6 +746,8 @@ message ListConfigItemByTupleReq {
     string path = 4;
   }
   repeated Item items = 1;
+  uint32 project_id = 2;
+  uint32 env_id = 3;
 }
 
 message ListConfigItemByTupleResp {
@@ -678,6 +781,8 @@ message CreateReleaseReq {
   pbrelease.ReleaseAttachment attachment = 1;
   pbrelease.ReleaseSpec spec = 2;
   repeated pbtv.TemplateVariableSpec variables = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message ListReleasesReq {
@@ -688,6 +793,8 @@ message ListReleasesReq {
   uint32 limit = 5;
   bool all = 6;
   string searchKey = 7;
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
 
 message ListReleasesResp {
@@ -699,36 +806,48 @@ message GetReleaseByNameReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   string release_name = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message GetReleaseReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message DeprecateReleaseReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message UnDeprecateReleaseReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message DeleteReleaseReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message CheckReleaseNameReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   string name = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message CheckReleaseNameResp {
@@ -740,6 +859,8 @@ message GetReleasedCIReq {
   uint32 app_id = 2;
   uint32 release_id = 3;
   uint32 config_item_id = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message GetReleasedKvReq {
@@ -747,6 +868,8 @@ message GetReleasedKvReq {
   uint32 app_id = 2;
   uint32 release_id = 3;
   string key = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message ListReleasedKvReq {
@@ -761,6 +884,8 @@ message ListReleasedKvReq {
   repeated string kv_type = 9;
   string sort = 10;
   string order = 11;
+  uint32 project_id = 12;
+  uint32 env_id = 13;
 }
 
 message ListReleasedKvResp {
@@ -771,6 +896,8 @@ message ListReleasedKvResp {
 message ListAllReleasedConfigItemsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAllReleasedConfigItemsResp {
@@ -788,11 +915,13 @@ message CreateHookReq {
 
 message ListHookTagReq {
   uint32 biz_id = 1;
+  uint32 project_id = 2;
 }
 
 message GetHookReq {
   uint32 biz_id = 1;
   uint32 hook_id = 2;
+  uint32 project_id = 3;
 }
 
 message GetHookResp {
@@ -805,14 +934,15 @@ message GetHookResp {
 message HookFetchIDsExcludingReq {
   uint32 biz_id = 1;
   repeated uint32 ids = 2;
+  uint32 project_id = 3;
 }
-
 message HookFetchIDsExcludingResp {
   repeated uint32 ids = 1;
 }
 
 message GetHookReferencedIDsReq {
   uint32 biz_id = 1;
+  uint32 project_id = 2;
 }
 
 message GetHookReferencedIDsResp {
@@ -841,6 +971,7 @@ message ListHooksReq {
   uint32 limit = 8;
   string searchKey = 9;
   string top_ids = 10;
+  uint32 project_id = 11;
 }
 
 message ListHooksResp {
@@ -865,6 +996,7 @@ message ListHookReferencesReq {
   uint32 start = 3;
   uint32 limit = 4;
   string searchKey = 5;
+  uint32 project_id = 6;
 }
 
 message ListHookReferencesResp {
@@ -877,6 +1009,8 @@ message ListHookReferencesResp {
     string release_name = 6;
     string type = 7;
     bool deprecated = 8;
+    string env_display = 9;
+    uint32 env_id = 10;
   }
   uint32 count = 1;
   repeated Detail details = 2;
@@ -886,6 +1020,7 @@ message DeleteHookReq {
   uint32 biz_id = 1;
   uint32 hook_id = 2;
   bool force = 3;
+  uint32 project_id = 4;
 }
 
 message UpdateHookReq {
@@ -897,6 +1032,7 @@ message UpdateHookReq {
 message CreateHookRevisionReq {
   pbhr.HookRevisionAttachment attachment = 1;
   pbhr.HookRevisionSpec spec = 2;
+  uint32 project_id = 3;
 }
 
 message ListHookRevisionsReq {
@@ -907,6 +1043,7 @@ message ListHookRevisionsReq {
   uint32 limit = 5;
   bool all = 6;
   string state = 7;
+  uint32 project_id = 8;
 }
 
 message ListHookRevisionsResp {
@@ -936,6 +1073,7 @@ message PublishHookRevisionReq {
   uint32 biz_id = 1;
   uint32 hook_id = 2;
   uint32 id = 3;
+  uint32 project_id = 4;
 }
 
 message GetByPubStateReq {
@@ -957,8 +1095,8 @@ message ListHookRevisionReferencesReq {
   uint32 start = 4;
   uint32 limit = 5;
   string searchKey = 6;
+  uint32 project_id = 7;
 }
-
 message ListHookRevisionReferencesResp {
   message Detail {
     uint32 revision_id = 1;
@@ -969,6 +1107,8 @@ message ListHookRevisionReferencesResp {
     string release_name = 6;
     string type = 7;
     bool deprecated = 8;
+    string env_display = 9;
+    uint32 env_id = 10;
   }
   uint32 count = 1;
   repeated Detail details = 2;
@@ -978,6 +1118,8 @@ message GetReleaseHookReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message GetReleaseHookResp {
@@ -1006,8 +1148,8 @@ message ListTemplateSpacesReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
-
 message ListTemplateSpacesResp {
   uint32 count = 1;
   repeated pbts.TemplateSpace details = 2;
@@ -1030,14 +1172,27 @@ message GetAllBizsOfTmplSpacesResp {
 
 message CreateDefaultTmplSpaceReq {
   uint32 biz_id = 1;
+  uint32 project_id = 2;
 }
 
 message ListTmplSpacesByIDsReq {
   repeated uint32 ids = 1;
+  uint32 biz_id = 2;
+  uint32 project_id = 3;
 }
 
 message ListTmplSpacesByIDsResp {
   repeated pbts.TemplateSpace details = 1;
+}
+
+message GetTemplateSpaceByIDReq {
+  uint32 biz_id = 1;
+  uint32 id = 2;
+  uint32 project_id = 3;
+}
+
+message GetTemplateSpaceByIDResp {
+  pbts.TemplateSpace data = 1;
 }
 
 message CreateTemplateReq {
@@ -1045,6 +1200,7 @@ message CreateTemplateReq {
   pbtemplate.TemplateSpec spec = 2;
   pbtr.TemplateRevisionSpec tr_spec = 3;
   repeated uint32 template_set_ids = 4;
+  uint32 project_id = 5;
 }
 
 message ListTemplatesReq {
@@ -1088,6 +1244,7 @@ message AddTmplsToTmplSetsReq {
   bool exclusion_operation = 5;
   uint32 template_set_id = 6;  // 套餐ID, 具体操作的哪个套餐
   bool no_set_specified = 7;   // 是否未指定套餐, 区分全部套餐和未指定套餐
+  uint32 project_id = 8;
 }
 
 message DeleteTmplsFromTmplSetsReq {
@@ -1097,6 +1254,7 @@ message DeleteTmplsFromTmplSetsReq {
   repeated uint32 template_ids = 4;
   bool exclusion_operation = 5;
   bool no_set_specified = 6;  // 是否未指定套餐, 区分全部套餐和未指定套餐
+  uint32 project_id = 7;
 }
 
 message ListTemplatesByIDsReq {
@@ -1176,6 +1334,7 @@ message BatchUpsertTemplatesReq {
   }
   repeated Item items = 2;
   repeated uint32 template_set_ids = 3;
+  uint32 project_id = 4;
 }
 
 message BatchUpsertTemplatesReqResp {
@@ -1271,8 +1430,8 @@ message ListTemplateRevisionsByIDsResp {
 message ListTmplRevisionNamesByTmplIDsReq {
   uint32 biz_id = 1;
   repeated uint32 template_ids = 2;
+  uint32 project_id = 3;
 }
-
 message ListTmplRevisionNamesByTmplIDsResp {
   repeated pbtr.TemplateRevisionNamesDetail details = 1;
 }
@@ -1290,6 +1449,7 @@ message ListTemplateSetsReq {
   uint32 start = 5;
   uint32 limit = 6;
   bool all = 7;
+  uint32 project_id = 8;
 }
 
 message ListTemplateSetsResp {
@@ -1313,6 +1473,8 @@ message DeleteTemplateSetReq {
 message ListAppTemplateSetsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppTemplateSetsResp {
@@ -1321,6 +1483,8 @@ message ListAppTemplateSetsResp {
 
 message ListTemplateSetsByIDsReq {
   repeated uint32 ids = 1;
+  uint32 biz_id = 2;
+  uint32 project_id = 3;
 }
 
 message ListTemplateSetsByIDsResp {
@@ -1329,6 +1493,8 @@ message ListTemplateSetsByIDsResp {
 
 message ListTemplateSetBriefInfoByIDsReq {
   repeated uint32 ids = 1;
+  uint32 biz_id = 2;
+  uint32 project_id = 3;
 }
 
 message ListTemplateSetBriefInfoByIDsResp {
@@ -1338,6 +1504,8 @@ message ListTemplateSetBriefInfoByIDsResp {
 message ListTmplSetsOfBizReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListTmplSetsOfBizResp {
@@ -1347,6 +1515,8 @@ message ListTmplSetsOfBizResp {
 message CreateAppTemplateBindingReq {
   pbatb.AppTemplateBindingAttachment attachment = 1;
   pbatb.AppTemplateBindingSpec spec = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppTemplateBindingsReq {
@@ -1355,8 +1525,9 @@ message ListAppTemplateBindingsReq {
   uint32 start = 3;
   uint32 limit = 4;
   bool all = 5;
+  uint32 project_id = 6;
+  uint32 env_id = 7;
 }
-
 message ListAppTemplateBindingsResp {
   uint32 count = 1;
   repeated pbatb.AppTemplateBinding details = 2;
@@ -1366,11 +1537,15 @@ message UpdateAppTemplateBindingReq {
   uint32 id = 1;
   pbatb.AppTemplateBindingAttachment attachment = 2;
   pbatb.AppTemplateBindingSpec spec = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message DeleteAppTemplateBindingReq {
   uint32 id = 1;
   pbatb.AppTemplateBindingAttachment attachment = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppBoundTmplRevisionsReq {
@@ -1381,8 +1556,9 @@ message ListAppBoundTmplRevisionsReq {
   uint32 limit = 5;
   bool all = 6;
   bool with_status = 7;
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
-
 message ListAppBoundTmplRevisionsResp {
   uint32 count = 1;
   repeated pbatb.AppBoundTmplRevision details = 2;
@@ -1396,6 +1572,8 @@ message ListReleasedAppBoundTmplRevisionsReq {
   uint32 start = 5;
   uint32 limit = 6;
   bool all = 7;
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
 
 message ListReleasedAppBoundTmplRevisionsResp {
@@ -1408,6 +1586,8 @@ message GetReleasedAppBoundTmplRevisionReq {
   uint32 app_id = 2;
   uint32 release_id = 3;
   uint32 template_revision_id = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message GetReleasedAppBoundTmplRevisionResp {
@@ -1417,6 +1597,8 @@ message GetReleasedAppBoundTmplRevisionResp {
 message CheckAppTemplateBindingReq {
   pbatb.AppTemplateBindingAttachment attachment = 1;
   pbatb.AppTemplateBindingSpec spec = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message CheckAppTemplateBindingResp {
@@ -1441,11 +1623,15 @@ message ImportFromTemplateSetToAppReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   repeated Binding bindings = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message ExtractAppTmplVariablesReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ExtractAppTmplVariablesResp {
@@ -1455,6 +1641,8 @@ message ExtractAppTmplVariablesResp {
 message GetAppTmplVariableRefsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetAppTmplVariableRefsResp {
@@ -1465,6 +1653,8 @@ message GetReleasedAppTmplVariableRefsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message GetReleasedAppTmplVariableRefsResp {
@@ -1474,11 +1664,15 @@ message GetReleasedAppTmplVariableRefsResp {
 message UpdateAppTmplVariablesReq {
   pbatv.AppTemplateVariableAttachment attachment = 1;
   pbatv.AppTemplateVariableSpec spec = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppTmplVariablesReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppTmplVariablesResp {
@@ -1489,6 +1683,8 @@ message ListReleasedAppTmplVariablesReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message ListReleasedAppTmplVariablesResp {
@@ -1499,6 +1695,7 @@ message ListTmplBoundCountsReq {
   uint32 biz_id = 1;
   uint32 template_space_id = 2;
   repeated uint32 template_ids = 3;
+  uint32 project_id = 4;
 }
 
 message ListTmplBoundCountsResp {
@@ -1510,6 +1707,7 @@ message ListTmplRevisionBoundCountsReq {
   uint32 template_space_id = 2;
   uint32 template_id = 3;
   repeated uint32 template_revision_ids = 4;
+  uint32 project_id = 5;
 }
 
 message ListTmplRevisionBoundCountsResp {
@@ -1520,6 +1718,7 @@ message ListTmplSetBoundCountsReq {
   uint32 biz_id = 1;
   uint32 template_space_id = 2;
   repeated uint32 template_set_ids = 3;
+  uint32 project_id = 4;
 }
 
 message ListTmplSetBoundCountsResp {
@@ -1535,6 +1734,7 @@ message ListTmplBoundUnnamedAppsReq {
   uint32 start = 6;
   uint32 limit = 7;
   bool all = 8;
+  uint32 project_id = 9;
 }
 
 message ListTmplBoundUnnamedAppsResp {
@@ -1551,6 +1751,7 @@ message ListTmplBoundNamedAppsReq {
   uint32 start = 6;
   uint32 limit = 7;
   bool all = 8;
+  uint32 project_id = 9;
 }
 
 message ListTmplBoundNamedAppsResp {
@@ -1565,8 +1766,8 @@ message ListTmplBoundTmplSetsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
-
 message ListTmplBoundTmplSetsResp {
   uint32 count = 1;
   repeated pbtbr.TemplateBoundTemplateSetDetail details = 2;
@@ -1579,6 +1780,7 @@ message ListMultiTmplBoundTmplSetsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
 
 message ListMultiTmplBoundTmplSetsResp {
@@ -1596,6 +1798,7 @@ message ListTmplRevisionBoundUnnamedAppsReq {
   uint32 start = 7;
   uint32 limit = 8;
   bool all = 9;
+  uint32 project_id = 10;
 }
 
 message ListTmplRevisionBoundUnnamedAppsResp {
@@ -1613,6 +1816,7 @@ message ListTmplRevisionBoundNamedAppsReq {
   uint32 start = 7;
   uint32 limit = 8;
   bool all = 9;
+  uint32 project_id = 10;
 }
 
 message ListTmplRevisionBoundNamedAppsResp {
@@ -1627,6 +1831,7 @@ message ListTmplSetBoundUnnamedAppsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
 
 message ListTmplSetBoundUnnamedAppsResp {
@@ -1641,6 +1846,7 @@ message ListMultiTmplSetBoundUnnamedAppsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
 
 message ListMultiTmplSetBoundUnnamedAppsResp {
@@ -1655,6 +1861,7 @@ message ListTmplSetBoundNamedAppsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
 
 message ListTmplSetBoundNamedAppsResp {
@@ -1669,6 +1876,7 @@ message ListLatestTmplBoundUnnamedAppsReq {
   uint32 start = 4;
   uint32 limit = 5;
   bool all = 6;
+  uint32 project_id = 7;
 }
 
 message ListLatestTmplBoundUnnamedAppsResp {
@@ -1680,8 +1888,9 @@ message RemoveAppBoundTmplSetReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 template_set_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
-
 message CheckTemplateSetReferencesAppsReq {
   message Item {
     uint32 id = 1;
@@ -1691,6 +1900,7 @@ message CheckTemplateSetReferencesAppsReq {
   uint32 template_space_id = 2;
   repeated uint32 template_set_ids = 3;
   repeated Item items = 4;
+  uint32 project_id = 5;
 }
 
 message CheckTemplateSetReferencesAppsResp {
@@ -1715,6 +1925,7 @@ message CreateTemplateVariableReq {
 message ImportTemplateVariablesReq {
   uint32 biz_id = 1;
   repeated pbtv.TemplateVariableSpec specs = 2;
+  uint32 project_id = 3;
 }
 
 message ImportTemplateVariablesResp {
@@ -1730,6 +1941,7 @@ message ListTemplateVariablesReq {
   uint32 limit = 5;
   bool all = 6;
   repeated uint32 top_ids = 7;
+  uint32 project_id = 8;
 }
 
 message ListTemplateVariablesResp {
@@ -1751,10 +1963,23 @@ message DeleteTemplateVariableReq {
 message TemplateVariableFetchIDsExcludingReq {
   uint32 biz_id = 1;
   repeated uint32 ids = 2;
+  uint32 project_id = 3;
 }
 
 message TemplateVariableFetchIDsExcludingResp {
   repeated uint32 ids = 1;
+}
+
+message GetTemplateVariableByIDReq {
+  uint32 biz_id = 1;
+  uint32 id = 2;
+  uint32 project_id = 3;
+}
+
+message GetTemplateVariableByIDResp {
+  uint32 code = 1;
+  string message = 2;
+  pbtv.TemplateVariable data = 3;
 }
 
 message CreateGroupReq {
@@ -1765,6 +1990,7 @@ message CreateGroupReq {
 message ListAllGroupsReq {
   uint32 biz_id = 1;
   string top_ids = 2;
+  uint32 project_id = 3;
 }
 
 message ListAllGroupsResp {
@@ -1774,6 +2000,8 @@ message ListAllGroupsResp {
 message ListAppGroupsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message ListAppGroupsResp {
@@ -1792,11 +2020,13 @@ message ListAppGroupsResp {
 message GetGroupByNameReq {
   uint32 biz_id = 1;
   string group_name = 2;
+  uint32 project_id = 3;
 }
 
 message GetGroupByIDReq {
   uint32 biz_id = 1;
   uint32 group_id = 2;
+  uint32 project_id = 3;
 }
 
 message UpdateGroupReq {
@@ -1813,6 +2043,7 @@ message DeleteGroupReq {
 message ListGroupSelectorReq {
   uint32 biz_id = 1;
   string label_name = 2;
+  uint32 project_id = 3;
 }
 
 message ListGroupSelectorResp {
@@ -1839,6 +2070,7 @@ message ListGroupReleasedAppsReq {
   string search_key = 3;
   uint32 start = 4;
   uint32 limit = 5;
+  uint32 project_id = 6;
 }
 
 message ListGroupReleasedAppsResp {
@@ -1848,6 +2080,9 @@ message ListGroupReleasedAppsResp {
     uint32 release_id = 3;
     string release_name = 4;
     bool edited = 5;
+    string env_display = 6;
+    google.protobuf.Timestamp release_time = 7;
+    uint32 env_id = 8;
   }
   uint32 count = 1;
   repeated ListGroupReleasedAppsData details = 2;
@@ -1864,6 +2099,8 @@ message PublishReq {
   repeated uint32 groups = 8;
   repeated google.protobuf.Struct labels = 9;
   string group_name = 10;
+  uint32 project_id = 11;
+  uint32 env_id = 12;
 }
 
 message SubmitPublishApproveReq {
@@ -1880,6 +2117,8 @@ message SubmitPublishApproveReq {
   string publish_type = 11;
   string publish_time = 12;
   bool is_compare = 13;
+  uint32 project_id = 14;
+  uint32 env_id = 15;
 }
 
 message ApproveReq {
@@ -1890,6 +2129,8 @@ message ApproveReq {
   string reason = 5;
   uint32 strategy_id = 6;           // 接口内部赋值使用
   repeated string approved_by = 7;  // 接口内部赋值使用
+  uint32 project_id = 8;
+  uint32 env_id = 9;
 }
 
 message ApproveResp {
@@ -1901,6 +2142,8 @@ message ApproveResp {
 message GetLastSelectReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetLastSelectResp {
@@ -1911,6 +2154,8 @@ message GetLastSelectResp {
 message GetLastPublishReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetLastPublishResp {
@@ -1925,6 +2170,8 @@ message GetReleasesStatusReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   uint32 release_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message GenerateReleaseAndPublishReq {
@@ -1938,6 +2185,8 @@ message GenerateReleaseAndPublishReq {
   repeated string groups = 8;
   repeated google.protobuf.Struct labels = 9;
   string group_name = 10;
+  uint32 project_id = 11;
+  uint32 env_id = 12;
 }
 
 message PublishResp {
@@ -1962,6 +2211,7 @@ message ListAuditsReq {
   string res_instance = 13;
   repeated string status = 14;
   string operator = 15;
+  uint32 project_id = 16;
 }
 
 message ListAuditsResp {
@@ -1974,6 +2224,8 @@ message ListInstancesReq {
   string parent_type = 2;
   string parent_id = 3;
   pbbase.BasePage page = 4;
+  // keyword 对实例 display_name / id 做包含匹配；空则不过滤。IAM V3/V4 共用。
+  string keyword = 5;
 }
 
 message ListInstancesResp {
@@ -2009,12 +2261,16 @@ message PingMsg {
 message CreateKvReq {
   pbkv.KvAttachment attachment = 1;
   pbkv.KvSpec spec = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message UpdateKvReq {
   uint32 id = 1;
   pbkv.KvAttachment attachment = 2;
   pbkv.KvSpec spec = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message ListKvsReq {
@@ -2031,6 +2287,8 @@ message ListKvsReq {
   string order = 11;
   repeated uint32 top_ids = 12;
   repeated string status = 13;
+  uint32 project_id = 14;
+  uint32 env_id = 15;
 }
 
 message ListKvsResp {
@@ -2044,6 +2302,8 @@ message DeleteKvReq {
   uint32 id = 1;
   pbkv.KvSpec spec = 2;
   pbkv.KvAttachment attachment = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message BatchUpsertKvsReq {
@@ -2055,6 +2315,8 @@ message BatchUpsertKvsReq {
   uint32 app_id = 2;
   repeated Kv kvs = 3;
   bool replace_all = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message BatchUpsertKvsResp {
@@ -2065,18 +2327,24 @@ message UnDeleteKvReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   string key = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message UndoKvReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   string key = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message KvFetchIDsExcludingReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   repeated uint32 ids = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message KvFetchIDsExcludingResp {
@@ -2087,6 +2355,8 @@ message KvFetchKeysExcludingReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
   repeated string keys = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message KvFetchKeysExcludingResp {
@@ -2100,6 +2370,8 @@ message FindNearExpiryCertKvsReq {
   uint32 start = 4;
   uint32 limit = 5;
   uint32 days = 6;
+  uint32 project_id = 7;
+  uint32 env_id = 8;
 }
 
 message FindNearExpiryCertKvsResp {
@@ -2121,6 +2393,8 @@ message ListClientsReq {
   }
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 9;
+  uint32 env_id = 10;
   bool all = 3;
   uint32 start = 4;
   uint32 limit = 5;
@@ -2132,6 +2406,8 @@ message ListClientsReq {
 message RetryClientsReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 6;
+  uint32 env_id = 7;
   repeated uint32 client_ids = 3;
   bool all = 4;
   bool exclusion_operation = 5;
@@ -2150,6 +2426,18 @@ message ListClientsResp {
   uint32 exclusion_count = 9;  // 排除离线的数量
 }
 
+message GetClientByIDReq {
+  uint32 biz_id = 1;
+  uint32 app_id = 2;
+  uint32 client_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
+}
+
+message GetClientByIDResp {
+  pbclient.Client data = 1;
+}
+
 message ListClientEventsReq {
   message Order {
     string desc = 1;
@@ -2157,6 +2445,8 @@ message ListClientEventsReq {
   }
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 11;
+  uint32 env_id = 12;
   uint32 client_id = 3;
   bool all = 4;
   uint32 start = 5;
@@ -2175,6 +2465,8 @@ message ListClientEventsResp {
 message ListClientQuerysReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 7;
+  uint32 env_id = 8;
   string search_type = 3;  // 搜索类型：recent、common
   uint32 start = 4;
   uint32 limit = 5;
@@ -2189,6 +2481,8 @@ message ListClientQuerysResp {
 message CreateClientQueryReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 6;
+  uint32 env_id = 7;
   string search_type = 3;
   string search_name = 4;
   google.protobuf.Struct search_condition = 5;
@@ -2202,6 +2496,8 @@ message UpdateClientQueryReq {
   uint32 id = 1;
   uint32 biz_id = 2;
   uint32 app_id = 3;
+  uint32 project_id = 6;
+  uint32 env_id = 7;
   string search_name = 4;
   google.protobuf.Struct search_condition = 5;
 }
@@ -2210,12 +2506,16 @@ message DeleteClientQueryReq {
   uint32 id = 1;
   uint32 biz_id = 2;
   uint32 app_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message CheckClientQueryNameReq {
   string name = 1;
   uint32 biz_id = 2;
   uint32 app_id = 3;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
 }
 
 message CheckClientQueryNameResp {
@@ -2225,6 +2525,8 @@ message CheckClientQueryNameResp {
 message ListClientLabelAndAnnotationReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 4;
+  uint32 env_id = 5;
   int64 last_heartbeat_time = 3;
 }
 
@@ -2233,6 +2535,8 @@ message CompareConfigItemConflictsReq {
   uint32 app_id = 2;
   uint32 release_id = 3;
   uint32 other_app_id = 4;
+  uint32 project_id = 5;
+  uint32 env_id = 6;
 }
 
 message CompareConfigItemConflictsResp {
@@ -2269,6 +2573,8 @@ message CompareConfigItemConflictsResp {
 message GetTemplateAndNonTemplateCICountReq {
   uint32 biz_id = 1;
   uint32 app_id = 2;
+  uint32 project_id = 3;
+  uint32 env_id = 4;
 }
 
 message GetTemplateAndNonTemplateCICountResp {
@@ -2286,6 +2592,7 @@ message GetLatestTemplateVersionsInSpaceReq {
   uint32 biz_id = 1;
   uint32 template_space_id = 2;
   uint32 template_id = 3;
+  uint32 project_id = 4;
 }
 
 message GetLatestTemplateVersionsInSpaceResp {
@@ -2303,6 +2610,8 @@ message ApprovalCallbackReq {
   uint32 release_id = 3;
   string callback_token = 4;
   pbrelease.Ticket ticket = 5;
+  uint32 project_id = 6;
+  uint32 env_id = 7;
 }
 
 message ApprovalCallbackResp {
@@ -2330,6 +2639,8 @@ message CloneAppReq {
   uint32 pre_hook_id = 13;
   uint32 post_hook_id = 14;
   string data_type = 15;
+  uint32 project_id = 16;
+  uint32 env_id = 17;
 }
 
 message ListProcessReq {
@@ -2784,4 +3095,110 @@ message GetProcessConfigViewReq {
 // GetProcessConfigViewResp 查询进程与配置管理可见性响应
 message GetProcessConfigViewResp {
   bool enabled = 1;
+}
+
+message ListProjectsReq {
+  uint32 biz_id = 1;
+  uint32 start = 2;
+  uint32 limit = 3;
+  bool all = 4;
+  google.protobuf.Struct search_condition = 5;
+}
+
+message ListProjectsResp {
+  uint32 count = 1;
+  repeated pbproject.Project projects = 2;
+}
+
+message GetProjectReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+}
+
+message GetProjectResp {
+  uint32 id = 1;
+  pbproject.ProjectSpec spec = 2;
+  pbproject.ProjectAttachment attachment = 3;
+}
+
+message CreateProjectReq {
+  uint32 biz_id = 1;
+  string name = 2;
+  string memo = 3;
+}
+
+message UpdateProjectReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  string memo = 3;
+  string name = 4;
+}
+
+message UpdateProjectResp {}
+
+message DeleteProjectReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+}
+
+message DeleteProjectResp {}
+
+message ListEnvironmentsReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  uint32 start = 3;
+  uint32 limit = 4;
+  bool all = 5;
+  google.protobuf.Struct search_condition = 6;
+}
+
+message ListEnvironmentsResp {
+  repeated pbenvironment.Environment prod_environments = 1;
+  repeated pbenvironment.Environment staging_environments = 2;
+  repeated pbenvironment.Environment test_environments = 3;
+  repeated pbenvironment.Environment dev_environments = 4;
+}
+
+message GetEnvironmentReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  uint32 env_id = 3;
+}
+
+message GetEnvironmentResp {
+  uint32 id = 1;
+  pbenvironment.EnvironmentSpec spec = 2;
+  pbenvironment.EnvironmentAttachment attachment = 3;
+}
+
+message CreateEnvironmentReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  string name = 3;
+  string type = 4;
+  string memo = 5;
+}
+
+message UpdateEnvironmentReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  uint32 env_id = 3;
+  string memo = 4;
+}
+
+message DeleteEnvironmentReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  uint32 env_id = 3;
+}
+
+message GetProjectByKeyReq {
+  uint32 biz_id = 1;
+  string project_key = 2;
+}
+
+message GetEnvironmentByNameReq {
+  uint32 biz_id = 1;
+  uint32 project_id = 2;
+  string env_name = 3;
 }

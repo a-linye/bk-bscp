@@ -94,6 +94,7 @@ const (
 	Data_GetAllBizsOfTmplSpaces_FullMethodName            = "/pbds.Data/GetAllBizsOfTmplSpaces"
 	Data_CreateDefaultTmplSpace_FullMethodName            = "/pbds.Data/CreateDefaultTmplSpace"
 	Data_ListTmplSpacesByIDs_FullMethodName               = "/pbds.Data/ListTmplSpacesByIDs"
+	Data_GetTemplateSpaceByID_FullMethodName              = "/pbds.Data/GetTemplateSpaceByID"
 	Data_CreateTemplate_FullMethodName                    = "/pbds.Data/CreateTemplate"
 	Data_ListTemplates_FullMethodName                     = "/pbds.Data/ListTemplates"
 	Data_UpdateTemplate_FullMethodName                    = "/pbds.Data/UpdateTemplate"
@@ -160,6 +161,7 @@ const (
 	Data_DeleteTemplateVariable_FullMethodName            = "/pbds.Data/DeleteTemplateVariable"
 	Data_TemplateVariableFetchIDsExcluding_FullMethodName = "/pbds.Data/TemplateVariableFetchIDsExcluding"
 	Data_ImportTemplateVariables_FullMethodName           = "/pbds.Data/ImportTemplateVariables"
+	Data_GetTemplateVariableByID_FullMethodName           = "/pbds.Data/GetTemplateVariableByID"
 	Data_CreateGroup_FullMethodName                       = "/pbds.Data/CreateGroup"
 	Data_ListAllGroups_FullMethodName                     = "/pbds.Data/ListAllGroups"
 	Data_ListAppGroups_FullMethodName                     = "/pbds.Data/ListAppGroups"
@@ -198,6 +200,7 @@ const (
 	Data_KvFetchKeysExcluding_FullMethodName              = "/pbds.Data/KvFetchKeysExcluding"
 	Data_FindNearExpiryCertKvs_FullMethodName             = "/pbds.Data/FindNearExpiryCertKvs"
 	Data_ListClients_FullMethodName                       = "/pbds.Data/ListClients"
+	Data_GetClientByID_FullMethodName                     = "/pbds.Data/GetClientByID"
 	Data_RetryClients_FullMethodName                      = "/pbds.Data/RetryClients"
 	Data_ListClientEvents_FullMethodName                  = "/pbds.Data/ListClientEvents"
 	Data_ListClientQuerys_FullMethodName                  = "/pbds.Data/ListClientQuerys"
@@ -255,6 +258,20 @@ const (
 	Data_GetProcessInstanceTopo_FullMethodName            = "/pbds.Data/GetProcessInstanceTopo"
 	Data_ManageConfigKV_FullMethodName                    = "/pbds.Data/ManageConfigKV"
 	Data_GetProcessConfigView_FullMethodName              = "/pbds.Data/GetProcessConfigView"
+	Data_ListProjects_FullMethodName                      = "/pbds.Data/ListProjects"
+	Data_GetProject_FullMethodName                        = "/pbds.Data/GetProject"
+	Data_CreateProject_FullMethodName                     = "/pbds.Data/CreateProject"
+	Data_UpdateProject_FullMethodName                     = "/pbds.Data/UpdateProject"
+	Data_DeleteProject_FullMethodName                     = "/pbds.Data/DeleteProject"
+	Data_ListEnvironments_FullMethodName                  = "/pbds.Data/ListEnvironments"
+	Data_GetEnvironment_FullMethodName                    = "/pbds.Data/GetEnvironment"
+	Data_CreateEnvironment_FullMethodName                 = "/pbds.Data/CreateEnvironment"
+	Data_UpdateEnvironment_FullMethodName                 = "/pbds.Data/UpdateEnvironment"
+	Data_DeleteEnvironment_FullMethodName                 = "/pbds.Data/DeleteEnvironment"
+	Data_EnsureDefaultProjectEnv_FullMethodName           = "/pbds.Data/EnsureDefaultProjectEnv"
+	Data_GetDefaultEnvironment_FullMethodName             = "/pbds.Data/GetDefaultEnvironment"
+	Data_GetProjectByKey_FullMethodName                   = "/pbds.Data/GetProjectByKey"
+	Data_GetEnvironmentByName_FullMethodName              = "/pbds.Data/GetEnvironmentByName"
 )
 
 // DataClient is the client API for Data service.
@@ -334,6 +351,7 @@ type DataClient interface {
 	GetAllBizsOfTmplSpaces(ctx context.Context, in *base.EmptyReq, opts ...grpc.CallOption) (*GetAllBizsOfTmplSpacesResp, error)
 	CreateDefaultTmplSpace(ctx context.Context, in *CreateDefaultTmplSpaceReq, opts ...grpc.CallOption) (*CreateResp, error)
 	ListTmplSpacesByIDs(ctx context.Context, in *ListTmplSpacesByIDsReq, opts ...grpc.CallOption) (*ListTmplSpacesByIDsResp, error)
+	GetTemplateSpaceByID(ctx context.Context, in *GetTemplateSpaceByIDReq, opts ...grpc.CallOption) (*GetTemplateSpaceByIDResp, error)
 	// template related interface.
 	CreateTemplate(ctx context.Context, in *CreateTemplateReq, opts ...grpc.CallOption) (*CreateResp, error)
 	ListTemplates(ctx context.Context, in *ListTemplatesReq, opts ...grpc.CallOption) (*ListTemplatesResp, error)
@@ -407,6 +425,7 @@ type DataClient interface {
 	DeleteTemplateVariable(ctx context.Context, in *DeleteTemplateVariableReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
 	TemplateVariableFetchIDsExcluding(ctx context.Context, in *TemplateVariableFetchIDsExcludingReq, opts ...grpc.CallOption) (*TemplateVariableFetchIDsExcludingResp, error)
 	ImportTemplateVariables(ctx context.Context, in *ImportTemplateVariablesReq, opts ...grpc.CallOption) (*ImportTemplateVariablesResp, error)
+	GetTemplateVariableByID(ctx context.Context, in *GetTemplateVariableByIDReq, opts ...grpc.CallOption) (*GetTemplateVariableByIDResp, error)
 	// group related interface.
 	CreateGroup(ctx context.Context, in *CreateGroupReq, opts ...grpc.CallOption) (*CreateResp, error)
 	ListAllGroups(ctx context.Context, in *ListAllGroupsReq, opts ...grpc.CallOption) (*ListAllGroupsResp, error)
@@ -453,6 +472,7 @@ type DataClient interface {
 	FindNearExpiryCertKvs(ctx context.Context, in *FindNearExpiryCertKvsReq, opts ...grpc.CallOption) (*FindNearExpiryCertKvsResp, error)
 	// client related interface
 	ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error)
+	GetClientByID(ctx context.Context, in *GetClientByIDReq, opts ...grpc.CallOption) (*GetClientByIDResp, error)
 	RetryClients(ctx context.Context, in *RetryClientsReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
 	// client event related interface
 	ListClientEvents(ctx context.Context, in *ListClientEventsReq, opts ...grpc.CallOption) (*ListClientEventsResp, error)
@@ -539,6 +559,34 @@ type DataClient interface {
 	ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error)
 	// 查询指定业务是否开启进程与配置管理可见性
 	GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error)
+	// 项目管理
+	ListProjects(ctx context.Context, in *ListProjectsReq, opts ...grpc.CallOption) (*ListProjectsResp, error)
+	// 获取项目详情
+	GetProject(ctx context.Context, in *GetProjectReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 创建项目
+	CreateProject(ctx context.Context, in *CreateProjectReq, opts ...grpc.CallOption) (*CreateResp, error)
+	// 更新项目
+	UpdateProject(ctx context.Context, in *UpdateProjectReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
+	// 删除项目
+	DeleteProject(ctx context.Context, in *DeleteProjectReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
+	// 环境管理
+	ListEnvironments(ctx context.Context, in *ListEnvironmentsReq, opts ...grpc.CallOption) (*ListEnvironmentsResp, error)
+	// 获取环境详情
+	GetEnvironment(ctx context.Context, in *GetEnvironmentReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
+	// 创建环境
+	CreateEnvironment(ctx context.Context, in *CreateEnvironmentReq, opts ...grpc.CallOption) (*CreateResp, error)
+	// 更新环境
+	UpdateEnvironment(ctx context.Context, in *UpdateEnvironmentReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
+	// 删除环境
+	DeleteEnvironment(ctx context.Context, in *DeleteEnvironmentReq, opts ...grpc.CallOption) (*base.EmptyResp, error)
+	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
+	EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error)
+	// 根据业务和项目查询默认环境 ID
+	GetDefaultEnvironment(ctx context.Context, in *GetDefaultEnvironmentReq, opts ...grpc.CallOption) (*GetDefaultEnvironmentResp, error)
+	// 根据业务ID和项目key查询项目
+	GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 根据业务ID、项目ID和环境名称查询环境
+	GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
 }
 
 type dataClient struct {
@@ -1101,6 +1149,15 @@ func (c *dataClient) CreateDefaultTmplSpace(ctx context.Context, in *CreateDefau
 func (c *dataClient) ListTmplSpacesByIDs(ctx context.Context, in *ListTmplSpacesByIDsReq, opts ...grpc.CallOption) (*ListTmplSpacesByIDsResp, error) {
 	out := new(ListTmplSpacesByIDsResp)
 	err := c.cc.Invoke(ctx, Data_ListTmplSpacesByIDs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetTemplateSpaceByID(ctx context.Context, in *GetTemplateSpaceByIDReq, opts ...grpc.CallOption) (*GetTemplateSpaceByIDResp, error) {
+	out := new(GetTemplateSpaceByIDResp)
+	err := c.cc.Invoke(ctx, Data_GetTemplateSpaceByID_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1701,6 +1758,15 @@ func (c *dataClient) ImportTemplateVariables(ctx context.Context, in *ImportTemp
 	return out, nil
 }
 
+func (c *dataClient) GetTemplateVariableByID(ctx context.Context, in *GetTemplateVariableByIDReq, opts ...grpc.CallOption) (*GetTemplateVariableByIDResp, error) {
+	out := new(GetTemplateVariableByIDResp)
+	err := c.cc.Invoke(ctx, Data_GetTemplateVariableByID_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataClient) CreateGroup(ctx context.Context, in *CreateGroupReq, opts ...grpc.CallOption) (*CreateResp, error) {
 	out := new(CreateResp)
 	err := c.cc.Invoke(ctx, Data_CreateGroup_FullMethodName, in, out, opts...)
@@ -2037,6 +2103,15 @@ func (c *dataClient) FindNearExpiryCertKvs(ctx context.Context, in *FindNearExpi
 func (c *dataClient) ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error) {
 	out := new(ListClientsResp)
 	err := c.cc.Invoke(ctx, Data_ListClients_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetClientByID(ctx context.Context, in *GetClientByIDReq, opts ...grpc.CallOption) (*GetClientByIDResp, error) {
+	out := new(GetClientByIDResp)
+	err := c.cc.Invoke(ctx, Data_GetClientByID_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2556,6 +2631,132 @@ func (c *dataClient) GetProcessConfigView(ctx context.Context, in *GetProcessCon
 	return out, nil
 }
 
+func (c *dataClient) ListProjects(ctx context.Context, in *ListProjectsReq, opts ...grpc.CallOption) (*ListProjectsResp, error) {
+	out := new(ListProjectsResp)
+	err := c.cc.Invoke(ctx, Data_ListProjects_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetProject(ctx context.Context, in *GetProjectReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Data_GetProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) CreateProject(ctx context.Context, in *CreateProjectReq, opts ...grpc.CallOption) (*CreateResp, error) {
+	out := new(CreateResp)
+	err := c.cc.Invoke(ctx, Data_CreateProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) UpdateProject(ctx context.Context, in *UpdateProjectReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
+	out := new(base.EmptyResp)
+	err := c.cc.Invoke(ctx, Data_UpdateProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) DeleteProject(ctx context.Context, in *DeleteProjectReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
+	out := new(base.EmptyResp)
+	err := c.cc.Invoke(ctx, Data_DeleteProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) ListEnvironments(ctx context.Context, in *ListEnvironmentsReq, opts ...grpc.CallOption) (*ListEnvironmentsResp, error) {
+	out := new(ListEnvironmentsResp)
+	err := c.cc.Invoke(ctx, Data_ListEnvironments_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetEnvironment(ctx context.Context, in *GetEnvironmentReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Data_GetEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) CreateEnvironment(ctx context.Context, in *CreateEnvironmentReq, opts ...grpc.CallOption) (*CreateResp, error) {
+	out := new(CreateResp)
+	err := c.cc.Invoke(ctx, Data_CreateEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) UpdateEnvironment(ctx context.Context, in *UpdateEnvironmentReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
+	out := new(base.EmptyResp)
+	err := c.cc.Invoke(ctx, Data_UpdateEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) DeleteEnvironment(ctx context.Context, in *DeleteEnvironmentReq, opts ...grpc.CallOption) (*base.EmptyResp, error) {
+	out := new(base.EmptyResp)
+	err := c.cc.Invoke(ctx, Data_DeleteEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error) {
+	out := new(EnsureDefaultProjectEnvResp)
+	err := c.cc.Invoke(ctx, Data_EnsureDefaultProjectEnv_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetDefaultEnvironment(ctx context.Context, in *GetDefaultEnvironmentReq, opts ...grpc.CallOption) (*GetDefaultEnvironmentResp, error) {
+	out := new(GetDefaultEnvironmentResp)
+	err := c.cc.Invoke(ctx, Data_GetDefaultEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Data_GetProjectByKey_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataClient) GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Data_GetEnvironmentByName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataServer is the server API for Data service.
 // All implementations should embed UnimplementedDataServer
 // for forward compatibility
@@ -2633,6 +2834,7 @@ type DataServer interface {
 	GetAllBizsOfTmplSpaces(context.Context, *base.EmptyReq) (*GetAllBizsOfTmplSpacesResp, error)
 	CreateDefaultTmplSpace(context.Context, *CreateDefaultTmplSpaceReq) (*CreateResp, error)
 	ListTmplSpacesByIDs(context.Context, *ListTmplSpacesByIDsReq) (*ListTmplSpacesByIDsResp, error)
+	GetTemplateSpaceByID(context.Context, *GetTemplateSpaceByIDReq) (*GetTemplateSpaceByIDResp, error)
 	// template related interface.
 	CreateTemplate(context.Context, *CreateTemplateReq) (*CreateResp, error)
 	ListTemplates(context.Context, *ListTemplatesReq) (*ListTemplatesResp, error)
@@ -2706,6 +2908,7 @@ type DataServer interface {
 	DeleteTemplateVariable(context.Context, *DeleteTemplateVariableReq) (*base.EmptyResp, error)
 	TemplateVariableFetchIDsExcluding(context.Context, *TemplateVariableFetchIDsExcludingReq) (*TemplateVariableFetchIDsExcludingResp, error)
 	ImportTemplateVariables(context.Context, *ImportTemplateVariablesReq) (*ImportTemplateVariablesResp, error)
+	GetTemplateVariableByID(context.Context, *GetTemplateVariableByIDReq) (*GetTemplateVariableByIDResp, error)
 	// group related interface.
 	CreateGroup(context.Context, *CreateGroupReq) (*CreateResp, error)
 	ListAllGroups(context.Context, *ListAllGroupsReq) (*ListAllGroupsResp, error)
@@ -2752,6 +2955,7 @@ type DataServer interface {
 	FindNearExpiryCertKvs(context.Context, *FindNearExpiryCertKvsReq) (*FindNearExpiryCertKvsResp, error)
 	// client related interface
 	ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error)
+	GetClientByID(context.Context, *GetClientByIDReq) (*GetClientByIDResp, error)
 	RetryClients(context.Context, *RetryClientsReq) (*base.EmptyResp, error)
 	// client event related interface
 	ListClientEvents(context.Context, *ListClientEventsReq) (*ListClientEventsResp, error)
@@ -2838,6 +3042,34 @@ type DataServer interface {
 	ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error)
 	// 查询指定业务是否开启进程与配置管理可见性
 	GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error)
+	// 项目管理
+	ListProjects(context.Context, *ListProjectsReq) (*ListProjectsResp, error)
+	// 获取项目详情
+	GetProject(context.Context, *GetProjectReq) (*GetProjectResp, error)
+	// 创建项目
+	CreateProject(context.Context, *CreateProjectReq) (*CreateResp, error)
+	// 更新项目
+	UpdateProject(context.Context, *UpdateProjectReq) (*base.EmptyResp, error)
+	// 删除项目
+	DeleteProject(context.Context, *DeleteProjectReq) (*base.EmptyResp, error)
+	// 环境管理
+	ListEnvironments(context.Context, *ListEnvironmentsReq) (*ListEnvironmentsResp, error)
+	// 获取环境详情
+	GetEnvironment(context.Context, *GetEnvironmentReq) (*GetEnvironmentResp, error)
+	// 创建环境
+	CreateEnvironment(context.Context, *CreateEnvironmentReq) (*CreateResp, error)
+	// 更新环境
+	UpdateEnvironment(context.Context, *UpdateEnvironmentReq) (*base.EmptyResp, error)
+	// 删除环境
+	DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*base.EmptyResp, error)
+	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
+	EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error)
+	// 根据业务和项目查询默认环境 ID
+	GetDefaultEnvironment(context.Context, *GetDefaultEnvironmentReq) (*GetDefaultEnvironmentResp, error)
+	// 根据业务ID和项目key查询项目
+	GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error)
+	// 根据业务ID、项目ID和环境名称查询环境
+	GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error)
 }
 
 // UnimplementedDataServer should be embedded to have forward compatible implementations.
@@ -3029,6 +3261,9 @@ func (UnimplementedDataServer) CreateDefaultTmplSpace(context.Context, *CreateDe
 }
 func (UnimplementedDataServer) ListTmplSpacesByIDs(context.Context, *ListTmplSpacesByIDsReq) (*ListTmplSpacesByIDsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTmplSpacesByIDs not implemented")
+}
+func (UnimplementedDataServer) GetTemplateSpaceByID(context.Context, *GetTemplateSpaceByIDReq) (*GetTemplateSpaceByIDResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTemplateSpaceByID not implemented")
 }
 func (UnimplementedDataServer) CreateTemplate(context.Context, *CreateTemplateReq) (*CreateResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTemplate not implemented")
@@ -3228,6 +3463,9 @@ func (UnimplementedDataServer) TemplateVariableFetchIDsExcluding(context.Context
 func (UnimplementedDataServer) ImportTemplateVariables(context.Context, *ImportTemplateVariablesReq) (*ImportTemplateVariablesResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportTemplateVariables not implemented")
 }
+func (UnimplementedDataServer) GetTemplateVariableByID(context.Context, *GetTemplateVariableByIDReq) (*GetTemplateVariableByIDResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTemplateVariableByID not implemented")
+}
 func (UnimplementedDataServer) CreateGroup(context.Context, *CreateGroupReq) (*CreateResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateGroup not implemented")
 }
@@ -3341,6 +3579,9 @@ func (UnimplementedDataServer) FindNearExpiryCertKvs(context.Context, *FindNearE
 }
 func (UnimplementedDataServer) ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListClients not implemented")
+}
+func (UnimplementedDataServer) GetClientByID(context.Context, *GetClientByIDReq) (*GetClientByIDResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClientByID not implemented")
 }
 func (UnimplementedDataServer) RetryClients(context.Context, *RetryClientsReq) (*base.EmptyResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetryClients not implemented")
@@ -3512,6 +3753,48 @@ func (UnimplementedDataServer) ManageConfigKV(context.Context, *ManageConfigKVRe
 }
 func (UnimplementedDataServer) GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProcessConfigView not implemented")
+}
+func (UnimplementedDataServer) ListProjects(context.Context, *ListProjectsReq) (*ListProjectsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
+}
+func (UnimplementedDataServer) GetProject(context.Context, *GetProjectReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProject not implemented")
+}
+func (UnimplementedDataServer) CreateProject(context.Context, *CreateProjectReq) (*CreateResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateProject not implemented")
+}
+func (UnimplementedDataServer) UpdateProject(context.Context, *UpdateProjectReq) (*base.EmptyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateProject not implemented")
+}
+func (UnimplementedDataServer) DeleteProject(context.Context, *DeleteProjectReq) (*base.EmptyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
+}
+func (UnimplementedDataServer) ListEnvironments(context.Context, *ListEnvironmentsReq) (*ListEnvironmentsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEnvironments not implemented")
+}
+func (UnimplementedDataServer) GetEnvironment(context.Context, *GetEnvironmentReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironment not implemented")
+}
+func (UnimplementedDataServer) CreateEnvironment(context.Context, *CreateEnvironmentReq) (*CreateResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateEnvironment not implemented")
+}
+func (UnimplementedDataServer) UpdateEnvironment(context.Context, *UpdateEnvironmentReq) (*base.EmptyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEnvironment not implemented")
+}
+func (UnimplementedDataServer) DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*base.EmptyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteEnvironment not implemented")
+}
+func (UnimplementedDataServer) EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureDefaultProjectEnv not implemented")
+}
+func (UnimplementedDataServer) GetDefaultEnvironment(context.Context, *GetDefaultEnvironmentReq) (*GetDefaultEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultEnvironment not implemented")
+}
+func (UnimplementedDataServer) GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectByKey not implemented")
+}
+func (UnimplementedDataServer) GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironmentByName not implemented")
 }
 
 // UnsafeDataServer may be embedded to opt out of forward compatibility for this service.
@@ -4637,6 +4920,24 @@ func _Data_ListTmplSpacesByIDs_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataServer).ListTmplSpacesByIDs(ctx, req.(*ListTmplSpacesByIDsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetTemplateSpaceByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTemplateSpaceByIDReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetTemplateSpaceByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetTemplateSpaceByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetTemplateSpaceByID(ctx, req.(*GetTemplateSpaceByIDReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -5829,6 +6130,24 @@ func _Data_ImportTemplateVariables_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_GetTemplateVariableByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTemplateVariableByIDReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetTemplateVariableByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetTemplateVariableByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetTemplateVariableByID(ctx, req.(*GetTemplateVariableByIDReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Data_CreateGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateGroupReq)
 	if err := dec(in); err != nil {
@@ -6509,6 +6828,24 @@ func _Data_ListClients_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataServer).ListClients(ctx, req.(*ListClientsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetClientByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClientByIDReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetClientByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetClientByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetClientByID(ctx, req.(*GetClientByIDReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -7539,6 +7876,258 @@ func _Data_GetProcessConfigView_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Data_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProjectsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_ListProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).ListProjects(ctx, req.(*ListProjectsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetProject(ctx, req.(*GetProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).CreateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_CreateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).CreateProject(ctx, req.(*CreateProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_UpdateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).UpdateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_UpdateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).UpdateProject(ctx, req.(*UpdateProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).DeleteProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_DeleteProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).DeleteProject(ctx, req.(*DeleteProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_ListEnvironments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListEnvironmentsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).ListEnvironments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_ListEnvironments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).ListEnvironments(ctx, req.(*ListEnvironmentsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetEnvironment(ctx, req.(*GetEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_CreateEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).CreateEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_CreateEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).CreateEnvironment(ctx, req.(*CreateEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_UpdateEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).UpdateEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_UpdateEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).UpdateEnvironment(ctx, req.(*UpdateEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_DeleteEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).DeleteEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_DeleteEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).DeleteEnvironment(ctx, req.(*DeleteEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_EnsureDefaultProjectEnv_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureDefaultProjectEnvReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).EnsureDefaultProjectEnv(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_EnsureDefaultProjectEnv_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).EnsureDefaultProjectEnv(ctx, req.(*EnsureDefaultProjectEnvReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetDefaultEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetDefaultEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetDefaultEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetDefaultEnvironment(ctx, req.(*GetDefaultEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetProjectByKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectByKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetProjectByKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetProjectByKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetProjectByKey(ctx, req.(*GetProjectByKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Data_GetEnvironmentByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentByNameReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataServer).GetEnvironmentByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Data_GetEnvironmentByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataServer).GetEnvironmentByName(ctx, req.(*GetEnvironmentByNameReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Data_ServiceDesc is the grpc.ServiceDesc for Data service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -7793,6 +8382,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTmplSpacesByIDs",
 			Handler:    _Data_ListTmplSpacesByIDs_Handler,
+		},
+		{
+			MethodName: "GetTemplateSpaceByID",
+			Handler:    _Data_GetTemplateSpaceByID_Handler,
 		},
 		{
 			MethodName: "CreateTemplate",
@@ -8059,6 +8652,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Data_ImportTemplateVariables_Handler,
 		},
 		{
+			MethodName: "GetTemplateVariableByID",
+			Handler:    _Data_GetTemplateVariableByID_Handler,
+		},
+		{
 			MethodName: "CreateGroup",
 			Handler:    _Data_CreateGroup_Handler,
 		},
@@ -8209,6 +8806,10 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListClients",
 			Handler:    _Data_ListClients_Handler,
+		},
+		{
+			MethodName: "GetClientByID",
+			Handler:    _Data_GetClientByID_Handler,
 		},
 		{
 			MethodName: "RetryClients",
@@ -8437,6 +9038,62 @@ var Data_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProcessConfigView",
 			Handler:    _Data_GetProcessConfigView_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _Data_ListProjects_Handler,
+		},
+		{
+			MethodName: "GetProject",
+			Handler:    _Data_GetProject_Handler,
+		},
+		{
+			MethodName: "CreateProject",
+			Handler:    _Data_CreateProject_Handler,
+		},
+		{
+			MethodName: "UpdateProject",
+			Handler:    _Data_UpdateProject_Handler,
+		},
+		{
+			MethodName: "DeleteProject",
+			Handler:    _Data_DeleteProject_Handler,
+		},
+		{
+			MethodName: "ListEnvironments",
+			Handler:    _Data_ListEnvironments_Handler,
+		},
+		{
+			MethodName: "GetEnvironment",
+			Handler:    _Data_GetEnvironment_Handler,
+		},
+		{
+			MethodName: "CreateEnvironment",
+			Handler:    _Data_CreateEnvironment_Handler,
+		},
+		{
+			MethodName: "UpdateEnvironment",
+			Handler:    _Data_UpdateEnvironment_Handler,
+		},
+		{
+			MethodName: "DeleteEnvironment",
+			Handler:    _Data_DeleteEnvironment_Handler,
+		},
+		{
+			MethodName: "EnsureDefaultProjectEnv",
+			Handler:    _Data_EnsureDefaultProjectEnv_Handler,
+		},
+		{
+			MethodName: "GetDefaultEnvironment",
+			Handler:    _Data_GetDefaultEnvironment_Handler,
+		},
+		{
+			MethodName: "GetProjectByKey",
+			Handler:    _Data_GetProjectByKey_Handler,
+		},
+		{
+			MethodName: "GetEnvironmentByName",
+			Handler:    _Data_GetEnvironmentByName_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

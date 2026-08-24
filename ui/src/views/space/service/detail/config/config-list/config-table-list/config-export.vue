@@ -33,13 +33,16 @@
   import { storeToRefs } from 'pinia';
   import useServiceStore from '../../../../../../../store/service';
   import useConfigStore from '../../../../../../../store/config';
+  import useGlobalStore from '../../../../../../../store/global';
   const serviceStore = useServiceStore();
+  const { projectId } = storeToRefs(useGlobalStore());
   const configStore = useConfigStore();
   const { appData, isFileType } = storeToRefs(serviceStore);
   const { allExistConfigCount, conflictFileCount } = storeToRefs(configStore);
 
   const props = defineProps<{
     bkBizId: string;
+    envId: string;
     appId: number;
     versionId: number;
     versionName: string;
@@ -60,7 +63,7 @@
   ]);
 
   const handleExportKv = async (type: string) => {
-    const res = await getExportKvFile(props.bkBizId, props.appId, props.versionId, type);
+    const res = await getExportKvFile(props.bkBizId, props.appId, projectId.value, props.envId, props.versionId, type);
     let content: any;
     let mimeType: string;
     let extension: string;
@@ -91,7 +94,8 @@
   // 导出文件型服务配置
   const handleExportFile = async () => {
     const link = document.createElement('a');
-    link.href = `${(window as any).BK_BCS_BSCP_API}/api/v1/config/biz/${props.bkBizId}/apps/${props.appId}/releases/${
+    const { bkBizId, envId, appId } = props;
+    link.href = `${(window as any).BK_BCS_BSCP_API}/api/v1/config/biz/${bkBizId}/projects/${projectId.value}/envs/${envId}/apps/${appId}/releases/${
       props.versionId
     }/config_item/export`;
     link.click();

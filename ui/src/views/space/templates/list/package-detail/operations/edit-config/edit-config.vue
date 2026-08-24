@@ -17,6 +17,7 @@
         :is-edit="true"
         :is-tpl="true"
         :bk-biz-id="spaceId"
+        :project-id="projectId"
         :id="currentTemplateSpace"
         :file-size-limit="spaceFeatureFlags.RESOURCE_LIMIT.maxFileSize"
         @change="handleFormChange" />
@@ -53,6 +54,7 @@
   const props = defineProps<{
     id: number;
     spaceId: string;
+    projectId: string;
     show: Boolean;
     memo: string;
   }>();
@@ -88,7 +90,7 @@
   const getConfigDetail = async () => {
     try {
       configDetailLoading.value = true;
-      const res = await getTemplateConfigMeta(props.spaceId, props.id);
+      const res = await getTemplateConfigMeta(props.spaceId, props.projectId, props.id);
       const {
         name,
         path,
@@ -157,6 +159,7 @@
       };
       await updateTemplateConfig(
         props.spaceId,
+        props.projectId,
         currentTemplateSpace.value,
         props.id,
         formData as ITemplateVersionEditingData,

@@ -29,6 +29,7 @@
   const props = defineProps<{
     app: IAppItem;
     spaceId: string;
+    envId: string;
   }>();
   const emits = defineEmits(['delete', 'edit', 'clone']);
   const opPopRef = ref();
@@ -80,7 +81,7 @@
     const query = hideNav.value ? { hideNav: '1' } : {};
     const routeData = router.resolve({
       name,
-      params: { spaceId: props.spaceId, appId: props.app.id },
+      params: { spaceId: props.spaceId, envId: props.envId, appId: props.app.id },
       query,
     });
     window.open(routeData.href, '_blank');

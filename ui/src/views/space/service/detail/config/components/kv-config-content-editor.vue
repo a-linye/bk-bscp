@@ -33,6 +33,8 @@
           :language="languages"
           :always-consume-mouse-wheel="false"
           :file-editor="false"
+          :project-id="projectId"
+          :env-id="envId"
           @update:model-value="emits('change', $event)" />
       </div>
     </div>
@@ -52,6 +54,8 @@
       languages: string;
       editable?: boolean;
       height?: number;
+      projectId: string;
+      envId: string;
     }>(),
     {
       editable: true,

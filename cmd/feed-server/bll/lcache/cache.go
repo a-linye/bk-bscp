@@ -81,7 +81,8 @@ func (c *Cache) Purge(kt *kit.Kit, es []*types.EventMeta) {
 			case table.UpdateOp, table.DeleteOp:
 				c.App.delete(one.Attachment.AppID)
 				if one.Spec.ResourceUid != "" {
-					c.App.deleteByName(one.Attachment.BizID, one.Spec.ResourceUid)
+					c.App.deleteByName(kt, one.Attachment.BizID, one.Attachment.ProjectID,
+						one.Attachment.EnvID, one.Spec.ResourceUid)
 				}
 			default:
 				logs.V(1).Infof("skip app event op, %s, rid: %s", formatEvent(one), kt.Rid)

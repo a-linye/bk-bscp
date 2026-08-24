@@ -2,7 +2,7 @@
   <bk-dialog
     :is-show="show"
     ref="dialog"
-    ext-cls="confirm-dialog"
+    class="confirm-dialog"
     footer-align="center"
     :cancel-text="$t('再想想')"
     :width="dialogType === 'confirm' ? '480' : '640'"

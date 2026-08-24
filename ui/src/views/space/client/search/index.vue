@@ -10,6 +10,8 @@
         </bk-button>
         <BatchRetryBtn
           :bk-biz-id="bkBizId"
+          :project-id="projectId"
+          :env-id="envId"
           :app-id="appId"
           :selections="selectedClient"
           :is-across-checked="isAcrossChecked"
@@ -240,6 +242,8 @@
                     row.client.spec.release_change_status === 'Failed' && row.client.spec.online_status === 'Online'
                   "
                   :bk-biz-id="bkBizId"
+                  :project-id="projectId"
+                  :env-id="envId"
                   :app-id="appId"
                   :client="row.client"
                   @retried="handleRetryConfirm" />
@@ -256,6 +260,8 @@
   </section>
   <PullRecord
     :bk-biz-id="bkBizId"
+    :project-id="projectId"
+    :env-id="envId"
     :app-id="appId"
     :id="viewPullRecordClientId"
     :uid="viewPullRecordClientUid"
@@ -301,6 +307,8 @@
   const { pagination, updatePagination } = useTablePagination('clientSearch');
 
   const bkBizId = ref(String(route.params.spaceId));
+  const projectId = ref(String(route.params.projectId));
+  const envId = ref(String(route.params.envId));
   const appId = ref(Number(route.params.appId));
   const viewPullRecordClientId = ref(0);
   const viewPullRecordClientUid = ref('');
@@ -380,6 +388,8 @@
       if (val) {
         appId.value = Number(val);
         bkBizId.value = String(route.params.spaceId);
+        projectId.value = String(route.params.projectId);
+        envId.value = String(route.params.envId || '');
       }
     },
   );
@@ -587,7 +597,12 @@
     }
     try {
       listLoading.value = true;
-      const res = await getClientQueryList(bkBizId.value, appId.value, params);
+      const res = await getClientQueryList(
+        bkBizId.value,
+        appId.value,
+        projectId.value,
+        envId.value,
+        params);
       tableData.value = res.data.details;
       tableData.value.forEach((item: any) => {
         const { client } = item;
@@ -603,9 +618,16 @@
   };
 
   const linkToApp = (versionId: number) => {
+    const routeParams = {
+      spaceId: bkBizId.value,
+      projectId: projectId.value,
+      envId: envId.value,
+      appId: appId.value,
+      versionId
+    };
     const routeData = router.resolve({
       name: 'service-config',
-      params: { spaceId: bkBizId.value, appId: appId.value, versionId },
+      params: routeParams,
     });
     window.open(routeData.href, '_blank');
   };
@@ -707,7 +729,12 @@
       },
     };
     try {
-      const res = await getClientQueryList(bkBizId.value, appId.value, params);
+      const res = await getClientQueryList(
+        bkBizId.value,
+        appId.value,
+        projectId.value,
+        envId.value,
+        params);
       res.data.details.forEach((item: any) => {
         if (isRetry || item.client.spec.release_change_status !== 'Processing') {
           const pollClient = tableData.value.find((tableItem: any) => tableItem.client.id === item.client.id);

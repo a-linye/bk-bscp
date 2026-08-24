@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -40,6 +39,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/client"
+	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbas "github.com/TencentBlueKing/bk-bscp/pkg/protocol/auth-server"
@@ -143,8 +143,6 @@ func (a authorizer) UnifiedAuthentication(next http.Handler) http.Handler {
 		}
 		k.Lang = tools.GetLangFromReq(r)
 		multiErr := &multierror.Error{}
-		// log 打印，将header 信息打印出来
-		slog.Info("request header", "header", r.Header, "path", path.Base(r.URL.Path))
 		switch {
 		case a.initKitWithBKJWT(r, k, multiErr):
 		case a.initKitWithCookie(r, k, multiErr):
@@ -360,18 +358,19 @@ func (a authorizer) AppVerified(next http.Handler) http.Handler {
 			return
 		}
 
-		appID, err := strconv.Atoi(appIDStr)
+		appIDVal, err := strconv.ParseUint(appIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
-		space, err := a.authClient.QuerySpaceByAppID(kt.RpcCtx(), &pbas.QuerySpaceByAppIDReq{AppId: uint32(appID)})
+		appID := uint32(appIDVal)
+		space, err := a.authClient.QuerySpaceByAppID(kt.RpcCtx(), &pbas.QuerySpaceByAppIDReq{AppId: appID})
 		if err != nil {
 			render.Render(w, r, rest.GRPCErr(err))
 			return
 		}
 
-		kt.AppID = uint32(appID)
+		kt.AppID = appID
 		kt.SpaceID = space.SpaceId
 		kt.SpaceTypeID = space.SpaceTypeId
 		ctx := kit.WithKit(r.Context(), kt)
@@ -441,6 +440,94 @@ func (a authorizer) BizVerified(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
+}
+
+// Project 校验中间件
+func (a authorizer) VerifyProjectExists(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+		projectIDStr := chi.URLParam(r, "project_id")
+
+		// 如果 URL 里没传 project_id
+		if projectIDStr == "" {
+			render.Render(w, r, rest.BadRequest(errors.New("project_id is required")))
+			return
+		}
+
+		projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		resp, err := a.authClient.VerifyProject(kt.RpcCtx(), &pbas.VerifyProjectReq{
+			BizId:     kt.BizID,
+			ProjectId: uint32(projectID),
+		})
+		if err != nil {
+			logs.Errorf("verify project failed, bizID: %d, projectID: %d, err: %v", kt.BizID, uint32(projectID), err)
+			msg := err.Error()
+			if st, ok := status.FromError(err); ok {
+				msg = st.Message()
+			}
+
+			render.Render(w, r, rest.BadRequest(errors.New(msg)))
+			return
+		}
+
+		if !resp.Exists {
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("project_id %d does not exist", projectID)))
+			return
+		}
+
+		kt.ProjectID = uint32(projectID)
+
+		next.ServeHTTP(w, r.WithContext(kit.WithKit(r.Context(), kt)))
+	})
+}
+
+// Env 校验中间件
+func (a authorizer) VerifyEnvExists(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		envIDStr := chi.URLParam(r, "env_id")
+		if envIDStr == "" {
+			render.Render(w, r, rest.BadRequest(errors.New("env_id is required")))
+			return
+		}
+
+		envID, err := strconv.ParseUint(envIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		resp, err := a.authClient.VerifyEnv(kt.RpcCtx(), &pbas.VerifyEnvReq{
+			BizId:     kt.BizID,
+			ProjectId: kt.ProjectID,
+			EnvId:     uint32(envID),
+		})
+		if err != nil {
+			logs.Errorf("verify env failed, bizID: %d, projectID: %d, envID: %d, err: %v", kt.BizID, kt.ProjectID, uint32(envID), err)
+			msg := err.Error()
+			if st, ok := status.FromError(err); ok {
+				msg = st.Message()
+			}
+
+			render.Render(w, r, rest.BadRequest(errors.New(msg)))
+			return
+		}
+
+		if !resp.Exists {
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("env_id %d does not exist", envID)))
+			return
+		}
+
+		kt.EnvID = uint32(envID)
+
+		next.ServeHTTP(w, r.WithContext(kit.WithKit(r.Context(), kt)))
+	})
 }
 
 // dummyVerified dummy鉴权方式，测试使用
@@ -543,7 +630,9 @@ func getRid(h http.Header) string {
 func (a *authorizer) checkRequestAuthorization(req *http.Request) (bool, error) {
 	rid := req.Header.Get(client.RequestIDHeader)
 	name, pwd, ok := req.BasicAuth()
-	if !ok || name != client.SystemIDIAM {
+	// 回调的 Basic 用户名 V3 是 iam、V4 是 bk_iam，两者都放行，
+	// 具体 token 归属哪个版本由 auth-server 的 IAMVerify 按运行时配置判定。
+	if !ok || (name != client.SystemIDIAM && name != clientv4.CallbackBasicUser) {
 		logs.Errorf("request have no basic authorization, rid: %s", rid)
 		return false, nil
 	}

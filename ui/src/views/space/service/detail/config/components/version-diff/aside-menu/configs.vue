@@ -141,6 +141,7 @@
       selectedConfig: IConfigDiffSelected;
       actived: boolean;
       isPublish: boolean;
+      envId?: string;
     }>(),
     {
       unNamedVersionVariables: () => [],
@@ -152,6 +153,8 @@
 
   const route = useRoute();
   const bkBizId = ref(String(route.params.spaceId));
+  const projectId = ref(String(route.params.projectId));
+  const envId = ref(String(route.params.envId || props.envId));
   const { appData } = storeToRefs(useServiceStore());
 
   const diffCount = ref(0);
@@ -263,9 +266,15 @@
     let configsRes;
 
     if (unNamedVersion) {
-      configsRes = await getConfigList(bkBizId.value, appData.value.id as number, params);
+      configsRes = await getConfigList(bkBizId.value, appData.value.id as number, projectId.value, envId.value, params);
     } else {
-      configsRes = await getReleasedConfigList(bkBizId.value, appData.value.id as number, id, params);
+      configsRes = await getReleasedConfigList(
+        bkBizId.value,
+        appData.value.id as number,
+        projectId.value,
+        envId.value,
+        id,
+        params);
     }
 
     // 未命名版本中包含被删除的配置文件，需要过滤掉
@@ -309,9 +318,15 @@
     };
     let res;
     if (unNamedVersion) {
-      res = await getBoundTemplates(bkBizId.value, appData.value.id as number, params);
+      res = await getBoundTemplates(bkBizId.value, appData.value.id as number, projectId.value, envId.value, params);
     } else {
-      res = await getBoundTemplatesByAppVersion(bkBizId.value, appData.value.id as number, id, params);
+      res = await getBoundTemplatesByAppVersion(
+        bkBizId.value,
+        appData.value.id as number,
+        projectId.value,
+        envId.value,
+        id,
+        params);
     }
     return res.details.map((groupItem: IBoundTemplateGroup) => {
       const { template_space_id, template_space_name, template_set_id, template_set_name } = groupItem;
@@ -364,7 +379,12 @@
     if (id === undefined || isUnNamedVersion(id)) {
       return [];
     }
-    const res = await getReleasedAppVariables(bkBizId.value, appData.value.id as number, id);
+    const res = await getReleasedAppVariables(
+      bkBizId.value,
+      projectId.value,
+      envId.value,
+      appData.value.id as number,
+      id);
     return res.details;
   };
 

@@ -22,12 +22,14 @@ import (
 )
 
 // ListInstances query instances based on filter criteria.
+// Keyword 透传给 data-service：V3 的 list_instance 通常为空，search_instance 会带搜索词。
 func (i *IAM) ListInstances(kt *kit.Kit, resType client.TypeID, filter *types.ListInstanceFilter,
 	page types.Page) (*types.ListInstanceResult, error) {
 
 	req := &pbds.ListInstancesReq{
 		ResourceType: string(resType),
 		Page:         page.PbPage(),
+		Keyword:      filter.Keyword,
 	}
 	if filter.Parent != nil {
 		req.ParentType = string(filter.Parent.Type)

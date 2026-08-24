@@ -8,7 +8,7 @@
     "
     header-align="left"
     :is-show="props.show"
-    ext-cls="delete-confirm-dialog">
+    class="delete-confirm-dialog">
     <div class="tips">{{ t('一旦删除，该操作将无法撤销，请谨慎操作') }}</div>
     <bk-table v-show="!props.isAcrossChecked" :data="props.configs" border="outer" max-height="200">
       <bk-table-column :label="t('配置文件名')">
@@ -53,7 +53,7 @@
   import { ITemplateConfigItem } from '../../../../../../../../types/template';
   import { deleteTemplate } from '../../../../../../../api/template';
   import DeleteConfirmDialog from '../../../../../../../components/delete-confirm-dialog.vue';
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { currentTemplateSpace } = storeToRefs(useTemplateStore());
   const { t } = useI18n();
 
@@ -82,7 +82,7 @@
     try {
       pending.value = true;
       const ids = props.configs.map((config) => config.id);
-      await deleteTemplate(spaceId.value, currentTemplateSpace.value, ids, props.isAcrossChecked);
+      await deleteTemplate(spaceId.value, projectId.value, currentTemplateSpace.value, ids, props.isAcrossChecked);
       close();
       setTimeout(() => {
         emits('deleted');

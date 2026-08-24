@@ -51,12 +51,33 @@ type GenericResponseWriter struct {
 	authorizer   auth.Authorizer
 	annotation   *webannotation.Annotation
 	err          error // low-level runtime error
+	// status 记录 WriteHeader 写入的状态码，0 表示尚未写入
+	status int
+}
+
+// WriteHeader 记录状态码，供 Write 判断是否跳过 data 包装
+func (w *GenericResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+// isErrorStatus 判断当前是否处于错误响应状态：上层已显式 SetError，或写入的状态码非 2xx。
+// chi middleware 通过 render.Render(rest.BadRequest) 直接写出错误响应，不会触发 SetError，
+// 但会 WriteHeader(4xx)，因此这里用状态码兜底识别错误响应，避免把 {"error":{...}} 又包成 {"data":...}。
+func (w *GenericResponseWriter) isErrorStatus() bool {
+	if w.err != nil {
+		return true
+	}
+	if w.status == 0 {
+		return false
+	}
+	return w.status < 200 || w.status >= 300
 }
 
 // Write http write 接口实现
 func (w *GenericResponseWriter) Write(data []byte) (int, error) {
-	// 错误不需要特殊处理
-	if w.err != nil {
+	// 错误响应(含 chi middleware 直接 render.Render 的 BadRequest)不补充 data 包装
+	if w.isErrorStatus() {
 		return w.ResponseWriter.Write(data)
 	}
 

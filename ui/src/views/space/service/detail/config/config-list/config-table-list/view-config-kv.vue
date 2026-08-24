@@ -1,13 +1,12 @@
 <template>
   <bk-sideslider
-    ref="sideSliderRef"
     width="640"
     quick-close
     :title="t('查看配置项')"
     :is-show="props.show"
     @closed="close"
     @shown="setEditorHeight">
-    <div class="view-wrap">
+    <div class="view-wrap" ref="viewWrapRef">
       <bk-tab v-model:active="activeTab" type="card-grid" ext-cls="view-config-tab">
         <bk-tab-panel name="content" :label="t('配置项信息')">
           <bk-form label-width="100" form-type="vertical">
@@ -51,7 +50,9 @@
                   :content="props.config.spec.value"
                   :editable="false"
                   :height="editorHeight"
-                  :languages="props.config.spec.kv_type" />
+                  :languages="props.config.spec.kv_type"
+                  :project-id="projectId"
+                  :env-id="envId" />
               </div>
             </bk-form-item>
           </bk-form>
@@ -62,7 +63,9 @@
               language="json"
               :content="JSON.stringify(metaData, null, 2)"
               :editable="false"
-              :show-tips="false" />
+              :show-tips="false"
+              :project-id="projectId"
+              :env-id="envId" />
           </div>
         </bk-tab-panel>
       </bk-tab>
@@ -90,6 +93,8 @@
     config: IConfigKvType;
     show: boolean;
     showEditBtn?: boolean;
+    projectId: string;
+    envId: string;
   }>();
 
   const emits = defineEmits(['update:show', 'confirm', 'openEdit']);
@@ -119,7 +124,7 @@
 
   const activeTab = ref('content');
   const isFormChange = ref(false);
-  const sideSliderRef = ref();
+  const viewWrapRef = ref<HTMLElement>();
   const editorHeight = ref(0);
   const isCipherShowSecret = ref(true);
 
@@ -155,10 +160,12 @@
 
   const setEditorHeight = () => {
     nextTick(() => {
-      const el = sideSliderRef.value.$el.querySelector('.view-wrap');
-      const editorMinHeight = 300; // 编辑器最小高度
-      const remainingHeight = el.offsetHeight - 354; // 容器其他元素已占用高度
-      editorHeight.value = remainingHeight > editorMinHeight ? remainingHeight : editorMinHeight;
+      const el = viewWrapRef.value;
+      if (el) {
+        const editorMinHeight = 300; // 编辑器最小高度
+        const remainingHeight = el.offsetHeight - 354; // 容器其他元素已占用高度
+        editorHeight.value = remainingHeight > editorMinHeight ? remainingHeight : editorMinHeight;
+      }
     });
   };
 

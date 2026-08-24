@@ -113,6 +113,12 @@ message AppMeta {
   string app = 1;
   string uid = 2;
   map<string, string> labels = 3;
+  // project_key is the project key (optional). If not provided or empty,
+  // the server will use the default project for backward compatibility.
+  string project_key = 4;
+  // environment_name is the environment name (optional). If not provided or empty,
+  // the server will use the default environment for backward compatibility.
+  string env_name = 5;
 }
 
 message Repository {

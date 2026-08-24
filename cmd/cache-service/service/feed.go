@@ -17,8 +17,13 @@ import (
 	"errors"
 	"math"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
+
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/cache-service"
 	pbapp "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/app"
 	pbbase "github.com/TencentBlueKing/bk-bscp/pkg/protocol/core/base"
@@ -27,12 +32,12 @@ import (
 
 // GetAppID get app id by app name.
 func (s *Service) GetAppID(ctx context.Context, req *pbcs.GetAppIDReq) (*pbcs.GetAppIDResp, error) {
-	if req.BizId <= 0 || req.AppName == "" {
-		return nil, errf.New(errf.InvalidParameter, "invalid biz id or app name")
+	if req.BizId <= 0 || req.AppName == "" || req.ProjectId <= 0 || req.EnvId <= 0 {
+		return nil, errf.New(errf.InvalidParameter, "invalid biz id or app name or project id or env id")
 	}
 
 	kt := kit.FromGrpcContext(ctx)
-	appID, err := s.op.GetAppID(kt, req.BizId, req.AppName, req.GetRefresh())
+	appID, err := s.op.GetAppID(kt, req.BizId, req.ProjectId, req.EnvId, req.AppName, req.GetRefresh())
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +89,7 @@ func (s *Service) ListApps(ctx context.Context, req *pbcs.ListAppsReq) (*pbcs.Li
 		Limit: math.MaxUint32, // 不需要分页, 直接使用 max 获取
 	}
 
-	apps, count, err := s.dao.App().List(kt, []uint32{req.GetBizId()}, "", opt)
+	apps, count, err := s.dao.App().List(kt, req.GetBizId(), req.GetProjectId(), req.GetEnvId(), "", opt)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +198,7 @@ func (s *Service) GetCredential(ctx context.Context, req *pbcs.GetCredentialReq)
 	}
 
 	kt := kit.FromGrpcContext(ctx)
-	credential, err := s.op.GetCredential(kt, req.BizId, req.Credential)
+	credential, err := s.op.GetCredential(kt, req.BizId, req.ProjectId, req.Credential)
 	if err != nil {
 		return nil, err
 	}
@@ -305,4 +310,129 @@ func (s *Service) GetAgentBiz(ctx context.Context, req *pbcs.GetAgentBizReq) (*p
 		BizId: uint32(bizHost.BizID),
 		Found: true,
 	}, nil
+}
+
+// GetDefaultProjectEnv 返回业务下默认的项目ID和环境ID。
+func (s *Service) GetDefaultProjectEnv(ctx context.Context, req *pbcs.GetDefaultProjectEnvReq) (*pbcs.GetDefaultProjectEnvResp, error) {
+	if req.BizId <= 0 {
+		return nil, errf.New(errf.InvalidParameter, "invalid biz id")
+	}
+
+	kt := kit.FromGrpcContext(ctx)
+	projectID, envID := s.resolveDefaultProjectEnv(kt, req.BizId)
+
+	return &pbcs.GetDefaultProjectEnvResp{
+		ProjectId: projectID,
+		EnvId:     envID,
+	}, nil
+}
+
+// resolveDefaultProjectEnv 当 projectID 或 environmentID 为 0（老客户端未传）时，
+// 解析为默认项目和默认环境。
+func (s *Service) resolveDefaultProjectEnv(kt *kit.Kit, bizID uint32) (uint32, uint32) {
+
+	var (
+		projectID uint32
+		envID     uint32
+	)
+
+	if projectID == 0 {
+		defProj, err := s.dao.Project().GetDefaultProject(kt, bizID)
+		if err != nil {
+			logs.Errorf("get default project failed, biz: %d, err: %v, rid: %s", bizID, err, kt.Rid)
+			// 查询失败时保持 0，让下游 DAO 按原有逻辑处理
+			projectID = 0
+		} else {
+			projectID = defProj.ID
+		}
+	}
+
+	if envID == 0 && projectID != 0 {
+		defEnv, err := s.dao.Environment().GetDefaultEnvironment(kt, bizID, projectID)
+		if err != nil {
+			logs.Errorf("get default environment failed, biz: %d, project: %d, err: %v, rid: %s",
+				bizID, projectID, err, kt.Rid)
+			envID = 0
+		} else {
+			envID = defEnv.ID
+		}
+	}
+
+	return projectID, envID
+}
+
+// GetProjectEnvByName 按项目 key 和环境名称查询对应的项目 ID 和环境 ID。
+// 当 key/名称为空时，对应维度回退到默认值。
+func (s *Service) GetProjectEnvByName(ctx context.Context, req *pbcs.GetProjectEnvByNameReq) (*pbcs.GetProjectEnvByNameResp, error) {
+	if req.BizId <= 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "%s", "invalid biz id")
+	}
+
+	kt := kit.FromGrpcContext(ctx)
+
+	// 项目 key 为空时回退到默认项目
+	projectID, err := s.resolveProjectByKey(kt, req.BizId, req.ProjectKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// 环境名称为空时回退到默认环境
+	envID, err := s.resolveEnvByName(kt, req.BizId, projectID, req.EnvName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pbcs.GetProjectEnvByNameResp{
+		ProjectId: projectID,
+		EnvId:     envID,
+	}, nil
+}
+
+// resolveProjectByKey 按项目 key 查询项目 ID，key 为空时返回默认项目 ID。
+func (s *Service) resolveProjectByKey(kt *kit.Kit, bizID uint32, key string) (uint32, error) {
+	if key == "" {
+		defProj, err := s.dao.Project().GetDefaultProject(kt, bizID)
+		if err != nil {
+			logs.Errorf("get default project failed, biz: %d, err: %v, rid: %s", bizID, err, kt.Rid)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return 0, status.Errorf(codes.NotFound, "%s", "project does not exist")
+			}
+			return 0, err
+		}
+		return defProj.ID, nil
+	}
+
+	proj, err := s.dao.Project().GetByKey(kt, bizID, key)
+	if err != nil {
+		logs.Errorf("get project by key failed, biz: %d, key: %s, err: %v, rid: %s", bizID, key, err, kt.Rid)
+		return 0, err
+	}
+	return proj.ID, nil
+}
+
+// resolveEnvByName 按环境名称查询环境 ID，名称为空时返回默认环境 ID。
+func (s *Service) resolveEnvByName(kt *kit.Kit, bizID, projectID uint32, name string) (uint32, error) {
+	if name == "" {
+		defEnv, err := s.dao.Environment().GetDefaultEnvironment(kt, bizID, projectID)
+		if err != nil {
+			logs.Errorf("get default environment failed, biz: %d, project: %d, err: %v, rid: %s",
+				bizID, projectID, err, kt.Rid)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return 0, status.Errorf(codes.NotFound, "%s", "environment does not exist")
+			}
+			return 0, err
+		}
+		return defEnv.ID, nil
+	}
+
+	env, err := s.dao.Environment().GetByName(kt, bizID, projectID, name)
+	if err != nil {
+		logs.Errorf("get environment by name failed, biz: %d, project: %d, name: %s, err: %v, rid: %s",
+			bizID, projectID, name, err, kt.Rid)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, status.Errorf(codes.NotFound, "%s", "environment does not exist")
+		}
+		return 0, err
+	}
+	return env.ID, nil
 }

@@ -13,6 +13,8 @@
 package service
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"github.com/go-chi/render"
 
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
+	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 	"github.com/TencentBlueKing/bk-bscp/pkg/metrics"
 	pbcs "github.com/TencentBlueKing/bk-bscp/pkg/protocol/config-server"
 	"github.com/TencentBlueKing/bk-bscp/pkg/rest"
@@ -30,25 +33,27 @@ import (
 func (p *proxy) CheckDefaultTmplSpace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bizIDStr := chi.URLParam(r, "biz_id")
-		bizIDInt, err := strconv.Atoi(bizIDStr)
+		// ParseUint 限定 32 位无符号范围，避免 int 到 uint32 转换时的静默截断
+		bizID64, err := strconv.ParseUint(bizIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
-		bizID := uint32(bizIDInt)
-		if bizsOfTS.Has(bizID) {
+		bizID := uint32(bizID64)
+		kt := kit.MustGetKit(r.Context())
+		// 默认模板空间按 业务+项目 维度判断是否已创建，命中缓存直接放行
+		if bizsOfTS.Has(bizID, kt.ProjectID) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		kt := kit.MustGetKit(r.Context())
 		// create default template space when not existent
-		in := &pbcs.CreateDefaultTmplSpaceReq{BizId: bizID}
+		in := &pbcs.CreateDefaultTmplSpaceReq{BizId: bizID, ProjectId: kt.ProjectID}
 		if _, err := p.cfgClient.CreateDefaultTmplSpace(kt.RpcCtx(), in); err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
-		bizsOfTS.Set(bizID)
+		bizsOfTS.Set(bizID, kt.ProjectID)
 
 		next.ServeHTTP(w, r)
 	})
@@ -63,7 +68,7 @@ func (p *proxy) HttpServerHandledTotal(serviceName, handler string) func(next ht
 			var bizID string
 			bizID, _ = extractBizAndAppID(r)
 			if len(bizID) == 0 {
-				bizID = strconv.Itoa(int(kt.BizID))
+				bizID = strconv.FormatUint(uint64(kt.BizID), 10)
 			}
 
 			var status string
@@ -107,4 +112,225 @@ func extractBizAndAppID(r *http.Request) (bizID, appID string) {
 	}
 
 	return
+}
+
+// 检查（或创建）默认的项目（Project）与环境（Environment）
+func (p *proxy) checkOrCreateDefaultProjectEnv(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		// 1. 调用底层的 RPC 服务去校验或创建默认的项目与环境
+		in := &pbcs.EnsureDefaultProjectEnvReq{BizId: kt.BizID}
+		resp, err := p.cfgClient.EnsureDefaultProjectEnv(kt.RpcCtx(), in)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// 2. 将获取到的默认 ProjectID 和 EnvID 赋值给当前请求的 kit 上下文
+		kt.ProjectID = resp.ProjectId
+		kt.EnvID = resp.EnvId
+
+		ctx := kit.WithKit(r.Context(), kt)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// AppProjectEnvVerified 校验 App 是否属于指定的项目与环境。
+// 必须放在 checkOrCreateDefaultProjectEnv 之后，依赖 kt.ProjectID / kt.EnvID 已被赋值。
+func (p *proxy) AppProjectEnvVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		appIDStr := chi.URLParam(r, "app_id")
+		if appIDStr == "" {
+			err := errors.New("app_id is required in url params")
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// ParseUint 限定 32 位无符号范围，避免 int 到 uint32 转换时的静默截断
+		appID, err := strconv.ParseUint(appIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// ParseUint(bitSize=32) 已确保 appID 落在 uint32 范围内，收窄转换安全。
+		appID32 := uint32(appID)
+
+		// 调用 config-server GetApp 校验 App 归属于该项目+环境
+		_, err = p.cfgClient.GetApp(kt.RpcCtx(), &pbcs.GetAppReq{
+			BizId:     kt.BizID,
+			AppId:     appID32,
+			ProjectId: kt.ProjectID,
+			EnvId:     kt.EnvID,
+		})
+		if err != nil {
+			logs.Errorf("verify app project/env failed, bizId=%d appId=%d projectId=%d envId=%d err=%v rid=%s",
+				kt.BizID, appID32, kt.ProjectID, kt.EnvID, err, kt.Rid)
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("app does not belong to the specified project or environment")))
+			return
+		}
+
+		kt.AppID = appID32
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// HookProjectVerified 校验 Hook 是否属于指定的项目。
+// 必须放在 checkOrCreateDefaultProjectEnv 之后，依赖 kt.ProjectID 已被赋值。
+// 通过 hook_id 调用 GetHook 获取详情
+func (p *proxy) HookProjectVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		hookIDStr := chi.URLParam(r, "hook_id")
+		if hookIDStr == "" {
+			err := errors.New("hook_id is required in url params")
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		hookID, err := strconv.ParseUint(hookIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// ParseUint(bitSize=32) 已确保 hookID 落在 uint32 范围内，收窄转换安全。
+		hookID32 := uint32(hookID)
+
+		// 调用 config-server GetHook 校验 Hook 归属于该项目
+		_, err = p.cfgClient.GetHook(kt.RpcCtx(), &pbcs.GetHookReq{
+			BizId:     kt.BizID,
+			ProjectId: kt.ProjectID,
+			HookId:    hookID32,
+		})
+		if err != nil {
+			logs.Errorf("verify hook project failed, bizId=%d hookId=%d projectId=%d err=%v rid=%s",
+				kt.BizID, hookID32, kt.ProjectID, err, kt.Rid)
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("hook does not belong to the specified project")))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GroupProjectVerified 校验 Group 是否属于指定的项目。
+// 必须放在 checkOrCreateDefaultProjectEnv 之后，依赖 kt.ProjectID 已被赋值。
+// 用于新路由（带 {project_id} 的 additional_bindings），依赖 URL 中的 project_id 参数已通过中间件注入 kt.ProjectID。
+// 通过 group_id 调用 GetGroup 获取详情并校验归属。
+func (p *proxy) GroupProjectVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		groupIDStr := chi.URLParam(r, "group_id")
+		if groupIDStr == "" {
+			err := errors.New("group_id is required in url params")
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		groupID, err := strconv.ParseUint(groupIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// 调用 config-server GetGroup 校验 Group 归属于该项目
+		_, err = p.cfgClient.GetGroup(kt.RpcCtx(), &pbcs.GetGroupReq{
+			BizId:     kt.BizID,
+			GroupId:   uint32(groupID),
+			ProjectId: kt.ProjectID,
+		})
+		if err != nil {
+			logs.Errorf("verify group project failed, bizId=%d groupId=%d projectId=%d err=%v rid=%s",
+				kt.BizID, uint32(groupID), kt.ProjectID, err, kt.Rid)
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("group does not belong to the specified project")))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// TemplateSpaceProjectVerified 校验 TemplateSpace 是否属于指定的项目。
+// 必须放在 checkOrCreateDefaultProjectEnv 之后，依赖 kt.ProjectID 已被赋值。
+// 用于含 template_space_id 参数的路由，校验模板空间归属于该项目。
+// template_sets/templates/template_revisions 都通过 template_space_id 关联到 template_spaces，
+// 因此只需这一个中间件即可完成整个模板链路的归属校验。
+func (p *proxy) TemplateSpaceProjectVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		templateSpaceIDStr := chi.URLParam(r, "template_space_id")
+		if templateSpaceIDStr == "" {
+			err := errors.New("template_space_id is required in url params")
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		templateSpaceID, err := strconv.ParseUint(templateSpaceIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// 调用 config-server GetTemplateSpace 校验 TemplateSpace 归属于该项目
+		_, err = p.cfgClient.GetTemplateSpace(kt.RpcCtx(), &pbcs.GetTemplateSpaceReq{
+			BizId:           kt.BizID,
+			TemplateSpaceId: uint32(templateSpaceID),
+			ProjectId:       kt.ProjectID,
+		})
+		if err != nil {
+			logs.Errorf("verify template space project failed, bizId=%d templateSpaceId=%d projectId=%d err=%v rid=%s",
+				kt.BizID, uint32(templateSpaceID), kt.ProjectID, err, kt.Rid)
+			render.Render(w, r, rest.BadRequest(
+				fmt.Errorf("template_space does not belong to the specified project")))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// TemplateVariableProjectVerified 校验 TemplateVariable 是否属于指定的项目。
+// 必须放在 checkOrCreateDefaultProjectEnv 之后，依赖 kt.ProjectID 已被赋值。
+// 用于含 template_variable_id 参数的路由，校验模板变量归属于该项目。
+func (p *proxy) TemplateVariableProjectVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		kt := kit.MustGetKit(r.Context())
+
+		templateVarIDStr := chi.URLParam(r, "template_variable_id")
+		if templateVarIDStr == "" {
+			err := errors.New("template_variable_id is required in url params")
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		templateVarID, err := strconv.ParseUint(templateVarIDStr, 10, 32)
+		if err != nil {
+			render.Render(w, r, rest.BadRequest(err))
+			return
+		}
+
+		// 调用 config-server GetTemplateVariable 校验 TemplateVariable 归属于该项目
+		_, err = p.cfgClient.GetTemplateVariable(kt.RpcCtx(), &pbcs.GetTemplateVariableReq{
+			BizId:              kt.BizID,
+			TemplateVariableId: uint32(templateVarID),
+			ProjectId:          kt.ProjectID,
+		})
+		if err != nil {
+			logs.Errorf("verify template variable project failed, bizId=%d templateVarId=%d projectId=%d err=%v rid=%s",
+				kt.BizID, uint32(templateVarID), kt.ProjectID, err, kt.Rid)
+			render.Render(w, r, rest.BadRequest(
+				fmt.Errorf("template_variable does not belong to the specified project")))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

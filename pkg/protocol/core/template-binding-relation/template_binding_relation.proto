@@ -45,6 +45,8 @@ message TemplateBoundUnnamedAppDetail {
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模板文件版本名" }];
   uint32 app_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务ID" }];
   string app_name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名" }];
+  string env_display = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
+  uint32 env_id = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
 }
 
 // TemplateBoundNamedAppDetail is template bound named app detail.
@@ -82,6 +84,8 @@ message MultiTemplateBoundTemplateSetDetail {
 message TemplateRevisionBoundUnnamedAppDetail {
   uint32 app_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务ID" }];
   string app_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名" }];
+  string env_display = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
+  uint32 env_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
 }
 
 // TemplateRevisionBoundNamedAppDetail is template release bound named app detail.
@@ -90,12 +94,15 @@ message TemplateRevisionBoundNamedAppDetail {
   string app_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名" }];
   uint32 release_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务版本ID" }];
   string release_name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务版本名" }];
+  string env_display = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
 }
 
 // TemplateSetBoundUnnamedAppDetail is template set bound unnamed app detail.
 message TemplateSetBoundUnnamedAppDetail {
   uint32 app_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务ID" }];
   string app_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名" }];
+  string env_display = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
+  uint32 env_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
 }
 
 // MultiTemplateSetBoundUnnamedAppDetail is template set bound unnamed app detail.
@@ -106,6 +113,8 @@ message MultiTemplateSetBoundUnnamedAppDetail {
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "模板套餐名" }];
   uint32 app_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务ID" }];
   string app_name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "服务名" }];
+  string env_display = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
+  uint32 env_id = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
 }
 
 // TemplateSetBoundUnnamedAppDetail is template set bound named app detail.

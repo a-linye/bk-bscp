@@ -1,10 +1,12 @@
 <template>
   <section class="config-list-with-templates">
-    <SearchInput
-      v-model="searchStr"
+    <SearchSelector
+      ref="searchSelectorRef"
       class="config-search-input"
-      :placeholder="t('配置文件名/创建人/修改人')"
-      @search="getListData" />
+      :search-field="searchField"
+      :user-field="['creator', 'reviser']"
+      :placeholder="searchPlaceholder"
+      @search="searchQuery = $event" />
     <bk-loading class="loading-wrapper" :loading="loading">
       <div v-for="group in tableGroupsData" :key="group.id" class="config-group">
         <template v-if="group.configs.length > 0">
@@ -31,12 +33,16 @@
     <EditConfig
       v-model:show="editConfigSliderData.open"
       :bk-biz-id="props.bkBizId"
+      :project-id="projectId"
+      :env-id="envId"
       :app-id="props.appId"
       :config-id="editConfigSliderData.id" />
     <ViewConfig
       v-model:show="viewConfigSliderData.open"
       v-bind="viewConfigSliderData.data"
       :bk-biz-id="props.bkBizId"
+      :project-id="projectId"
+      :env-id="envId"
       :app-id="props.appId"
       :version-id="versionData.id"
       @open-edit="handleOpenEdit" />
@@ -57,7 +63,7 @@
     getBoundTemplatesByAppVersion,
   } from '../../../../../../../api/config';
   import { getConfigTypeName } from '../../../../../../../utils/config';
-  import SearchInput from '../../../../../../../components/search-input.vue';
+  import SearchSelector from '../../../../../../../components/search-selector.vue';
   import EditConfig from '../config-table-list/edit-config.vue';
   import ViewConfig from '../config-table-list/view-config.vue';
   import TableEmpty from '../../../../../../../components/table/table-empty.vue';
@@ -101,6 +107,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
   }>();
 
@@ -110,7 +118,8 @@
   const boundTemplateListLoading = ref(false);
   const templateGroupList = ref<IBoundTemplateGroup[]>([]); // 配置文件模板
   const tableGroupsData = ref<IConfigsGroupData[]>([]);
-  const searchStr = ref('');
+  const searchQuery = ref<{ [key: string]: string }>({});
+  const searchSelectorRef = ref();
   const isSearchEmpty = ref(false);
   const editConfigSliderData = ref({
     open: false,
@@ -136,19 +145,31 @@
   watch(
     () => versionData.value.id,
     () => {
-      getListData();
+      handleClearSearchQuery();
     },
   );
 
   watch(
-    () => searchStr.value,
+    () => searchQuery.value,
     (val) => {
-      isSearchEmpty.value = !!val;
+      isSearchEmpty.value = Object.keys(val).length > 0;
+      getListData();
     },
+    { deep: true },
   );
 
   // 是否为未命名版本
   const isUnNamedVersion = computed(() => versionData.value.id === 0);
+
+  const searchField = computed(() => {
+    return [
+      { field: 'path_name', label: t('配置文件名') },
+      { field: 'creator', label: t('创建人') },
+      { field: 'reviser', label: t('修改人') },
+    ];
+  });
+
+  const searchPlaceholder = computed(() => t('配置文件名/创建人/修改人'));
 
   const isTableEmpty = computed(() => tableGroupsData.value.every((group) => group.configs.length === 0));
 
@@ -166,7 +187,7 @@
   };
 
   const getListData = debounce(async () => {
-    const currentSearchStr = searchStr.value;
+    const currentSearchQuery = searchQuery.value;
     // 拉取到版本列表之前不加在列表数据
     if (typeof versionData.value.id !== 'number') {
       return;
@@ -175,7 +196,7 @@
     await Promise.all([getCommonConfigList(), getBoundTemplateList()]);
     loading.value = false;
     // 处理文件数量过多 导致上一次搜索结果返回比这一次慢 导入搜索结果错误 取消数据处理
-    if (currentSearchStr !== searchStr.value) return;
+    if (currentSearchQuery !== searchQuery.value) return;
     tableGroupsData.value = transListToTableData();
   }, 500);
 
@@ -187,15 +208,21 @@
         start: 0,
         all: true,
       };
-      if (searchStr.value) {
-        params.search_fields = 'name,path,memo,creator';
-        params.search_value = searchStr.value;
+      if (Object.keys(searchQuery.value).length > 0) {
+        params.search = searchQuery.value;
       }
       let res;
+      const { bkBizId, appId, projectId, envId } = props;
       if (isUnNamedVersion.value) {
-        res = await getConfigList(props.bkBizId, props.appId, params);
+        res = await getConfigList(bkBizId, appId, projectId, envId, params);
       } else {
-        res = await getReleasedConfigList(props.bkBizId, props.appId, versionData.value.id, params);
+        res = await getReleasedConfigList(
+          bkBizId,
+          appId,
+          projectId,
+          envId,
+          versionData.value.id,
+          params);
       }
 
       configList.value = res.details;
@@ -214,16 +241,22 @@
         start: 0,
         all: true,
       };
-      if (searchStr.value) {
-        params.search_fields = 'revision_name,revision_memo,name,path,creator';
-        params.search_value = searchStr.value;
+      if (Object.keys(searchQuery.value).length > 0) {
+        params.search = searchQuery.value;
       }
 
       let res;
+      const { bkBizId, appId, projectId, envId } = props;
       if (isUnNamedVersion.value) {
-        res = await getBoundTemplates(props.bkBizId, props.appId, params);
+        res = await getBoundTemplates(bkBizId, appId, projectId, envId, params);
       } else {
-        res = await getBoundTemplatesByAppVersion(props.bkBizId, props.appId, versionData.value.id, params);
+        res = await getBoundTemplatesByAppVersion(
+          bkBizId,
+          appId,
+          projectId,
+          envId,
+          versionData.value.id,
+          params);
       }
       templateGroupList.value = res.details;
     } catch (e) {
@@ -325,8 +358,13 @@
     editConfigSliderData.value.open = true;
   };
 
+  const handleClearSearchQuery = () => {
+    searchQuery.value = {};
+    searchSelectorRef.value?.clear();
+  };
+
   const clearSearch = () => {
-    searchStr.value = '';
+    handleClearSearchQuery();
     getListData();
   };
 </script>

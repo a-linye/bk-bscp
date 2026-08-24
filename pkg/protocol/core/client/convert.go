@@ -14,6 +14,8 @@
 package pbclient
 
 import (
+	"fmt"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
@@ -96,10 +98,17 @@ func PbClientSpec(spec *table.ClientSpec) *ClientSpec { //nolint:revive
 // ClientAttachment convert pb ClientAttachment to table ClientAttachment
 func (c *ClientAttachment) ClientAttachment() *table.ClientAttachment {
 	return &table.ClientAttachment{
-		UID:   c.Uid,
-		BizID: c.BizId,
-		AppID: c.AppId,
+		UID:       c.Uid,
+		BizID:     c.BizId,
+		AppID:     c.AppId,
+		ProjectID: c.ProjectId,
+		EnvID:     c.EnvId,
 	}
+}
+
+// ClientKey 返回客户端完整唯一键: BizID-AppID-UID
+func (c *ClientAttachment) ClientKey() string {
+	return fmt.Sprintf("%d-%d-%s", c.BizId, c.AppId, c.Uid)
 }
 
 // PbClientAttachment convert table ClientAttachment to pb ClientAttachment
@@ -108,9 +117,11 @@ func PbClientAttachment(attachment *table.ClientAttachment) *ClientAttachment { 
 		return nil
 	}
 	return &ClientAttachment{
-		Uid:   attachment.UID,
-		BizId: attachment.BizID,
-		AppId: attachment.AppID,
+		Uid:       attachment.UID,
+		BizId:     attachment.BizID,
+		AppId:     attachment.AppID,
+		ProjectId: attachment.ProjectID,
+		EnvId:     attachment.EnvID,
 	}
 }
 

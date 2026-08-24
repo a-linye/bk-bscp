@@ -5,7 +5,8 @@
       v-model:is-show-variable="isShowVariable"
       :language="props.type"
       :editable="props.editable"
-      :upload-icon="props.editable">
+      :upload-icon="props.editable"
+      :project-id="projectId">
       <template #header>
         <div class="editor-header">
           <span class="title">{{ title }}</span>
@@ -82,7 +83,7 @@
   import ScriptEditor from '../components/script-editor.vue';
   import InternalVariable from '../components/internal-variable.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
 
   const props = withDefaults(
@@ -168,14 +169,14 @@
       const { name, memo, content } = localVal.value;
       const params = { name, memo, content };
       if (localVal.value.id) {
-        await updateScriptVersion(spaceId.value, props.scriptId, localVal.value.id, params);
+        await updateScriptVersion(spaceId.value, projectId.value, props.scriptId, localVal.value.id, params);
         emits('submitted', { ...localVal.value }, 'update');
         BkMessage({
           theme: 'success',
           message: t('编辑版本成功'),
         });
       } else {
-        const res = await createScriptVersion(spaceId.value, props.scriptId, params);
+        const res = await createScriptVersion(spaceId.value, projectId.value, props.scriptId, params);
         emits('submitted', { ...localVal.value, id: res.id }, 'create');
         BkMessage({
           theme: 'success',

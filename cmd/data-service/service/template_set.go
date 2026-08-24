@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/search"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
@@ -85,9 +86,31 @@ func (s *Service) ListTemplateSets(ctx context.Context, req *pbds.ListTemplateSe
 		return nil, err
 	}
 
+	appIDs := make([]uint32, 0)
+	appIDMap := make(map[uint32]struct{})
+
+	for _, ts := range details {
+		for _, appID := range ts.Spec.BoundApps {
+			if _, ok := appIDMap[appID]; !ok {
+				appIDMap[appID] = struct{}{}
+				appIDs = append(appIDs, appID)
+			}
+		}
+	}
+
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	appEnvMap := make(map[uint32]uint32)
+	for _, app := range apps {
+		appEnvMap[app.ID] = app.EnvID
+	}
+
 	resp := &pbds.ListTemplateSetsResp{
 		Count:   uint32(count),
-		Details: pbtset.PbTemplateSets(details),
+		Details: pbtset.PbTemplateSets(details, appEnvMap),
 	}
 	return resp, nil
 }
@@ -321,8 +344,30 @@ func (s *Service) ListAppTemplateSets(ctx context.Context, req *pbds.ListAppTemp
 		return nil, err
 	}
 
+	appIDs := make([]uint32, 0)
+	appIDMap := make(map[uint32]struct{})
+
+	for _, ts := range details {
+		for _, appID := range ts.Spec.BoundApps {
+			if _, ok := appIDMap[appID]; !ok {
+				appIDMap[appID] = struct{}{}
+				appIDs = append(appIDs, appID)
+			}
+		}
+	}
+
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	appEnvMap := make(map[uint32]uint32)
+	for _, app := range apps {
+		appEnvMap[app.ID] = app.EnvID
+	}
+
 	resp := &pbds.ListAppTemplateSetsResp{
-		Details: pbtset.PbTemplateSets(details),
+		Details: pbtset.PbTemplateSets(details, appEnvMap),
 	}
 	return resp, nil
 }
@@ -342,8 +387,30 @@ func (s *Service) ListTemplateSetsByIDs(ctx context.Context, req *pbds.ListTempl
 		return nil, err
 	}
 
+	appIDs := make([]uint32, 0)
+	appIDMap := make(map[uint32]struct{})
+
+	for _, ts := range details {
+		for _, appID := range ts.Spec.BoundApps {
+			if _, ok := appIDMap[appID]; !ok {
+				appIDMap[appID] = struct{}{}
+				appIDs = append(appIDs, appID)
+			}
+		}
+	}
+
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	appEnvMap := make(map[uint32]uint32)
+	for _, app := range apps {
+		appEnvMap[app.ID] = app.EnvID
+	}
+
 	resp := &pbds.ListTemplateSetsByIDsResp{
-		Details: pbtset.PbTemplateSets(details),
+		Details: pbtset.PbTemplateSets(details, appEnvMap),
 	}
 	return resp, nil
 }
@@ -372,7 +439,7 @@ func (s *Service) ListTemplateSetBriefInfoByIDs(ctx context.Context, req *pbds.L
 	tmplSpaceIDs = tools.RemoveDuplicates(tmplSpaceIDs)
 
 	// template space details
-	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(kt, tmplSpaceIDs)
+	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(kt, req.BizId, req.ProjectId, tmplSpaceIDs)
 	if err != nil {
 		logs.Errorf("list template spaces failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -384,9 +451,14 @@ func (s *Service) ListTemplateSetBriefInfoByIDs(ctx context.Context, req *pbds.L
 
 	details := make([]*pbtset.TemplateSetBriefInfo, len(tmplSets))
 	for idx, t := range tmplSets {
+		// 空间被删除、绑定残留脏 id 等场景 map 会缺行，不应以空指针崩溃暴露
+		spaceName := ""
+		if space := tmplSpaceMap[t.Attachment.TemplateSpaceID]; space != nil {
+			spaceName = space.Spec.Name
+		}
 		details[idx] = &pbtset.TemplateSetBriefInfo{
 			TemplateSpaceId:   t.Attachment.TemplateSpaceID,
-			TemplateSpaceName: tmplSpaceMap[t.Attachment.TemplateSpaceID].Spec.Name,
+			TemplateSpaceName: spaceName,
 			TemplateSetId:     t.ID,
 			TemplateSetName:   tmplSetMap[t.ID].Spec.Name,
 		}
@@ -427,7 +499,7 @@ func (s *Service) ListTmplSetsOfBiz(ctx context.Context, req *pbds.ListTmplSetsO
 		tmplSpaceIDs = append(tmplSpaceIDs, tmplSpaceID)
 	}
 
-	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(kt, tmplSpaceIDs)
+	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(kt, req.BizId, req.ProjectId, tmplSpaceIDs)
 	if err != nil {
 		logs.Errorf("list template sets of biz failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -435,6 +507,12 @@ func (s *Service) ListTmplSetsOfBiz(ctx context.Context, req *pbds.ListTmplSetsO
 
 	details := make([]*pbtset.TemplateSetOfBizDetail, 0)
 	for _, t := range tmplSpaces {
+		// 业务级共享的系统内置空间 config_delivery（project_id 固定为 0）服务于进程配置管理，
+		// 产品上不引入项目维度，不在此业务模板空间列表中返回，不影响其他空间。
+		if t.Spec.Name == constant.CONFIG_DELIVERY && t.Attachment.ProjectID == constant.GlobalProjectID {
+			delete(tmplSetsMap, t.ID)
+			continue
+		}
 		details = append(details, &pbtset.TemplateSetOfBizDetail{
 			TemplateSpaceId:   t.ID,
 			TemplateSpaceName: t.Spec.Name,

@@ -64,14 +64,22 @@ func (r *iamDao) ListInstances(kt *kit.Kit, opts *types.ListInstancesOption) (
 	)
 	switch opts.ResourceType {
 	case meta.App.String():
-		bizID, err := strconv.Atoi(opts.ParentID)
+		bizID, err := strconv.ParseUint(opts.ParentID, 10, 32)
 		if err != nil {
 			return nil, err
 		}
 		m := r.genQ.App
-		count, err = m.WithContext(kt.Ctx).
-			Select(m.ID.As("id"), m.Name.As("name")).Where(m.BizID.Eq(uint32(bizID))).
-			ScanByPage(&details, opts.Page.Offset(), opts.Page.LimitInt())
+		q := m.WithContext(kt.Ctx).
+			Select(m.ID.As("id"), m.Name.As("name")).Where(m.BizID.Eq(uint32(bizID)))
+		if opts.Keyword != "" {
+			pattern := "%" + opts.Keyword + "%"
+			kw := m.WithContext(kt.Ctx).Where(m.Name.Like(pattern))
+			if id, parseErr := strconv.ParseUint(opts.Keyword, 10, 32); parseErr == nil {
+				kw = kw.Or(m.ID.Eq(uint32(id)))
+			}
+			q = q.Where(kw)
+		}
+		count, err = q.ScanByPage(&details, opts.Page.Offset(), opts.Page.LimitInt())
 		if err != nil {
 			return nil, err
 		}

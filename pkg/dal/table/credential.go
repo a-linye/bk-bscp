@@ -50,6 +50,14 @@ func (c *Credential) ResType() string {
 	return "credential"
 }
 
+// ProjectID AuditRes interface, 返回查询条件所属的项目 ID。
+func (c *Credential) ProjectID() uint32 {
+	if c.Attachment == nil {
+		return 0
+	}
+	return c.Attachment.ProjectID
+}
+
 // ValidateCreate validate Credential is valid or not when create it.
 func (c *Credential) ValidateCreate(kit *kit.Kit) error {
 
@@ -152,8 +160,9 @@ func (c *CredentialSpec) ValidateUpdate(kit *kit.Kit) error {
 
 // CredentialAttachment defines the credential attachments.
 type CredentialAttachment struct {
-	BizID    uint32 `json:"biz_id" gorm:"column:biz_id"`
-	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
+	BizID     uint32 `json:"biz_id" gorm:"column:biz_id"`
+	ProjectID uint32 `json:"project_id" gorm:"column:project_id"`
+	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
 // IsEmpty test whether credential attachment is empty or not.

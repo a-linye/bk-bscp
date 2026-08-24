@@ -51,8 +51,7 @@ func (s *Service) doBatchCreateClientEvents(kt *kit.Kit, tx *gen.QueryTx, client
 	// 获取创建后的ID
 	createID := make(map[string]uint32)
 	for _, item := range toCreate {
-		key := fmt.Sprintf("%d-%d-%s-%s", item.Attachment.BizID, item.Attachment.AppID, item.Attachment.UID,
-			item.Attachment.CursorID)
+		key := item.Attachment.ClientEventKey()
 		createID[key] = item.ID
 	}
 
@@ -60,8 +59,7 @@ func (s *Service) doBatchCreateClientEvents(kt *kit.Kit, tx *gen.QueryTx, client
 	// 更新 client_event 时需要clientID
 	for _, data := range toUpdate {
 		for _, item := range data {
-			key := fmt.Sprintf("%d-%d-%s-%s", item.Attachment.BizID, item.Attachment.AppID, item.Attachment.UID,
-				item.Attachment.CursorID)
+			key := item.Attachment.ClientEventKey()
 			if item.ID == 0 {
 				item.ID = createID[key]
 			}
@@ -82,9 +80,9 @@ func (s *Service) doBatchCreateClientEvents(kt *kit.Kit, tx *gen.QueryTx, client
 func (s *Service) handleCreateClientEvents(kt *kit.Kit, clientEvents []*pbce.ClientEvent, clientID map[string]uint32) (
 	toCreate []*table.ClientEvent, toUpdate map[string][]*table.ClientEvent, err error) {
 
-	data := [][]interface{}{}
+	data := [][]any{}
 	for _, item := range clientEvents {
-		data = append(data, []interface{}{item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid,
+		data = append(data, []any{item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid,
 			item.Attachment.CursorId})
 	}
 	list, err := s.dao.ClientEvent().ListClientByTuple(kt, data)
@@ -93,7 +91,7 @@ func (s *Service) handleCreateClientEvents(kt *kit.Kit, clientEvents []*pbce.Cli
 	}
 	oldData := map[string]uint32{}
 	for _, v := range list {
-		key := fmt.Sprintf("%d-%d-%s-%s", v.Attachment.BizID, v.Attachment.AppID, v.Attachment.UID, v.Attachment.CursorID)
+		key := v.Attachment.ClientEventKey()
 		oldData[key] = v.ID
 	}
 
@@ -110,13 +108,12 @@ func (s *Service) handleCreateClientEvents(kt *kit.Kit, clientEvents []*pbce.Cli
 	toCreate = []*table.ClientEvent{}
 	toUpdate = make(map[string][]*table.ClientEvent)
 	for _, item := range clientEvents {
-		keyWithoutCursor := fmt.Sprintf("%d-%d-%s-%s", item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid,
-			item.Attachment.CursorId)
+		keyWithoutCursor := item.Attachment.ClientEventKey()
 		v, ok := oldData[keyWithoutCursor]
 		if item.Spec.EndTime.GetSeconds() <= 0 {
 			item.Spec.EndTime = nil
 		}
-		fullKey := fmt.Sprintf("%d-%d-%s", item.Attachment.BizId, item.Attachment.AppId, item.Attachment.Uid)
+		fullKey := item.Attachment.ClientShortKey()
 		if clientID[fullKey] <= 0 {
 			continue
 		}

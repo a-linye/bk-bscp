@@ -116,8 +116,6 @@ func newProxy(dis serviced.Discover) (*proxy, error) {
 		mc:                  mc,
 	}
 
-	p.initBizsOfTmplSpaces()
-
 	return p, nil
 }
 

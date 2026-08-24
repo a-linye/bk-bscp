@@ -10,7 +10,11 @@
           <Plus class="button-icon" />
           {{ t('新增分组') }}
         </bk-button>
-        <BatchDeleteBtn :bk-biz-id="spaceId" :selected-ids="selectedIds" @deleted="refreshAfterBatchDelete" />
+        <BatchDeleteBtn
+          :bk-biz-id="spaceId"
+          :project-id="projectId"
+          :selected-ids="selectedIds"
+          @deleted="refreshAfterBatchDelete" />
       </div>
       <div class="filter-actions">
         <bk-checkbox
@@ -186,7 +190,7 @@
   import DeleteConfirmDialog from '../../../components/delete-confirm-dialog.vue';
   import acrossCheckBox from '../../../components/across-checkbox.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t, locale } = useI18n();
   const { pagination, updatePagination } = useTablePagination('groupList');
 
@@ -211,6 +215,7 @@
     selector: {
       labels_and: [],
     },
+    env_apps: []
   });
   const isPublishedSliderShow = ref(false);
   const isSearchEmpty = ref(false);
@@ -241,7 +246,7 @@
     });
 
   watch(
-    () => spaceId.value,
+    [() => spaceId.value, () => projectId.value],
     async () => {
       pagination.value.current = 1;
       await loadGroupList();
@@ -259,7 +264,7 @@
     try {
       listLoading.value = true;
       topId.value = id;
-      const res = await getSpaceGroupList(spaceId.value, id);
+      const res = await getSpaceGroupList(spaceId.value, projectId.value, id);
       groupList.value = res.details;
       searchGroupList.value = res.details;
       categorizedGroupList.value = categorizingData(res.details);
@@ -401,7 +406,7 @@
   };
 
   const handleDeleteGroupConfirm = async () => {
-    await deleteGroup(spaceId.value, deleteGroupItem.value!.id);
+    await deleteGroup(spaceId.value, deleteGroupItem.value!.id, projectId.value);
     Message({
       theme: 'success',
       message: t('删除分组成功'),
@@ -516,6 +521,13 @@
     background: #ffffff;
   }
   .group-table-wrapper {
+    // 升级 bkui-vue 2.x 后，库对“未设置 width 的列”会强制写入 min-width（默认 80px）作为显式列宽，
+    // 在表格默认 fixed 布局下，超出列宽之和的剩余空间会被【按比例摊给所有列】，
+    // 导致带 :width 的固定列被等比放大、不按配置渲染（如选择列 100px 实际变 ~120px）。
+    // 将真正的弹性列（标签选择器，第 3 列）恢复为 auto，使其吸收剩余空间，固定列即精确占配置宽。
+    :deep(colgroup col):nth-child(3) {
+      width: auto !important;
+    }
     :deep(.bk-table-body) {
       max-height: calc(100vh - 280px);
       overflow: auto;

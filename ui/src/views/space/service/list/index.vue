@@ -1,7 +1,11 @@
 <template>
+  <EnvAlertBar
+    :model-value="envId"
+    @change="handleEnvChange" />
   <div class="service-wrap">
     <ServiceListContent
       :space-id="spaceId"
+      :env-id="envId"
       :perm-check-loading="permCheckLoading"
       :has-create-service-perm="hasCreateServicePerm" />
     <AppFooter />
@@ -12,14 +16,31 @@
   import { storeToRefs } from 'pinia';
   import useGlobalStore from '../../../../store/global';
   import { permissionCheck } from '../../../../api/index';
+  import { IEnvItem } from '../../../../../types/env';
 
   import ServiceListContent from './components/service-list-content.vue';
   import AppFooter from '../../../../components/footer.vue';
+  import EnvAlertBar from '../../../../components/env-alert-bar.vue';
+  import { useRoute, useRouter } from 'vue-router';
 
   const { spaceId } = storeToRefs(useGlobalStore());
 
   const hasCreateServicePerm = ref(false);
   const permCheckLoading = ref(false);
+
+  const router = useRouter();
+  const route = useRoute();
+  const envId = ref(String(route.query?.envId || ''));
+  // 环境切换
+  const handleEnvChange = (env: IEnvItem) => {
+    envId.value = String(env.id);
+    router.replace({
+      query: {
+        envId: String(env.id)
+      }
+    });
+  };
+
 
   watch(
     () => spaceId.value,
@@ -57,7 +78,7 @@
     display: flex;
     flex-direction: column;
     background: #f5f7fa;
-    height: 100%;
+    height: calc(100% - 36px);
     width: 100%;
   }
 </style>

@@ -9,12 +9,14 @@
     <div class="slider-content-container">
       <ConfigForm
         ref="formRef"
+        v-if="props.show"
         v-model:file-uploading="fileUploading"
         :config="configForm"
         :content="content"
         :is-edit="false"
         :is-tpl="true"
         :bk-biz-id="spaceId"
+        :project-id="projectId"
         :id="currentTemplateSpace"
         :file-size-limit="spaceFeatureFlags.RESOURCE_LIMIT.maxFileSize"
         @change="handleFormChange" />
@@ -46,7 +48,7 @@
 
   const templateStore = useTemplateStore();
 
-  const { spaceId, spaceFeatureFlags } = storeToRefs(useGlobalStore());
+  const { spaceId, spaceFeatureFlags, projectId } = storeToRefs(useGlobalStore());
   const { currentTemplateSpace } = storeToRefs(useTemplateStore());
   const { t } = useI18n();
 
@@ -107,7 +109,7 @@
         ...{ sign, byte_size: size },
         template_set_ids: pkgIds[0] === 0 ? [] : pkgIds,
       };
-      const res = await createTemplate(spaceId.value, currentTemplateSpace.value, params);
+      const res = await createTemplate(spaceId.value, projectId.value, currentTemplateSpace.value, params);
       templateStore.$patch((state) => {
         state.topIds = [res.data.id];
       });

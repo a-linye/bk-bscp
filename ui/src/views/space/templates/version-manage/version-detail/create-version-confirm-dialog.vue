@@ -1,6 +1,6 @@
 <template>
   <bk-dialog
-    ext-cls="create-version-confirm-dialog"
+    class="create-version-confirm-dialog"
     :title="t('确认更新配置文件版本？')"
     header-align="center"
     footer-align="center"
@@ -10,13 +10,15 @@
     :quick-close="false"
     @closed="close">
     <p class="tips">{{ t('以下套餐及服务未命名版本中引用的此配置文件也将更新') }}</p>
-    <div class="service-table">
-      <bk-loading style="min-height: 100px" :loading="loading">
-        <bk-table :data="citedList" :max-height="maxTableHeight">
+    <div
+      class="service-table"
+      :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '100px', overflowY: 'auto' }">
+      <bk-loading style="display: block; width: 100%" :loading="loading">
+        <bk-table :data="citedList">
           <bk-table-column :label="t('所在套餐')" prop="template_set_name"></bk-table-column>
           <bk-table-column :label="t('引用此模板的服务')">
             <template #default="{ row }">
-              <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row.app_id)">
+              <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row)">
                 <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                 <LinkToApp class="link-icon" :id="row.app_id" auto-jump />
               </div>
@@ -49,6 +51,7 @@
   const props = defineProps<{
     show: boolean;
     spaceId: string;
+    projectId: string;
     templateSpaceId: number;
     templateId: number;
     versionId: number;
@@ -76,10 +79,10 @@
     },
   );
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IPackagesCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
       query: { pkg_id: currentTemplateSpace.value },
     });
     window.open(href, '_blank');
@@ -93,6 +96,7 @@
     };
     const res = await getUnNamedVersionAppsBoundByLatestTemplateVersion(
       props.spaceId,
+      props.projectId,
       props.templateSpaceId,
       props.templateId,
       params,
@@ -126,20 +130,18 @@
     }
   }
   .actions-wrapper {
-    padding-bottom: 20px;
     .bk-button:not(:last-of-type) {
       margin-right: 8px;
     }
   }
 </style>
 <style lang="scss">
-  .create-version-confirm-dialog.bk-modal-wrapper {
+  .create-version-confirm-dialog .bk-modal-wrapper {
     .bk-dialog-header .bk-dialog-title {
       white-space: normal;
     }
-    .bk-modal-footer {
+    .bk-dialog-footer {
       position: static;
-      padding: 32px 0 48px;
       background: #ffffff;
       border-top: none;
       .bk-button {

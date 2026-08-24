@@ -52,6 +52,8 @@
           :variables="props.variables"
           :editable="editable"
           :language="props.language"
+          :project-id="projectId"
+          :env-id="envId"
           @update:model-value="emits('change', $event)" />
       </div>
     </div>
@@ -77,6 +79,8 @@
       language?: string;
       showTips?: boolean;
       height?: number;
+      projectId: string;
+      envId?: string;
     }>(),
     {
       variables: () => [],

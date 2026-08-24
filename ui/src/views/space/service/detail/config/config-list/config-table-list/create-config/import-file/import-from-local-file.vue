@@ -86,11 +86,12 @@
   }
 
   const { t } = useI18n();
-  const { spaceFeatureFlags } = storeToRefs(useGlobalStore());
+  const { spaceFeatureFlags, projectId } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     isTemplate: boolean; // 是否是配置模板导入
     bkBizId?: string;
+    envId?: string;
     appId?: number;
     spaceId?: string;
     currentTemplateSpace?: number;
@@ -189,6 +190,7 @@
       if (props.isTemplate) {
         res = await importTemplateFile(
           props.spaceId!,
+          projectId.value,
           props.currentTemplateSpace!,
           option.file,
           isDecompression.value,
@@ -201,6 +203,8 @@
       } else {
         res = await importNonTemplateConfigFile(
           props.bkBizId!,
+          projectId.value,
+          props.envId!,
           props.appId!,
           option.file,
           isDecompression.value,

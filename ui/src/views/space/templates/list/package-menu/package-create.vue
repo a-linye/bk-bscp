@@ -6,7 +6,7 @@
     :before-close="handleBeforeClose"
     @closed="close">
     <div class="create-package-form">
-      <PackageForm ref="formRef" :space-id="spaceId" :data="data" @change="handleChange" />
+      <PackageForm ref="formRef" :space-id="spaceId" :project-id="projectId" :data="data" @change="handleChange" />
     </div>
     <div class="action-btns">
       <bk-button theme="primary" :loading="pending" @click="handleCreate">{{ t('创建') }}</bk-button>
@@ -25,7 +25,7 @@
   import useModalCloseConfirmation from '../../../../../utils/hooks/use-modal-close-confirmation';
   import PackageForm from './package-form.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
 
   const props = defineProps<{
@@ -42,7 +42,7 @@
     memo: '',
     public: true,
     template_ids: [],
-    bound_apps: [],
+    env_apps: [],
   });
   const isFormChange = ref(false);
   const pending = ref(false);
@@ -60,23 +60,30 @@
     data.value = formData;
   };
 
-  const handleCreate = () => {
-    formRef.value.validate().then(async () => {
-      try {
-        pending.value = true;
-        const res = await createTemplatePackage(spaceId.value, props.templateSpaceId, data.value);
-        close();
-        emits('created', res.id);
-        Message({
-          theme: 'success',
-          message: t('创建成功'),
-        });
-      } catch (e) {
-        console.error(e);
-      } finally {
-        pending.value = false;
-      }
-    });
+  const handleCreate = async () => {
+    const res = await formRef.value.validate();
+    if (!res) {
+      return;
+    };
+    try {
+      pending.value = true;
+      const {env_apps, ...other } = data.value;
+      const submitData = {
+        ...other,
+        bound_apps: data.value.public ? [] : env_apps?.map?.((item) => item.app_ids)?.flat?.() || [],
+      };
+      const res = await createTemplatePackage(spaceId.value, projectId.value, props.templateSpaceId, submitData);
+      close();
+      emits('created', res.id);
+      Message({
+        theme: 'success',
+        message: t('创建成功'),
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      pending.value = false;
+    };
   };
 
   const handleBeforeClose = async () => {
@@ -89,7 +96,7 @@
 
   const close = () => {
     emits('update:show', false);
-    data.value = { name: '', memo: '', public: true, template_ids: [], bound_apps: [] };
+    data.value = { name: '', memo: '', public: true, template_ids: [], env_apps: [] };
   };
 </script>
 <style lang="scss" scoped>

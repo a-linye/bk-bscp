@@ -90,6 +90,8 @@
     <ConfirmDialog
       v-model:show="isConfirmDialogShow"
       :bk-biz-id="props.bkBizId"
+      :project-id="props.projectId"
+      :env-id="props.envId"
       :app-id="props.appId"
       :group-list="treeNodeGroups"
       :version-list="versionList"
@@ -101,6 +103,8 @@
       @second-confirm="handleSecondConfirm" />
     <PublishVersionDiff
       :bk-biz-id="props.bkBizId"
+      :project-id="props.projectId"
+      :env-id="props.envId"
       :app-id="props.appId"
       :show="isDiffSliderShow"
       :current-version="versionData"
@@ -150,6 +154,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     permCheckLoading: boolean;
     hasPerm: boolean;
@@ -265,7 +271,8 @@
   // 获取所有分组，并组装tree组件节点需要的数据
   const getAllGroupData = async () => {
     groupListLoading.value = true;
-    const res = await getServiceGroupList(props.bkBizId, appData.value.id as number);
+    console.log('getAllGroupData', appData.value);
+    const res = await getServiceGroupList(props.bkBizId, appData.value.id as number, props.projectId, props.envId,);
     groupList.value = res.details;
     treeNodeGroups.value = res.details.map((group: IGroupItemInService) => {
       const { group_id, group_name, release_id, release_name } = group;
@@ -293,7 +300,10 @@
   const getVersionList = async () => {
     try {
       versionListLoading.value = true;
-      const res = await getConfigVersionList(props.bkBizId, props.appId, { start: 0, all: true });
+      const res = await getConfigVersionList(props.bkBizId, props.appId, props.projectId, props.envId, {
+        start: 0,
+        all: true,
+      });
       versionList.value = res.data.details.filter((item: IConfigVersion) => {
         const { id, status } = item;
         return id !== versionData.value.id && status.publish_status !== 'not_released';
@@ -339,9 +349,9 @@
 
   // 确定上线按钮
   const handleSecondConfirm = async () => {
-    const { bkBizId: biz_id, appId: app_id } = props;
+    const { bkBizId: biz_id, appId: app_id, projectId, envId } = props;
     // 上线后查询当前版本状态
-    const resp = await approve(biz_id, app_id, versionData.value.id, {
+    const resp = await approve(biz_id, projectId, envId, app_id, versionData.value.id, {
       publish_status: APPROVE_STATUS.already_publish,
     });
     // 这里有两种情况且不会同时出现：
@@ -397,7 +407,7 @@
     if (havePull || (!havePull && isApprove)) {
       InfoBox({
         infoType: 'success',
-        'ext-cls': 'info-box-style',
+        class: 'info-box-style',
         title: publishTitle(isApprove, publishType, publishTime),
         dialogType: 'confirm',
       });
@@ -405,13 +415,14 @@
       InfoBox({
         infoType: 'success',
         title: publishTitle(isApprove, publishType, publishTime),
-        'ext-cls': 'info-box-style',
+        class: 'info-box-style',
         confirmText: t('配置客户端'),
         cancelText: t('稍后再说'),
         onConfirm: () => {
+          const { bkBizId, projectId, envId, appId } = props;
           const routeData = router.resolve({
             name: 'configuration-example',
-            params: { spaceId: props.bkBizId, appId: props.appId },
+            params: { spaceId: bkBizId, projectId, envId, appId },
           });
           window.open(routeData.href, '_blank');
         },
@@ -427,7 +438,7 @@
 
   // 检查是否有正在上线的版本 或 2小时内有无其他版本上线
   const checkVersionStatus = async () => {
-    const resp = await versionStatusCheck(props.bkBizId, props.appId);
+    const resp = await versionStatusCheck(props.bkBizId, props.appId, props.projectId, props.envId);
     const { data } = resp;
     warnDialogData.value = data;
     if (data?.is_publishing) {

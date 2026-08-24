@@ -4,8 +4,7 @@
     :title="t('批量导入')"
     :theme="'primary'"
     width="960"
-    height="720"
-    ext-cls="import-file-dialog"
+    class="import-file-dialog"
     :before-close="handleBeforeClose"
     :quick-close="false"
     @closed="handleClose">
@@ -22,6 +21,7 @@
       <div v-if="importType === 'localFile'">
         <ImportFromLocalFile
           :bk-biz-id="props.bkBizId"
+          :env-id="envId"
           :app-id="props.appId"
           :is-template="false"
           @change="handleUploadFile"
@@ -34,6 +34,7 @@
         <ImportFromTemplate
           ref="importFromTemplateRef"
           :bk-biz-id="props.bkBizId"
+          :env-id="envId"
           :app-id="props.appId"
           @toggle-disabled="templateImportBtnDisabled = $event"
           @close="handleClose" />
@@ -56,6 +57,8 @@
       <div v-else-if="importType === 'otherService'">
         <ImportFormOtherService
           :bk-biz-id="props.bkBizId"
+          :project-id="projectId"
+          :env-id="envId"
           :app-id="props.appId"
           @select-version="handleSelectVersion"
           @clear="handleClearTable" />
@@ -171,6 +174,8 @@
   const props = defineProps<{
     show: boolean;
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
   }>();
   const emits = defineEmits(['update:show', 'confirm']);
@@ -310,7 +315,7 @@
           replace_all: isClearDraft.value,
           variables: allVariables,
         };
-        const res = await batchAddConfigList(props.bkBizId, props.appId, query);
+        const res = await batchAddConfigList(props.bkBizId, props.appId, props.projectId, props.envId, query);
         serviceStore.$patch((state) => {
           state.topIds = res.ids;
         });
@@ -336,7 +341,7 @@
         start: 0,
         all: true,
       };
-      const res = await getConfigVersionList(props.bkBizId, props.appId, params);
+      const res = await getConfigVersionList(props.bkBizId, props.appId, props.projectId, props.envId, params);
       versionList.value = res.data.details;
     } catch (e) {
       console.error(e);
@@ -351,7 +356,7 @@
     try {
       handleClearTable();
       const params = { other_app_id, release_id };
-      const res = await importFromHistoryVersion(props.bkBizId, props.appId, params);
+      const res = await importFromHistoryVersion(props.bkBizId, props.appId, props.projectId, props.envId, params);
       res.data.non_template_configs.forEach((item: any) => {
         const config = {
           ...item,
@@ -614,9 +619,18 @@
 
 <style lang="scss">
   .import-file-dialog {
+    .bk-dialog-header {
+      padding-bottom: 12px;
+    }
+    .bk-modal-wrapper {
+      height: 720px;
+    }
     .bk-modal-content {
-      height: calc(100% - 50px) !important;
+      height: calc(100% - 103px) !important;
       overflow: auto;
+    }
+    .bk-dialog-content {
+      margin-top: 0;
     }
   }
 </style>

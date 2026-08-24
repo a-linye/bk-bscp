@@ -15,6 +15,7 @@ package crontab
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -147,14 +148,27 @@ func (c *SyncTicketStatus) handleApprove(kit *kit.Kit, strategy *table.Strategy)
 		StrategyId:    strategy.ID,
 	}
 
+	app, err := c.set.App().GetByID(kit, strategy.Attachment.AppID)
+	if err != nil {
+		logs.Errorf("get app failed: %s", err.Error())
+		return err
+	}
+
+	if app == nil {
+		return errors.New("app not found")
+	}
+
+	approveReq.ProjectId = app.ProjID
+	approveReq.EnvId = app.EnvID
+
 	// itsm v4 获取active key, v2 使用state_id
 	activeKey := ""
 	if cc.DataService().ITSM.EnableV4 {
 		stateIDKey := itsm.BuildStateIDKey(kit.TenantID, table.ApproveType(strategy.Spec.ApproveType))
-		itsmSign, err := c.set.Config().GetConfig(kit, stateIDKey)
-		if err != nil {
-			logs.Errorf("get itsm config failed: %s", err.Error())
-			return err
+		itsmSign, errC := c.set.Config().GetConfig(kit, stateIDKey)
+		if errC != nil {
+			logs.Errorf("get itsm config failed: %s", errC.Error())
+			return errC
 		}
 		activeKey = itsmSign.Value
 	}

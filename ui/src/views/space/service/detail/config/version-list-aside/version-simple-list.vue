@@ -1,7 +1,7 @@
 <template>
   <section class="version-container">
     <div class="service-selector-wrapper">
-      <ServiceSelector ref="serviceSelectorRef" :value="props.appId" @change="handleAppChange">
+      <ServiceSelector ref="serviceSelectorRef" :value="props.appId" :env-id="envId" @change="handleAppChange">
         <template #trigger>
           <div class="selector-trigger">
             <input readonly :value="editingService.spec.name" />
@@ -61,7 +61,11 @@
         <TableEmpty v-if="searchStr && versionsInView.length === 0" :is-search-empty="true" @clear="searchStr = ''" />
       </section>
     </bk-loading>
-    <VersionDiff v-model:show="showDiffPanel" :current-version="currentOperatingVersion" />
+    <VersionDiff
+      v-model:show="showDiffPanel"
+      :project-id="projectId"
+      :env-id="envId"
+      :current-version="currentOperatingVersion" />
     <VersionOperateConfirmDialog
       v-model:show="showOperateConfirmDialog"
       :title="t('确认废弃该版本')"
@@ -93,7 +97,7 @@
   </section>
 </template>
 <script setup lang="ts">
-  import { ref, onMounted, computed, watch } from 'vue';
+  import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
   import { useI18n } from 'vue-i18n';
@@ -120,6 +124,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
   }>();
 
@@ -132,7 +138,8 @@
   const showOperateConfirmDialog = ref(false);
   const selectedVersion = ref<IConfigVersion>();
   const popShow = ref(false);
-  const popover = ref<HTMLInputElement | null>(null);
+  const popover = ref<HTMLElement | null>(null);
+  const triggerEl = ref<HTMLElement | null>(null);
   const popHideTimerId = ref(0);
   const isMouseenter = ref(false);
   const isEditServicePopShow = ref(false);
@@ -140,6 +147,8 @@
   const editingService = ref<IAppItem>({
     id: 0,
     biz_id: 0,
+    project_id: 0,
+    env_id: 0,
     space_id: '',
     spec: {
       name: '',
@@ -203,7 +212,7 @@
         versionData.value = versionDetail;
         refreshVersionListFlag.value = false;
         // 默认选中新增的版本时，路由参数versionId需要更新
-        router.push({ name: route.name as string, params: { versionId: versionDetail.id } });
+        router.push({ name: route.name as string, params: { ...route.params, versionId: versionDetail.id } });
       }
     }
   });
@@ -221,9 +230,13 @@
 
   const init = async () => {
     await getVersionList();
-    if (pendingApprovalVersion.value) {
+    // 从模板套餐跳转打开导入弹窗时（isOpenDialog=1），保持未命名版本（editing 态），
+    // 避免 versionData 切到非 editing 版本导致 CreateConfig 被外层 v-if 卸载、
+    // 其内已打开的批量导入弹窗成为无法关闭的 DOM 残骸
+    const skipAutoSelect = route.query.isOpenDialog === '1';
+    if (pendingApprovalVersion.value && !skipAutoSelect) {
       versionData.value = pendingApprovalVersion.value;
-      router.push({ name: route.name as string, params: { versionId: versionData.value.id } });
+      router.push({ name: route.name as string, params: { ...route.params, versionId: versionData.value.id } });
     }
     if (route.params.versionId) {
       const version = versionList.value.find((item) => item.id === Number(route.params.versionId));
@@ -241,7 +254,7 @@
         start: 0,
         all: true,
       };
-      const res = await getConfigVersionList(props.bkBizId, props.appId, params);
+      const res = await getConfigVersionList(props.bkBizId, props.appId, props.projectId, props.envId, params);
       versionList.value = [unNamedVersion, ...res.data.details];
       const index = versionList.value.findIndex((version: IConfigVersion) =>
         version.status.released_groups.some((group) => group.id === 0),
@@ -261,7 +274,7 @@
         start: 0,
         all: true,
       };
-      const res = await getConfigVersionList(props.bkBizId, props.appId, params);
+      const res = await getConfigVersionList(props.bkBizId, props.appId, props.projectId, props.envId, params);
       versionList.value.forEach((version: IConfigVersion) => {
         const newVersion = res.data.details.find((item: IConfigVersion) => item.id === version.id);
         if (newVersion) {
@@ -278,9 +291,11 @@
       state.conflictFileCount = 0;
     });
     versionData.value = version;
-    const params: { spaceId: string; appId: number; versionId?: number } = {
+    const params: { spaceId: string; projectId: string; appId: number; envId: string; versionId?: number } = {
       spaceId: props.bkBizId,
+      projectId: props.projectId,
       appId: props.appId,
+      envId: props.envId,
     };
     if (version.id !== 0) {
       params.versionId = version.id;
@@ -306,7 +321,7 @@
   const handleDeprecateVersion = () =>
     new Promise(() => {
       const id = currentOperatingVersion.value.id;
-      deprecateVersion(props.bkBizId, props.appId, id).then(() => {
+      deprecateVersion(props.bkBizId, props.appId, props.projectId, props.envId, id).then(() => {
         showOperateConfirmDialog.value = false;
         Message({
           theme: 'success',
@@ -331,19 +346,47 @@
       });
     });
 
+  // 基于触发元素的视口坐标定位 popover：.action-list 为 position: fixed，
+  // 直接用 getBoundingClientRect 结果即可，不受顶部 Header / EnvAlertBar / hideNav 高度影响
+  const positionPopover = () => {
+    if (!triggerEl.value || !popover.value) return;
+    const rect = triggerEl.value.getBoundingClientRect();
+    const distanceToBottom = window.innerHeight - rect.bottom;
+    // 垂直：fixed 下 style.top 即到视口顶部的距离
+    if (distanceToBottom < 84) {
+      popover.value.style.top = `${rect.top - 84}px`;
+    } else {
+      popover.value.style.top = `${rect.top + 32}px`;
+    }
+    // 水平：popover 右缘与触发元素(省略号)右缘对齐；fixed 下 right 为到视口右缘的距离
+    popover.value.style.right = `${window.innerWidth - rect.right + 11}px`;
+  };
+
   const handlePopShow = (version: IConfigVersion, event: any) => {
     selectedVersion.value = version;
-    const element = event.target;
-    const rect = element.getBoundingClientRect();
-    const distanceToBottom = window.innerHeight - rect.bottom;
-    if (distanceToBottom < 70) {
-      popover.value!.style.top = `${rect.top - 140}px`;
-    } else {
-      popover.value!.style.top = `${rect.top - 20}px`;
-    }
+    triggerEl.value = event.target;
+    positionPopover();
     popHideTimerId.value && clearTimeout(popHideTimerId.value);
     popShow.value = true;
   };
+
+  // 显示期间监听滚动与窗口缩放，实时重算位置：
+  // scroll 用捕获阶段，可感知版本列表内部滚动容器（scroll 不冒泡，但捕获阶段能拦截到任意滚动元素）
+  watch(popShow, (val) => {
+    if (val) {
+      window.addEventListener('scroll', positionPopover, true);
+      window.addEventListener('resize', positionPopover);
+    } else {
+      window.removeEventListener('scroll', positionPopover, true);
+      window.removeEventListener('resize', positionPopover);
+      triggerEl.value = null;
+    }
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener('scroll', positionPopover, true);
+    window.removeEventListener('resize', positionPopover);
+  });
 
   const handlePopHide = () => {
     popHideTimerId.value = window.setTimeout(() => {
@@ -378,7 +421,7 @@
     }
     router.push({
       name,
-      params: { spaceId: service.space_id, appId: service.id },
+      params: { spaceId: service.space_id, appId: service.id, envId: props.envId },
     });
   };
 </script>
@@ -582,8 +625,9 @@
     margin-top: 16px;
   }
   .action-list {
-    position: absolute;
-    right: 25px;
+    /* fixed 相对视口定位：top / right 均由 getBoundingClientRect 计算（见 positionPopover），
+       不受顶部 Header / EnvAlertBar / hideNav 高度变化影响，避免 popover 错位 */
+    position: fixed;
     padding: 4px 0;
     border: 1px solid #dcdee5;
     box-shadow: 0 2px 6px 0 #0000001a;

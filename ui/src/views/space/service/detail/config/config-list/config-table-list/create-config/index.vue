@@ -32,26 +32,32 @@
   <ManualCreate
     v-model:show="isManualCreateSliderOpen"
     :bk-biz-id="props.bkBizId"
+    :env-id="envId"
     :app-id="props.appId"
     @confirm="emits('created')" />
   <ManualCreateKv
     v-model:show="isManualCreateKvSliderOpen"
     :bk-biz-id="props.bkBizId"
+    :env-id="envId"
     :app-id="props.appId"
     @confirm="emits('created')" />
   <BatchImportKv
     v-model:show="isBatchImportKvDialogOpen"
     :bk-biz-id="props.bkBizId"
+    :project-id="projectId"
+    :env-id="envId"
     :app-id="props.appId"
     @confirm="emits('imported')" />
   <BatchImportFile
     v-model:show="isBatchImportDialogOpen"
     :bk-biz-id="props.bkBizId"
+    :project-id="projectId"
+    :env-id="envId"
     :app-id="props.appId"
     @confirm="emits('imported')" />
 </template>
 <script lang="ts" setup>
-  import { onMounted, ref } from 'vue';
+  import { ref, watch } from 'vue';
   import { useRoute } from 'vue-router';
   import { AngleDown } from 'bkui-vue/lib/icon';
   import { storeToRefs } from 'pinia';
@@ -71,6 +77,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
   }>();
 
@@ -80,15 +88,23 @@
   const isPopoverOpen = ref(false);
   const isManualCreateSliderOpen = ref(false);
   const isManualCreateKvSliderOpen = ref(false);
-  const isImportTemplatesDialogOpen = ref(false);
   const isBatchImportDialogOpen = ref(false);
   const isBatchImportKvDialogOpen = ref(false);
 
-  onMounted(() => {
-    if (route.query.pkg_id) {
-      isImportTemplatesDialogOpen.value = true;
-    }
-  });
+  const { pkg_id, isOpenDialog } = route.query;
+
+  // 权限校验为异步接口，权限结果回来前 hasEditServicePerm 仍为非最新值。
+  // 改为监听 permCheckLoading，待校验结束（loading 为 false）后再决定是否自动打开弹窗，
+  // 避免 onMounted 读取时机过早导致偶发不弹窗。
+  watch(
+    () => permCheckLoading.value,
+    (loading) => {
+      if (!loading && hasEditServicePerm.value && pkg_id && isOpenDialog === '1') {
+        isBatchImportDialogOpen.value = true;
+      }
+    },
+    { immediate: true },
+  );
 
   const handleManualCreateSlideOpen = () => {
     buttonRef.value.hide();

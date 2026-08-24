@@ -65,6 +65,12 @@ service Auth {
 
   // 验证iam
   rpc IAMVerify(IAMVerifyReq) returns (IAMVerifyResp);
+
+  // 验证业务下是否存在该项目
+  rpc VerifyProject(VerifyProjectReq) returns (VerifyProjectResp) {}
+
+  // 验证业务和项目下是否存在该环境
+  rpc VerifyEnv(VerifyEnvReq) returns (VerifyEnvResp) {}
 }
 
 message IAMVerifyReq {
@@ -126,6 +132,9 @@ message PullResourceReq {
   string method = 2;
   google.protobuf.Struct filter = 3;
   Page page = 4;
+  // requires 是 IAM V4 的字段，声明 fetch_instance_info 需要返回哪些实例属性。
+  // 它在请求体顶层而不在 filter 内，V3 不使用该字段。
+  repeated string requires = 5;
 }
 
 message PullResourceResp {
@@ -144,9 +153,14 @@ message CheckPermissionResp {
   repeated BasicDetail resources = 3;
 }
 
+// Page 承载资源回调的分页参数。
+// limit/offset 是 IAM V3 的形态；page/page_size 是 V4 的形态，页码从 1 开始。
+// 两版并存于同一 message，由各自的回调实现取用对应字段。
 message Page {
   uint32 limit = 1;
   uint32 offset = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
 }
 
 message AuthorizeBatchReq {
@@ -308,4 +322,23 @@ message GrantResourceCreatorActionReq {
     string type = 2;
     string id = 3;
   }
+}
+
+message VerifyProjectReq {
+  uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目ID" }];
+}
+
+message VerifyProjectResp {
+  bool exists = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目是否存在" }];
+}
+
+message VerifyEnvReq {
+  uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目ID" }];
+  uint32 env_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
+}
+
+message VerifyEnvResp {
+  bool exists = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境是否存在" }];
 }

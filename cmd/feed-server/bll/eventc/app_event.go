@@ -102,11 +102,13 @@ func (ae *appEvent) doFirstMatch(kt *kit.Kit, subSpec *SubscribeSpec) (uint32, u
 	cursor := ae.cursor.ID()
 
 	meta := &btyp.AppInstanceMeta{
-		BizID:  subSpec.InstSpec.BizID,
-		AppID:  subSpec.InstSpec.AppID,
-		App:    subSpec.InstSpec.App,
-		Uid:    subSpec.InstSpec.Uid,
-		Labels: subSpec.InstSpec.Labels,
+		BizID:     subSpec.InstSpec.BizID,
+		AppID:     subSpec.InstSpec.AppID,
+		App:       subSpec.InstSpec.App,
+		Uid:       subSpec.InstSpec.Uid,
+		Labels:    subSpec.InstSpec.Labels,
+		ProjectID: subSpec.InstSpec.ProjectID,
+		EnvID:     subSpec.InstSpec.EnvID,
 	}
 
 	matchedRelease, err := ae.sch.handler.GetMatchedRelease(kt, meta)

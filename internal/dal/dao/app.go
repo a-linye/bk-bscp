@@ -39,28 +39,28 @@ type App interface {
 	// Update one app's info
 	Update(kit *kit.Kit, app *table.App) error
 	// get app with id.
-	Get(kit *kit.Kit, bizID, appID uint32) (*table.App, error)
+	Get(kit *kit.Kit, bizID, projectID, envID, appID uint32) (*table.App, error)
 	// get app only with id.
 	GetByID(kit *kit.Kit, appID uint32) (*table.App, error)
 	// get app by name.
-	GetByName(kit *kit.Kit, bizID uint32, name string) (*table.App, error)
+	GetByName(kit *kit.Kit, bizID, projectID, envID uint32, name string) (*table.App, error)
 	// List apps with options.
-	List(kit *kit.Kit, bizList []uint32, configType string, opt *types.BasePage) (
+	List(kit *kit.Kit, bizID, projectID, envID uint32, configType string, opt *types.BasePage) (
 		[]*table.App, int64, error)
 	// ListAppsByGroupID list apps by group id.
 	ListAppsByGroupID(kit *kit.Kit, groupID, bizID uint32) ([]*table.App, error)
 	// ListAppsByIDs list apps by app ids.
-	ListAppsByIDs(kit *kit.Kit, ids []uint32) ([]*table.App, error)
+	ListAppsByIDs(kit *kit.Kit, bizID, projectID uint32, ids []uint32) ([]*table.App, error)
 	// DeleteWithTx delete one app instance with transaction.
 	DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, app *table.App) error
 	// ListAppMetaForCache list app's basic meta info.
 	ListAppMetaForCache(kt *kit.Kit, bizID uint32, appID []uint32) (map[ /*appID*/ uint32]*types.AppCacheMeta, error)
 	// GetByAlias 通过Alisa 查询
-	GetByAlias(kit *kit.Kit, bizID uint32, alias string) (*table.App, error)
+	GetByAlias(kit *kit.Kit, bizID, projectID, envID uint32, alias string) (*table.App, error)
 	// BatchUpdateLastConsumedTime 批量更新最后一次拉取时间
 	BatchUpdateLastConsumedTime(kit *kit.Kit, appIDs []uint32) error
 	// CountApps 统计服务数量
-	CountApps(kit *kit.Kit, bizList []uint32, search *structpb.Struct) (int64, int64, error)
+	CountApps(kit *kit.Kit, bizID, projectID, envID uint32, search *structpb.Struct) (int64, int64, error)
 	// GetOneAppByBiz 通过业务获取其中一个app
 	GetOneAppByBiz(kit *kit.Kit, bizID uint32) (*table.App, error)
 	// 获取不同租户ID
@@ -73,6 +73,16 @@ type App interface {
 	QueryDistinctBizIDs(kit *kit.Kit) ([]uint32, error)
 	// CheckBizExists check if business exists in BSCP using lightweight query
 	CheckBizExists(kit *kit.Kit, bizID uint32) (bool, error)
+	// ListAppByEnvIDs 通过环境 ID 批量获取服务
+	ListAppByEnvIDs(kit *kit.Kit, envIDs []uint32) ([]*table.App, error)
+	// CountByProjectIDs 批量统计项目下的服务数量
+	CountByProjectIDs(kit *kit.Kit, projectIDs []uint32) (map[uint32]uint32, error)
+	// CountByProjectID 统计单个项目下的服务数量
+	CountByProjectID(kit *kit.Kit, projectID uint32) (int64, error)
+	// CountByEnvIDs 批量统计环境下的服务数量
+	CountByEnvIDs(kit *kit.Kit, envIDs []uint32) (map[uint32]uint32, error)
+	// CountByEnvID 统计单个环境下的服务数量
+	CountByEnvID(kit *kit.Kit, envID uint32) (int64, error)
 }
 
 var _ App = new(appDao)
@@ -82,6 +92,127 @@ type appDao struct {
 	idGen    IDGenInterface
 	auditDao AuditDao
 	event    Event
+}
+
+// CountByEnvID 统计单个环境下的服务数量
+func (dao *appDao) CountByEnvID(kit *kit.Kit, envID uint32) (int64, error) {
+	m := dao.genQ.App
+
+	count, err := dao.genQ.App.WithContext(kit.Ctx).
+		Where(m.EnvID.Eq(envID)).
+		Count()
+	if err != nil {
+		return 0, errf.Errorf(
+			errf.DBOpFailed,
+			"%s: %v",
+			i18n.T(kit, "environment application count failed"),
+			err,
+		)
+	}
+
+	return count, nil
+}
+
+// CountByEnvIDs 批量统计环境下的服务数量
+func (dao *appDao) CountByEnvIDs(kit *kit.Kit, envIDs []uint32) (map[uint32]uint32, error) {
+	resMap := make(map[uint32]uint32)
+	if len(envIDs) == 0 {
+		return resMap, nil
+	}
+
+	m := dao.genQ.App
+	q := dao.genQ.App.WithContext(kit.Ctx)
+
+	type Result struct {
+		EnvID uint32 `gorm:"column:environment_id"`
+		Count uint32 `gorm:"column:cnt"`
+	}
+	var results []Result
+
+	err := q.Select(m.EnvID, m.ID.Count().As("cnt")).
+		Where(m.EnvID.In(envIDs...)).
+		Group(m.EnvID).
+		Scan(&results)
+
+	if err != nil {
+		return nil, errf.Errorf(
+			errf.DBOpFailed,
+			"%s: %v",
+			i18n.T(kit, "environment application count failed"),
+			err,
+		)
+	}
+
+	for _, r := range results {
+		resMap[r.EnvID] = r.Count
+	}
+	return resMap, nil
+}
+
+// CountByProjectID 统计单个项目下的服务数量
+func (dao *appDao) CountByProjectID(kit *kit.Kit, projectID uint32) (int64, error) {
+	m := dao.genQ.App
+	count, err := dao.genQ.App.WithContext(kit.Ctx).Where(m.ProjID.Eq(projectID)).Count()
+	if err != nil {
+		return 0, errf.Errorf(
+			errf.DBOpFailed,
+			"%s: %v",
+			i18n.T(kit, "count applications by environment failed"),
+			err,
+		)
+	}
+
+	return count, nil
+}
+
+// CountByProjectIDs 批量统计项目下的服务数量
+func (dao *appDao) CountByProjectIDs(kit *kit.Kit, projectIDs []uint32) (map[uint32]uint32, error) {
+
+	if len(projectIDs) == 0 {
+		return map[uint32]uint32{}, nil
+	}
+
+	m := dao.genQ.App
+	q := dao.genQ.App.WithContext(kit.Ctx)
+
+	type Result struct {
+		ProjectID uint32 `gorm:"column:project_id"`
+		Count     uint32 `gorm:"column:cnt"`
+	}
+	var results []Result
+
+	err := q.Select(m.ProjID, m.ID.Count().As("cnt")).
+		Where(m.ProjID.In(projectIDs...)).
+		Group(m.ProjID).
+		Scan(&results)
+
+	if err != nil {
+		return nil, errf.Errorf(
+			errf.DBOpFailed,
+			"%s: %v",
+			i18n.T(kit, "count applications under projects failed"),
+			err,
+		)
+	}
+
+	resMap := make(map[uint32]uint32, len(results))
+	for _, r := range results {
+		resMap[r.ProjectID] = r.Count
+	}
+
+	return resMap, nil
+}
+
+// ListAppByEnvIDs implements [App].
+func (dao *appDao) ListAppByEnvIDs(kit *kit.Kit, envIDs []uint32) ([]*table.App, error) {
+	m := dao.genQ.App
+
+	apps, err := dao.genQ.App.WithContext(kit.Ctx).Where(m.EnvID.In(envIDs...)).Find()
+	if err != nil {
+		return nil, errf.Errorf(errf.DBOpFailed, "%s: %v", i18n.T(kit, "list applications by environment ids failed"), err)
+	}
+
+	return apps, nil
 }
 
 // GetDistinctTenantIDs 获取不同租户ID（跨租户查询，自动跳过租户过滤）.
@@ -150,7 +281,7 @@ func (dao *appDao) CreateWithTx(kit *kit.Kit, tx *gen.QueryTx, app *table.App) (
 }
 
 // CountApps implements App.
-func (dao *appDao) CountApps(kit *kit.Kit, bizList []uint32, search *structpb.Struct) (int64, int64, error) {
+func (dao *appDao) CountApps(kit *kit.Kit, bizID, projectID, envID uint32, search *structpb.Struct) (int64, int64, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 	q2 := dao.genQ.App.WithContext(kit.Ctx)
@@ -161,13 +292,18 @@ func (dao *appDao) CountApps(kit *kit.Kit, bizList []uint32, search *structpb.St
 	conds1 = dao.handleSearch(conds1, search.AsMap())
 	conds2 = dao.handleSearch(conds2, search.AsMap())
 
-	kvAppsCount, err := q.Where(m.BizID.In(bizList...)).
+	if envID != 0 {
+		q = q.Where(m.EnvID.Eq(envID))
+		q2 = q2.Where(m.EnvID.Eq(envID))
+	}
+
+	kvAppsCount, err := q.Where(m.BizID.Eq(bizID), m.ProjID.Eq(projectID)).
 		Where(m.ConfigType.Eq(string(table.KV))).Where(conds1...).Count()
 	if err != nil {
 		return 0, 0, err
 	}
 
-	fileAppsCount, err := q2.Where(m.BizID.In(bizList...)).
+	fileAppsCount, err := q2.Where(m.BizID.Eq(bizID), m.ProjID.Eq(projectID)).
 		Where(m.ConfigType.Eq(string(table.File))).Where(conds2...).Count()
 	if err != nil {
 		return 0, 0, err
@@ -192,7 +328,7 @@ func (dao *appDao) BatchUpdateLastConsumedTime(kit *kit.Kit, appIDs []uint32) er
 }
 
 // List app's detail info with the filter's expression.
-func (dao *appDao) List(kit *kit.Kit, bizList []uint32, configType string, opt *types.BasePage) (
+func (dao *appDao) List(kit *kit.Kit, bizID, projectID, envID uint32, configType string, opt *types.BasePage) (
 	[]*table.App, int64, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
@@ -202,13 +338,15 @@ func (dao *appDao) List(kit *kit.Kit, bizList []uint32, configType string, opt *
 		count  int64
 		err    error
 	)
-	// 当len(bizList) > 1时，适用于导航查询场景
-	if len(bizList) > 0 {
-		conds = append(conds, m.BizID.In(bizList...))
-	}
 
 	if configType != "" {
 		conds = append(conds, m.ConfigType.Eq(configType))
+	}
+
+	conds = append(conds, m.BizID.Eq(bizID))
+	conds = append(conds, m.ProjID.Eq(projectID))
+	if envID != 0 {
+		conds = append(conds, m.EnvID.Eq(envID))
 	}
 
 	conds = dao.handleSearch(conds, opt.Search.AsMap())
@@ -301,10 +439,10 @@ func (dao *appDao) ListAppsByGroupID(kit *kit.Kit, groupID, bizID uint32) ([]*ta
 }
 
 // ListAppsByIDs list apps by app ids.
-func (dao *appDao) ListAppsByIDs(kit *kit.Kit, ids []uint32) ([]*table.App, error) {
+func (dao *appDao) ListAppsByIDs(kit *kit.Kit, bizID, projectID uint32, ids []uint32) ([]*table.App, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
-	result, err := q.Where(m.ID.In(ids...)).Find()
+	result, err := q.Where(m.BizID.Eq(bizID), m.ProjID.Eq(projectID), m.ID.In(ids...)).Find()
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +494,7 @@ func (dao *appDao) Create(kit *kit.Kit, g *table.App) (uint32, error) {
 				ResourceID: g.ID,
 				OpType:     table.InsertOp,
 			},
-			Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID},
+			Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID, ProjectID: g.ProjID, EnvID: g.EnvID},
 			Revision:   &table.CreatedRevision{Creator: kit.User},
 		}
 		if err = eDecorator.Fire(one); err != nil {
@@ -384,7 +522,7 @@ func (dao *appDao) Update(kit *kit.Kit, g *table.App) error {
 		return errf.Errorf(errf.InvalidArgument, i18n.T(kit, "app is nil"))
 	}
 
-	oldOne, err := dao.Get(kit, g.BizID, g.ID)
+	oldOne, err := dao.Get(kit, g.BizID, g.ProjID, g.EnvID, g.ID)
 	if err != nil {
 		return errf.Errorf(errf.DBOpFailed, i18n.T(kit, "update app failed, err: %s", err))
 	}
@@ -409,8 +547,7 @@ func (dao *appDao) Update(kit *kit.Kit, g *table.App) error {
 	updateTx := func(tx *gen.Query) error {
 		q = tx.App.WithContext(kit.Ctx)
 		if _, err = q.Where(m.BizID.Eq(g.BizID), m.ID.Eq(g.ID)).
-			Select(m.Memo, m.Alias_, m.DataType, m.Reviser, m.UpdatedAt, m.IsApprove, m.ApproveType,
-				m.Approver).Updates(g); err != nil {
+			Select(m.Memo, m.Alias_, m.DataType, m.Reviser, m.UpdatedAt, m.IsApprove, m.ApproveType, m.Approver).Updates(g); err != nil {
 			return err
 		}
 
@@ -425,7 +562,7 @@ func (dao *appDao) Update(kit *kit.Kit, g *table.App) error {
 				ResourceID: g.ID,
 				OpType:     table.UpdateOp,
 			},
-			Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID},
+			Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID, ProjectID: g.ProjID, EnvID: g.EnvID},
 			Revision:   &table.CreatedRevision{Creator: kit.User},
 		}
 		if err = eDecorator.Fire(one); err != nil {
@@ -458,7 +595,8 @@ func (dao *appDao) DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, g *table.App) err
 	// 删除操作, 获取当前记录做审计
 	m := tx.App
 	q := tx.App.WithContext(kit.Ctx)
-	oldOne, err := q.Where(m.ID.Eq(g.ID), m.BizID.Eq(g.BizID)).Take()
+	oldOne, err := q.Where(m.ID.Eq(g.ID), m.BizID.Eq(g.BizID), m.ProjID.Eq(g.ProjID),
+		m.EnvID.Eq(g.EnvID)).Take()
 	if err != nil {
 		return err
 	}
@@ -488,7 +626,7 @@ func (dao *appDao) DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, g *table.App) err
 			ResourceUid: oldOne.Spec.Name,
 			OpType:      table.DeleteOp,
 		},
-		Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID},
+		Attachment: &table.EventAttachment{BizID: g.BizID, AppID: g.ID, ProjectID: g.ProjID, EnvID: g.EnvID},
 		Revision:   &table.CreatedRevision{Creator: kit.User},
 	}
 	eDecorator := dao.event.Eventf(kit)
@@ -501,10 +639,10 @@ func (dao *appDao) DeleteWithTx(kit *kit.Kit, tx *gen.QueryTx, g *table.App) err
 }
 
 // Get 获取单个app详情
-func (dao *appDao) Get(kit *kit.Kit, bizID uint32, appID uint32) (*table.App, error) {
+func (dao *appDao) Get(kit *kit.Kit, bizID, projectID, envID uint32, appID uint32) (*table.App, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
-	detail, err := q.Where(m.ID.Eq(appID), m.BizID.Eq(bizID)).Take()
+	detail, err := q.Where(m.ID.Eq(appID), m.BizID.Eq(bizID), m.ProjID.Eq(projectID), m.EnvID.Eq(envID)).Take()
 	if err != nil {
 		return nil, err
 	}
@@ -525,11 +663,11 @@ func (dao *appDao) GetByID(kit *kit.Kit, appID uint32) (*table.App, error) {
 }
 
 // GetByName 通过 name 查询
-func (dao *appDao) GetByName(kit *kit.Kit, bizID uint32, name string) (*table.App, error) {
+func (dao *appDao) GetByName(kit *kit.Kit, bizID, projectID, envID uint32, name string) (*table.App, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 
-	app, err := q.Where(m.BizID.Eq(bizID), m.Name.Eq(name)).Take()
+	app, err := q.Where(m.BizID.Eq(bizID), m.ProjID.Eq(projectID), m.EnvID.Eq(envID), m.Name.Eq(name)).Take()
 	if err != nil {
 		return nil, err
 	}
@@ -538,11 +676,11 @@ func (dao *appDao) GetByName(kit *kit.Kit, bizID uint32, name string) (*table.Ap
 }
 
 // GetByAlias 通过Alisa 查询
-func (dao *appDao) GetByAlias(kit *kit.Kit, bizID uint32, alias string) (*table.App, error) {
+func (dao *appDao) GetByAlias(kit *kit.Kit, bizID, projectID, envID uint32, alias string) (*table.App, error) {
 	m := dao.genQ.App
 	q := dao.genQ.App.WithContext(kit.Ctx)
 
-	app, err := q.Where(m.BizID.Eq(bizID), m.Alias_.Eq(alias)).Take()
+	app, err := q.Where(m.BizID.Eq(bizID), m.ProjID.Eq(projectID), m.EnvID.Eq(envID), m.Alias_.Eq(alias)).Take()
 	if err != nil {
 		return nil, err
 	}

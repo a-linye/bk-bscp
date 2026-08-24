@@ -52,6 +52,7 @@ func (s *Service) ListTmplBoundCounts(ctx context.Context, req *pbcs.ListTmplBou
 		BizId:           req.BizId,
 		TemplateSpaceId: req.TemplateSpaceId,
 		TemplateIds:     req.TemplateIds,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplBoundCounts(grpcKit.RpcCtx(), r)
@@ -94,6 +95,7 @@ func (s *Service) ListTmplRevisionBoundCounts(ctx context.Context, req *pbcs.Lis
 		TemplateSpaceId:     req.TemplateSpaceId,
 		TemplateId:          req.TemplateId,
 		TemplateRevisionIds: req.TemplateRevisionIds,
+		ProjectId:           grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplRevisionBoundCounts(grpcKit.RpcCtx(), r)
@@ -135,6 +137,7 @@ func (s *Service) ListTmplSetBoundCounts(ctx context.Context, req *pbcs.ListTmpl
 		BizId:           req.BizId,
 		TemplateSpaceId: req.TemplateSpaceId,
 		TemplateSetIds:  req.TemplateSetIds,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplSetBoundCounts(grpcKit.RpcCtx(), r)
@@ -170,6 +173,7 @@ func (s *Service) ListTmplBoundUnnamedApps(ctx context.Context, req *pbcs.ListTm
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplBoundUnnamedApps(grpcKit.RpcCtx(), r)
@@ -210,6 +214,7 @@ func (s *Service) ListTmplBoundNamedApps(ctx context.Context, req *pbcs.ListTmpl
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplBoundNamedApps(grpcKit.RpcCtx(), r)
@@ -244,6 +249,7 @@ func (s *Service) ListTmplBoundTmplSets(ctx context.Context, req *pbcs.ListTmplB
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplBoundTmplSets(grpcKit.RpcCtx(), r)
@@ -284,6 +290,7 @@ func (s *Service) ListMultiTmplBoundTmplSets(ctx context.Context, req *pbcs.List
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListMultiTmplBoundTmplSets(grpcKit.RpcCtx(), r)
@@ -321,6 +328,7 @@ func (s *Service) ListTmplRevisionBoundUnnamedApps(ctx context.Context, req *pbc
 		Start:              req.Start,
 		Limit:              req.Limit,
 		All:                req.All,
+		ProjectId:          grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplRevisionBoundUnnamedApps(grpcKit.RpcCtx(), r)
@@ -341,8 +349,8 @@ func (s *Service) ListTmplRevisionBoundUnnamedApps(ctx context.Context, req *pbc
 // Deprecated: not in use currently.
 //
 // If use it, consider to add column app_name, release_name on table released_app_templates in case of app is deleted.
-func (s *Service) ListTmplRevisionBoundNamedApps(ctx context.Context,
-	req *pbcs.ListTmplRevisionBoundNamedAppsReq) (*pbcs.ListTmplRevisionBoundNamedAppsResp, error) {
+func (s *Service) ListTmplRevisionBoundNamedApps(ctx context.Context, req *pbcs.ListTmplRevisionBoundNamedAppsReq) (
+	*pbcs.ListTmplRevisionBoundNamedAppsResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
 	res := []*meta.ResourceAttribute{
@@ -362,6 +370,7 @@ func (s *Service) ListTmplRevisionBoundNamedApps(ctx context.Context,
 		Start:              req.Start,
 		Limit:              req.Limit,
 		All:                req.All,
+		ProjectId:          grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplRevisionBoundNamedApps(grpcKit.RpcCtx(), r)
@@ -396,6 +405,7 @@ func (s *Service) ListTmplSetBoundUnnamedApps(ctx context.Context, req *pbcs.Lis
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListTmplSetBoundUnnamedApps(grpcKit.RpcCtx(), r)
@@ -436,6 +446,7 @@ func (s *Service) ListMultiTmplSetBoundUnnamedApps(ctx context.Context, req *pbc
 		Start:           req.Start,
 		Limit:           req.Limit,
 		All:             req.All,
+		ProjectId:       grpcKit.ResolvedProjectID(req.ProjectId),
 	}
 
 	rp, err := s.client.DS.ListMultiTmplSetBoundUnnamedApps(grpcKit.RpcCtx(), r)
@@ -549,6 +560,7 @@ func (s *Service) CheckTemplateSetReferencesApps(ctx context.Context, req *pbcs.
 		TemplateSpaceId: req.GetTemplateSpaceId(),
 		TemplateSetIds:  req.GetTemplateSetIds(),
 		Items:           items,
+		ProjectId:       kit.ResolvedProjectID(req.ProjectId),
 	})
 	if err != nil {
 		return nil, err

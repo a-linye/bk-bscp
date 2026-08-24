@@ -14,12 +14,14 @@
         :current-version-id="props.currentVersionId"
         :selected-id="props.selectedKvConfigId"
         :actived="selectedType === 'config'"
+        :env-id="envId"
         :app-id="props.appId"
         @selected="handleSelect($event, 'config')"
         @render="emits('render', $event)" />
     </div>
     <Scripts
       v-if="isFileType"
+      :env-id="envId"
       :current-version-id="props.currentVersionId"
       :actived="selectedType === 'script'"
       @selected="handleSelect($event, 'script')" />
@@ -46,6 +48,7 @@
     unNamedVersionVariables?: IVariableEditParams[];
     selectedConfig?: IConfigDiffSelected;
     selectedKvConfigId?: number;
+    envId: string;
     appId: number;
   }>();
 

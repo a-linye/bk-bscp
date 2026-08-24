@@ -68,6 +68,7 @@
           :model-value="editorContent"
           :error-line="errorLine"
           :language="format"
+          :project-id="projectId"
           @paste="handlePaste"
           @enter="separatorShow = true"
           @validate="handleValidateEditor"
@@ -98,7 +99,7 @@
 
   const { t } = useI18n();
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     modelValue: boolean;
@@ -229,11 +230,11 @@
         separator: separator.value === ' ' ? 'white-space' : separator.value,
         variables: editorContent.value,
       };
-      res = await importVariablesText(spaceId.value, params);
+      res = await importVariablesText(spaceId.value, projectId.value, params);
     } else if (props.format === 'json') {
-      res = await importVariablesJSON(spaceId.value, editorContent.value);
+      res = await importVariablesJSON(spaceId.value, projectId.value, editorContent.value);
     } else {
-      res = await importVariablesYaml(spaceId.value, editorContent.value);
+      res = await importVariablesYaml(spaceId.value, projectId.value, editorContent.value);
     }
     return res.data.ids;
   };

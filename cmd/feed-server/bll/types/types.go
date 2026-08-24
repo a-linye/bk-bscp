@@ -57,6 +57,8 @@ type AppInstanceMeta struct {
 	Namespace string            `json:"namespace"`
 	Uid       string            `json:"uid"`
 	Labels    map[string]string `json:"labels"`
+	ProjectID uint32            `json:"projectID"`
+	EnvID     uint32            `json:"envID"`
 }
 
 // ListFileAppLatestReleaseMetaReq defines options to list a file type app's latest release metadata.

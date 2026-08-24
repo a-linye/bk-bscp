@@ -15,6 +15,8 @@
         :content="content"
         :is-edit="true"
         :bk-biz-id="props.bkBizId"
+        :project-id="projectId"
+        :env-id="envId"
         :id="props.appId"
         :file-size-limit="spaceFeatureFlags.RESOURCE_LIMIT.maxFileSize"
         @change="handleChange" />
@@ -56,6 +58,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     configId: number;
     show: Boolean;
@@ -89,12 +93,19 @@
       let signature;
       let byte_size;
       if (versionData.value.id) {
-        detail = await getReleasedConfigItemDetail(props.bkBizId, props.appId, versionData.value.id, props.configId);
+        detail = await getReleasedConfigItemDetail(
+          props.bkBizId,
+          props.appId,
+          props.projectId,
+          props.envId,
+          versionData.value.id,
+          props.configId,
+        );
         const { origin_byte_size, origin_signature } = detail.config_item.commit_spec.content;
         byte_size = origin_byte_size;
         signature = origin_signature;
       } else {
-        detail = await getConfigItemDetail(props.bkBizId, props.configId, props.appId);
+        detail = await getConfigItemDetail(props.bkBizId, props.configId, props.appId, props.projectId, props.envId);
         byte_size = detail.content.byte_size;
         signature = detail.content.signature;
       }
@@ -144,15 +155,16 @@
       pending.value = true;
       const sign = await formRef.value.getSignature();
       let size = 0;
+      const { configId, bkBizId, appId, projectId, envId } = props;
       if (configForm.value.file_type === 'binary') {
         size = Number((content.value as IFileConfigContentSummary).size);
       } else {
         const stringContent = content.value as string;
         size = new Blob([stringContent]).size;
-        await updateConfigContent(props.bkBizId, props.appId, stringContent, sign);
+        await updateConfigContent(bkBizId, appId, stringContent, sign);
       }
       const params = { ...configForm.value, ...{ sign, byte_size: size } };
-      await updateServiceConfigItem(props.configId, props.appId, props.bkBizId, params);
+      await updateServiceConfigItem(configId, bkBizId, appId, projectId, envId, params);
       emits('confirm');
       close();
       Message({

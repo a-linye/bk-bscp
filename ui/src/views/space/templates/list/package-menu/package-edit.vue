@@ -6,7 +6,13 @@
     :before-close="handleBeforeClose"
     @closed="close">
     <div class="package-form">
-      <PackageForm ref="formRef" :space-id="spaceId" :data="data" :apps="apps" @change="handleChange" />
+      <PackageForm
+        ref="formRef"
+        :space-id="spaceId"
+        :project-id="projectId"
+        :data="data"
+        :apps="apps"
+        @change="handleChange" />
     </div>
     <div class="action-btns">
       <bk-button theme="primary" :loading="pending" @click="handleSave">{{ t('保存') }}</bk-button>
@@ -25,7 +31,7 @@
   import useModalCloseConfirmation from '../../../../../utils/hooks/use-modal-close-confirmation';
   import PackageForm from './package-form.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
 
   const props = defineProps<{
@@ -42,7 +48,7 @@
     name: '',
     memo: '',
     public: true,
-    bound_apps: [],
+    env_apps: [],
     template_ids: [],
   });
   const apps = ref<number[]>([]);
@@ -56,7 +62,13 @@
       if (val) {
         isFormChange.value = false;
         const { name, memo, public: isPublic, bound_apps, template_ids } = props.pkg.spec;
-        data.value = { name, memo, public: isPublic, bound_apps, template_ids };
+        data.value = {
+          name,
+          memo,
+          public: isPublic,
+          env_apps: props.pkg.env_apps,
+          template_ids,
+        };
         apps.value = bound_apps.slice();
       }
     },
@@ -67,27 +79,30 @@
     data.value = formData;
   };
 
-  const handleSave = () => {
-    formRef.value.validate().then(async () => {
-      try {
-        pending.value = true;
-        if (data.value.public === true) {
-          data.value.bound_apps = [];
-        }
-
-        await updateTemplatePackage(spaceId.value, props.templateSpaceId, props.pkg.id, data.value);
-        close();
-        emits('edited');
-        Message({
-          theme: 'success',
-          message: t('编辑成功'),
-        });
-      } catch (e) {
-        console.error(e);
-      } finally {
-        pending.value = false;
-      }
-    });
+  const handleSave = async () => {
+    const res = await formRef.value.validate();
+    if (!res) {
+      return;
+    };
+    try {
+      pending.value = true;
+      const { env_apps, ...other } = data.value;
+      const submitData = {
+        ...other,
+        bound_apps: data.value.public ? [] : env_apps?.map?.((item) => item.app_ids)?.flat?.() || [],
+      };
+      await updateTemplatePackage(spaceId.value, projectId.value, props.templateSpaceId, props.pkg.id, submitData);
+      close();
+      emits('edited');
+      Message({
+        theme: 'success',
+        message: t('编辑成功'),
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      pending.value = false;
+    };
   };
 
   const handleBeforeClose = async () => {

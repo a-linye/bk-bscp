@@ -32,7 +32,7 @@
                 class="link-btn"
                 theme="primary"
                 target="_blank"
-                :href="getHref(row.app_id, row.release_id)">
+                :href="getHref(row.env_id, row.app_id, row.release_id)">
                 {{ row.release_name }}
               </bk-link>
             </template>
@@ -56,7 +56,7 @@
   import useTablePagination from '../../../../utils/hooks/use-table-pagination';
   import SearchInput from '../../../../components/search-input.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
   const router = useRouter();
 
@@ -94,19 +94,19 @@
       params.searchKey = searchStr.value;
     }
     if (props.versionId) {
-      res = await getScriptVersionCiteList(spaceId.value, props.id, props.versionId, params);
+      res = await getScriptVersionCiteList(spaceId.value, projectId.value, props.id, props.versionId, params);
     } else {
-      res = await getScriptCiteList(spaceId.value, props.id, params);
+      res = await getScriptCiteList(spaceId.value, projectId.value, props.id, params);
     }
     list.value = res.details;
     pagination.value.count = res.count;
     loading.value = false;
   };
 
-  const getHref = (id: number, releaseId: number) => {
+  const getHref = (envId: number, id: number, releaseId: number) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { spaceId: spaceId.value, appId: id, versionId: releaseId },
+      params: { envId, appId: id, versionId: releaseId },
     });
     return href;
   };

@@ -38,8 +38,8 @@ func (s *Service) CreateHook(ctx context.Context, req *pbds.CreateHookReq) (*pbd
 	kt := kit.FromGrpcContext(ctx)
 
 	// GetByName get hook by name
-	if _, err := s.dao.Hook().GetByName(kt, req.Attachment.BizId, req.Spec.Name); err == nil {
-		return nil, errf.Errorf(errf.InvalidArgument, i18n.T(kt, "hook name %s already exists", req.Spec.Name))
+	if _, err := s.dao.Hook().GetByName(kt, req.Attachment.BizId, req.Attachment.ProjectId, req.Spec.Name); err == nil {
+		return nil, errf.Errorf(errf.InvalidArgument, "%s", i18n.T(kt, "hook name %s already exists", req.Spec.Name))
 	}
 
 	res := &table.Revision{
@@ -132,6 +132,7 @@ func (s *Service) ListHooks(ctx context.Context, req *pbds.ListHooksReq) (*pbds.
 		NotTag:    req.NotTag,
 		Page:      page,
 		SearchKey: req.SearchKey,
+		ProjectID: req.ProjectId,
 	}
 
 	po := &types.PageOption{
@@ -149,7 +150,7 @@ func (s *Service) ListHooks(ctx context.Context, req *pbds.ListHooksReq) (*pbds.
 		return nil, err
 	}
 
-	uncitedCount, err := s.dao.Hook().CountNumberUnReferences(kt, req.BizId, opt)
+	uncitedCount, err := s.dao.Hook().CountNumberUnReferences(kt, req.BizId, req.ProjectId, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +177,12 @@ func (s *Service) ListHooks(ctx context.Context, req *pbds.ListHooksReq) (*pbds.
 // DeleteHook delete hook.
 func (s *Service) DeleteHook(ctx context.Context, req *pbds.DeleteHookReq) (*pbbase.EmptyResp, error) {
 	kt := kit.FromGrpcContext(ctx)
+
+	// 批量删除有调用该接口，需要验证脚本是否属于该项目
+	_, err := s.dao.Hook().GetByID(kt, req.BizId, req.ProjectId, req.HookId)
+	if err != nil {
+		return nil, err
+	}
 
 	tx := s.dao.GenQuery().Begin()
 	committed := false
@@ -211,7 +218,8 @@ func (s *Service) DeleteHook(ctx context.Context, req *pbds.DeleteHookReq) (*pbb
 	hook := &table.Hook{
 		ID: req.HookId,
 		Attachment: &table.HookAttachment{
-			BizID: req.BizId,
+			BizID:     req.BizId,
+			ProjectID: req.ProjectId,
 		},
 	}
 	// DeleteWithTx delete hook instance with transaction.
@@ -256,7 +264,7 @@ func (s *Service) ListHookTags(ctx context.Context, req *pbds.ListHookTagReq) (*
 	kt := kit.FromGrpcContext(ctx)
 
 	// CountHookTag count hook tag
-	ht, err := s.dao.Hook().CountHookTag(kt, req.BizId)
+	ht, err := s.dao.Hook().CountHookTag(kt, req.BizId, req.ProjectId)
 	if err != nil {
 		logs.Errorf("list hook failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -280,7 +288,7 @@ func (s *Service) GetHook(ctx context.Context, req *pbds.GetHookReq) (*pbds.GetH
 	// FromGrpcContext used only to obtain Kit through grpc context.
 	kt := kit.FromGrpcContext(ctx)
 
-	h, err := s.dao.Hook().GetByID(kt, req.BizId, req.HookId)
+	h, err := s.dao.Hook().GetByID(kt, req.BizId, req.ProjectId, req.HookId)
 	if err != nil {
 		logs.Errorf("list hook failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -342,9 +350,24 @@ func (s *Service) ListHookReferences(ctx context.Context,
 		return nil, err
 	}
 
+	// get app env details
+	appIDs := make([]uint32, 0, len(results))
+	for _, result := range results {
+		appIDs = append(appIDs, result.AppID)
+	}
+	apps, err := s.dao.App().ListAppsByIDs(kt, req.BizId, req.ProjectId, appIDs)
+	if err != nil {
+		logs.Errorf("list apps by ids failed, err: %v, rid: %s", err, kt.Rid)
+		return nil, err
+	}
+	appMap := make(map[uint32]*table.App, len(apps))
+	for _, a := range apps {
+		appMap[a.ID] = a
+	}
+
 	details := make([]*pbds.ListHookReferencesResp_Detail, 0, len(results))
 	for _, result := range results {
-		details = append(details, &pbds.ListHookReferencesResp_Detail{
+		detail := &pbds.ListHookReferencesResp_Detail{
 			HookRevisionId:   result.HookRevisionID,
 			HookRevisionName: result.HookRevisionName,
 			AppId:            result.AppID,
@@ -353,7 +376,13 @@ func (s *Service) ListHookReferences(ctx context.Context,
 			ReleaseName:      result.ReleaseName,
 			Type:             result.HookType,
 			Deprecated:       result.Deprecated,
-		})
+		}
+		// 可能查不到 app（如已删除），此时保持环境字段为零值
+		if app, ok := appMap[result.AppID]; ok && app.Spec != nil {
+			detail.EnvDisplay = app.Spec.EnvDisplay
+			detail.EnvId = app.EnvID
+		}
+		details = append(details, detail)
 	}
 
 	resp := &pbds.ListHookReferencesResp{
@@ -413,7 +442,7 @@ func (s *Service) HookFetchIDsExcluding(ctx context.Context, req *pbds.HookFetch
 	*pbds.HookFetchIDsExcludingResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	ids, err := s.dao.Hook().FetchIDsExcluding(grpcKit, req.BizId, req.GetIds())
+	ids, err := s.dao.Hook().FetchIDsExcluding(grpcKit, req.BizId, req.ProjectId, req.GetIds())
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, i18n.T(grpcKit, "get excluded hook failed, err: %s", err))
 	}
@@ -428,7 +457,7 @@ func (s *Service) GetHookReferencedIDs(ctx context.Context, req *pbds.GetHookRef
 	*pbds.GetHookReferencedIDsResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	ids, err := s.dao.Hook().GetReferencedIDs(grpcKit, req.BizId)
+	ids, err := s.dao.Hook().GetReferencedIDs(grpcKit, req.BizId, req.ProjectId)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, i18n.T(grpcKit, "retrieve the referenced script failed, err: %s", err))
 	}

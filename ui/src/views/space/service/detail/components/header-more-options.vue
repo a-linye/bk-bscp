@@ -20,6 +20,8 @@
     <DialogConfirm
       v-model:show="confirmShow"
       :space-id="String(route.params.spaceId)"
+      :project-id="String(route.params.projectId)"
+      :env-id="envId"
       :app-id="Number(route.params.appId)"
       :release-id="Number(route.params.versionId)"
       :data="confirmData"
@@ -57,6 +59,7 @@
 
   const route = useRoute();
   const router = useRouter();
+  const envId = ref(String(route.params.envId));
 
   const loading = ref(false);
   const confirmShow = ref(false);
@@ -67,6 +70,7 @@
     serviceId: 0,
     releaseId: 0,
     memo: '',
+    envId: envId.value
   });
 
   // 跳转到服务记录页面
@@ -94,6 +98,7 @@
       serviceId: 0,
       releaseId: 0,
       memo: '',
+      envId: envId.value
     };
   };
 

@@ -1,7 +1,7 @@
 <template>
   <bk-dialog
     :title="`${t('上线版本')}-${props.version ? props.version : versionData.spec.name}`"
-    ext-cls="release-version-dialog"
+    class="release-version-dialog"
     :is-show="props.show"
     :esc-close="false"
     :quick-close="false"
@@ -181,6 +181,8 @@
     defineProps<{
       show: boolean;
       bkBizId: string;
+      projectId: string;
+      envId: string;
       appId: number;
       groupList: IGroupToPublish[];
       releaseType: string;
@@ -240,6 +242,7 @@
           return true;
         },
         message: t('不能选择过去的时间'),
+        trigger: 'change'
       },
     ],
   };
@@ -320,7 +323,14 @@
       // 非定时上线，publishTime清空
       params.publish_time =
         localVal.value.publish_type === 'scheduled' ? convertTime(params.publish_time as string, 'utc', false) : '';
-      const resp = await publishVerSubmit(props.bkBizId, props.appId, versionData.value.id, params);
+      const resp = await publishVerSubmit(
+        props.bkBizId,
+        props.appId,
+        props.projectId,
+        props.envId,
+        versionData.value.id,
+        params,
+      );
       handleClose();
       // 目前组件库dialog关闭自带250ms的延迟，所以这里延时300ms
       setTimeout(() => {
@@ -329,7 +339,7 @@
           resp.data.have_pull as boolean,
           isApprove.value,
           params.publish_type,
-          convertTime(params.publish_time as string, 'local'),
+          convertTime(params.publish_time as string, 'local', false),
         );
       }, 300);
     } catch (e) {
@@ -370,7 +380,7 @@
   const loadPublishType = async () => {
     try {
       pending.value = true;
-      const resp = await publishType(props.bkBizId, props.appId);
+      const resp = await publishType(props.bkBizId, props.appId, props.projectId, props.envId);
       const { is_approve, publish_type } = resp.data;
       isApprove.value = is_approve;
       // 需要审批
@@ -395,7 +405,6 @@
 </script>
 <style lang="scss" scoped>
   .form-wrapper {
-    padding-bottom: 24px;
     :deep(.bk-form-label) {
       font-size: 12px;
     }
@@ -502,8 +511,8 @@
   }
 </style>
 <style lang="scss">
-  .release-version-dialog.bk-modal-wrapper .bk-dialog-header {
-    padding-bottom: 20px;
+  .release-version-dialog .bk-modal-wrapper .bk-dialog-content {
+    margin-top: 20px;
   }
   .date-picker-popover {
     .bk-date-picker-top-wrapper {

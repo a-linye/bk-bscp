@@ -15,8 +15,10 @@ package table
 import (
 	"errors"
 
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/validator"
+	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
 
@@ -48,14 +50,19 @@ func (t *TemplateSpace) ResType() string {
 	return string(enumor.Template)
 }
 
+// ProjectID AuditRes interface, 后续通过上下文透传。
+func (t *TemplateSpace) ProjectID() uint32 {
+	return 0
+}
+
 // ValidateCreate validate template space is valid or not when create it.
 func (t *TemplateSpace) ValidateCreate(kit *kit.Kit) error {
 	if t.ID > 0 {
-		return errors.New("id should not be set")
+		return errors.New(i18n.T(kit, "id should not be set"))
 	}
 
 	if t.Spec == nil {
-		return errors.New("spec not set")
+		return errors.New(i18n.T(kit, "spec not set"))
 	}
 
 	if err := t.Spec.ValidateCreate(kit); err != nil {
@@ -63,15 +70,15 @@ func (t *TemplateSpace) ValidateCreate(kit *kit.Kit) error {
 	}
 
 	if t.Attachment == nil {
-		return errors.New("attachment not set")
+		return errors.New(i18n.T(kit, "attachment not set"))
 	}
 
-	if err := t.Attachment.Validate(); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
 	if t.Revision == nil {
-		return errors.New("revision not set")
+		return errors.New(i18n.T(kit, "revision not set"))
 	}
 
 	if err := t.Revision.ValidateCreate(); err != nil {
@@ -85,7 +92,7 @@ func (t *TemplateSpace) ValidateCreate(kit *kit.Kit) error {
 func (t *TemplateSpace) ValidateUpdate(kit *kit.Kit) error {
 
 	if t.ID <= 0 {
-		return errors.New("id should be set")
+		return errors.New(i18n.T(kit, "id should be set"))
 	}
 
 	if t.Spec != nil {
@@ -95,15 +102,15 @@ func (t *TemplateSpace) ValidateUpdate(kit *kit.Kit) error {
 	}
 
 	if t.Attachment == nil {
-		return errors.New("attachment should be set")
+		return errors.New(i18n.T(kit, "attachment should be set"))
 	}
 
-	if err := t.Attachment.Validate(); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
 	if t.Revision == nil {
-		return errors.New("revision not set")
+		return errors.New(i18n.T(kit, "revision should be set"))
 	}
 
 	if err := t.Revision.ValidateUpdate(); err != nil {
@@ -114,16 +121,16 @@ func (t *TemplateSpace) ValidateUpdate(kit *kit.Kit) error {
 }
 
 // ValidateDelete validate the template space's info when delete it.
-func (t *TemplateSpace) ValidateDelete() error {
+func (t *TemplateSpace) ValidateDelete(kit *kit.Kit) error {
 	if t.ID <= 0 {
-		return errors.New("template space id should be set")
+		return errors.New(i18n.T(kit, "template space id should be set"))
 	}
 
 	if t.Attachment == nil {
-		return errors.New("attachment should be set")
+		return errors.New(i18n.T(kit, "attachment should be set"))
 	}
 
-	if err := t.Attachment.Validate(); err != nil {
+	if err := t.Attachment.Validate(kit, t.Spec != nil && t.Spec.Name == constant.CONFIG_DELIVERY); err != nil {
 		return err
 	}
 
@@ -156,14 +163,24 @@ func (t *TemplateSpaceSpec) ValidateUpdate(kit *kit.Kit) error {
 
 // TemplateSpaceAttachment defines the template space attachments.
 type TemplateSpaceAttachment struct {
-	BizID    uint32 `json:"biz_id" gorm:"column:biz_id"`
-	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
+	BizID     uint32 `json:"biz_id" gorm:"column:biz_id"`
+	ProjectID uint32 `json:"project_id" gorm:"column:project_id"`
+	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
 // Validate whether template space attachment is valid or not.
-func (t *TemplateSpaceAttachment) Validate() error {
+// allowGlobalProject 用于业务级共享的系统内置空间（config_delivery），其 project_id 固定为 0。
+func (t *TemplateSpaceAttachment) Validate(kit *kit.Kit, allowGlobalProject bool) error {
 	if t.BizID <= 0 {
-		return errors.New("invalid attachment biz id")
+		return errors.New(i18n.T(kit, "invalid attachment biz id"))
+	}
+
+	if allowGlobalProject && t.ProjectID == constant.GlobalProjectID {
+		return nil
+	}
+
+	if t.ProjectID <= 0 {
+		return errors.New(i18n.T(kit, "invalid attachment project id"))
 	}
 
 	return nil

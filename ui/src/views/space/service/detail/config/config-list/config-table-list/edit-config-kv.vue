@@ -7,11 +7,14 @@
     @closed="close">
     <div class="config-container">
       <ConfigForm
+        v-if="show"
         ref="formRef"
         class="config-form-wrapper"
         :config="configForm as IConfigKvItem"
         :content="content"
         :bk-biz-id="props.bkBizId"
+        :project-id="projectId"
+        :env-id="envId"
         :id="props.appId"
         :edit-mode="true"
         @change="handleChange" />
@@ -34,6 +37,8 @@
   const { t } = useI18n();
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     config: IConfigKvItem;
     show: boolean;
@@ -86,7 +91,7 @@
     }
     try {
       pending.value = true;
-      await updateKv(props.bkBizId, props.appId, configForm.value!.key, editForm);
+      await updateKv(props.bkBizId, props.appId, props.projectId, props.envId, configForm.value!.key, editForm);
       emits('confirm');
       close();
       Message({

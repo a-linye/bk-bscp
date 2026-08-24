@@ -12,8 +12,19 @@
           :pagination="pagination"
           show-overflow-tooltip
           @page-limit-change="handlePageLimitChange"
-          @page-value-change="loadServicesList">
+          @page-value-change="handlePageValueChange">
           <bk-table-column :label="t('服务名称')" prop="app_name"></bk-table-column>
+          <bk-table-column :label="t('环境')">
+            <template #default="{ row }">
+              <i
+               :class="`
+                bk-bscp-icon ${ENV_TYPE_CONFIG?.[getEnvObj(row.env_display).type]?.iconClass} env-icon
+              `"
+               :style="{ color: ENV_TYPE_CONFIG?.[getEnvObj(row.env_display).type]?.iconColor || '#979BA5' }">
+              </i>
+              {{ getEnvObj(row.env_display).envName }}
+            </template>
+          </bk-table-column>
           <bk-table-column :label="t('服务版本')">
             <template #default="{ row }">
               <bk-link v-if="row.app_id" class="link-btn" theme="primary" target="_blank" :href="getHref(row)">{{
@@ -44,12 +55,14 @@
   import { ICommonQuery } from '../../../../types/index';
   import SearchInput from '../../../components/search-input.vue';
   import tableEmpty from '../../../components/table/table-empty.vue';
+  import { ENV_TYPE_CONFIG } from '../../../constants/env';
+  import { getEnvObj } from '../../../utils/env';
 
   const router = useRouter();
   const { t } = useI18n();
   const { pagination, updatePagination } = useTablePagination('serviceToPublish');
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     show: boolean;
@@ -83,7 +96,7 @@
     if (searchStr.value) {
       params.search_key = searchStr.value;
     }
-    const res = await getGroupReleasedApps(spaceId.value, props.id, params);
+    const res = await getGroupReleasedApps(spaceId.value, props.id, params, projectId.value);
     list.value = res.details;
     pagination.value.count = res.count;
     loading.value = false;
@@ -103,11 +116,23 @@
   };
 
   const getHref = (service: IGroupBindService) => {
+    const routeParmas = {
+      spaceId: spaceId.value,
+      projectId: projectId.value,
+      envId: service.env_id,
+      appId: service.app_id,
+      versionId: service.release_id
+    };
     const { href } = router.resolve({
       name: 'service-config',
-      params: { spaceId: spaceId.value, appId: service.app_id, versionId: service.release_id },
+      params: routeParmas,
     });
     return href;
+  };
+
+  const handlePageValueChange = (val: number) => {
+    updatePagination('current', val);
+    loadServicesList();
   };
 
   const handlePageLimitChange = (val: number) => {
@@ -143,5 +168,9 @@
     .bk-button {
       min-width: 88px;
     }
+  }
+  .env-icon {
+    font-size: 16px;
+    margin-right: 4px;
   }
 </style>

@@ -32,7 +32,7 @@
     </bk-option-group>
     <template #extension>
       <div class="selector-extensition">
-        <div class="content" @click="router.push({ name: 'service-all' })">
+        <div class="content" @click="router.push({ name: 'service-all', query: { envId } })">
           <i class="bk-bscp-icon icon-back-line app-icon"></i>
           {{ t('服务列表') }}
         </div>
@@ -41,7 +41,7 @@
   </bk-select>
 </template>
 <script setup lang="ts">
-  import { ref, watch, onBeforeMount, computed } from 'vue';
+  import { ref, watch, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
   import useGlobalStore from '../store/global';
@@ -53,13 +53,14 @@
   const router = useRouter();
   const { t } = useI18n();
 
-  const { showApplyPermDialog, permissionQuery } = storeToRefs(useGlobalStore());
+  const { showApplyPermDialog, permissionQuery, projectId } = storeToRefs(useGlobalStore());
 
   const bizId = route.params.spaceId as string;
 
   const props = withDefaults(
     defineProps<{
-      value?: number;
+      value?: number | undefined;
+      envId: string;
       customTrigger?: boolean;
       isRecord?: boolean;
     }>(),
@@ -92,13 +93,15 @@
     },
   );
 
-  onBeforeMount(async () => {
+  const initService = async () => {
     await loadServiceList();
     let service;
     if (props.value) {
       localVal.value = props.value;
       service = serviceList.value.find((service) => service.id === localVal.value);
-    } else {
+    }
+    // 当前 value 在新环境的服务列表里找不到（如切换环境后旧服务不存在），回退到默认选第一个有权限的服务
+    if (!service) {
       if (props.isRecord) {
         // 如果是记录页面，默认选择当前路由参数中的服务
         service = serviceList.value.find((service) => service.id === Number(route.params.appId));
@@ -109,7 +112,7 @@
       localVal.value = service ? service.id : undefined;
     }
     emits('change', service);
-  });
+  };
 
   const loadServiceList = async () => {
     loading.value = true;
@@ -118,7 +121,7 @@
         start: 0,
         all: true,
       };
-      const resp = await getAppList(bizId, query);
+      const resp = await getAppList(bizId, projectId.value, props.envId, query);
       serviceList.value = resp.details;
     } catch (e) {
       console.error(e);
@@ -126,6 +129,16 @@
       loading.value = false;
     }
   };
+
+  watch(() => props.envId, (val) => {
+    if (val) {
+      initService();
+    } else {
+      serviceList.value = [];
+    }
+  }, {
+    immediate: true
+  });
 
   // 点击无查看权限的选项，弹出申请权限弹窗
   const handleOptionClick = (service: IAppItem, event: Event) => {

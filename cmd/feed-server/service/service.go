@@ -282,13 +282,14 @@ func (s *Service) handlerGw() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Route("/api/v1/feed", func(r chi.Router) {
 		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/app/{app}/files/*", s.DownloadFile)
+		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/projects/{project_id}/envs/{env_id}/app/{app}/files/*", s.DownloadFile)
 		r.Mount("/", s.gwMux)
 	})
 	return r
 }
 
 // DownloadFile download file from provider repo
-// nolint:funlen
+// nolint:funlen,gocyclo
 func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	kt := kit.FromGrpcContext(r.Context())
 
@@ -306,8 +307,8 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bizIdStr := chi.URLParam(r, "biz_id")
-	bizID, _ := strconv.Atoi(bizIdStr)
-	if bizID == 0 {
+	bizID, err := strconv.ParseUint(bizIdStr, 10, 32)
+	if err != nil {
 		render.Render(w, r, rest.BadRequest(errors.New("biz id is required")))
 		return
 	}
@@ -333,26 +334,59 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.bll.AppCache().EnsureTenantID(kt, uint32(bizID)); err != nil {
-		render.Render(w, r, rest.BadRequest(fmt.Errorf("ensure tenant id for biz %d failed: %v", bizID, err)))
+	if errE := s.bll.AppCache().EnsureTenantID(kt, uint32(bizID)); errE != nil {
+		render.Render(w, r, rest.BadRequest(fmt.Errorf("ensure tenant id for biz %d failed: %v", bizID, errE)))
 		return
 	}
 
-	appID, err := s.bll.AppCache().GetAppID(kt, uint32(bizID), appName)
+	// 支持客户端传递 project_id 和 env_id（路径参数 > 默认值）
+	var projectID, envID uint32
+
+	// 1. 从路径参数获取（新路由 /projects/{project_id}/envs/{env_id}/...）
+	hasProjectPathParam := false
+	hasEnvPathParam := false
+	if p := chi.URLParam(r, "project_id"); p != "" {
+		hasProjectPathParam = true
+		if pid, errP := strconv.ParseUint(p, 10, 32); errP == nil {
+			projectID = uint32(pid)
+		}
+	}
+	if e := chi.URLParam(r, "env_id"); e != "" {
+		hasEnvPathParam = true
+		if eid, errE := strconv.ParseUint(e, 10, 32); errE == nil {
+			envID = uint32(eid)
+		}
+	}
+
+	// 新路由场景下，project_id/env_id 必须是有效数字
+	if hasProjectPathParam && projectID == 0 {
+		render.Render(w, r, rest.BadRequest(errors.New("invalid project_id")))
+		return
+	}
+	if hasEnvPathParam && envID == 0 {
+		render.Render(w, r, rest.BadRequest(errors.New("invalid env_id")))
+		return
+	}
+
+	// 2. 路径参数未提供则查询默认值
+	if projectID == 0 || envID == 0 {
+		projectID, envID = s.bll.AppCache().ResolveProjectEnv(kt, uint32(bizID), projectID, envID)
+	}
+
+	appID, err := s.bll.AppCache().GetAppID(kt, uint32(bizID), projectID, envID, appName)
 	if err != nil {
 		render.Render(w, r, rest.BadRequest(fmt.Errorf("get app id failed, err: %v", err)))
 		return
 	}
 
-	app, err := s.bll.AppCache().GetMeta(kt, kt.BizID, appID)
+	app, err := s.bll.AppCache().GetMeta(kt, kt.BizID, projectID, envID, appID)
 	if err != nil {
 		render.Render(w, r, rest.BadRequest(fmt.Errorf("get app meta failed, err: %v", err)))
 		return
 	}
 
 	// validate can file be downloaded by credential.
-	match, err := s.bll.Auth().CanMatchCI(
-		kt, uint32(bizID), app.Name, authHeaderParts[1], filePath, fileName)
+	match, err := s.bll.Auth().CanMatchCI(kt, uint32(bizID), projectID, app.Name, authHeaderParts[1], filePath, fileName)
 	if err != nil {
 		render.Render(w, r, rest.Unauthorized(fmt.Errorf("do authorization failed, err: %v", err)))
 		return
@@ -372,10 +406,13 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	meta := &types.AppInstanceMeta{
-		BizID:  kt.BizID,
-		App:    appName,
-		AppID:  appID,
-		Labels: labelsMap,
+		BizID:     kt.BizID,
+		App:       appName,
+		AppID:     appID,
+		Uid:       "", // HTTP 接口无 uid 信息
+		Labels:    labelsMap,
+		ProjectID: projectID,
+		EnvID:     envID,
 	}
 
 	metas, err := s.bll.Release().ListAppLatestReleaseMeta(kt, meta)
@@ -390,6 +427,12 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 防御性检查，避免空指针 panic
+	if data.CommitSpec == nil || data.CommitSpec.GetContent() == nil {
+		render.Render(w, r, rest.BadRequest(errors.New("config item content is empty")))
+		return
+	}
+
 	body, contentLength, err := s.provider.Download(kt, data.CommitSpec.GetContent().GetSignature())
 	if err != nil {
 		render.Render(w, r, rest.BadRequest(err))
@@ -399,11 +442,9 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Length", strconv.FormatInt(contentLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	_, err = io.Copy(w, body)
-	if err != nil {
+	// io.Copy 出错时 header 已发送，无法再调用 render.Render，仅记录日志
+	if _, err = io.Copy(w, body); err != nil {
 		klog.ErrorS(err, "download file", "sign", data.CommitSpec.GetContent().GetSignature())
-		render.Render(w, r, rest.BadRequest(fmt.Errorf("download file failed, err: %v", err)))
-		return
 	}
 }
 

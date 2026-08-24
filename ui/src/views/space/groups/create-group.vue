@@ -1,7 +1,7 @@
 <template>
   <bk-dialog
     :title="t('新增分组')"
-    ext-cls="create-group-dialog"
+    class="create-group-dialog"
     :confirm-text="t('提交')"
     :cancel-text="t('取消')"
     :width="640"
@@ -29,6 +29,8 @@
   import { ref, watch } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { useRoute } from 'vue-router';
+  import { storeToRefs } from 'pinia';
+  import useGlobalStore from '../../../store/global';
   import { IGroupEditing, ECategoryType } from '../../../../types/group';
   import { createGroup } from '../../../api/group';
   import groupEditForm from './components/group-edit-form.vue';
@@ -36,6 +38,7 @@
 
   const route = useRoute();
   const { t } = useI18n();
+  const { projectId } = storeToRefs(useGlobalStore());
 
   const props = defineProps<{
     show: boolean;
@@ -46,7 +49,7 @@
   const groupData = ref<IGroupEditing>({
     name: '',
     public: true,
-    bind_apps: [],
+    env_apps: [],
     rule_logic: 'AND',
     rules: [{ key: '', op: 'eq', value: '' }],
   });
@@ -60,7 +63,7 @@
         groupData.value = {
           name: '',
           public: true,
-          bind_apps: [],
+          env_apps: [],
           rule_logic: 'AND',
           rules: [{ key: '', op: 'eq', value: '' }],
         };
@@ -79,16 +82,15 @@
     }
     try {
       pending.value = true;
-      const { name, public: isPublic, bind_apps, rule_logic, rules } = groupData.value;
+      const { name, public: isPublic, env_apps, rule_logic, rules } = groupData.value;
       const params = {
-        biz_id: route.params.spaceId,
         name,
         public: isPublic,
-        bind_apps: isPublic ? [] : bind_apps,
+        bind_apps: isPublic ? [] : env_apps.map((item) => item.app_ids).flat(),
         mode: ECategoryType.Custom,
         selector: rule_logic === 'AND' ? { labels_and: rules } : { labels_or: rules },
       };
-      const res = await createGroup(route.params.spaceId as string, params);
+      const res = await createGroup(route.params.spaceId as string, projectId.value, params);
       Message({
         message: t('创建分组成功'),
         theme: 'success',
@@ -109,13 +111,16 @@
   };
 </script>
 <style lang="scss">
-  .create-group-dialog.bk-modal-wrapper {
+  .create-group-dialog .bk-modal-wrapper {
     .bk-dialog-header {
-      padding-top: 16px;
+      line-height: 32px;
     }
     .bk-modal-content {
       max-height: 386px;
       overflow: auto;
+    }
+    .bk-dialog-content {
+      margin-top: 12px;
     }
   }
 </style>

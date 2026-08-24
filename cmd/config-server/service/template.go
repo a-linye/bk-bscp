@@ -63,6 +63,7 @@ func (s *Service) CreateTemplate(ctx context.Context, req *pbcs.CreateTemplateRe
 	}
 
 	r := &pbds.CreateTemplateReq{
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
 		Attachment: &pbtemplate.TemplateAttachment{
 			BizId:           grpcKit.BizID,
 			TemplateSpaceId: req.TemplateSpaceId,
@@ -314,6 +315,7 @@ func (s *Service) DeleteTmplsFromTmplSets(ctx context.Context, req *pbcs.DeleteT
 				TemplateIds:        req.TemplateIds,
 				ExclusionOperation: req.ExclusionOperation,
 				NoSetSpecified:     req.NoSetSpecified,
+				ProjectId:          grpcKit.ResolvedProjectID(req.ProjectId),
 			}
 
 			if _, err := s.client.DS.DeleteTmplsFromTmplSets(egCtx, r); err != nil {
@@ -543,7 +545,12 @@ func (s *Service) BatchUpsertTemplates(ctx context.Context, req *pbcs.BatchUpser
 		})
 	}
 
-	in := &pbds.BatchUpsertTemplatesReq{Items: items, TemplateSetIds: req.GetTemplateSetIds(), BizId: req.GetBizId()}
+	in := &pbds.BatchUpsertTemplatesReq{
+		Items:          items,
+		TemplateSetIds: req.GetTemplateSetIds(),
+		BizId:          req.GetBizId(),
+		ProjectId:      grpcKit.ResolvedProjectID(req.ProjectId),
+	}
 	data, err := s.client.DS.BatchUpsertTemplates(grpcKit.RpcCtx(), in)
 	if err != nil {
 		return nil, err

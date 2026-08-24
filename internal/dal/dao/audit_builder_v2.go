@@ -33,6 +33,9 @@ type AuditRes interface {
 	AppID() uint32
 	ResType() string
 	ResID() uint32
+	// ProjectID 返回资源所属的项目 ID。
+	// 有 project_id 字段的资源返回自身字段值；无此字段的资源返回 0（后续通过上下文透传）。
+	ProjectID() uint32
 }
 
 // AuditPrepare auditBuilder interface
@@ -113,8 +116,14 @@ func (ab *AuditBuilderV2) GetAuditID() uint32 {
 
 // PrepareCreate 创建资源
 func (ab *AuditBuilderV2) PrepareCreate(obj AuditRes) AuditDo {
+	// 优先使用对象自带的 ProjectID
+	pID := obj.ProjectID()
+	if pID == 0 {
+		pID = ab.kit.ProjectID
+	}
 	ab.toAudit.ResourceType = enumor.AuditResourceType(obj.ResType())
 	ab.toAudit.ResourceID = obj.ResID()
+	ab.toAudit.ProjectID = pID
 	ab.toAudit.Action = enumor.Create
 
 	return ab
@@ -122,8 +131,14 @@ func (ab *AuditBuilderV2) PrepareCreate(obj AuditRes) AuditDo {
 
 // PrepareUpdate 更新资源, 会记录 spec 对比值
 func (ab *AuditBuilderV2) PrepareUpdate(obj AuditRes) AuditDo {
+	// 优先使用对象自带的 ProjectID
+	pID := obj.ProjectID()
+	if pID == 0 {
+		pID = ab.kit.ProjectID
+	}
 	ab.toAudit.ResourceType = enumor.AuditResourceType(obj.ResType())
 	ab.toAudit.ResourceID = obj.ResID()
+	ab.toAudit.ProjectID = pID
 	ab.toAudit.Action = enumor.Update
 
 	return ab
@@ -131,8 +146,14 @@ func (ab *AuditBuilderV2) PrepareUpdate(obj AuditRes) AuditDo {
 
 // PrepareDelete 删除资源
 func (ab *AuditBuilderV2) PrepareDelete(obj AuditRes) AuditDo {
+	// 优先使用对象自带的 ProjectID
+	pID := obj.ProjectID()
+	if pID == 0 {
+		pID = ab.kit.ProjectID
+	}
 	ab.toAudit.ResourceType = enumor.AuditResourceType(obj.ResType())
 	ab.toAudit.ResourceID = obj.ResID()
+	ab.toAudit.ProjectID = pID
 	ab.toAudit.Action = enumor.Delete
 
 	return ab
@@ -140,8 +161,14 @@ func (ab *AuditBuilderV2) PrepareDelete(obj AuditRes) AuditDo {
 
 // PreparePublish 发布配置
 func (ab *AuditBuilderV2) PreparePublish(obj AuditRes) AuditDo {
+	// 优先使用对象自带的 ProjectID
+	pID := obj.ProjectID()
+	if pID == 0 {
+		pID = ab.kit.ProjectID
+	}
 	ab.toAudit.ResourceType = enumor.AuditResourceType(obj.ResType())
 	ab.toAudit.ResourceID = obj.ResID()
+	ab.toAudit.ProjectID = pID
 	ab.toAudit.Action = enumor.Publish
 
 	return ab

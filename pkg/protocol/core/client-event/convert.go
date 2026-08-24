@@ -14,6 +14,8 @@
 package pbce
 
 import (
+	"fmt"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
@@ -79,6 +81,16 @@ func (c *ClientEventAttachment) ClientEventAttachment() *table.ClientEventAttach
 		AppID:      c.AppId,
 		ClientMode: table.ClientMode(c.ClientMode),
 	}
+}
+
+// ClientEventKey 返回客户端事件唯一键 (4字段): BizID-AppID-UID-CursorID
+func (c *ClientEventAttachment) ClientEventKey() string {
+	return fmt.Sprintf("%d-%d-%s-%s", c.BizId, c.AppId, c.Uid, c.CursorId)
+}
+
+// ClientShortKey 返回客户端短唯一键 (3字段): BizID-AppID-UID
+func (c *ClientEventAttachment) ClientShortKey() string {
+	return fmt.Sprintf("%d-%d-%s", c.BizId, c.AppId, c.Uid)
 }
 
 // PbClientEventAttachment convert table PbClientEventAttachment to pb PbClientEventAttachment

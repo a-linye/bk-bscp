@@ -32,7 +32,11 @@
           </bk-form-item>
           <bk-form-item :label="t('脚本内容')" property="content" required>
             <div :class="['script-content-wrapper', { 'show-variable': isShowVariable }]">
-              <ScriptEditor v-model="showContent" :language="formData.type" v-model:is-show-variable="isShowVariable">
+              <ScriptEditor
+                v-model="showContent"
+                :language="formData.type"
+                v-model:is-show-variable="isShowVariable"
+                :project-id="projectId">
                 <template #header>
                   <div class="language-tabs">
                     <div
@@ -74,7 +78,7 @@
   import InternalVariable from '../components/internal-variable.vue';
   import dayjs from 'dayjs';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
 
   const emits = defineEmits(['update:show', 'created']);
@@ -161,7 +165,7 @@
   // 获取标签列表
   const getTags = async () => {
     tagsLoading.value = true;
-    const res = await getScriptTagList(spaceId.value);
+    const res = await getScriptTagList(spaceId.value, projectId.value);
     tagsData.value = res.details;
     tagsLoading.value = false;
   };
@@ -175,7 +179,7 @@
       if (!formData.value.content.endsWith('\n')) {
         formData.value.content += '\n';
       }
-      const res = await createScript(spaceId.value, formData.value);
+      const res = await createScript(spaceId.value, projectId.value, formData.value);
       BkMessage({
         theme: 'success',
         message: t('脚本创建成功'),

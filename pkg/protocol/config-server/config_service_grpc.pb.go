@@ -84,6 +84,7 @@ const (
 	Config_GetAllBizsOfTmplSpaces_FullMethodName             = "/pbcs.Config/GetAllBizsOfTmplSpaces"
 	Config_CreateDefaultTmplSpace_FullMethodName             = "/pbcs.Config/CreateDefaultTmplSpace"
 	Config_ListTmplSpacesByIDs_FullMethodName                = "/pbcs.Config/ListTmplSpacesByIDs"
+	Config_GetTemplateSpace_FullMethodName                   = "/pbcs.Config/GetTemplateSpace"
 	Config_CreateTemplate_FullMethodName                     = "/pbcs.Config/CreateTemplate"
 	Config_DeleteTemplate_FullMethodName                     = "/pbcs.Config/DeleteTemplate"
 	Config_BatchDeleteTemplate_FullMethodName                = "/pbcs.Config/BatchDeleteTemplate"
@@ -145,6 +146,7 @@ const (
 	Config_ListTemplateVariables_FullMethodName              = "/pbcs.Config/ListTemplateVariables"
 	Config_ImportTemplateVariables_FullMethodName            = "/pbcs.Config/ImportTemplateVariables"
 	Config_ImportOtherFormatTemplateVariables_FullMethodName = "/pbcs.Config/ImportOtherFormatTemplateVariables"
+	Config_GetTemplateVariable_FullMethodName                = "/pbcs.Config/GetTemplateVariable"
 	Config_ExtractAppTmplVariables_FullMethodName            = "/pbcs.Config/ExtractAppTmplVariables"
 	Config_GetAppTmplVariableRefs_FullMethodName             = "/pbcs.Config/GetAppTmplVariableRefs"
 	Config_GetReleasedAppTmplVariableRefs_FullMethodName     = "/pbcs.Config/GetReleasedAppTmplVariableRefs"
@@ -159,6 +161,7 @@ const (
 	Config_ListAppGroups_FullMethodName                      = "/pbcs.Config/ListAppGroups"
 	Config_ListGroupReleasedApps_FullMethodName              = "/pbcs.Config/ListGroupReleasedApps"
 	Config_GetGroupByName_FullMethodName                     = "/pbcs.Config/GetGroupByName"
+	Config_GetGroup_FullMethodName                           = "/pbcs.Config/GetGroup"
 	Config_ListGroupSelector_FullMethodName                  = "/pbcs.Config/ListGroupSelector"
 	Config_Publish_FullMethodName                            = "/pbcs.Config/Publish"
 	Config_GenerateReleaseAndPublish_FullMethodName          = "/pbcs.Config/GenerateReleaseAndPublish"
@@ -189,6 +192,7 @@ const (
 	Config_ImportKvs_FullMethodName                          = "/pbcs.Config/ImportKvs"
 	Config_FindNearExpiryCertKvs_FullMethodName              = "/pbcs.Config/FindNearExpiryCertKvs"
 	Config_ListClients_FullMethodName                        = "/pbcs.Config/ListClients"
+	Config_GetClient_FullMethodName                          = "/pbcs.Config/GetClient"
 	Config_ListClientEvents_FullMethodName                   = "/pbcs.Config/ListClientEvents"
 	Config_RetryClients_FullMethodName                       = "/pbcs.Config/RetryClients"
 	Config_ListClientQuerys_FullMethodName                   = "/pbcs.Config/ListClientQuerys"
@@ -243,6 +247,19 @@ const (
 	Config_GetProcessInstanceTopo_FullMethodName             = "/pbcs.Config/GetProcessInstanceTopo"
 	Config_ManageConfigKV_FullMethodName                     = "/pbcs.Config/ManageConfigKV"
 	Config_GetProcessConfigView_FullMethodName               = "/pbcs.Config/GetProcessConfigView"
+	Config_ListProjects_FullMethodName                       = "/pbcs.Config/ListProjects"
+	Config_GetProject_FullMethodName                         = "/pbcs.Config/GetProject"
+	Config_CreateProject_FullMethodName                      = "/pbcs.Config/CreateProject"
+	Config_UpdateProject_FullMethodName                      = "/pbcs.Config/UpdateProject"
+	Config_DeleteProject_FullMethodName                      = "/pbcs.Config/DeleteProject"
+	Config_ListEnvironments_FullMethodName                   = "/pbcs.Config/ListEnvironments"
+	Config_GetEnvironment_FullMethodName                     = "/pbcs.Config/GetEnvironment"
+	Config_CreateEnvironment_FullMethodName                  = "/pbcs.Config/CreateEnvironment"
+	Config_UpdateEnvironment_FullMethodName                  = "/pbcs.Config/UpdateEnvironment"
+	Config_DeleteEnvironment_FullMethodName                  = "/pbcs.Config/DeleteEnvironment"
+	Config_GetProjectByKey_FullMethodName                    = "/pbcs.Config/GetProjectByKey"
+	Config_GetEnvironmentByName_FullMethodName               = "/pbcs.Config/GetEnvironmentByName"
+	Config_EnsureDefaultProjectEnv_FullMethodName            = "/pbcs.Config/EnsureDefaultProjectEnv"
 )
 
 // ConfigClient is the client API for Config service.
@@ -347,7 +364,6 @@ type ConfigClient interface {
 	ListHookReferences(ctx context.Context, in *ListHookReferencesReq, opts ...grpc.CallOption) (*ListHookReferencesResp, error)
 	// 获取被引用的脚本版本配置服务列表
 	ListHookRevisionReferences(ctx context.Context, in *ListHookRevisionReferencesReq, opts ...grpc.CallOption) (*ListHookRevisionReferencesResp, error)
-	// TODO
 	GetReleaseHook(ctx context.Context, in *GetReleaseHookReq, opts ...grpc.CallOption) (*GetReleaseHookResp, error)
 	// 创建模板空间
 	CreateTemplateSpace(ctx context.Context, in *CreateTemplateSpaceReq, opts ...grpc.CallOption) (*CreateTemplateSpaceResp, error)
@@ -362,6 +378,7 @@ type ConfigClient interface {
 	// 创建模板默认空间(仅由系统本身调用)
 	CreateDefaultTmplSpace(ctx context.Context, in *CreateDefaultTmplSpaceReq, opts ...grpc.CallOption) (*CreateDefaultTmplSpaceResp, error)
 	ListTmplSpacesByIDs(ctx context.Context, in *ListTmplSpacesByIDsReq, opts ...grpc.CallOption) (*ListTmplSpacesByIDsResp, error)
+	GetTemplateSpace(ctx context.Context, in *GetTemplateSpaceReq, opts ...grpc.CallOption) (*GetTemplateSpaceResp, error)
 	// 创建模板
 	CreateTemplate(ctx context.Context, in *CreateTemplateReq, opts ...grpc.CallOption) (*CreateTemplateResp, error)
 	// 删除模板
@@ -483,6 +500,8 @@ type ConfigClient interface {
 	// 批量导入简单文件模板变量
 	ImportTemplateVariables(ctx context.Context, in *ImportTemplateVariablesReq, opts ...grpc.CallOption) (*ImportTemplateVariablesResp, error)
 	ImportOtherFormatTemplateVariables(ctx context.Context, in *ImportOtherFormatTemplateVariablesReq, opts ...grpc.CallOption) (*ImportOtherFormatTemplateVariablesResp, error)
+	// 获取模板变量
+	GetTemplateVariable(ctx context.Context, in *GetTemplateVariableReq, opts ...grpc.CallOption) (*GetTemplateVariableResp, error)
 	// 提取模板变量
 	ExtractAppTmplVariables(ctx context.Context, in *ExtractAppTmplVariablesReq, opts ...grpc.CallOption) (*ExtractAppTmplVariablesResp, error)
 	// 获取未命名服务版本被引用的变量
@@ -511,6 +530,8 @@ type ConfigClient interface {
 	ListGroupReleasedApps(ctx context.Context, in *ListGroupReleasedAppsReq, opts ...grpc.CallOption) (*ListGroupReleasedAppsResp, error)
 	// 按名称获取分组
 	GetGroupByName(ctx context.Context, in *GetGroupByNameReq, opts ...grpc.CallOption) (*group.Group, error)
+	// 获取分组
+	GetGroup(ctx context.Context, in *GetGroupReq, opts ...grpc.CallOption) (*GetGroupResp, error)
 	// 分组选择器
 	ListGroupSelector(ctx context.Context, in *ListGroupSelectorReq, opts ...grpc.CallOption) (*ListGroupSelectorResp, error)
 	// 发布指定版本
@@ -567,6 +588,8 @@ type ConfigClient interface {
 	FindNearExpiryCertKvs(ctx context.Context, in *FindNearExpiryCertKvsReq, opts ...grpc.CallOption) (*FindNearExpiryCertKvsResp, error)
 	// 获取客户端列表
 	ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error)
+	// 获取客户端详情
+	GetClient(ctx context.Context, in *GetClientReq, opts ...grpc.CallOption) (*GetClientResp, error)
 	// 获取客户端拉取记录列表
 	ListClientEvents(ctx context.Context, in *ListClientEventsReq, opts ...grpc.CallOption) (*ListClientEventsResp, error)
 	// 重试客户端拉取
@@ -676,6 +699,32 @@ type ConfigClient interface {
 	ManageConfigKV(ctx context.Context, in *ManageConfigKVReq, opts ...grpc.CallOption) (*ManageConfigKVResp, error)
 	// 查询指定业务是否开启进程与配置管理可见性
 	GetProcessConfigView(ctx context.Context, in *GetProcessConfigViewReq, opts ...grpc.CallOption) (*GetProcessConfigViewResp, error)
+	// 项目管理
+	ListProjects(ctx context.Context, in *ListProjectsReq, opts ...grpc.CallOption) (*ListProjectsResp, error)
+	// 获取项目详情
+	GetProject(ctx context.Context, in *GetProjectReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 创建项目
+	CreateProject(ctx context.Context, in *CreateProjectReq, opts ...grpc.CallOption) (*CreateProjectResp, error)
+	// 更新项目
+	UpdateProject(ctx context.Context, in *UpdateProjectReq, opts ...grpc.CallOption) (*UpdateProjectResp, error)
+	// 删除项目
+	DeleteProject(ctx context.Context, in *DeleteProjectReq, opts ...grpc.CallOption) (*DeleteProjectResp, error)
+	// 环境管理
+	ListEnvironments(ctx context.Context, in *ListEnvironmentsReq, opts ...grpc.CallOption) (*ListEnvironmentsResp, error)
+	// 获取环境详情
+	GetEnvironment(ctx context.Context, in *GetEnvironmentReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
+	// 创建环境
+	CreateEnvironment(ctx context.Context, in *CreateEnvironmentReq, opts ...grpc.CallOption) (*CreateEnvironmentResp, error)
+	// 更新环境
+	UpdateEnvironment(ctx context.Context, in *UpdateEnvironmentReq, opts ...grpc.CallOption) (*UpdateEnvironmentResp, error)
+	// 删除环境
+	DeleteEnvironment(ctx context.Context, in *DeleteEnvironmentReq, opts ...grpc.CallOption) (*DeleteEnvironmentResp, error)
+	// 根据项目key获取项目
+	GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error)
+	// 根据环境名称获取环境
+	GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error)
+	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
+	EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error)
 }
 
 type configClient struct {
@@ -1193,6 +1242,15 @@ func (c *configClient) CreateDefaultTmplSpace(ctx context.Context, in *CreateDef
 func (c *configClient) ListTmplSpacesByIDs(ctx context.Context, in *ListTmplSpacesByIDsReq, opts ...grpc.CallOption) (*ListTmplSpacesByIDsResp, error) {
 	out := new(ListTmplSpacesByIDsResp)
 	err := c.cc.Invoke(ctx, Config_ListTmplSpacesByIDs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetTemplateSpace(ctx context.Context, in *GetTemplateSpaceReq, opts ...grpc.CallOption) (*GetTemplateSpaceResp, error) {
+	out := new(GetTemplateSpaceResp)
+	err := c.cc.Invoke(ctx, Config_GetTemplateSpace_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1748,6 +1806,15 @@ func (c *configClient) ImportOtherFormatTemplateVariables(ctx context.Context, i
 	return out, nil
 }
 
+func (c *configClient) GetTemplateVariable(ctx context.Context, in *GetTemplateVariableReq, opts ...grpc.CallOption) (*GetTemplateVariableResp, error) {
+	out := new(GetTemplateVariableResp)
+	err := c.cc.Invoke(ctx, Config_GetTemplateVariable_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configClient) ExtractAppTmplVariables(ctx context.Context, in *ExtractAppTmplVariablesReq, opts ...grpc.CallOption) (*ExtractAppTmplVariablesResp, error) {
 	out := new(ExtractAppTmplVariablesResp)
 	err := c.cc.Invoke(ctx, Config_ExtractAppTmplVariables_FullMethodName, in, out, opts...)
@@ -1868,6 +1935,15 @@ func (c *configClient) ListGroupReleasedApps(ctx context.Context, in *ListGroupR
 func (c *configClient) GetGroupByName(ctx context.Context, in *GetGroupByNameReq, opts ...grpc.CallOption) (*group.Group, error) {
 	out := new(group.Group)
 	err := c.cc.Invoke(ctx, Config_GetGroupByName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetGroup(ctx context.Context, in *GetGroupReq, opts ...grpc.CallOption) (*GetGroupResp, error) {
+	out := new(GetGroupResp)
+	err := c.cc.Invoke(ctx, Config_GetGroup_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2138,6 +2214,15 @@ func (c *configClient) FindNearExpiryCertKvs(ctx context.Context, in *FindNearEx
 func (c *configClient) ListClients(ctx context.Context, in *ListClientsReq, opts ...grpc.CallOption) (*ListClientsResp, error) {
 	out := new(ListClientsResp)
 	err := c.cc.Invoke(ctx, Config_ListClients_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetClient(ctx context.Context, in *GetClientReq, opts ...grpc.CallOption) (*GetClientResp, error) {
+	out := new(GetClientResp)
+	err := c.cc.Invoke(ctx, Config_GetClient_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2630,6 +2715,123 @@ func (c *configClient) GetProcessConfigView(ctx context.Context, in *GetProcessC
 	return out, nil
 }
 
+func (c *configClient) ListProjects(ctx context.Context, in *ListProjectsReq, opts ...grpc.CallOption) (*ListProjectsResp, error) {
+	out := new(ListProjectsResp)
+	err := c.cc.Invoke(ctx, Config_ListProjects_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetProject(ctx context.Context, in *GetProjectReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Config_GetProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) CreateProject(ctx context.Context, in *CreateProjectReq, opts ...grpc.CallOption) (*CreateProjectResp, error) {
+	out := new(CreateProjectResp)
+	err := c.cc.Invoke(ctx, Config_CreateProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) UpdateProject(ctx context.Context, in *UpdateProjectReq, opts ...grpc.CallOption) (*UpdateProjectResp, error) {
+	out := new(UpdateProjectResp)
+	err := c.cc.Invoke(ctx, Config_UpdateProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) DeleteProject(ctx context.Context, in *DeleteProjectReq, opts ...grpc.CallOption) (*DeleteProjectResp, error) {
+	out := new(DeleteProjectResp)
+	err := c.cc.Invoke(ctx, Config_DeleteProject_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) ListEnvironments(ctx context.Context, in *ListEnvironmentsReq, opts ...grpc.CallOption) (*ListEnvironmentsResp, error) {
+	out := new(ListEnvironmentsResp)
+	err := c.cc.Invoke(ctx, Config_ListEnvironments_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetEnvironment(ctx context.Context, in *GetEnvironmentReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_GetEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) CreateEnvironment(ctx context.Context, in *CreateEnvironmentReq, opts ...grpc.CallOption) (*CreateEnvironmentResp, error) {
+	out := new(CreateEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_CreateEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) UpdateEnvironment(ctx context.Context, in *UpdateEnvironmentReq, opts ...grpc.CallOption) (*UpdateEnvironmentResp, error) {
+	out := new(UpdateEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_UpdateEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) DeleteEnvironment(ctx context.Context, in *DeleteEnvironmentReq, opts ...grpc.CallOption) (*DeleteEnvironmentResp, error) {
+	out := new(DeleteEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_DeleteEnvironment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetProjectByKey(ctx context.Context, in *GetProjectByKeyReq, opts ...grpc.CallOption) (*GetProjectResp, error) {
+	out := new(GetProjectResp)
+	err := c.cc.Invoke(ctx, Config_GetProjectByKey_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) GetEnvironmentByName(ctx context.Context, in *GetEnvironmentByNameReq, opts ...grpc.CallOption) (*GetEnvironmentResp, error) {
+	out := new(GetEnvironmentResp)
+	err := c.cc.Invoke(ctx, Config_GetEnvironmentByName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configClient) EnsureDefaultProjectEnv(ctx context.Context, in *EnsureDefaultProjectEnvReq, opts ...grpc.CallOption) (*EnsureDefaultProjectEnvResp, error) {
+	out := new(EnsureDefaultProjectEnvResp)
+	err := c.cc.Invoke(ctx, Config_EnsureDefaultProjectEnv_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServer is the server API for Config service.
 // All implementations should embed UnimplementedConfigServer
 // for forward compatibility
@@ -2732,7 +2934,6 @@ type ConfigServer interface {
 	ListHookReferences(context.Context, *ListHookReferencesReq) (*ListHookReferencesResp, error)
 	// 获取被引用的脚本版本配置服务列表
 	ListHookRevisionReferences(context.Context, *ListHookRevisionReferencesReq) (*ListHookRevisionReferencesResp, error)
-	// TODO
 	GetReleaseHook(context.Context, *GetReleaseHookReq) (*GetReleaseHookResp, error)
 	// 创建模板空间
 	CreateTemplateSpace(context.Context, *CreateTemplateSpaceReq) (*CreateTemplateSpaceResp, error)
@@ -2747,6 +2948,7 @@ type ConfigServer interface {
 	// 创建模板默认空间(仅由系统本身调用)
 	CreateDefaultTmplSpace(context.Context, *CreateDefaultTmplSpaceReq) (*CreateDefaultTmplSpaceResp, error)
 	ListTmplSpacesByIDs(context.Context, *ListTmplSpacesByIDsReq) (*ListTmplSpacesByIDsResp, error)
+	GetTemplateSpace(context.Context, *GetTemplateSpaceReq) (*GetTemplateSpaceResp, error)
 	// 创建模板
 	CreateTemplate(context.Context, *CreateTemplateReq) (*CreateTemplateResp, error)
 	// 删除模板
@@ -2868,6 +3070,8 @@ type ConfigServer interface {
 	// 批量导入简单文件模板变量
 	ImportTemplateVariables(context.Context, *ImportTemplateVariablesReq) (*ImportTemplateVariablesResp, error)
 	ImportOtherFormatTemplateVariables(context.Context, *ImportOtherFormatTemplateVariablesReq) (*ImportOtherFormatTemplateVariablesResp, error)
+	// 获取模板变量
+	GetTemplateVariable(context.Context, *GetTemplateVariableReq) (*GetTemplateVariableResp, error)
 	// 提取模板变量
 	ExtractAppTmplVariables(context.Context, *ExtractAppTmplVariablesReq) (*ExtractAppTmplVariablesResp, error)
 	// 获取未命名服务版本被引用的变量
@@ -2896,6 +3100,8 @@ type ConfigServer interface {
 	ListGroupReleasedApps(context.Context, *ListGroupReleasedAppsReq) (*ListGroupReleasedAppsResp, error)
 	// 按名称获取分组
 	GetGroupByName(context.Context, *GetGroupByNameReq) (*group.Group, error)
+	// 获取分组
+	GetGroup(context.Context, *GetGroupReq) (*GetGroupResp, error)
 	// 分组选择器
 	ListGroupSelector(context.Context, *ListGroupSelectorReq) (*ListGroupSelectorResp, error)
 	// 发布指定版本
@@ -2952,6 +3158,8 @@ type ConfigServer interface {
 	FindNearExpiryCertKvs(context.Context, *FindNearExpiryCertKvsReq) (*FindNearExpiryCertKvsResp, error)
 	// 获取客户端列表
 	ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error)
+	// 获取客户端详情
+	GetClient(context.Context, *GetClientReq) (*GetClientResp, error)
 	// 获取客户端拉取记录列表
 	ListClientEvents(context.Context, *ListClientEventsReq) (*ListClientEventsResp, error)
 	// 重试客户端拉取
@@ -3061,6 +3269,32 @@ type ConfigServer interface {
 	ManageConfigKV(context.Context, *ManageConfigKVReq) (*ManageConfigKVResp, error)
 	// 查询指定业务是否开启进程与配置管理可见性
 	GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error)
+	// 项目管理
+	ListProjects(context.Context, *ListProjectsReq) (*ListProjectsResp, error)
+	// 获取项目详情
+	GetProject(context.Context, *GetProjectReq) (*GetProjectResp, error)
+	// 创建项目
+	CreateProject(context.Context, *CreateProjectReq) (*CreateProjectResp, error)
+	// 更新项目
+	UpdateProject(context.Context, *UpdateProjectReq) (*UpdateProjectResp, error)
+	// 删除项目
+	DeleteProject(context.Context, *DeleteProjectReq) (*DeleteProjectResp, error)
+	// 环境管理
+	ListEnvironments(context.Context, *ListEnvironmentsReq) (*ListEnvironmentsResp, error)
+	// 获取环境详情
+	GetEnvironment(context.Context, *GetEnvironmentReq) (*GetEnvironmentResp, error)
+	// 创建环境
+	CreateEnvironment(context.Context, *CreateEnvironmentReq) (*CreateEnvironmentResp, error)
+	// 更新环境
+	UpdateEnvironment(context.Context, *UpdateEnvironmentReq) (*UpdateEnvironmentResp, error)
+	// 删除环境
+	DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*DeleteEnvironmentResp, error)
+	// 根据项目key获取项目
+	GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error)
+	// 根据环境名称获取环境
+	GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error)
+	// 确保业务下的默认项目和默认环境存在，不存在则自动创建
+	EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error)
 }
 
 // UnimplementedConfigServer should be embedded to have forward compatible implementations.
@@ -3237,6 +3471,9 @@ func (UnimplementedConfigServer) CreateDefaultTmplSpace(context.Context, *Create
 }
 func (UnimplementedConfigServer) ListTmplSpacesByIDs(context.Context, *ListTmplSpacesByIDsReq) (*ListTmplSpacesByIDsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTmplSpacesByIDs not implemented")
+}
+func (UnimplementedConfigServer) GetTemplateSpace(context.Context, *GetTemplateSpaceReq) (*GetTemplateSpaceResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTemplateSpace not implemented")
 }
 func (UnimplementedConfigServer) CreateTemplate(context.Context, *CreateTemplateReq) (*CreateTemplateResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTemplate not implemented")
@@ -3421,6 +3658,9 @@ func (UnimplementedConfigServer) ImportTemplateVariables(context.Context, *Impor
 func (UnimplementedConfigServer) ImportOtherFormatTemplateVariables(context.Context, *ImportOtherFormatTemplateVariablesReq) (*ImportOtherFormatTemplateVariablesResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportOtherFormatTemplateVariables not implemented")
 }
+func (UnimplementedConfigServer) GetTemplateVariable(context.Context, *GetTemplateVariableReq) (*GetTemplateVariableResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTemplateVariable not implemented")
+}
 func (UnimplementedConfigServer) ExtractAppTmplVariables(context.Context, *ExtractAppTmplVariablesReq) (*ExtractAppTmplVariablesResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExtractAppTmplVariables not implemented")
 }
@@ -3462,6 +3702,9 @@ func (UnimplementedConfigServer) ListGroupReleasedApps(context.Context, *ListGro
 }
 func (UnimplementedConfigServer) GetGroupByName(context.Context, *GetGroupByNameReq) (*group.Group, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetGroupByName not implemented")
+}
+func (UnimplementedConfigServer) GetGroup(context.Context, *GetGroupReq) (*GetGroupResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGroup not implemented")
 }
 func (UnimplementedConfigServer) ListGroupSelector(context.Context, *ListGroupSelectorReq) (*ListGroupSelectorResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListGroupSelector not implemented")
@@ -3552,6 +3795,9 @@ func (UnimplementedConfigServer) FindNearExpiryCertKvs(context.Context, *FindNea
 }
 func (UnimplementedConfigServer) ListClients(context.Context, *ListClientsReq) (*ListClientsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListClients not implemented")
+}
+func (UnimplementedConfigServer) GetClient(context.Context, *GetClientReq) (*GetClientResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClient not implemented")
 }
 func (UnimplementedConfigServer) ListClientEvents(context.Context, *ListClientEventsReq) (*ListClientEventsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListClientEvents not implemented")
@@ -3714,6 +3960,45 @@ func (UnimplementedConfigServer) ManageConfigKV(context.Context, *ManageConfigKV
 }
 func (UnimplementedConfigServer) GetProcessConfigView(context.Context, *GetProcessConfigViewReq) (*GetProcessConfigViewResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProcessConfigView not implemented")
+}
+func (UnimplementedConfigServer) ListProjects(context.Context, *ListProjectsReq) (*ListProjectsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
+}
+func (UnimplementedConfigServer) GetProject(context.Context, *GetProjectReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProject not implemented")
+}
+func (UnimplementedConfigServer) CreateProject(context.Context, *CreateProjectReq) (*CreateProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateProject not implemented")
+}
+func (UnimplementedConfigServer) UpdateProject(context.Context, *UpdateProjectReq) (*UpdateProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateProject not implemented")
+}
+func (UnimplementedConfigServer) DeleteProject(context.Context, *DeleteProjectReq) (*DeleteProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
+}
+func (UnimplementedConfigServer) ListEnvironments(context.Context, *ListEnvironmentsReq) (*ListEnvironmentsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEnvironments not implemented")
+}
+func (UnimplementedConfigServer) GetEnvironment(context.Context, *GetEnvironmentReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironment not implemented")
+}
+func (UnimplementedConfigServer) CreateEnvironment(context.Context, *CreateEnvironmentReq) (*CreateEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateEnvironment not implemented")
+}
+func (UnimplementedConfigServer) UpdateEnvironment(context.Context, *UpdateEnvironmentReq) (*UpdateEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEnvironment not implemented")
+}
+func (UnimplementedConfigServer) DeleteEnvironment(context.Context, *DeleteEnvironmentReq) (*DeleteEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteEnvironment not implemented")
+}
+func (UnimplementedConfigServer) GetProjectByKey(context.Context, *GetProjectByKeyReq) (*GetProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectByKey not implemented")
+}
+func (UnimplementedConfigServer) GetEnvironmentByName(context.Context, *GetEnvironmentByNameReq) (*GetEnvironmentResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEnvironmentByName not implemented")
+}
+func (UnimplementedConfigServer) EnsureDefaultProjectEnv(context.Context, *EnsureDefaultProjectEnvReq) (*EnsureDefaultProjectEnvResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureDefaultProjectEnv not implemented")
 }
 
 // UnsafeConfigServer may be embedded to opt out of forward compatibility for this service.
@@ -4749,6 +5034,24 @@ func _Config_ListTmplSpacesByIDs_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).ListTmplSpacesByIDs(ctx, req.(*ListTmplSpacesByIDsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetTemplateSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTemplateSpaceReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetTemplateSpace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetTemplateSpace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetTemplateSpace(ctx, req.(*GetTemplateSpaceReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -5851,6 +6154,24 @@ func _Config_ImportOtherFormatTemplateVariables_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_GetTemplateVariable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTemplateVariableReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetTemplateVariable(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetTemplateVariable_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetTemplateVariable(ctx, req.(*GetTemplateVariableReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Config_ExtractAppTmplVariables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExtractAppTmplVariablesReq)
 	if err := dec(in); err != nil {
@@ -6099,6 +6420,24 @@ func _Config_GetGroupByName_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).GetGroupByName(ctx, req.(*GetGroupByNameReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGroupReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetGroup(ctx, req.(*GetGroupReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -6639,6 +6978,24 @@ func _Config_ListClients_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).ListClients(ctx, req.(*ListClientsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClientReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetClient_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetClient(ctx, req.(*GetClientReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -7615,6 +7972,240 @@ func _Config_GetProcessConfigView_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Config_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProjectsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_ListProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).ListProjects(ctx, req.(*ListProjectsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetProject(ctx, req.(*GetProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).CreateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_CreateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).CreateProject(ctx, req.(*CreateProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_UpdateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).UpdateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_UpdateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).UpdateProject(ctx, req.(*UpdateProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).DeleteProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_DeleteProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).DeleteProject(ctx, req.(*DeleteProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_ListEnvironments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListEnvironmentsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).ListEnvironments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_ListEnvironments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).ListEnvironments(ctx, req.(*ListEnvironmentsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetEnvironment(ctx, req.(*GetEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_CreateEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).CreateEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_CreateEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).CreateEnvironment(ctx, req.(*CreateEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_UpdateEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).UpdateEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_UpdateEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).UpdateEnvironment(ctx, req.(*UpdateEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_DeleteEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteEnvironmentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).DeleteEnvironment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_DeleteEnvironment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).DeleteEnvironment(ctx, req.(*DeleteEnvironmentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetProjectByKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectByKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetProjectByKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetProjectByKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetProjectByKey(ctx, req.(*GetProjectByKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_GetEnvironmentByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEnvironmentByNameReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).GetEnvironmentByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_GetEnvironmentByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).GetEnvironmentByName(ctx, req.(*GetEnvironmentByNameReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Config_EnsureDefaultProjectEnv_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureDefaultProjectEnvReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServer).EnsureDefaultProjectEnv(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Config_EnsureDefaultProjectEnv_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServer).EnsureDefaultProjectEnv(ctx, req.(*EnsureDefaultProjectEnvReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Config_ServiceDesc is the grpc.ServiceDesc for Config service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -7849,6 +8440,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTmplSpacesByIDs",
 			Handler:    _Config_ListTmplSpacesByIDs_Handler,
+		},
+		{
+			MethodName: "GetTemplateSpace",
+			Handler:    _Config_GetTemplateSpace_Handler,
 		},
 		{
 			MethodName: "CreateTemplate",
@@ -8095,6 +8690,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Config_ImportOtherFormatTemplateVariables_Handler,
 		},
 		{
+			MethodName: "GetTemplateVariable",
+			Handler:    _Config_GetTemplateVariable_Handler,
+		},
+		{
 			MethodName: "ExtractAppTmplVariables",
 			Handler:    _Config_ExtractAppTmplVariables_Handler,
 		},
@@ -8149,6 +8748,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGroupByName",
 			Handler:    _Config_GetGroupByName_Handler,
+		},
+		{
+			MethodName: "GetGroup",
+			Handler:    _Config_GetGroup_Handler,
 		},
 		{
 			MethodName: "ListGroupSelector",
@@ -8269,6 +8872,10 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListClients",
 			Handler:    _Config_ListClients_Handler,
+		},
+		{
+			MethodName: "GetClient",
+			Handler:    _Config_GetClient_Handler,
 		},
 		{
 			MethodName: "ListClientEvents",
@@ -8485,6 +9092,58 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProcessConfigView",
 			Handler:    _Config_GetProcessConfigView_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _Config_ListProjects_Handler,
+		},
+		{
+			MethodName: "GetProject",
+			Handler:    _Config_GetProject_Handler,
+		},
+		{
+			MethodName: "CreateProject",
+			Handler:    _Config_CreateProject_Handler,
+		},
+		{
+			MethodName: "UpdateProject",
+			Handler:    _Config_UpdateProject_Handler,
+		},
+		{
+			MethodName: "DeleteProject",
+			Handler:    _Config_DeleteProject_Handler,
+		},
+		{
+			MethodName: "ListEnvironments",
+			Handler:    _Config_ListEnvironments_Handler,
+		},
+		{
+			MethodName: "GetEnvironment",
+			Handler:    _Config_GetEnvironment_Handler,
+		},
+		{
+			MethodName: "CreateEnvironment",
+			Handler:    _Config_CreateEnvironment_Handler,
+		},
+		{
+			MethodName: "UpdateEnvironment",
+			Handler:    _Config_UpdateEnvironment_Handler,
+		},
+		{
+			MethodName: "DeleteEnvironment",
+			Handler:    _Config_DeleteEnvironment_Handler,
+		},
+		{
+			MethodName: "GetProjectByKey",
+			Handler:    _Config_GetProjectByKey_Handler,
+		},
+		{
+			MethodName: "GetEnvironmentByName",
+			Handler:    _Config_GetEnvironmentByName_Handler,
+		},
+		{
+			MethodName: "EnsureDefaultProjectEnv",
+			Handler:    _Config_EnsureDefaultProjectEnv_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

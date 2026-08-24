@@ -53,6 +53,8 @@ func (s *Service) CreateConfigItem(ctx context.Context, req *pbcs.CreateConfigIt
 	}
 	// 2. insert config item, content and commit to db.
 	cciReq := &pbds.CreateConfigItemReq{
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 		ConfigItemAttachment: &pbci.ConfigItemAttachment{
 			BizId: req.BizId,
 			AppId: req.AppId,
@@ -148,6 +150,8 @@ func (s *Service) BatchUpsertConfigItems(ctx context.Context, req *pbcs.BatchUps
 		ReplaceAll: req.ReplaceAll,
 		Variables:  req.GetVariables(),
 		Bindings:   bindings,
+		ProjectId:  grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:      grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	batchUpsertConfigResp, e := s.client.DS.BatchUpsertConfigItems(grpcKit.RpcCtx(), buReq)
 	if e != nil {
@@ -375,7 +379,7 @@ func (s *Service) GetConfigItem(ctx context.Context, req *pbcs.GetConfigItemReq)
 		return nil, err
 	}
 
-	return s.getEditingConfigItem(grpcKit, req.ConfigItemId, grpcKit.BizID, req.AppId)
+	return s.getEditingConfigItem(grpcKit, req.Id, grpcKit.BizID, req.AppId)
 }
 
 // getEditingConfigItem get edit config item
@@ -441,7 +445,9 @@ func (s *Service) GetReleasedConfigItem(ctx context.Context, req *pbcs.GetReleas
 		BizId:        req.BizId,
 		AppId:        req.AppId,
 		ReleaseId:    req.ReleaseId,
-		ConfigItemId: req.ConfigItemId,
+		ConfigItemId: req.Id,
+		ProjectId:    grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:        grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	releasedCI, err := s.client.DS.GetReleasedConfigItem(grpcKit.RpcCtx(), grciReq)
 	if err != nil {
@@ -480,6 +486,8 @@ func (s *Service) ListConfigItems(ctx context.Context, req *pbcs.ListConfigItems
 		Ids:        req.Ids,
 		WithStatus: req.WithStatus,
 		Status:     req.Status,
+		ProjectId:  grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:      grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	rp, err := s.client.DS.ListConfigItems(grpcKit.RpcCtx(), r)
 	if err != nil {
@@ -497,8 +505,7 @@ func (s *Service) ListConfigItems(ctx context.Context, req *pbcs.ListConfigItems
 }
 
 // ListReleasedConfigItems list released config items
-func (s *Service) ListReleasedConfigItems(ctx context.Context,
-	req *pbcs.ListReleasedConfigItemsReq) (
+func (s *Service) ListReleasedConfigItems(ctx context.Context, req *pbcs.ListReleasedConfigItemsReq) (
 	*pbcs.ListReleasedConfigItemsResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
@@ -522,6 +529,8 @@ func (s *Service) ListReleasedConfigItems(ctx context.Context,
 		Start:     req.Start,
 		Limit:     req.Limit,
 		All:       true,
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 	}
 
 	rp, err := s.client.DS.ListReleasedConfigItems(grpcKit.RpcCtx(), r)
@@ -619,6 +628,8 @@ func (s *Service) UnDeleteConfigItem(ctx context.Context, req *pbcs.UnDeleteConf
 			BizId: req.BizId,
 			AppId: req.AppId,
 		},
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		return nil, err
@@ -673,6 +684,8 @@ func (s *Service) CompareConfigItemConflicts(ctx context.Context, req *pbcs.Comp
 		AppId:      req.GetAppId(),
 		ReleaseId:  req.GetReleaseId(),
 		OtherAppId: req.GetOtherAppId(),
+		ProjectId:  grpcKit.ResolvedProjectID(req.GetProjectId()),
+		EnvId:      grpcKit.ResolvedEnvID(req.GetEnvId()),
 	})
 	if err != nil {
 		return nil, err
@@ -739,8 +752,10 @@ func (s *Service) GetTemplateAndNonTemplateCICount(ctx context.Context, req *pbc
 
 	result, err := s.client.DS.GetTemplateAndNonTemplateCICount(grpcKit.RpcCtx(),
 		&pbds.GetTemplateAndNonTemplateCICountReq{
-			BizId: req.GetBizId(),
-			AppId: req.GetAppId(),
+			BizId:     req.GetBizId(),
+			AppId:     req.GetAppId(),
+			ProjectId: grpcKit.ResolvedProjectID(req.GetProjectId()),
+			EnvId:     grpcKit.ResolvedEnvID(req.GetEnvId()),
 		})
 	if err != nil {
 		return nil, err
@@ -770,6 +785,8 @@ func (s *Service) RemoveAppBoundTmplSet(ctx context.Context, req *pbcs.RemoveApp
 		BizId:         req.BizId,
 		AppId:         req.AppId,
 		TemplateSetId: req.TemplateSetId,
+		ProjectId:     kit.ResolvedProjectID(req.ProjectId),
+		EnvId:         kit.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		return nil, err

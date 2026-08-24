@@ -49,10 +49,17 @@ type ClientSpec struct {
 
 // ClientAttachment is a client attachment
 type ClientAttachment struct {
-	UID      string `gorm:"column:uid" json:"uid"`
-	BizID    uint32 `db:"biz_id" gorm:"column:biz_id"`
-	AppID    uint32 `db:"app_id" gorm:"column:app_id"`
-	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
+	UID       string `gorm:"column:uid" json:"uid"`
+	BizID     uint32 `db:"biz_id" gorm:"column:biz_id"`
+	AppID     uint32 `db:"app_id" gorm:"column:app_id"`
+	ProjectID uint32 `gorm:"column:project_id" json:"project_id"`
+	EnvID     uint32 `gorm:"column:environment_id" json:"environment_id"`
+	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
+}
+
+// ClientKey 返回客户端完整唯一键: BizID-AppID-UID
+func (a *ClientAttachment) ClientKey() string {
+	return fmt.Sprintf("%d-%d-%s", a.BizID, a.AppID, a.UID)
 }
 
 // Resource resource information
@@ -85,6 +92,14 @@ func (c *Client) ResID() uint32 {
 // ResType AuditRes interface
 func (c *Client) ResType() string {
 	return string(enumor.Instance)
+}
+
+// ProjectID AuditRes interface, 返回客户端所属的项目 ID。
+func (c *Client) ProjectID() uint32 {
+	if c.Attachment == nil {
+		return 0
+	}
+	return c.Attachment.ProjectID
 }
 
 // ValidateCreate validate app's info when created.

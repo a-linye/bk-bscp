@@ -49,6 +49,8 @@
           :select-dimension="selectDimension.minorDimension"
           :drill-dimension="selectDimension.drillDownDimension"
           :bk-biz-id="bkBizId"
+          :project-id="projectId"
+          :env-id="envId"
           :app-id="appId"
           :is-stack="selectDimension.isStack"
           @select="handleSelectDimension" />
@@ -83,6 +85,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
   }>();
 
@@ -168,7 +172,8 @@
 
   const getAddChartDate = async () => {
     try {
-      const res = await getClientLabelsAndAnnotations(props.bkBizId, props.appId, {
+      const { bkBizId, appId, projectId, envId } = props;
+      const res = await getClientLabelsAndAnnotations(bkBizId, appId, projectId, envId, {
         last_heartbeat_time: searchQuery.value.last_heartbeat_time,
       });
       res.data.annotations.sort(sortByLowerCase);

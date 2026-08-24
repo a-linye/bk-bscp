@@ -6,6 +6,7 @@
       show-footer-overflow
       show-overflow="tooltip"
       resizable
+      min-height="96"
       :loading="props.loading">
       <vxe-column :title="$t('服务别名')" fixed="left" width="200">
         <template #default="{ row }">
@@ -74,6 +75,7 @@
               <MoreAction
                 :app="row"
                 :space-id="props.spaceId"
+                :env-id="envId"
                 @edit="handleEdit(row)"
                 @delete="handleDelete(row)"
                 @clone="handleClone(row)" />
@@ -118,6 +120,7 @@
 
   const props = defineProps<{
     spaceId: string;
+    envId: string;
     data: IAppItem[];
     pagination: IPagination;
     loading: boolean;
@@ -152,11 +155,11 @@
     // 当前处于 iframe 内嵌（hideNav=true）时，跳转需携带 hideNav=1，保持新页面/新标签页隐藏导航栏
     const query = hideNav.value ? { hideNav: '1' } : {};
     if (name === 'service-config') {
-      router.push({ name, params: { spaceId: props.spaceId, appId: id } });
+      router.push({ name, params: { spaceId: props.spaceId, appId: id, envId: props.envId, } });
     } else {
       const routeData = router.resolve({
         name,
-        params: { spaceId: props.spaceId, appId: id },
+        params: { spaceId: props.spaceId, envId: props.envId, appId: id },
         query,
       });
       window.open(routeData.href, '_blank');

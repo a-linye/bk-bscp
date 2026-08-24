@@ -49,7 +49,7 @@ func (s *Service) CreateAppTemplateBinding(ctx context.Context, req *pbds.Create
 		},
 	}
 
-	if err := s.genFinalATB(kt, appTemplateBinding); err != nil {
+	if err := s.genFinalATB(kt, req.ProjectId, appTemplateBinding); err != nil {
 		logs.Errorf("create app template binding failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (s *Service) UpdateAppTemplateBinding(ctx context.Context, req *pbds.Update
 		},
 	}
 
-	if err := s.genFinalATB(kt, appTemplateBinding); err != nil {
+	if err := s.genFinalATB(kt, req.ProjectId, appTemplateBinding); err != nil {
 		logs.Errorf("update app template binding failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (s *Service) ListAppBoundTmplRevisions(ctx context.Context,
 	)
 
 	// get template space details
-	if tmplSpaces, err = s.dao.TemplateSpace().ListByIDs(kt, atb[0].Spec.TemplateSpaceIDs); err != nil {
+	if tmplSpaces, err = s.dao.TemplateSpace().ListByIDs(kt, req.BizId, req.ProjectId, atb[0].Spec.TemplateSpaceIDs); err != nil {
 		logs.Errorf("list app bound template revisions failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
 	}
@@ -254,9 +254,14 @@ func (s *Service) ListAppBoundTmplRevisions(ctx context.Context,
 	for _, b := range atb[0].Spec.Bindings {
 		for _, r := range b.TemplateRevisions {
 			d := tmplRevisionMap[r.TemplateRevisionID]
+			// 空间被删除、绑定残留脏 id 等场景 map 会缺行，不应以空指针崩溃暴露
+			spaceName := ""
+			if space := tmplSpaceMap[d.Attachment.TemplateSpaceID]; space != nil {
+				spaceName = space.Spec.Name
+			}
 			details = append(details, &pbatb.AppBoundTmplRevision{
 				TemplateSpaceId:      d.Attachment.TemplateSpaceID,
-				TemplateSpaceName:    tmplSpaceMap[d.Attachment.TemplateSpaceID].Spec.Name,
+				TemplateSpaceName:    spaceName,
 				TemplateSetId:        b.TemplateSetID,
 				TemplateSetName:      tmplSetMap[b.TemplateSetID].Spec.Name,
 				TemplateId:           d.Attachment.TemplateID,
@@ -474,8 +479,7 @@ func (s *Service) setFileState(kt *kit.Kit, unreleased []*pbatb.AppBoundTmplRevi
 }
 
 // ListReleasedAppBoundTmplRevisions list app bound template revisions.
-func (s *Service) ListReleasedAppBoundTmplRevisions(ctx context.Context,
-	req *pbds.ListReleasedAppBoundTmplRevisionsReq) (
+func (s *Service) ListReleasedAppBoundTmplRevisions(ctx context.Context, req *pbds.ListReleasedAppBoundTmplRevisionsReq) (
 	*pbds.ListReleasedAppBoundTmplRevisionsResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 
@@ -531,7 +535,7 @@ func (s *Service) CheckAppTemplateBinding(ctx context.Context, req *pbds.CheckAp
 		},
 	}
 
-	conflicts, err := s.getConflictsOfATB(kt, atb)
+	conflicts, err := s.getConflictsOfATB(kt, req.ProjectId, atb)
 	if err != nil {
 		logs.Errorf("check app template binding failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -543,10 +547,10 @@ func (s *Service) CheckAppTemplateBinding(ctx context.Context, req *pbds.CheckAp
 }
 
 // getConflictsOfATB get conflicts of app template binding.
-func (s *Service) getConflictsOfATB(kt *kit.Kit, atb *table.AppTemplateBinding) ([]*pbatb.Conflict, error) {
+func (s *Service) getConflictsOfATB(kt *kit.Kit, projectID uint32, atb *table.AppTemplateBinding) ([]*pbatb.Conflict, error) {
 	pbs := parseBindings(atb.Spec.Bindings)
 
-	if err := s.fillUnspecifiedTemplates(kt, pbs); err != nil {
+	if err := s.fillUnspecifiedTemplates(kt, projectID, pbs); err != nil {
 		return nil, err
 	}
 
@@ -755,14 +759,14 @@ func (s *Service) getPBSForCascade(kt *kit.Kit, tx *gen.QueryTx, bindings []*tab
 }
 
 // genFinalATB generate the final app template binding.
-func (s *Service) genFinalATB(kt *kit.Kit, atb *table.AppTemplateBinding) error {
+func (s *Service) genFinalATB(kt *kit.Kit, projectID uint32, atb *table.AppTemplateBinding) error {
 	pbs := parseBindings(atb.Spec.Bindings)
 
 	if err := s.validateATBUpsert(kt, pbs); err != nil {
 		return err
 	}
 
-	if err := s.fillUnspecifiedTemplates(kt, pbs); err != nil {
+	if err := s.fillUnspecifiedTemplates(kt, projectID, pbs); err != nil {
 		return err
 	}
 
@@ -882,7 +886,7 @@ func parseBindings(bindings []*table.TemplateBinding) *parsedBindings {
 }
 
 // fillUnspecifiedTemplates update the pbs's unspecified templates and revisions
-func (s *Service) fillUnspecifiedTemplates(kt *kit.Kit, pbs *parsedBindings) error {
+func (s *Service) fillUnspecifiedTemplates(kt *kit.Kit, projectID uint32, pbs *parsedBindings) error {
 	for i := range pbs.TemplateBindings {
 		b := pbs.TemplateBindings[i]
 		var templateIDs []uint32
@@ -911,6 +915,7 @@ func (s *Service) fillUnspecifiedTemplates(kt *kit.Kit, pbs *parsedBindings) err
 				&pbds.ListTmplRevisionNamesByTmplIDsReq{
 					BizId:       kt.BizID,
 					TemplateIds: unspecified,
+					ProjectId:   projectID,
 				})
 			if err != nil {
 				logs.Errorf("fill unspecified templates failed, err: %v, rid: %s", err, kt.Rid)
@@ -1088,7 +1093,7 @@ func (s *Service) ImportFromTemplateSetToApp(ctx context.Context, req *pbds.Impo
 	}
 
 	// 1. 验证模板空间
-	if err := s.verifyTemplateSpaces(kit, templateSpaceIds, validatedTemplateSpaceNames); err != nil {
+	if err := s.verifyTemplateSpaces(kit, req.BizId, req.ProjectId, templateSpaceIds, validatedTemplateSpaceNames); err != nil {
 		return nil, err
 	}
 
@@ -1152,10 +1157,10 @@ func (s *Service) ImportFromTemplateSetToApp(ctx context.Context, req *pbds.Impo
 }
 
 // 验证模板空间
-func (s *Service) verifyTemplateSpaces(kit *kit.Kit, templateSpaceIds []uint32,
+func (s *Service) verifyTemplateSpaces(kit *kit.Kit, bizID, projectID uint32, templateSpaceIds []uint32,
 	templateSpaceNames map[uint32]string) error {
 
-	templateSpaces, err := s.dao.TemplateSpace().ListByIDs(kit, templateSpaceIds)
+	templateSpaces, err := s.dao.TemplateSpace().ListByIDs(kit, bizID, projectID, templateSpaceIds)
 	if err != nil {
 		return errf.Errorf(errf.DBOpFailed, i18n.T(kit, "list template spaces failed, err: %v", err))
 	}

@@ -21,7 +21,7 @@
           <bk-table-column :label="t('所在模板套餐')" prop="template_set_name"></bk-table-column>
           <bk-table-column :label="t('使用此套餐的服务')">
             <template #default="{ row }">
-              <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row.app_id)">
+              <div v-if="row.app_id" class="app-info" @click="goToConfigPageImport(row)">
                 <div v-overflow-title class="name-text">{{ row.app_name }}</div>
                 <LinkToApp class="link-icon" :id="row.app_id" />
               </div>
@@ -44,7 +44,7 @@
   import { moveOutTemplateFromPackage, getUnNamedVersionAppsBoundByPackages } from '../../../../../../../api/template';
   import LinkToApp from '../../../components/link-to-app.vue';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { packageList, currentTemplateSpace } = storeToRefs(useTemplateStore());
   const { t } = useI18n();
 
@@ -76,10 +76,10 @@
     },
   );
 
-  const goToConfigPageImport = (id: number) => {
+  const goToConfigPageImport = (row: IPackagesCitedByApps) => {
     const { href } = router.resolve({
       name: 'service-config',
-      params: { appId: id },
+      params: { envId: row.env_id, appId: row.app_id },
       query: { pkg_id: currentTemplateSpace.value },
     });
     window.open(href, '_blank');
@@ -93,6 +93,7 @@
     };
     const res = await getUnNamedVersionAppsBoundByPackages(
       spaceId.value,
+      projectId.value,
       currentTemplateSpace.value,
       [props.currentPkg],
       params,
@@ -111,6 +112,7 @@
       const ids = props.value.map((item) => item.id);
       await moveOutTemplateFromPackage(
         spaceId.value,
+        projectId.value,
         currentTemplateSpace.value,
         ids,
         [props.currentPkg as number],

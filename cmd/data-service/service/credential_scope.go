@@ -28,17 +28,41 @@ import (
 )
 
 // ListCredentialScopes  get credential scopes
-func (s *Service) ListCredentialScopes(ctx context.Context,
-	req *pbds.ListCredentialScopesReq) (*pbds.ListCredentialScopesResp, error) {
+func (s *Service) ListCredentialScopes(ctx context.Context, req *pbds.ListCredentialScopesReq) (*pbds.ListCredentialScopesResp, error) {
 
 	kt := kit.FromGrpcContext(ctx)
 
-	details, count, err := s.dao.CredentialScope().Get(kt, req.CredentialId, req.BizId)
+	_, err := s.dao.Credential().Get(kt, req.BizId, req.ProjectId, req.CredentialId)
+	if err != nil {
+		return nil, err
+	}
+
+	details, count, err := s.dao.CredentialScope().Get(kt, req.CredentialId, req.BizId, req.ProjectId)
 	if err != nil {
 		logs.Errorf("list credential scope failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
 	}
-	credentialScopes, err := pbcrs.PbCredentialScopes(details)
+
+	envIDs := make([]uint32, 0)
+	for _, one := range details {
+		if one != nil && one.Attachment != nil && one.Attachment.EnvID != 0 {
+			envIDs = append(envIDs, one.Attachment.EnvID)
+		}
+	}
+
+	// 返回一个 map[uint32]*table.EnvironmentSpec Type 和 Name
+	envMap := make(map[uint32]*table.EnvironmentSpec)
+	if len(envIDs) > 0 {
+		envs, errE := s.dao.Environment().ListByEnvIDs(kt, req.BizId, req.ProjectId, envIDs)
+		if errE != nil {
+			return nil, errE
+		}
+		for _, v := range envs {
+			envMap[v.ID] = v.Spec
+		}
+	}
+
+	credentialScopes, err := pbcrs.PbCredentialScopes(details, envMap)
 	if err != nil {
 		logs.Errorf("get pb credential scope failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
@@ -53,12 +77,11 @@ func (s *Service) ListCredentialScopes(ctx context.Context,
 
 // UpdateCredentialScopes update credential scopes
 // nolint:funlen
-func (s *Service) UpdateCredentialScopes(ctx context.Context,
-	req *pbds.UpdateCredentialScopesReq) (*pbds.UpdateCredentialScopesResp, error) {
+func (s *Service) UpdateCredentialScopes(ctx context.Context, req *pbds.UpdateCredentialScopesReq) (*pbds.UpdateCredentialScopesResp, error) {
 
 	kt := kit.FromGrpcContext(ctx)
 
-	credentialRecord, err := s.dao.Credential().Get(kt, req.BizId, req.CredentialId)
+	credentialRecord, err := s.dao.Credential().Get(kt, req.BizId, req.ProjectId, req.CredentialId)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +111,8 @@ func (s *Service) UpdateCredentialScopes(ctx context.Context,
 			Attachment: &table.CredentialScopeAttachment{
 				BizID:        req.BizId,
 				CredentialId: req.CredentialId,
+				ProjectID:    req.ProjectId,
+				EnvID:        updated.EnvId,
 			},
 			Revision: &table.Revision{
 				Reviser: kt.User,
@@ -119,6 +144,8 @@ func (s *Service) UpdateCredentialScopes(ctx context.Context,
 			Attachment: &table.CredentialScopeAttachment{
 				BizID:        req.BizId,
 				CredentialId: req.CredentialId,
+				ProjectID:    req.ProjectId,
+				EnvID:        created.EnvId,
 			},
 			Revision: &table.Revision{
 				Creator: kt.User,
@@ -131,7 +158,7 @@ func (s *Service) UpdateCredentialScopes(ctx context.Context,
 		}
 	}
 
-	if err := s.dao.Credential().UpdateRevisionWithTx(kt, tx, req.BizId, req.CredentialId); err != nil {
+	if err := s.dao.Credential().UpdateRevisionWithTx(kt, tx, req.BizId, req.ProjectId, req.CredentialId); err != nil {
 		logs.Errorf("update credential revision failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, err
 	}

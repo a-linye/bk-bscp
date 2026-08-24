@@ -29,6 +29,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/enumor"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/i18n"
@@ -47,7 +48,7 @@ func (s *Service) Publish(ctx context.Context, req *pbds.PublishReq) (*pbds.Publ
 	// 只给流水线插件做兼容，该接口暂时还不能去除
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	app, err := s.dao.App().Get(grpcKit, req.BizId, req.AppId)
+	app, err := s.dao.App().Get(grpcKit, req.BizId, req.ProjectId, req.EnvId, req.AppId)
 	if err != nil {
 		return nil, err
 	}
@@ -70,18 +71,32 @@ func (s *Service) Publish(ctx context.Context, req *pbds.PublishReq) (*pbds.Publ
 		PublishType:     string(publishType),
 		PublishTime:     "",
 		IsCompare:       false,
+		ProjectId:       req.ProjectId,
+		EnvId:           req.EnvId,
 	})
 }
 
 // SubmitPublishApprove submit publish strategy.
 // nolint funlen
-func (s *Service) SubmitPublishApprove(
-	ctx context.Context, req *pbds.SubmitPublishApproveReq) (*pbds.PublishResp, error) {
+func (s *Service) SubmitPublishApprove(ctx context.Context, req *pbds.SubmitPublishApproveReq) (*pbds.PublishResp, error) {
 	grpcKit := kit.FromGrpcContext(ctx)
 
-	app, err := s.dao.App().Get(grpcKit, req.BizId, req.AppId)
+	app, err := s.dao.App().Get(grpcKit, req.BizId, req.ProjectId, req.EnvId, req.AppId)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errf.Errorf(
+				errf.RecordNotFound,
+				"%s",
+				i18n.T(grpcKit, "app does not exist"),
+			)
+		}
+
+		return nil, errf.Errorf(
+			errf.DBOpFailed,
+			"%s: %v",
+			i18n.T(grpcKit, "app query failed"),
+			err,
+		)
 	}
 
 	release, err := s.dao.Release().Get(grpcKit, req.BizId, req.AppId, req.ReleaseId)
@@ -89,7 +104,7 @@ func (s *Service) SubmitPublishApprove(
 		return nil, err
 	}
 	if release.Spec.Deprecated {
-		return nil, fmt.Errorf(i18n.T(grpcKit, "release %s is deprecated, can not be submited", release.Spec.Name))
+		return nil, fmt.Errorf("%s", i18n.T(grpcKit, "release %s is deprecated, can not be submited", release.Spec.Name))
 	}
 
 	// 获取最近的上线版本
@@ -198,7 +213,7 @@ func (s *Service) SubmitPublishApprove(
 		havePull = true
 	}
 
-	haveCredentials, err := s.checkAppHaveCredentials(grpcKit, req.BizId, req.AppId)
+	haveCredentials, err := s.checkAppHaveCredentials(grpcKit, req.BizId, req.ProjectId, req.EnvId, req.AppId)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +410,7 @@ func (s *Service) Approve(ctx context.Context, req *pbds.ApproveReq) (*pbds.Appr
 		havePull = true
 	}
 
-	haveCredentials, err := s.checkAppHaveCredentials(grpcKit, req.BizId, req.AppId)
+	haveCredentials, err := s.checkAppHaveCredentials(grpcKit, req.BizId, req.ProjectId, req.EnvId, req.AppId)
 	if err != nil {
 		return nil, err
 	}
@@ -492,14 +507,14 @@ func (s *Service) GenerateReleaseAndPublish(ctx context.Context, req *pbds.Gener
 
 		// Note: need to change batch operator to query config item and it's commit.
 		// query app's all config items.
-		cfgItems, e := s.getAppConfigItems(grpcKit)
+		cfgItems, e := s.getAppConfigItems(grpcKit, req.ProjectId, req.EnvId, req.AppId)
 		if e != nil {
 			logs.Errorf("query app config item list failed, err: %v, rid: %s", e, grpcKit.Rid)
 			return nil, e
 		}
 
 		// get app template revisions which are template config items
-		tmplRevisions, e := s.getAppTmplRevisions(grpcKit)
+		tmplRevisions, e := s.getAppTmplRevisions(grpcKit, req.AppId)
 		if e != nil {
 			logs.Errorf("get app template revisions failed, err: %v, rid: %s", e, grpcKit.Rid)
 			return nil, e
@@ -511,7 +526,7 @@ func (s *Service) GenerateReleaseAndPublish(ctx context.Context, req *pbds.Gener
 		}
 
 		// do template and non-template config item related operations for create release.
-		if err = s.doConfigItemOperations(grpcKit, req.Variables, tx, release.ID, tmplRevisions, cfgItems); err != nil {
+		if err = s.doConfigItemOperations(grpcKit, req.Variables, tx, req.ProjectId, release.ID, tmplRevisions, cfgItems); err != nil {
 			logs.Errorf("do template action for create release failed, err: %v, rid: %s", err, grpcKit.Rid)
 			return nil, err
 		}
@@ -539,6 +554,8 @@ func (s *Service) GenerateReleaseAndPublish(ctx context.Context, req *pbds.Gener
 		PublishStatus: table.AlreadyPublish,
 		PubState:      string(table.Publishing),
 		ApproveType:   string(app.Spec.ApproveType),
+		ProjectID:     req.ProjectId,
+		EnvID:         req.EnvId,
 	}
 
 	// if approval required, current approver required, pub_state unpublished
@@ -732,6 +749,8 @@ func (s *Service) passApprove(
 			AppID:     req.AppId,
 			ReleaseID: req.ReleaseId,
 			All:       false,
+			ProjectID: req.ProjectId,
+			EnvID:     req.EnvId,
 		}
 
 		if len(strategy.Spec.Scope.Groups) == 0 {
@@ -764,6 +783,8 @@ func (s *Service) publishApprove(
 		AppID:     req.AppId,
 		ReleaseID: req.ReleaseId,
 		All:       false,
+		ProjectID: req.ProjectId,
+		EnvID:     req.EnvId,
 	}
 
 	if len(strategy.Spec.Scope.Groups) == 0 {
@@ -798,6 +819,8 @@ func (s *Service) parsePublishOption(req *pbds.SubmitPublishApproveReq, app *tab
 		PublishStatus: table.PendingPublish,
 		PubState:      string(table.Publishing),
 		ApproveType:   string(app.Spec.ApproveType),
+		ProjectID:     req.ProjectId,
+		EnvID:         req.EnvId,
 	}
 
 	// if approval required, current approver required, pub_state unpublished
@@ -819,8 +842,8 @@ func (s *Service) parsePublishOption(req *pbds.SubmitPublishApproveReq, app *tab
 // checkAppHaveCredentials check if there is available credential for app.
 // 1. credential scope can match app name.
 // 2. credential is enabled.
-func (s *Service) checkAppHaveCredentials(grpcKit *kit.Kit, bizID, appID uint32) (bool, error) {
-	app, err := s.dao.App().Get(grpcKit, bizID, appID)
+func (s *Service) checkAppHaveCredentials(grpcKit *kit.Kit, bizID, projectID, envID, appID uint32) (bool, error) {
+	app, err := s.dao.App().Get(grpcKit, bizID, projectID, envID, appID)
 	if err != nil {
 		return false, err
 	}
@@ -841,7 +864,7 @@ func (s *Service) checkAppHaveCredentials(grpcKit *kit.Kit, bizID, appID uint32)
 			matchedCredentials = append(matchedCredentials, scope.Attachment.CredentialId)
 		}
 	}
-	credentials, e := s.dao.Credential().BatchListByIDs(grpcKit, bizID, matchedCredentials)
+	credentials, e := s.dao.Credential().BatchListByIDs(grpcKit, bizID, projectID, matchedCredentials)
 	if e != nil {
 		return false, e
 	}
@@ -871,7 +894,7 @@ func (s *Service) genReleaseAndPublishGroupID(grpcKit *kit.Kit, tx *gen.QueryTx,
 		// validate and query group ids.
 		if publishMode == table.PublishByGroups {
 			for _, name := range req.Groups {
-				group, e := s.dao.Group().GetByName(grpcKit, req.BizId, name)
+				group, e := s.dao.Group().GetByName(grpcKit, req.BizId, req.ProjectId, name)
 				if e != nil {
 					return groupIDs, groupNames, fmt.Errorf("group %s not exist", name)
 				}
@@ -880,7 +903,7 @@ func (s *Service) genReleaseAndPublishGroupID(grpcKit *kit.Kit, tx *gen.QueryTx,
 			}
 		}
 		if publishMode == table.PublishByLabels {
-			groupID, e := s.getOrCreateGroupByLabels(grpcKit, tx, req.BizId, req.AppId, req.GroupName, req.Labels)
+			groupID, e := s.getOrCreateGroupByLabels(grpcKit, tx, req.BizId, req.ProjectId, req.AppId, req.GroupName, req.Labels)
 			if e != nil {
 				logs.Errorf("create group by labels failed, err: %v, rid: %s", e, grpcKit.Rid)
 				return groupIDs, groupNames, e
@@ -893,7 +916,7 @@ func (s *Service) genReleaseAndPublishGroupID(grpcKit *kit.Kit, tx *gen.QueryTx,
 	return groupIDs, groupNames, nil
 }
 
-func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bizID, appID uint32, groupName string,
+func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bizID, projectID, appID uint32, groupName string,
 	labels []*structpb.Struct) (uint32, error) {
 	elements := make([]selector.Element, 0)
 	for _, label := range labels {
@@ -906,7 +929,7 @@ func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bi
 	sel := &selector.Selector{
 		LabelsAnd: elements,
 	}
-	groups, err := s.dao.Group().ListAppValidGroups(grpcKit, bizID, appID)
+	groups, err := s.dao.Group().ListAppValidGroups(grpcKit, bizID, projectID, appID)
 	if err != nil {
 		return 0, err
 	}
@@ -923,7 +946,7 @@ func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bi
 	// else create new one.
 	if groupName != "" {
 		// if group name is not empty, use it as group name.
-		_, err = s.dao.Group().GetByName(grpcKit, bizID, groupName)
+		_, err = s.dao.Group().GetByName(grpcKit, bizID, projectID, groupName)
 		// if group name already exists, return error.
 		if err == nil {
 			return 0, fmt.Errorf("group %s already exists", groupName)
@@ -943,7 +966,8 @@ func (s *Service) getOrCreateGroupByLabels(grpcKit *kit.Kit, tx *gen.QueryTx, bi
 			Selector: sel,
 		},
 		Attachment: &table.GroupAttachment{
-			BizID: bizID,
+			BizID:     bizID,
+			ProjectID: projectID,
 		},
 		Revision: &table.Revision{
 			Creator: grpcKit.User,
@@ -1119,8 +1143,7 @@ func (s *Service) setPublishTime(kt *kit.Kit, pshID uint32, req *pbds.SubmitPubl
 }
 
 // group 解析处理, 通过label创建
-func (s *Service) parseGroup(
-	grpcKit *kit.Kit, req *pbds.SubmitPublishApproveReq, tx *gen.QueryTx) ([]uint32, []string, error) {
+func (s *Service) parseGroup(grpcKit *kit.Kit, req *pbds.SubmitPublishApproveReq, tx *gen.QueryTx) ([]uint32, []string, error) {
 	// group name
 	groupIDs := make([]uint32, 0)
 	groupName := []string{}
@@ -1140,7 +1163,7 @@ func (s *Service) parseGroup(
 					groupIDs = append(groupIDs, groupID)
 					continue
 				}
-				group, e := s.dao.Group().Get(grpcKit, groupID, req.BizId)
+				group, e := s.dao.Group().Get(grpcKit, groupID, req.BizId, req.ProjectId)
 				if e != nil {
 					return groupIDs, groupName, fmt.Errorf("group %d not exist", groupID)
 				}
@@ -1149,7 +1172,7 @@ func (s *Service) parseGroup(
 			}
 		}
 		if publishMode == table.PublishByLabels {
-			groupID, gErr := s.getOrCreateGroupByLabels(grpcKit, tx, req.BizId, req.AppId, req.GroupName, req.Labels)
+			groupID, gErr := s.getOrCreateGroupByLabels(grpcKit, tx, req.BizId, req.ProjectId, req.AppId, req.GroupName, req.Labels)
 			if gErr != nil {
 				logs.Errorf("create group by labels failed, err: %v, rid: %s", gErr, grpcKit.Rid)
 				return groupIDs, groupName, fmt.Errorf("get group by labels failed: %s", gErr)
@@ -1270,6 +1293,18 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallba
 		return result, nil
 	}
 
+	// ITSM 回调走旧版 URL,不携带 project/env,req 中的维度值是经中间件回退的业务默认值;
+	// 必须以策略关联 App 的实际维度为准,避免发布事件(EventAttachment)写入错误的 project/env
+	app, err := s.dao.App().GetByID(kit, matchedStrategy.Attachment.AppID)
+	if err != nil {
+		logs.Errorf("get app failed, err=%v, rid=%s", err, kit.Rid)
+		return nil, err
+	}
+	if app == nil {
+		logs.Errorf("app %d not found, rid=%s", matchedStrategy.Attachment.AppID, kit.Rid)
+		return nil, errors.New("app not found")
+	}
+
 	// 查看状态是审批通过还是拒绝
 	approveReq := &pbds.ApproveReq{
 		BizId:         req.BizId,
@@ -1277,6 +1312,8 @@ func (s *Service) ApprovalCallback(ctx context.Context, req *pbds.ApprovalCallba
 		ReleaseId:     req.ReleaseId,
 		PublishStatus: string(table.PendingPublish),
 		StrategyId:    matchedStrategy.ID,
+		ProjectId:     app.ProjID,
+		EnvId:         app.EnvID,
 	}
 
 	// 获取active key

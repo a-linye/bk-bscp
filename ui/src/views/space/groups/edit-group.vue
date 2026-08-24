@@ -1,6 +1,6 @@
 <template>
   <bk-dialog
-    ext-cls="edit-group-dialog"
+    class="edit-group-dialog"
     :confirm-text="t('提交')"
     :cancel-text="t('取消')"
     :width="640"
@@ -34,7 +34,7 @@
   import groupEditForm from './components/group-edit-form.vue';
   import Message from 'bkui-vue/lib/message';
 
-  const { spaceId } = storeToRefs(useGlobalStore());
+  const { spaceId, projectId } = storeToRefs(useGlobalStore());
   const { t } = useI18n();
 
   const props = defineProps<{
@@ -48,7 +48,7 @@
     id: 0,
     name: '',
     public: true,
-    bind_apps: [],
+    env_apps: [],
     rule_logic: 'AND',
     rules: [{ key: '', op: '', value: '' }],
   });
@@ -59,12 +59,12 @@
     () => props.show,
     (val) => {
       if (val) {
-        const { id, name, public: isPublic, bind_apps, selector } = props.group;
+        const { id, name, public: isPublic, env_apps, selector } = props.group;
         groupData.value = {
           id,
           name,
-          bind_apps: bind_apps.map((item) => item.id),
           public: isPublic,
+          env_apps,
           rule_logic: selector.labels_and ? 'AND' : 'OR',
           rules: (selector.labels_and || selector.labels_or) as IGroupRuleItem[],
         };
@@ -85,14 +85,14 @@
     }
     pending.value = true;
     try {
-      const { id, name, public: isPublic, bind_apps, rule_logic, rules } = groupData.value;
+      const { id, name, public: isPublic, env_apps, rule_logic, rules } = groupData.value;
       const params = {
         name,
         public: isPublic,
-        bind_apps: isPublic ? [] : bind_apps,
+        bind_apps: isPublic ? [] : env_apps.map((item) => item.app_ids).flat(),
         selector: rule_logic === 'AND' ? { labels_and: rules } : { labels_or: rules },
       };
-      await updateGroup(spaceId.value, id as number, params);
+      await updateGroup(spaceId.value, id as number, projectId.value, params);
       Message({
         message: t('编辑分组成功'),
         theme: 'success',
@@ -132,12 +132,13 @@
   }
 </style>
 <style lang="scss">
-  .edit-group-dialog.bk-modal-wrapper {
+  .edit-group-dialog .bk-modal-wrapper {
     .bk-dialog-header {
       display: none;
     }
-    .bk-modal-content {
+    .bk-dialog-content {
       padding: 0;
+      margin: 0;
     }
   }
 </style>

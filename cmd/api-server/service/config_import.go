@@ -227,6 +227,7 @@ func (c *configImport) TemplateConfigFileImport(w http.ResponseWriter, r *http.R
 		tuple, err := c.cfgClient.ListTemplateByTuple(kt.RpcCtx(), &pbcs.ListTemplateByTupleReq{
 			BizId:           kt.BizID,
 			TemplateSpaceId: uint32(tmplSpaceID),
+			ProjectId:       kt.ProjectID,
 			Items:           batch,
 		})
 		if err != nil {
@@ -433,9 +434,11 @@ func (c *configImport) ConfigFileImport(w http.ResponseWriter, r *http.Request) 
 		}
 		batch := configItems[i:end]
 		tuple, errC := c.cfgClient.ListConfigItemByTuple(kt.RpcCtx(), &pbcs.ListConfigItemByTupleReq{
-			BizId: kt.BizID,
-			AppId: kt.AppID,
-			Items: batch,
+			BizId:     kt.BizID,
+			AppId:     kt.AppID,
+			Items:     batch,
+			ProjectId: kt.ProjectID,
+			EnvId:     kt.EnvID,
 		})
 		if errC != nil {
 			_ = render.Render(w, r, rest.BadRequest(errors.New(i18n.T(kt, "list config item failed, err: %v", errC))))
@@ -802,9 +805,11 @@ func sortByPathName(myStructs []*types.TemplateItem) {
 func (c *configImport) checkFileConfictsWithNonTemplates(kt *kit.Kit, files []tools.CIUniqueKey) error {
 	// 获取服务下的所有非模板配置文件
 	items, err := c.cfgClient.ListConfigItems(kt.RpcCtx(), &pbcs.ListConfigItemsReq{
-		BizId: kt.BizID,
-		AppId: kt.AppID,
-		All:   true,
+		BizId:     kt.BizID,
+		AppId:     kt.AppID,
+		All:       true,
+		ProjectId: kt.ProjectID,
+		EnvId:     kt.EnvID,
 	})
 	if err != nil {
 		return err
@@ -829,6 +834,7 @@ func (c *configImport) checkFileConfictsWithTemplates(kt *kit.Kit, templateSpace
 		BizId:           kt.BizID,
 		TemplateSpaceId: templateSpaceId,
 		All:             true,
+		ProjectId:       kt.ProjectID,
 	})
 	if err != nil {
 		return errors.New(i18n.T(kt, "list templates failed, err: %v", err))
@@ -876,7 +882,7 @@ func getDirSize(path string) (int64, error) {
 
 // 上传文件夹时暴露 metrics
 func (c *configImport) uploadFileMetrics(bizID uint32, resourceID string, directorySize int64) {
-	c.mc.currentUploadedFolderSize.WithLabelValues(strconv.Itoa(int(bizID)),
+	c.mc.currentUploadedFolderSize.WithLabelValues(strconv.FormatUint(uint64(bizID), 10),
 		resourceID).Set(float64(directorySize))
 }
 
@@ -908,7 +914,8 @@ func getAppConfigCnt(bizID uint32) int {
 }
 
 func (c *configImport) reporMetrics(bizID uint32, folder float64, totalSize int64, start time.Time) {
-	c.mc.uploadDuration.WithLabelValues(strconv.Itoa(int(bizID))).Observe(time.Since(start).Seconds())
-	c.mc.uploadTotalSize.WithLabelValues(strconv.Itoa(int(bizID))).Add(float64(totalSize))
-	c.mc.uploadFileCount.WithLabelValues(strconv.Itoa(int(bizID))).Add(folder)
+	bizIDLabel := strconv.FormatUint(uint64(bizID), 10)
+	c.mc.uploadDuration.WithLabelValues(bizIDLabel).Observe(time.Since(start).Seconds())
+	c.mc.uploadTotalSize.WithLabelValues(bizIDLabel).Add(float64(totalSize))
+	c.mc.uploadFileCount.WithLabelValues(bizIDLabel).Add(folder)
 }

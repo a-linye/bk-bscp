@@ -2,6 +2,7 @@
   <bk-loading :loading="loading">
     <bk-table
       class="config-table"
+      :key="isUnNamedVersion"
       :border="['outer']"
       :data="configList"
       :remote-pagination="true"
@@ -167,6 +168,8 @@
     v-model:show="editPanelShow"
     :config="operationConfig.spec as IConfigKvItem"
     :bk-biz-id="props.bkBizId"
+    :project-id="projectId"
+    :env-id="envId"
     :app-id="props.appId"
     :editable="true"
     @confirm="handleUpdateConfig" />
@@ -174,8 +177,15 @@
     v-model:show="viewPanelShow"
     :config="operationConfig"
     :show-edit-btn="isUnNamedVersion && operationConfig.kv_state !== 'DELETE'"
+    :project-id="projectId"
+    :env-id="envId"
     @open-edit="handleSwitchToEdit" />
-  <VersionDiff v-model:show="isDiffPanelShow" :current-version="versionData" :selected-kv-config-id="diffConfig" />
+  <VersionDiff
+    v-model:show="isDiffPanelShow"
+    :project-id="projectId"
+    :env-id="envId"
+    :current-version="versionData"
+    :selected-kv-config-id="diffConfig" />
   <DeleteConfirmDialog
     v-model:is-show="isDeleteConfigDialogShow"
     :title="t('确认删除该配置项？')"
@@ -197,7 +207,7 @@
   </DeleteConfirmDialog>
 </template>
 <script lang="ts" setup>
-  import { ref, watch, onMounted, computed } from 'vue';
+  import { ref, watch, onMounted, computed, nextTick } from 'vue';
   import { useI18n } from 'vue-i18n';
   import { storeToRefs } from 'pinia';
   import Message from 'bkui-vue/lib/message';
@@ -234,6 +244,8 @@
 
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     searchQuery: { [key: string]: string };
   }>();
@@ -307,16 +319,27 @@
       crossPageSelect, // 是否提供跨页全选功能
     });
 
+  // 版本切换时父组件会清空 searchQuery，导致本组件 searchQuery watch 连锁触发 refresh。
+  // 用该标志让 searchQuery watch 在版本切换引起的清空时跳过，避免重复请求。
+  const isVersionSwitching = ref(false);
+
   watch(
     () => versionData.value.id,
     () => {
+      isVersionSwitching.value = true;
       refresh();
+      // searchQuery watch 会在本次事件循环的后续阶段触发，下一 tick 复位即可
+      nextTick(() => {
+        isVersionSwitching.value = false;
+      });
     },
   );
 
   watch(
     () => props.searchQuery,
     () => {
+      // 版本切换引起的 searchQuery 清空由 versionData watch 兜底 refresh，这里跳过
+      if (isVersionSwitching.value) return;
       isSearchEmpty.value = Object.keys(props.searchQuery).length > 0;
       refresh();
     },
@@ -389,9 +412,16 @@
         if (statusFilterChecked.value!.length > 0) {
           params.status = statusFilterChecked.value;
         }
-        res = await getKvList(props.bkBizId, props.appId, params);
+        res = await getKvList(props.bkBizId, props.appId, props.projectId, props.envId, params);
       } else {
-        res = await getReleaseKvList(props.bkBizId, props.appId, versionData.value.id, params);
+        res = await getReleaseKvList(
+          props.bkBizId,
+          props.appId,
+          props.projectId,
+          props.envId,
+          versionData.value.id,
+          params,
+        );
       }
       configList.value = res.details.sort((a: IConfigKvType, b: IConfigKvType) => {
         if (a.kv_state === 'DELETE' && b.kv_state !== 'DELETE') {
@@ -498,7 +528,7 @@
     if (permCheckLoading.value || !checkPermBeforeOperate('update')) {
       return;
     }
-    await unModifyKv(props.bkBizId, props.appId, config.spec.key);
+    await unModifyKv(props.bkBizId, props.appId, props.projectId, props.envId, config.spec.key);
     Message({ theme: 'success', message: t('撤销修改配置项成功') });
     operationConfig.value = config;
     operationConfigIndex.value = index;
@@ -515,7 +545,7 @@
 
   // 删除单个配置项
   const handleDeleteConfigConfirm = async () => {
-    await deleteKv(props.bkBizId, props.appId, operationConfig.value.id);
+    await deleteKv(props.bkBizId, props.appId, props.projectId, props.envId, operationConfig.value.id);
 
     // 删除的配置项如果在多选列表里，需要去掉
     const index = selectedConfigIds.value.findIndex((id) => id === operationConfig.value?.id);
@@ -549,7 +579,7 @@
   };
 
   const handleRecoverConfigConfirm = async () => {
-    await undeleteKv(props.bkBizId, props.appId, operationConfig.value!.spec.key);
+    await undeleteKv(props.bkBizId, props.appId, props.projectId, props.envId, operationConfig.value!.spec.key);
     Message({ theme: 'success', message: t('恢复配置项成功') });
     isRecoverConfigDialogShow.value = false;
     handleUpdateConfig();
@@ -557,7 +587,7 @@
 
   // 操作配置文件后，更新配置文件内容，不刷新列表
   const handleUpdateConfig = async () => {
-    const res = await getKvList(props.bkBizId, props.appId, { start: 0, all: true });
+    const res = await getKvList(props.bkBizId, props.appId, props.projectId, props.envId, { start: 0, all: true });
     const replaceConfig = res.details.find((item: IConfigKvType) => item.spec.key === operationConfig.value?.spec.key);
     if (replaceConfig) {
       // 非删除操作
@@ -660,6 +690,10 @@
     }
   }
   .config-table {
+    :deep(colgroup col):nth-child(2),
+    :deep(colgroup col):nth-child(3) {
+      width: auto !important;
+    }
     .config-name {
       display: flex;
       align-items: center;
@@ -668,6 +702,10 @@
         color: #3a84ff;
         max-width: calc(100% - 20px);
         cursor: pointer;
+        /* 组件库升级后 overflow-title 引用层为 inline-block，会多出下沉符高度使单元格偏高，改为 block 消除间隙 */
+        :deep(.overflow-popover-reference) {
+          display: block !important;
+        }
       }
       .warn-icon {
         font-size: 14px;

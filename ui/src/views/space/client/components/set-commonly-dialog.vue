@@ -2,7 +2,7 @@
   <bk-dialog
     :is-show="isShow"
     :title="isCreate ? $t('设为常用') : $t('重命名')"
-    ext-cls="set-commonly-dialog"
+    class="set-commonly-dialog"
     theme="primary"
     :confirm-text="$t('保存')"
     @closed="handleClose"
@@ -22,6 +22,8 @@
   const { t } = useI18n();
   const props = defineProps<{
     bkBizId: string;
+    projectId: string;
+    envId: string;
     appId: number;
     isShow: boolean;
     isCreate: boolean;
@@ -40,7 +42,8 @@
         validator: async (value: string) => {
           if (value.length > 0) {
             try {
-              const res = await getClientCommonlyUsedNameCheck(props.bkBizId, props.appId, value);
+              const { bkBizId, appId, projectId, envId } = props;
+              const res = await getClientCommonlyUsedNameCheck(bkBizId, appId, projectId, envId, value);
               return !res.data.exist;
             } catch (error) {
               console.error(error);

@@ -553,9 +553,8 @@ func (s *Service) createTemplateAndRevision(kit *kit.Kit, tx *gen.QueryTx, templ
 
 // getOrCreateTemplateSpace 获取或创建 config_delivery 模板空间
 func (s *Service) getOrCreateTemplateSpace(kit *kit.Kit, bizID uint32, now time.Time) (*table.TemplateSpace, error) {
-	space, err := s.dao.TemplateSpace().GetBizTemplateSpaceByName(
-		kit, bizID, constant.CONFIG_DELIVERY,
-	)
+
+	space, err := s.dao.TemplateSpace().GetBizTemplateSpaceByName(kit, bizID, constant.CONFIG_DELIVERY)
 	if err == nil {
 		return space, nil
 	}
@@ -569,6 +568,8 @@ func (s *Service) getOrCreateTemplateSpace(kit *kit.Kit, bizID uint32, now time.
 		Spec: &table.TemplateSpaceSpec{Name: constant.CONFIG_DELIVERY},
 		Attachment: &table.TemplateSpaceAttachment{
 			BizID: bizID, TenantID: kit.TenantID,
+			// 业务级共享，不归属任何项目
+			ProjectID: constant.GlobalProjectID,
 		},
 		Revision: &table.Revision{
 			Creator: kit.User, CreatedAt: now,

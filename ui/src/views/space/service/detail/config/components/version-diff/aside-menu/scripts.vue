@@ -18,18 +18,21 @@
   import { getDiffType } from '../../../../../../../../utils/index';
   import MenuList from './menu-list.vue';
 
-  const { t } = useI18n();
-  const route = useRoute();
-  const bkBizId = ref(String(route.params.spaceId));
-  const { appData } = storeToRefs(useServiceStore());
-
   const props = defineProps<{
     currentVersionId: number;
     baseVersionId: number;
     actived: boolean;
+    envId?: string;
   }>();
 
   const emits = defineEmits(['selected']);
+
+  const { t } = useI18n();
+  const route = useRoute();
+  const bkBizId = ref(String(route.params.spaceId));
+  const projectId = ref(String(route.params.projectId));
+  const envId = ref(String(route.params.envId || props.envId));
+  const { appData } = storeToRefs(useServiceStore());
 
   const scriptDetailList = ref([
     {
@@ -108,7 +111,12 @@
   };
 
   const getScriptDetail = async (id: number, type: 'current' | 'base') => {
-    const scriptSetting = await getConfigScript(bkBizId.value, appData.value.id as number, id);
+    const scriptSetting = await getConfigScript(
+      bkBizId.value,
+      appData.value.id as number,
+      projectId.value,
+      envId.value,
+      id);
     const { pre_hook, post_hook } = scriptSetting;
     scriptDetailList.value[0][type] = {
       language: pre_hook.type,

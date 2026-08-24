@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -73,6 +74,8 @@ func (s *Service) CreateKv(ctx context.Context, req *pbcs.CreateKvReq) (*pbcs.Cr
 			SecretHidden:              req.SecretHidden,
 			CertificateExpirationDate: expirationTime,
 		},
+		ProjectId: grpcKit.ResolvedProjectID(req.GetProjectId()),
+		EnvId:     grpcKit.ResolvedEnvID(req.GetEnvId()),
 	}
 	rp, err := s.client.DS.CreateKv(grpcKit.RpcCtx(), r)
 	if err != nil {
@@ -99,7 +102,15 @@ func (s *Service) UpdateKv(ctx context.Context, req *pbcs.UpdateKvReq) (*pbcs.Up
 		return nil, err
 	}
 
-	expirationTime, err := verifySecretVaule(grpcKit, req.SecretType, req.Key, req.Value)
+	// 编辑请求通常不携带 secret_type（如 UI 编辑仅提交 value/memo/secret_hidden），
+	// 而 data-service 更新时会保留存量 KV 的密钥类型，因此需要以存量密钥类型校验新值，
+	// 避免已存在的密码类型 KV 被更新为不满足复杂度要求的弱密码。
+	secretType, err := s.kvSecretTypeForUpdate(grpcKit, req.BizId, req.AppId, req.Key, req.SecretType)
+	if err != nil {
+		return nil, err
+	}
+
+	expirationTime, err := verifySecretVaule(grpcKit, secretType, req.Key, req.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +135,34 @@ func (s *Service) UpdateKv(ctx context.Context, req *pbcs.UpdateKvReq) (*pbcs.Up
 
 	return &pbcs.UpdateKvResp{}, nil
 
+}
+
+// kvSecretTypeForUpdate 获取更新 KV 时用于校验新值的密钥类型。
+// data-service 更新 KV 时不修改密钥类型（保留存量值），因此校验必须基于存量密钥类型；
+// 仅当存量 KV 不存在时回退到请求携带的类型（此时更新会在 data-service 因记录不存在而失败）。
+func (s *Service) kvSecretTypeForUpdate(kit *kit.Kit, bizID, appID uint32, key, reqSecretType string) (
+	string, error) {
+
+	rp, err := s.client.DS.ListKvs(kit.RpcCtx(), &pbds.ListKvsReq{
+		BizId:      bizID,
+		AppId:      appID,
+		Key:        []string{key},
+		All:        true,
+		WithStatus: true,
+		Status:     []string{constant.FileStateAdd, constant.FileStateRevise, constant.FileStateUnchange},
+	})
+	if err != nil {
+		logs.Errorf("list kv failed, err: %v, rid: %s", err, kit.Rid)
+		return "", err
+	}
+
+	for _, kv := range rp.GetDetails() {
+		if kv.GetSpec().GetKey() == key {
+			return kv.GetSpec().GetSecretType(), nil
+		}
+	}
+
+	return reqSecretType, nil
 }
 
 // ListKvs is used to list key-value data.
@@ -206,6 +245,8 @@ func (s *Service) DeleteKv(ctx context.Context, req *pbcs.DeleteKvReq) (*pbcs.De
 			BizId: req.BizId,
 			AppId: req.AppId,
 		},
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	if _, err := s.client.DS.DeleteKv(grpcKit.RpcCtx(), r); err != nil {
 		logs.Errorf("delete kv failed, err: %v, rid: %s", err, grpcKit.Rid)
@@ -233,9 +274,11 @@ func (s *Service) BatchDeleteKv(ctx context.Context, req *pbcs.BatchDeleteAppRes
 	ids = req.GetIds()
 	if req.ExclusionOperation {
 		result, err := s.client.DS.KvFetchIDsExcluding(grpcKit.RpcCtx(), &pbds.KvFetchIDsExcludingReq{
-			BizId: req.BizId,
-			AppId: req.AppId,
-			Ids:   req.GetIds(),
+			BizId:     req.BizId,
+			AppId:     req.AppId,
+			Ids:       req.GetIds(),
+			ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+			EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 		})
 		if err != nil {
 			return nil, err
@@ -263,6 +306,8 @@ func (s *Service) BatchDeleteKv(ctx context.Context, req *pbcs.BatchDeleteAppRes
 					BizId: req.BizId,
 					AppId: req.AppId,
 				},
+				ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+				EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 			}
 			if _, err := s.client.DS.DeleteKv(egCtx, r); err != nil {
 				logs.Errorf("delete kv failed, err: %v, rid: %s", err, grpcKit.Rid)
@@ -336,6 +381,8 @@ func (s *Service) BatchUpsertKvs(ctx context.Context, req *pbcs.BatchUpsertKvsRe
 		AppId:      req.AppId,
 		Kvs:        kvs,
 		ReplaceAll: req.GetReplaceAll(),
+		ProjectId:  grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:      grpcKit.ResolvedEnvID(req.EnvId),
 	}
 	data, err := s.client.DS.BatchUpsertKvs(grpcKit.RpcCtx(), r)
 	if err != nil {
@@ -441,6 +488,8 @@ func (s *Service) CompareKvConflicts(ctx context.Context, req *pbcs.CompareKvCon
 		All:        true,
 		WithStatus: true,
 		Status:     []string{constant.FileStateAdd, constant.FileStateRevise, constant.FileStateUnchange},
+		ProjectId:  grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:      grpcKit.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		logs.Errorf("list kv failed, err: %v, rid: %s", err, grpcKit.Rid)
@@ -453,6 +502,8 @@ func (s *Service) CompareKvConflicts(ctx context.Context, req *pbcs.CompareKvCon
 		AppId:     req.OtherAppId,
 		ReleaseId: req.ReleaseId,
 		All:       true,
+		ProjectId: grpcKit.ResolvedProjectID(req.ProjectId),
+		EnvId:     grpcKit.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		logs.Errorf("list released kv failed, err: %v, rid: %s", err, grpcKit.Rid)
@@ -782,6 +833,15 @@ func verifySecretVaule(kit *kit.Kit, secretType, key, value string) (string, err
 		return "", errors.New(i18n.T(kit, `please fill in the value of configuration item %s first`, key))
 	}
 
+	// 密码类型需要校验复杂度：至少包含大写字母、小写字母、数字、特殊字符中的 3 种
+	if secretType == string(table.SecretTypePassword) {
+		if err := validatePasswordComplexity(value); err != nil {
+			return "", errors.New(i18n.T(kit, `the password of configuration item %s is not complex enough, `+
+				`it must contain at least 3 types of the following: uppercase letters, lowercase letters, `+
+				`numbers and special characters`, key))
+		}
+	}
+
 	expirationTime, err := validatePemContent(value)
 	if secretType == string(table.SecretTypeCertificate) && err != nil {
 		return "", errors.New(i18n.T(kit,
@@ -789,6 +849,42 @@ func verifySecretVaule(kit *kit.Kit, secretType, key, value string) (string, err
 	}
 
 	return expirationTime, nil
+}
+
+// validatePasswordComplexity 校验密码复杂度，要求至少包含大写字母、小写字母、数字、特殊字符中的 3 种。
+func validatePasswordComplexity(password string) error {
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, r := range password {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSpecial = true
+		}
+	}
+
+	types := 0
+	if hasUpper {
+		types++
+	}
+	if hasLower {
+		types++
+	}
+	if hasDigit {
+		types++
+	}
+	if hasSpecial {
+		types++
+	}
+
+	if types < 3 {
+		return errors.New("password complexity is too low")
+	}
+	return nil
 }
 
 // BatchUnDeleteKv 批量恢复删除的kv
@@ -886,12 +982,14 @@ func (s *Service) FindNearExpiryCertKvs(ctx context.Context, req *pbcs.FindNearE
 	}
 
 	resp, err := s.client.DS.FindNearExpiryCertKvs(kit.RpcCtx(), &pbds.FindNearExpiryCertKvsReq{
-		BizId: req.BizId,
-		AppId: req.AppId,
-		All:   req.All,
-		Start: req.Start,
-		Limit: req.Limit,
-		Days:  req.Days,
+		BizId:     req.BizId,
+		AppId:     req.AppId,
+		All:       req.All,
+		Start:     req.Start,
+		Limit:     req.Limit,
+		Days:      req.Days,
+		ProjectId: kit.ResolvedProjectID(req.ProjectId),
+		EnvId:     kit.ResolvedEnvID(req.EnvId),
 	})
 	if err != nil {
 		return nil, err

@@ -37,9 +37,11 @@ type ClientQuerySpec struct {
 
 // ClientQueryAttachment is a client query attachment
 type ClientQueryAttachment struct {
-	BizID    uint32 `gorm:"column:biz_id"`
-	AppID    uint32 `gorm:"column:app_id"`
-	TenantID string `json:"tenant_id" gorm:"column:tenant_id"`
+	BizID     uint32 `gorm:"column:biz_id"`
+	AppID     uint32 `gorm:"column:app_id"`
+	ProjectID uint32 `gorm:"column:project_id" json:"project_id"`
+	EnvID     uint32 `gorm:"column:environment_id" json:"environment_id"`
+	TenantID  string `json:"tenant_id" gorm:"column:tenant_id"`
 }
 
 // SearchType define the search type structure
@@ -167,4 +169,12 @@ func (c *ClientQuery) ResID() uint32 {
 // ResType KvRes interface
 func (c *ClientQuery) ResType() string {
 	return "client_query"
+}
+
+// ProjectID AuditRes interface, 返回查询条件所属的项目 ID。
+func (c *ClientQuery) ProjectID() uint32 {
+	if c.Attachment == nil {
+		return 0
+	}
+	return c.Attachment.ProjectID
 }

@@ -21,6 +21,7 @@ type ListInstancesOption struct {
 	ResourceType string    `json:"resource_type"`
 	ParentType   string    `json:"parent_type"`
 	ParentID     string    `json:"parent_id"`
+	Keyword      string    `json:"keyword"`
 	Page         *BasePage `json:"page"`
 }
 

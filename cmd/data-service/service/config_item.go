@@ -63,7 +63,7 @@ func (s *Service) CreateConfigItem(ctx context.Context, req *pbds.CreateConfigIt
 	}
 
 	// 检测配置项路径冲突以及是否超出服务限制
-	if err := s.checkRestorePrerequisites(grpcKit, req.ConfigItemAttachment.BizId, req.ConfigItemAttachment.AppId,
+	if err := s.checkRestorePrerequisites(grpcKit, req.ConfigItemAttachment.BizId, req.ProjectId, req.EnvId, req.ConfigItemAttachment.AppId,
 		newFiles, nil); err != nil {
 		return nil, err
 	}
@@ -1023,7 +1023,7 @@ func (s *Service) ListConfigItems(ctx context.Context, req *pbds.ListConfigItems
 		}
 	}
 
-	if err = s.setCommitSpecForCIs(grpcKit, configItems); err != nil {
+	if err = s.setCommitSpecForCIs(grpcKit, req.BizId, req.AppId, configItems); err != nil {
 		logs.Errorf("set commit spec for config items failed, err: %v, rid: %s", err, grpcKit.Rid)
 		return nil, err
 	}
@@ -1126,13 +1126,13 @@ func (s *Service) ListConfigItems(ctx context.Context, req *pbds.ListConfigItems
 }
 
 // setCommitSpecForCIs set commit spec for config items
-func (s *Service) setCommitSpecForCIs(kt *kit.Kit, cis []*pbci.ConfigItem) error {
+func (s *Service) setCommitSpecForCIs(kt *kit.Kit, bizID, appID uint32, cis []*pbci.ConfigItem) error {
 	ids := make([]uint32, len(cis))
 	for i, ci := range cis {
 		ids[i] = ci.Id
 	}
 
-	commits, err := s.dao.Commit().BatchListLatestCommits(kt, kt.BizID, kt.AppID, ids)
+	commits, err := s.dao.Commit().BatchListLatestCommits(kt, bizID, appID, ids)
 	if err != nil {
 		logs.Errorf("batch list latest commits failed, err: %v, rid: %s", err, kt.Rid)
 		return err
@@ -1252,7 +1252,7 @@ func (s *Service) UnDeleteConfigItem(ctx context.Context, req *pbds.UnDeleteConf
 	}}
 
 	// 检测配置项路径冲突以及是否超出服务限制
-	if err = s.checkRestorePrerequisites(grpcKit, req.Attachment.BizId, req.Attachment.AppId,
+	if err = s.checkRestorePrerequisites(grpcKit, req.Attachment.BizId, req.ProjectId, req.EnvId, req.Attachment.AppId,
 		newFiles, ci); err != nil {
 		return nil, err
 	}
@@ -1334,7 +1334,7 @@ func (s *Service) UnDeleteConfigItem(ctx context.Context, req *pbds.UnDeleteConf
 }
 
 // 检测恢复配置文件的前置条件
-func (s *Service) checkRestorePrerequisites(kit *kit.Kit, bizID, appID uint32, newFiles []tools.CIUniqueKey,
+func (s *Service) checkRestorePrerequisites(kit *kit.Kit, bizID, projectID, envID, appID uint32, newFiles []tools.CIUniqueKey,
 	ci *table.ConfigItem) error {
 
 	// 获取指定服务下的配置项
@@ -1359,8 +1359,10 @@ func (s *Service) checkRestorePrerequisites(kit *kit.Kit, bizID, appID uint32, n
 	// 获取当前服务配置项数+模板数量
 	configItemCount, err := s.GetTemplateAndNonTemplateCICount(kit.RpcCtx(),
 		&pbds.GetTemplateAndNonTemplateCICountReq{
-			BizId: bizID,
-			AppId: appID,
+			BizId:     bizID,
+			AppId:     appID,
+			ProjectId: projectID,
+			EnvId:     envID,
 		})
 	if err != nil {
 		return err
@@ -1472,7 +1474,7 @@ func (s *Service) CompareConfigItemConflicts(ctx context.Context, req *pbds.Comp
 		return nil, err
 	}
 
-	templateConfig, err := s.handleTemplateConfig(grpcKit, req.GetBizId(), req.GetAppId(),
+	templateConfig, err := s.handleTemplateConfig(grpcKit, req.GetBizId(), req.GetProjectId(), req.GetAppId(),
 		req.GetOtherAppId(), req.GetReleaseId())
 	if err != nil {
 		return nil, err
@@ -1553,7 +1555,7 @@ func (s *Service) handleNonTemplateConfig(grpcKit *kit.Kit, bizID, appID, otherA
 }
 
 // 处理模板套餐配置
-func (s *Service) handleTemplateConfig(grpcKit *kit.Kit, bizID, appID, otherAppId, releaseId uint32) (
+func (s *Service) handleTemplateConfig(grpcKit *kit.Kit, bizID, projectID, appID, otherAppId, releaseId uint32) (
 	[]*pbds.CompareConfigItemConflictsResp_TemplateConfig, error) {
 	templateConfigs := make([]*pbds.CompareConfigItemConflictsResp_TemplateConfig, 0)
 
@@ -1569,7 +1571,7 @@ func (s *Service) handleTemplateConfig(grpcKit *kit.Kit, bizID, appID, otherAppI
 		return templateConfigs, nil
 	}
 
-	noNamespacePackage, err := s.getConfigTemplateSet(grpcKit, bizID, appID)
+	noNamespacePackage, err := s.getConfigTemplateSet(grpcKit, bizID, projectID, appID)
 	if err != nil {
 		return nil, err
 	}
@@ -1591,7 +1593,7 @@ func (s *Service) handleTemplateConfig(grpcKit *kit.Kit, bizID, appID, otherAppI
 	}
 
 	templateSpaceExist, templateSetExist, currentSpaceSetTemplateExist, templateExist, templateSetTemplateExist, err :=
-		s.getTemplateSpaceSetfile(grpcKit, releaseTemplateSpaceIds, releaseTemplateSetIds, releaseTemplateIds)
+		s.getTemplateSpaceSetfile(grpcKit, bizID, projectID, releaseTemplateSpaceIds, releaseTemplateSetIds, releaseTemplateIds)
 	if err != nil {
 		return nil, err
 	}
@@ -1644,10 +1646,10 @@ func (s *Service) handleTemplateConfig(grpcKit *kit.Kit, bizID, appID, otherAppI
 }
 
 // 返回空间、套餐、模板配置数据
-func (s *Service) getTemplateSpaceSetfile(grpcKit *kit.Kit, templateSpaceIds, templateSetIds, templateIds []uint32) (
-	map[uint32]bool, map[uint32]bool, map[string]bool, map[uint32]bool, map[uint32]bool, error) {
+func (s *Service) getTemplateSpaceSetfile(grpcKit *kit.Kit, bizID, projectID uint32, templateSpaceIds, templateSetIds,
+	templateIds []uint32) (map[uint32]bool, map[uint32]bool, map[string]bool, map[uint32]bool, map[uint32]bool, error) {
 	// 获取空间
-	templateSpace, err := s.dao.TemplateSpace().ListByIDs(grpcKit, templateSpaceIds)
+	templateSpace, err := s.dao.TemplateSpace().ListByIDs(grpcKit, bizID, projectID, templateSpaceIds)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -1689,7 +1691,7 @@ func (s *Service) getTemplateSpaceSetfile(grpcKit *kit.Kit, templateSpaceIds, te
 }
 
 // 获取未命名版本的模板套餐
-func (s *Service) getConfigTemplateSet(grpcKit *kit.Kit, bizID, appID uint32) (
+func (s *Service) getConfigTemplateSet(grpcKit *kit.Kit, bizID, projectID, appID uint32) (
 	map[string]bool, error) {
 
 	noNamespacePackage := make(map[string]bool)
@@ -1718,7 +1720,7 @@ func (s *Service) getConfigTemplateSet(grpcKit *kit.Kit, bizID, appID uint32) (
 	tmplSpaceIDs = tools.RemoveDuplicates(tmplSpaceIDs)
 
 	// template space details
-	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(grpcKit, tmplSpaceIDs)
+	tmplSpaces, err := s.dao.TemplateSpace().ListByIDs(grpcKit, bizID, projectID, tmplSpaceIDs)
 	if err != nil {
 		logs.Errorf("list template spaces failed, err: %v, rid: %s", err, grpcKit.Rid)
 		return nil, err
@@ -1730,9 +1732,14 @@ func (s *Service) getConfigTemplateSet(grpcKit *kit.Kit, bizID, appID uint32) (
 
 	details := make([]*pbtset.TemplateSetBriefInfo, len(tmplSets))
 	for idx, t := range tmplSets {
+		// 空间被删除、绑定残留脏 id 等场景 map 会缺行，不应以空指针崩溃暴露
+		spaceName := ""
+		if space := tmplSpaceMap[t.Attachment.TemplateSpaceID]; space != nil {
+			spaceName = space.Spec.Name
+		}
 		details[idx] = &pbtset.TemplateSetBriefInfo{
 			TemplateSpaceId:   t.Attachment.TemplateSpaceID,
-			TemplateSpaceName: tmplSpaceMap[t.Attachment.TemplateSpaceID].Spec.Name,
+			TemplateSpaceName: spaceName,
 			TemplateSetId:     t.ID,
 			TemplateSetName:   tmplSetMap[t.ID].Spec.Name,
 		}
@@ -1894,7 +1901,7 @@ func (s *Service) RemoveAppBoundTmplSet(ctx context.Context, req *pbds.RemoveApp
 	binding, err := s.dao.AppTemplateBinding().GetAppTemplateBindingByAppID(kit, req.BizId, req.AppId)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kit, "get reference template set under this app failed, err: %s", err))
+			"%s", i18n.T(kit, "get reference template set under this app failed, err: %s", err))
 	}
 
 	specBindings := make([]*table.TemplateBinding, 0, len(binding.Spec.Bindings))
@@ -1929,7 +1936,7 @@ func (s *Service) RemoveAppBoundTmplSet(ctx context.Context, req *pbds.RemoveApp
 	templateSets, err := s.dao.TemplateSet().ListByIDs(kit, templateSetIDs)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kit, "list template sets by template set ids failed, err: %s", err))
+			"%s", i18n.T(kit, "list template sets by template set ids failed, err: %s", err))
 	}
 
 	templateSpaceIDs := []uint32{}
@@ -1958,7 +1965,7 @@ func (s *Service) RemoveAppBoundTmplSet(ctx context.Context, req *pbds.RemoveApp
 
 	if err = s.dao.AppTemplateBinding().Update(kit, appTemplateBinding, req.TemplateSetId); err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed,
-			i18n.T(kit, "remove the template set bound to the app failed, err: %s", err))
+			"%s", i18n.T(kit, "remove the template set bound to the app failed, err: %s", err))
 	}
 
 	return &pbbase.EmptyResp{}, nil
