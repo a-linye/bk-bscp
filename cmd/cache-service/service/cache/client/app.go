@@ -53,7 +53,9 @@ func (c *client) GetAppID(kt *kit.Kit, bizID, projectID, envID uint32, appName s
 	}
 
 	// do not find app in the cache, then try get from db directly.
-	state := c.rLock.Acquire(keys.ResKind.AppID(bizID, appName))
+	// 锁键与缓存键使用相同的 project/env 作用域维度，避免不同项目/环境下的同名应用
+	// 争抢同一把刷新锁，导致后到请求读取自己的作用域键未命中而误报 RecordNotFound。
+	state := c.rLock.Acquire(keys.ResKind.AppID(bizID, projectID, envID, appName))
 	if state.Acquired || (!state.Acquired && state.WithLimit) {
 		start := time.Now()
 		appID, err = c.refreshAppIDCache(kt, bizID, projectID, envID, appName)

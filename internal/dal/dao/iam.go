@@ -64,7 +64,7 @@ func (r *iamDao) ListInstances(kt *kit.Kit, opts *types.ListInstancesOption) (
 	)
 	switch opts.ResourceType {
 	case meta.App.String():
-		bizID, err := strconv.Atoi(opts.ParentID)
+		bizID, err := strconv.ParseUint(opts.ParentID, 10, 32)
 		if err != nil {
 			return nil, err
 		}

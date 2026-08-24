@@ -33,12 +33,13 @@ import (
 func (p *proxy) CheckDefaultTmplSpace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bizIDStr := chi.URLParam(r, "biz_id")
-		bizIDInt, err := strconv.Atoi(bizIDStr)
+		// ParseUint 限定 32 位无符号范围，避免 int 到 uint32 转换时的静默截断
+		bizID64, err := strconv.ParseUint(bizIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
-		bizID := uint32(bizIDInt)
+		bizID := uint32(bizID64)
 		kt := kit.MustGetKit(r.Context())
 		// 默认模板空间按 业务+项目 维度判断是否已创建，命中缓存直接放行
 		if bizsOfTS.Has(bizID, kt.ProjectID) {
@@ -148,27 +149,31 @@ func (p *proxy) AppProjectEnvVerified(next http.Handler) http.Handler {
 			return
 		}
 
-		appID, err := strconv.Atoi(appIDStr)
+		// ParseUint 限定 32 位无符号范围，避免 int 到 uint32 转换时的静默截断
+		appID, err := strconv.ParseUint(appIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
 
+		// ParseUint(bitSize=32) 已确保 appID 落在 uint32 范围内，收窄转换安全。
+		appID32 := uint32(appID)
+
 		// 调用 config-server GetApp 校验 App 归属于该项目+环境
 		_, err = p.cfgClient.GetApp(kt.RpcCtx(), &pbcs.GetAppReq{
 			BizId:     kt.BizID,
-			AppId:     uint32(appID),
+			AppId:     appID32,
 			ProjectId: kt.ProjectID,
 			EnvId:     kt.EnvID,
 		})
 		if err != nil {
 			logs.Errorf("verify app project/env failed, bizId=%d appId=%d projectId=%d envId=%d err=%v rid=%s",
-				kt.BizID, uint32(appID), kt.ProjectID, kt.EnvID, err, kt.Rid)
+				kt.BizID, appID32, kt.ProjectID, kt.EnvID, err, kt.Rid)
 			render.Render(w, r, rest.BadRequest(fmt.Errorf("app does not belong to the specified project or environment")))
 			return
 		}
 
-		kt.AppID = uint32(appID)
+		kt.AppID = appID32
 
 		next.ServeHTTP(w, r)
 	})
@@ -188,21 +193,24 @@ func (p *proxy) HookProjectVerified(next http.Handler) http.Handler {
 			return
 		}
 
-		hookID, err := strconv.Atoi(hookIDStr)
+		hookID, err := strconv.ParseUint(hookIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
 
+		// ParseUint(bitSize=32) 已确保 hookID 落在 uint32 范围内，收窄转换安全。
+		hookID32 := uint32(hookID)
+
 		// 调用 config-server GetHook 校验 Hook 归属于该项目
 		_, err = p.cfgClient.GetHook(kt.RpcCtx(), &pbcs.GetHookReq{
 			BizId:     kt.BizID,
 			ProjectId: kt.ProjectID,
-			HookId:    uint32(hookID),
+			HookId:    hookID32,
 		})
 		if err != nil {
 			logs.Errorf("verify hook project failed, bizId=%d hookId=%d projectId=%d err=%v rid=%s",
-				kt.BizID, uint32(hookID), kt.ProjectID, err, kt.Rid)
+				kt.BizID, hookID32, kt.ProjectID, err, kt.Rid)
 			render.Render(w, r, rest.BadRequest(fmt.Errorf("hook does not belong to the specified project")))
 			return
 		}
@@ -226,7 +234,7 @@ func (p *proxy) GroupProjectVerified(next http.Handler) http.Handler {
 			return
 		}
 
-		groupID, err := strconv.Atoi(groupIDStr)
+		groupID, err := strconv.ParseUint(groupIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
@@ -265,7 +273,7 @@ func (p *proxy) TemplateSpaceProjectVerified(next http.Handler) http.Handler {
 			return
 		}
 
-		templateSpaceID, err := strconv.Atoi(templateSpaceIDStr)
+		templateSpaceID, err := strconv.ParseUint(templateSpaceIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
@@ -303,7 +311,7 @@ func (p *proxy) TemplateVariableProjectVerified(next http.Handler) http.Handler 
 			return
 		}
 
-		templateVarID, err := strconv.Atoi(templateVarIDStr)
+		templateVarID, err := strconv.ParseUint(templateVarIDStr, 10, 32)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return

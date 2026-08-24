@@ -124,7 +124,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 
 	bizIDs := md[lowBizIDKey]
 	if len(bizIDs) != 0 {
-		bizID, err := strconv.ParseUint(bizIDs[0], 10, 64)
+		bizID, err := strconv.ParseUint(bizIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowBizID %s", bizIDs[0])
 		} else {
@@ -133,7 +133,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 	}
 	appIDs := md[lowAppIDKey]
 	if len(appIDs) != 0 {
-		appID, err := strconv.ParseUint(appIDs[0], 10, 64)
+		appID, err := strconv.ParseUint(appIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowBizID %s", appIDs[0])
 		} else {
@@ -143,7 +143,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 
 	projectIDs := md[lowProjectIDKey]
 	if len(projectIDs) != 0 {
-		projectID, err := strconv.ParseUint(projectIDs[0], 10, 64)
+		projectID, err := strconv.ParseUint(projectIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowProjectID %s", projectIDs[0])
 		} else {
@@ -153,7 +153,7 @@ func FromGrpcContext(ctx context.Context) *Kit {
 
 	envIDs := md[lowEnvKey]
 	if len(envIDs) != 0 {
-		envID, err := strconv.ParseUint(envIDs[0], 10, 64)
+		envID, err := strconv.ParseUint(envIDs[0], 10, 32)
 		if err != nil {
 			klog.ErrorS(err, "parse lowEnvID %s", envIDs[0])
 		} else {

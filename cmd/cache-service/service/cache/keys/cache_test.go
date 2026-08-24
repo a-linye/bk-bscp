@@ -37,6 +37,20 @@ func TestAppIDKeyIsolation(t *testing.T) {
 	}
 }
 
+// TestAppIDLockKeyIsolation 验证 app-id 刷新锁键与缓存键使用相同的 project/env 作用域维度，
+// 避免不同项目/环境下的同名应用争抢同一把锁导致误报 RecordNotFound。
+func TestAppIDLockKeyIsolation(t *testing.T) {
+	if ResKind.AppID(1, 2, 3, "app") == ResKind.AppID(1, 2, 4, "app") {
+		t.Fatal("app id lock key collides across envs")
+	}
+	if ResKind.AppID(1, 2, 3, "app") == ResKind.AppID(1, 3, 3, "app") {
+		t.Fatal("app id lock key collides across projects")
+	}
+	if ResKind.AppID(1, 2, 3, "app") != "app-id-1-2-3-app" {
+		t.Fatalf("unexpected app id lock key format, got: %s", ResKind.AppID(1, 2, 3, "app"))
+	}
+}
+
 // TestCredentialKeyIsolation 验证 credential 缓存 key 带项目维度，且维度为零时保持旧格式。
 func TestCredentialKeyIsolation(t *testing.T) {
 	legacy := Key.Credential(1, 0, "tk")

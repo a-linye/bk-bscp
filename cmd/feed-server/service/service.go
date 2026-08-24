@@ -307,8 +307,8 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bizIdStr := chi.URLParam(r, "biz_id")
-	bizID, _ := strconv.Atoi(bizIdStr)
-	if bizID == 0 {
+	bizID, err := strconv.ParseUint(bizIdStr, 10, 32)
+	if err != nil {
 		render.Render(w, r, rest.BadRequest(errors.New("biz id is required")))
 		return
 	}
@@ -334,8 +334,8 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.bll.AppCache().EnsureTenantID(kt, uint32(bizID)); err != nil {
-		render.Render(w, r, rest.BadRequest(fmt.Errorf("ensure tenant id for biz %d failed: %v", bizID, err)))
+	if errE := s.bll.AppCache().EnsureTenantID(kt, uint32(bizID)); errE != nil {
+		render.Render(w, r, rest.BadRequest(fmt.Errorf("ensure tenant id for biz %d failed: %v", bizID, errE)))
 		return
 	}
 
@@ -347,13 +347,13 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	hasEnvPathParam := false
 	if p := chi.URLParam(r, "project_id"); p != "" {
 		hasProjectPathParam = true
-		if pid, err := strconv.ParseUint(p, 10, 32); err == nil {
+		if pid, errP := strconv.ParseUint(p, 10, 32); errP == nil {
 			projectID = uint32(pid)
 		}
 	}
 	if e := chi.URLParam(r, "env_id"); e != "" {
 		hasEnvPathParam = true
-		if eid, err := strconv.ParseUint(e, 10, 32); err == nil {
+		if eid, errE := strconv.ParseUint(e, 10, 32); errE == nil {
 			envID = uint32(eid)
 		}
 	}
