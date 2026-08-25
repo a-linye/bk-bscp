@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 )
 
 // templateSpaceResult stores the created template space info per biz
@@ -45,7 +47,7 @@ func (m *Migrator) migrateTemplateSpaces() error {
 
 // ensureTemplateSpace creates or finds an existing template space for a biz
 func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, error) {
-	const spaceName = "config_delivery"
+	const spaceName = constant.CONFIG_DELIVERY
 	const defaultSetName = "默认套餐"
 	now := time.Now()
 	tenantID := m.cfg.Migration.TenantID
@@ -72,11 +74,15 @@ func (m *Migrator) ensureTemplateSpace(bizID uint32) (*templateSpaceResult, erro
 			return nil, fmt.Errorf("allocate template_space id failed: %w", err)
 		}
 
+		// config_delivery 是业务级共享的系统内置空间，服务于进程配置管理，产品上不引入项目
+		// 概念，project_id 固定为哨兵值 0。不可留空：唯一索引 (tenant_id, biz_id,
+		// project_id, name) 中 NULL ≠ NULL，业务内唯一性会失效且无法自愈。
 		err = m.targetDB.Exec(
-			"INSERT INTO template_spaces (id, name, memo, biz_id, tenant_id, creator, reviser, created_at, updated_at) "+
-				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO template_spaces "+
+				"(id, name, memo, biz_id, project_id, tenant_id, creator, reviser, created_at, updated_at) "+
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			spaceID, spaceName, "GSEKit migration config delivery space",
-			bizID, tenantID, creator, reviser, now, now,
+			bizID, constant.GlobalProjectID, tenantID, creator, reviser, now, now,
 		).Error
 		if err != nil {
 			return nil, fmt.Errorf("insert template_space failed: %w", err)

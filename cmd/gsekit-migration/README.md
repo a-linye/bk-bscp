@@ -99,11 +99,14 @@ bk-bscp-gsekit-migration migrate -c <配置文件路径> --biz-ids <业务ID列�
 
 工具按以下顺序依次执行迁移：
 
-1. **创建模板空间** — 在目标库中为每个业务创建名为 `config_delivery` 的模板空间
+1. **创建模板空间** — 在目标库中为每个业务创建名为 `config_delivery` 的模板空间。该空间是业务级共享的系统内置空间，服务于进程配置管理，产品上不引入项目概念，`project_id` 固定写入哨兵值 `0`（`constant.GlobalProjectID`），与 BSCP 主干中 `config_delivery` 的处理方式一致。不能留空：唯一索引 `(tenant_id, biz_id, project_id, name)` 中 `NULL ≠ NULL`，留空会让业务内唯一性失效且无法自愈
 2. **迁移进程数据** — 将 `gsekit_process` 表数据迁移到 BSCP 的 `processes` 表
 3. **迁移进程实例** — 将 `gsekit_processinst` 表数据迁移到 BSCP 的 `process_instances` 表
 4. **迁移配置模板** — 将配置模板及版本迁移到 BSCP 的 `templates` / `template_revisions` 表，同时上传模板内容到制品库
 5. **迁移配置实例** — 将配置实例迁移到 BSCP 的 `config_instances` 表
+
+> 目标库需已执行项目与环境数据隔离的 DB migration（`20260817154117_add_core_table_columns` 及之后）。
+> 未执行时第 1 步会因 `template_spaces` 缺少 `project_id` 列而报 `Unknown column` 并中止，此时不会产生任何写入。
 
 ### 使用示例
 
