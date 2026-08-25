@@ -31,13 +31,15 @@ import (
 )
 
 func TestGetExecutionUser(t *testing.T) {
+	// 断言字面量而不是常量本身：Windows 填 Administrator 时 GSE agent 无法完成 logon，
+	// 脚本在启动阶段就以 scriptExitCode=126 失败，screen 为空、没有任何可定位的线索。
 	tests := []struct {
 		name     string
 		fileMode table.FileMode
 		want     string
 	}{
-		{"linux uses root", table.Unix, linuxExecutionUser},
-		{"windows uses administrator", table.Windows, windowsExecutionUser},
+		{"linux uses root", table.Unix, "root"},
+		{"windows uses system", table.Windows, "system"},
 	}
 
 	for _, tt := range tests {
@@ -65,10 +67,15 @@ func TestBuildLinuxPushScriptAtomicOrder(t *testing.T) {
 	script, err := builder.BuildConfigPushScript("Y29udGVudA==", "/etc/app/app.conf", "444", "www-data", "www-data")
 	require.NoError(t, err)
 
+	// 属主与属组只在开头引用一次，其余位置统一走变量：这几个值曾经作为 6 个位置参数
+	// 反复出现在同一个格式串里，顺序错一对就会把属主和属组写反
+	assert.Contains(t, script, `OWNER='www-data'`)
+	assert.Contains(t, script, `GROUP='www-data'`)
+
 	assert.Contains(t, script, `readlink -f -- "$TARGET_PATH"`)
 	assert.Contains(t, script, `chmod 444 -- "$TMP_PATH"`)
-	assert.Contains(t, script, `chown 'www-data':'www-data' -- "$TMP_PATH"`)
-	assert.Contains(t, script, `chown 'www-data':'www-data' -- "$BACKUP_PATH"`)
+	assert.Contains(t, script, `chown "$OWNER:$GROUP" -- "$TMP_PATH"`)
+	assert.Contains(t, script, `chown "$OWNER:$GROUP" -- "$BACKUP_PATH"`)
 	assert.Contains(t, script, `mv -f -- "$TMP_PATH" "$TARGET_PATH"`)
 	assert.Contains(t, script, `trap 'rm -f -- "$TMP_PATH"' EXIT`)
 
@@ -83,8 +90,159 @@ func TestBuildLinuxPushScriptAtomicOrder(t *testing.T) {
 	assert.Less(t, orderOf("readlink -f"), orderOf("BACKUP_PATH="))
 	assert.Less(t, orderOf(`trap 'rm -f`), orderOf("BACKUP_PATH="))
 	assert.Less(t, orderOf("base64 -d"), orderOf("chmod 444"))
-	assert.Less(t, orderOf("chmod 444"), orderOf(`chown 'www-data':'www-data' -- "$TMP_PATH"`))
-	assert.Less(t, orderOf(`chown 'www-data':'www-data' -- "$TMP_PATH"`), orderOf("mv -f --"))
+	assert.Less(t, orderOf("chmod 444"), orderOf(`chown "$OWNER:$GROUP" -- "$TMP_PATH"`))
+	assert.Less(t, orderOf(`chown "$OWNER:$GROUP" -- "$TMP_PATH"`), orderOf("mv -f --"))
+}
+
+// TestBuildLinuxPushScriptChownsOnlyNewDirs 目录归属只能作用于本次 mkdir 新建出来的层级。
+// 路径上已存在的目录往往是 /data、/etc 这类被多方共用的目录，一旦被递归 chown，
+// 与本次下发无关的文件会跟着换属主，是比配置下发失败严重得多的事故。
+func TestBuildLinuxPushScriptChownsOnlyNewDirs(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Unix}
+
+	script, err := builder.BuildConfigPushScript("Y29udGVudA==", "/data/app/conf/app.conf", "444",
+		"www-data", "www-data")
+	require.NoError(t, err)
+
+	assert.NotContains(t, script, "chown -R", "递归 chown 会改掉已存在的共享目录属主")
+	// 自底向上 chown，遇到最深的已存在祖先即停止
+	assert.Contains(t, script, `while [ "$CREATED_DIR" != "$DIR_ANCESTOR" ] && [ "$CREATED_DIR" != "/" ]; do`)
+	assert.Contains(t, script, `chown "$OWNER:$GROUP" -- "$CREATED_DIR"`)
+
+	// chown 失败时只拆本次新建的空目录，好让重试能重新收集。不得 rm -rf，也不得越过 DIR_ANCESTOR
+	assert.NotContains(t, script, "rm -rf", "不得递归删除目录")
+	assert.Contains(t, script, `rmdir -- "$CLEAN_DIR"`)
+	assert.Contains(t, script, `while [ "$CLEAN_DIR" != "$DIR_ANCESTOR" ] && [ "$CLEAN_DIR" != "/" ]; do`)
+	assert.Contains(t, script, "CHOWN_DIR_FAILED")
+
+	// 目录权限必须沿用 mkdir 的默认结果：用例特意取了不含 x 位的权限值，
+	// 一旦被套到目录上，目录就无法进入
+	assert.NotContains(t, script, `chmod 444 -- "$CREATED_DIR"`)
+
+	orderOf := func(needle string) int {
+		idx := strings.Index(script, needle)
+		require.NotEqual(t, -1, idx, "script should contain %q", needle)
+		return idx
+	}
+	// 祖先必须在 mkdir 之前记下来，否则建完目录就分不清哪几层是新建的
+	assert.Less(t, orderOf(`while [ ! -d "$DIR_ANCESTOR" ]`), orderOf(`mkdir -p -- "$TARGET_DIR"`))
+	assert.Less(t, orderOf(`mkdir -p -- "$TARGET_DIR"`), orderOf(`chown "$OWNER:$GROUP" -- "$CREATED_DIR"`))
+	// 已存在的配置目录不能每次都被 chown，否则会改掉业务原来的目录属主
+	assert.NotContains(t, script, `chown "$OWNER:$GROUP" -- "$TARGET_DIR"`)
+}
+
+// TestLinuxPushScriptCreatesMissingDirs 目标路径上的目录不存在时应逐层建出来并完成下发
+func TestLinuxPushScriptCreatesMissingDirs(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "a", "b", "c", "app.conf")
+
+	out, err := runPushScript(t, target, "new content", "644", 5)
+	require.NoError(t, err, "script output: %s", out)
+
+	got, err := os.ReadFile(target)
+	require.NoError(t, err)
+	assert.Equal(t, "new content", string(got))
+
+	// 新建的目录必须可进入，否则业务进程读不到配置
+	for _, sub := range []string{"a", filepath.Join("a", "b"), filepath.Join("a", "b", "c")} {
+		info, statErr := os.Stat(filepath.Join(dir, sub))
+		require.NoError(t, statErr)
+		require.True(t, info.IsDir())
+		assert.NotZero(t, info.Mode().Perm()&0o100, "目录缺少 x 位会导致无法进入: %s", sub)
+	}
+}
+
+// TestLinuxPushScriptFailsBeforeTouchingDiskWhenOwnerUnresolvable 属主或属组解析不出来时，
+// 必须在 mkdir 之前退出。同目录并发下发时三个任务都会在预检失败，不会建目录、不会写文件。
+func TestLinuxPushScriptFailsBeforeTouchingDiskWhenOwnerUnresolvable(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	owner, group := currentOwner(t)
+	tests := []struct {
+		name       string
+		owner      string
+		group      string
+		wantOutput string
+	}{
+		{"missing user", "bscp-user-does-not-exist", group, "OWNER_NOT_FOUND"},
+		{"missing group", owner, "bscp-group-does-not-exist", "GROUP_NOT_FOUND"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			target := filepath.Join(dir, "a", "b", "app.conf")
+
+			builder := &ScriptBuilder{FileMode: table.Unix, MaxBackups: 5}
+			script, err := builder.BuildConfigPushScript(
+				base64.StdEncoding.EncodeToString([]byte("new content")), target, "644", tt.owner, tt.group)
+			require.NoError(t, err)
+
+			scriptPath := filepath.Join(t.TempDir(), "push.sh")
+			require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0o700))
+
+			out, err := exec.Command("bash", scriptPath).CombinedOutput()
+			require.Error(t, err, "script should fail when the account cannot be resolved, output: %s", out)
+			assert.Contains(t, string(out), tt.wantOutput)
+
+			_, statErr := os.Stat(filepath.Join(dir, "a"))
+			assert.True(t, os.IsNotExist(statErr), "预检失败时一个目录都不该建出来, output: %s", out)
+
+			assertNoTempLeftover(t, dir)
+		})
+	}
+}
+
+// TestLinuxPushScriptAcceptsNumericOwner 属主字段是自由文本，填数字 uid/gid 是合法用法：
+// chown 直接把它当 id 用，不要求 passwd/group 里有同名条目。
+func TestLinuxPushScriptAcceptsNumericOwner(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "app.conf")
+
+	// 取当前进程的 uid/gid，非 root 下 chown 到自身也是允许的
+	builder := &ScriptBuilder{FileMode: table.Unix, MaxBackups: 5}
+	script, err := builder.BuildConfigPushScript(
+		base64.StdEncoding.EncodeToString([]byte("new content")), target, "644",
+		strconv.Itoa(os.Getuid()), strconv.Itoa(os.Getgid()))
+	require.NoError(t, err)
+
+	scriptPath := filepath.Join(t.TempDir(), "push.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(script), 0o700))
+
+	out, err := exec.Command("bash", scriptPath).CombinedOutput()
+	require.NoError(t, err, "纯数字 uid/gid 应能下发, output: %s", out)
+
+	got, readErr := os.ReadFile(target)
+	require.NoError(t, readErr)
+	assert.Equal(t, "new content", string(got))
+}
+
+// TestBuildLinuxPushScriptValidatesAccountsFirst 校验必须排在所有写操作之前。
+func TestBuildLinuxPushScriptValidatesAccountsFirst(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Unix}
+
+	script, err := builder.BuildConfigPushScript("Y29udGVudA==", "/data/app/conf/app.conf", "644",
+		"www-data", "www-data")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, `id -u -- "$OWNER"`)
+	assert.Contains(t, script, `getent group -- "$GROUP"`)
+	assert.Contains(t, script, "OWNER_NOT_FOUND")
+	assert.Contains(t, script, "GROUP_NOT_FOUND")
+
+	orderOf := func(needle string) int {
+		idx := strings.Index(script, needle)
+		require.NotEqual(t, -1, idx, "script should contain %q", needle)
+		return idx
+	}
+	assert.Less(t, orderOf(`id -u -- "$OWNER"`), orderOf(`mkdir -p -- "$TARGET_DIR"`))
+	assert.Less(t, orderOf(`getent group -- "$GROUP"`), orderOf(`mkdir -p -- "$TARGET_DIR"`))
 }
 
 // TestBuildLinuxPushScriptPreservesSELinuxContext 原子替换换了 inode，新文件只能拿到目录的默认
@@ -104,7 +262,7 @@ func TestBuildLinuxPushScriptPreservesSELinuxContext(t *testing.T) {
 
 	chconAt := strings.Index(script, "chcon --reference")
 	mvAt := strings.Index(script, "mv -f --")
-	chownAt := strings.Index(script, `chown 'root':'root' -- "$TMP_PATH"`)
+	chownAt := strings.Index(script, `chown "$OWNER:$GROUP" -- "$TMP_PATH"`)
 	require.NotEqual(t, -1, chconAt)
 	require.NotEqual(t, -1, mvAt)
 	require.NotEqual(t, -1, chownAt)
@@ -228,8 +386,9 @@ func TestLinuxPushScriptKeepsMaxBackups(t *testing.T) {
 	assert.Len(t, backups, maxBackups)
 }
 
-// TestLinuxPushScriptKeepsTargetIntactOnChownFailure 覆盖 chown 失败：
-// 属主设置在临时文件上，失败时目标文件必须保持原状且不留临时文件残留。
+// TestLinuxPushScriptKeepsTargetIntactOnChownFailure 属主无法解析时，已存在的目标文件必须
+// 保持原状：既不能被覆盖，也不能留下临时文件或多出一份备份。前置校验在备份之前就退出，
+// 即便校验被绕过（比如账号解析在校验之后才坏掉），属主也只设置在临时文件上，目标同样不受影响。
 func TestLinuxPushScriptKeepsTargetIntactOnChownFailure(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not available")
@@ -310,6 +469,139 @@ func TestBuildWindowsPushScriptGuardsDecodeAndMkdir(t *testing.T) {
 	require.NotEqual(t, -1, mkdirAt, "建目录失败必须当场终止")
 	require.NotEqual(t, -1, decodeAt)
 	assert.Less(t, mkdirAt, decodeAt)
+}
+
+// TestBuildWindowsPushScriptChownsOnlyNewDirs 与 Linux 侧同一个约束：目录归属只能作用于
+// 本次 mkdir 新建出来的层级。cmd 的 mkdir 同样是递归的，建完就分不清哪几层是新建的，
+// 因此必须在 mkdir 之前把待创建的层级记下来。
+func TestBuildWindowsPushScriptChownsOnlyNewDirs(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\app\conf\sub\app.conf`, "", "appuser", "appgroup")
+	require.NoError(t, err)
+
+	// 逐级上溯收集待创建层级，遇到已存在的目录即停止
+	assert.Contains(t, script, `if exist "!DIR_CUR!\" goto collect_new_dirs_done`)
+	assert.Contains(t, script, `set "NEW_DIR_!NEW_DIR_COUNT!=!DIR_CUR!"`)
+	// 上溯到驱动器根后父目录不再变化，靠这个条件收尾；缺了它路径异常时会死循环
+	assert.Contains(t, script, `if "!DIR_PARENT!"=="!DIR_CUR!" goto collect_new_dirs_done`)
+
+	// Windows 下属主不带访问权，必须显式授权，否则该账号进不了自己的配置目录
+	assert.Contains(t, script, `icacls "!NEW_DIR!" /setowner "appuser"`)
+	assert.Contains(t, script, `icacls "!NEW_DIR!" /grant:r "appuser:(F)"`)
+	// 目录的遍历需要 execute 权限，属组必须是 RX 而不是文件那边的 R
+	assert.Contains(t, script, `icacls "!NEW_DIR!" /grant:r "appgroup:(RX)"`)
+
+	// 不得带继承标记：否则目录内后续创建的文件都会被套上这套权限。
+	// 逐条命令核对而不是全文搜索，避免被注释里的字面量骗过
+	for _, line := range strings.Split(script, "\n") {
+		cmd := strings.TrimSpace(line)
+		if !strings.HasPrefix(cmd, "icacls ") {
+			continue
+		}
+		assert.NotContains(t, cmd, "(OI)", "icacls 不应带对象继承标记: %s", cmd)
+		assert.NotContains(t, cmd, "(CI)", "icacls 不应带容器继承标记: %s", cmd)
+	}
+
+	orderOf := func(needle string) int {
+		idx := strings.Index(script, needle)
+		require.NotEqual(t, -1, idx, "script should contain %q", needle)
+		return idx
+	}
+	// 层级必须在 mkdir 之前收集，否则收集到的永远是空集
+	assert.Less(t, orderOf(":collect_new_dirs"), orderOf(`mkdir "!TARGET_DIR!"`))
+	assert.Less(t, orderOf(`mkdir "!TARGET_DIR!"`), orderOf(`icacls "!NEW_DIR!" /setowner`))
+	// 目录授权要早于备份：备份文件就落在这个目录里
+	assert.Less(t, orderOf(`icacls "!NEW_DIR!" /setowner`), orderOf("BACKUP_FULL_PATH="))
+}
+
+// TestBuildWindowsPushScriptDirAclFailureAbortsAndCleansUp 目录 icacls 失败若只打 WARN
+// 就继续下发：mkdir 已经把目录建出来，下次 NEW_DIR_COUNT=0，永远不会再修 ACL，
+// 任务却一直报成功，模板账号进不了自己的配置目录。必须当场失败，并删掉本次新建的空目录。
+func TestBuildWindowsPushScriptDirAclFailureAbortsAndCleansUp(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\app\conf\sub\app.conf`, "", "appuser", "appgroup")
+	require.NoError(t, err)
+
+	assert.NotContains(t, script, `echo [WARN] icacls /setowner failed on !NEW_DIR!`,
+		"目录授权失败不能再只打 WARN")
+	assert.NotContains(t, script, `echo [WARN] icacls grant owner failed on !NEW_DIR!`)
+	assert.NotContains(t, script, `echo [WARN] icacls grant group failed on !NEW_DIR!`)
+
+	assert.Contains(t, script, "ACL_FAILED")
+	assert.Contains(t, script, "goto cleanup_new_dirs")
+	assert.Contains(t, script, ":cleanup_new_dirs")
+	assert.Contains(t, script, `rmdir "!NEW_DIR!"`)
+	assert.Contains(t, script, `exit /b 1`)
+
+	// 成功路径必须跳过清理标签，否则正常下发也会把刚建的目录删掉
+	assert.Contains(t, script, "goto :eof")
+	eofAt := strings.Index(script, "goto :eof")
+	cleanupAt := strings.Index(script, ":cleanup_new_dirs")
+	require.NotEqual(t, -1, eofAt)
+	require.NotEqual(t, -1, cleanupAt)
+	assert.Less(t, eofAt, cleanupAt)
+}
+
+// TestBuildWindowsPushScriptValidatesAccountsFirst 写盘前用 NTAccount 解析属主/属组。
+// 同目录并发时三个任务都会在预检失败，不会 mkdir，已存在的 conf 也不会被改属主。
+func TestBuildWindowsPushScriptValidatesAccountsFirst(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\app\conf\sub\app.conf`, "", "appuser", "appgroup")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, "OWNER_NOT_FOUND")
+	assert.Contains(t, script, "GROUP_NOT_FOUND")
+	assert.Contains(t, script, `[System.Security.Principal.NTAccount]'appuser'`)
+	assert.Contains(t, script, `[System.Security.Principal.NTAccount]'appgroup'`)
+	assert.NotContains(t, script, `icacls "!TARGET_DIR!" /setowner`,
+		"已存在的配置目录不能每次都被改属主")
+
+	orderOf := func(needle string) int {
+		idx := strings.Index(script, needle)
+		require.NotEqual(t, -1, idx, "script should contain %q", needle)
+		return idx
+	}
+	assert.Less(t, orderOf("OWNER_NOT_FOUND"), orderOf(`mkdir "!TARGET_DIR!"`))
+	assert.Less(t, orderOf("GROUP_NOT_FOUND"), orderOf(`mkdir "!TARGET_DIR!"`))
+}
+
+// TestBuildWindowsPushScriptFileAclFailureAborts 文件级 icacls 若只 WARN，目录已在时
+// 坏属主仍会写出配置并报成功。必须失败退出。
+func TestBuildWindowsPushScriptFileAclFailureAborts(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\app\conf\sub\app.conf`, "", "appuser", "appgroup")
+	require.NoError(t, err)
+
+	assert.NotContains(t, script, `echo [WARN] icacls /setowner failed, errorlevel=`)
+	assert.NotContains(t, script, `echo [WARN] icacls grant owner full control failed`)
+	assert.NotContains(t, script, `echo [WARN] icacls grant group read failed`)
+	assert.Contains(t, script, `icacls "%TARGET_PATH%" /setowner "appuser"`)
+	assert.Contains(t, script, "[ERROR] icacls /setowner failed, errorlevel=")
+}
+
+// TestBuildWindowsPushScriptEscapesBatchTokens cmd 的 %%i / %%n 与 %VAR% 都要经 fmt.Sprintf
+// 转义，漏一层就会生成语法错误或把变量名当成格式动词，而这类问题在 Go 侧不会报错。
+func TestBuildWindowsPushScriptEscapesBatchTokens(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\app\conf\app.conf`, "", "appuser", "appgroup")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, `for %%i in ("!DIR_CUR!") do set "DIR_PARENT=%%~dpi"`)
+	assert.Contains(t, script, `for /l %%n in (1,1,!NEW_DIR_COUNT!) do (`)
+	assert.Contains(t, script, `set "NEW_DIR=!NEW_DIR_%%n!"`)
+	// 转义漏了会退化成单个 %，cmd 会把 %i / %n 当成未定义变量而展开为空
+	assert.NotContains(t, script, `for %i in`)
+	assert.NotContains(t, script, `for /l %n in`)
 }
 
 // TestBuildWindowsPushScriptChunksBase64 base64 曾经整份写在一行 `echo <b64> > "!BSCP_TMP!"` 里。

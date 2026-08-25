@@ -30,8 +30,10 @@ const (
 	// defaultMaxBackups 是默认的脚本备份文件最大数量，超过后会删除最旧的备份文件
 	defaultMaxBackups = 5
 	// GSE 脚本执行账号
-	linuxExecutionUser   = "root"
-	windowsExecutionUser = "Administrator"
+	linuxExecutionUser = "root"
+	// windowsExecutionUser 只能是 system。bkop 环境 window 类型机器需要传入密码。
+	// gse 建议使用 system 账号执行
+	windowsExecutionUser = "system"
 )
 
 // ScriptBuilder 根据 FileMode (OS 类型) 构建不同平台的脚本
@@ -81,6 +83,7 @@ func shellQuote(s string) string {
 var fileModeRe = regexp.MustCompile(`^[0-7]{3,4}$`)
 
 // buildLinuxPushScript 构建 Linux 配置下发脚本
+// nolint:funlen
 func buildLinuxPushScript(base64Content, absPath, fileMode, owner, group string, maxBackups int) (string, error) {
 	if !strings.HasPrefix(absPath, "/") {
 		return "", fmt.Errorf("absPath must be absolute")
@@ -95,8 +98,29 @@ set -euo pipefail
 
 TARGET_PATH=%s
 MAX_BACKUPS=%d
+OWNER=%s
+GROUP=%s
 
-# 1. 目标为软链接时先解析真实路径，保持跟随语义：备份、临时文件与替换都作用于真实路径
+# 1. 写盘之前先确认属主与属组能解析。同目录并发时三个任务都会在这里失败，
+#    不会 mkdir，已存在的配置目录也不会被改属主。纯数字 uid/gid 交给 chown 自己处理。
+case "$OWNER" in
+    ''|*[!0-9]*)
+        if ! id -u -- "$OWNER" >/dev/null 2>&1; then
+            echo "OWNER_NOT_FOUND: cannot resolve user $OWNER on this host"
+            exit 1
+        fi
+        ;;
+esac
+case "$GROUP" in
+    ''|*[!0-9]*)
+        if command -v getent >/dev/null 2>&1 && ! getent group -- "$GROUP" >/dev/null 2>&1; then
+            echo "GROUP_NOT_FOUND: cannot resolve group $GROUP on this host"
+            exit 1
+        fi
+        ;;
+esac
+
+# 2. 目标为软链接时先解析真实路径，保持跟随语义：备份、临时文件与替换都作用于真实路径
 if [ -L "$TARGET_PATH" ]; then
     REAL_PATH="$(readlink -f -- "$TARGET_PATH")"
     echo "Resolved symlink: $TARGET_PATH -> $REAL_PATH"
@@ -106,23 +130,47 @@ fi
 TARGET_DIR="$(dirname "$TARGET_PATH")"
 TARGET_NAME="$(basename "$TARGET_PATH")"
 
-# 2. 创建目标目录
+# 3. 创建目标目录，并把本次新建的层级归属到配置属主。
+#    先记下最深的已存在祖先：只有它以下的层级是本次建出来的。路径上已存在的目录可能是
+#    /data、/etc 这类与本次下发无关的共享目录，递归 chown 会改掉它们的属主。
+#    目录不做 chmod：模版权限位描述的是文件，缺少 x 位时套到目录上会让目录无法进入。
+#    目录权限沿用 mkdir 的默认结果。
+#    chown 失败仍拆掉本次新建的空目录，作为预检之后的兜底。
+DIR_ANCESTOR="$TARGET_DIR"
+while [ ! -d "$DIR_ANCESTOR" ]; do
+    DIR_ANCESTOR="$(dirname "$DIR_ANCESTOR")"
+done
+
 mkdir -p -- "$TARGET_DIR"
 
-# 3. 临时文件与目标同目录，保证后续 mv 在同一文件系统内落到 rename(2) 从而原子；
+CREATED_DIR="$TARGET_DIR"
+while [ "$CREATED_DIR" != "$DIR_ANCESTOR" ] && [ "$CREATED_DIR" != "/" ]; do
+    if ! chown "$OWNER:$GROUP" -- "$CREATED_DIR"; then
+        echo "CHOWN_DIR_FAILED: cannot chown $CREATED_DIR to $OWNER:$GROUP"
+        CLEAN_DIR="$TARGET_DIR"
+        while [ "$CLEAN_DIR" != "$DIR_ANCESTOR" ] && [ "$CLEAN_DIR" != "/" ]; do
+            rmdir -- "$CLEAN_DIR" 2>/dev/null || true
+            CLEAN_DIR="$(dirname "$CLEAN_DIR")"
+        done
+        exit 1
+    fi
+    CREATED_DIR="$(dirname "$CREATED_DIR")"
+done
+
+# 4. 临时文件与目标同目录，保证后续 mv 在同一文件系统内落到 rename(2) 从而原子；
 #    任一步骤失败都清理临时文件，不留残留、不触碰目标文件
 TMP_PATH="${TARGET_PATH}.tmp.$$.${RANDOM}"
 trap 'rm -f -- "$TMP_PATH"' EXIT
 
-# 4. 备份原文件（如果存在），并让备份归属与目标文件保持一致
+# 5. 备份原文件（如果存在），并让备份归属与目标文件保持一致
 if [ -f "$TARGET_PATH" ]; then
     TIMESTAMP="$(date +%%s)"
     BACKUP_PATH="${TARGET_DIR}/${TARGET_NAME}.${TIMESTAMP}.bak"
     cp -- "$TARGET_PATH" "$BACKUP_PATH"
-    chown %s:%s -- "$BACKUP_PATH"
+    chown "$OWNER:$GROUP" -- "$BACKUP_PATH"
     echo "Backup created: $BACKUP_PATH"
 
-    # 5. 清理旧备份：超过 MAX_BACKUPS 份则删除最旧的
+    # 6. 清理旧备份：超过 MAX_BACKUPS 份则删除最旧的
     # 按修改时间从旧到新排列，找出需要删除的文件
     BACKUP_COUNT="$(ls -1 "${TARGET_DIR}/${TARGET_NAME}".*.bak 2>/dev/null | wc -l)"
     if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
@@ -135,24 +183,24 @@ if [ -f "$TARGET_PATH" ]; then
     fi
 fi
 
-# 6. 写入临时文件（base64 解码）
+# 7. 写入临时文件（base64 解码）
 echo %s | base64 -d > "$TMP_PATH"
 
-# 7. 在临时文件上设置权限和属主：失败即终止，目标文件保持原状
+# 8. 在临时文件上设置权限和属主：失败即终止，目标文件保持原状
 chmod %s -- "$TMP_PATH"
-chown %s:%s -- "$TMP_PATH"
+chown "$OWNER:$GROUP" -- "$TMP_PATH"
 
-# 8. 继承目标文件原有的 SELinux 标签。替换换了 inode，新文件默认只能拿到目录的默认标签，
+# 9. 继承目标文件原有的 SELinux 标签。替换换了 inode，新文件默认只能拿到目录的默认标签，
 #    原文件若被 chcon 定制过就会退化，导致业务进程被拒绝读取（下发成功但配置加载失败）。
 #    SELinux 关闭或未装工具的机器上整段跳过，不影响下发。
 if [ -e "$TARGET_PATH" ] && command -v chcon >/dev/null 2>&1; then
     chcon --reference="$TARGET_PATH" -- "$TMP_PATH" 2>/dev/null || true
 fi
 
-# 9. 原子替换目标文件
+# 10. 原子替换目标文件
 mv -f -- "$TMP_PATH" "$TARGET_PATH"
 
-# 10. 校验（不影响主流程）
+# 11. 校验（不影响主流程）
 set +e
 ls -l "$TARGET_PATH" || true
 md5sum "$TARGET_PATH" || true
@@ -163,8 +211,6 @@ md5sum "$TARGET_PATH" || true
 		shellQuote(group),
 		shellQuote(base64Content),
 		fileMode,
-		shellQuote(owner),
-		shellQuote(group),
 	), nil
 }
 
@@ -215,6 +261,15 @@ func newTempToken() string {
 	return hex.EncodeToString(buf)
 }
 
+// windowsTranslateAccountCmd 用 NTAccount 把账号名解析成 SID。
+// 与 icacls 走同一套 LookupAccountName；解析失败则脚本立刻退出，不会 mkdir。
+func windowsTranslateAccountCmd(account string) string {
+	return fmt.Sprintf("powershell -NoProfile -Command "+
+		`"try { [void]([System.Security.Principal.NTAccount]'%s')`+
+		`.Translate([System.Security.Principal.SecurityIdentifier]) } catch { exit 1 }"`,
+		account)
+}
+
 // buildWindowsPushScript 构建 Windows 配置下发脚本
 //
 // base64 中转文件与解码产物都放在目标同目录，而不是曾经的 %TEMP%：
@@ -222,6 +277,7 @@ func newTempToken() string {
 // Web.config，只是目录不同）会撞进同一个命名空间；
 // 二是 %TEMP% 与目标常常不在同一个卷上，move 会退化成「拷贝 + 删除」，
 // 业务进程有机会读到只写了一半的配置，放同目录后才能走同卷内的原子 rename。
+// nolint:funlen
 func (b *ScriptBuilder) buildWindowsPushScript(base64Content, absPath, owner, group string, maxBackups int) (string, error) {
 	winPath := ToWindowsPath(absPath)
 	token := newTempToken()
@@ -232,6 +288,19 @@ setlocal enabledelayedexpansion
 set "TARGET_PATH=%s"
 set /a MAX_BACKUPS=%d
 
+REM 0. 写盘之前先确认属主、属组能解析成 SID（与 icacls 同一套 LookupAccountName）。
+REM    同目录并发时三个任务都会在这里失败，不会 mkdir，已存在的 conf 也不会被改属主。
+%s
+if !ERRORLEVEL! neq 0 (
+    echo OWNER_NOT_FOUND
+    exit /b 1
+)
+%s
+if !ERRORLEVEL! neq 0 (
+    echo GROUP_NOT_FOUND
+    exit /b 1
+)
+
 REM 1. 解析目录和文件名
 for %%%%i in ("%%TARGET_PATH%%") do (
     set "TARGET_DIR=%%%%~dpi"
@@ -240,10 +309,56 @@ for %%%%i in ("%%TARGET_PATH%%") do (
 
 REM 2. 创建目标目录。临时文件也落在这里，建不出来就必须立刻失败，
 REM    否则错误会一路滑到后面的 move，报成含义完全不同的「找不到文件」。
+REM
+REM    建之前先逐级上溯，记下哪些层级是本次才会被创建的：mkdir 是递归的，
+REM    建完就再也分不清哪几层是新建的、哪几层本来就有。已存在的目录一律不碰，
+REM    它们可能是与本次下发无关的共享目录，改属主会波及其它业务。
+set "DIR_CUR=!TARGET_DIR!"
+if "!DIR_CUR:~-1!"=="\" set "DIR_CUR=!DIR_CUR:~0,-1!"
+set /a NEW_DIR_COUNT=0
+:collect_new_dirs
+if exist "!DIR_CUR!\" goto collect_new_dirs_done
+set /a NEW_DIR_COUNT+=1
+set "NEW_DIR_!NEW_DIR_COUNT!=!DIR_CUR!"
+for %%%%i in ("!DIR_CUR!") do set "DIR_PARENT=%%%%~dpi"
+if "!DIR_PARENT:~-1!"=="\" set "DIR_PARENT=!DIR_PARENT:~0,-1!"
+REM 上溯到驱动器根后父目录不再变化，据此收尾，避免路径异常时死循环
+if "!DIR_PARENT!"=="!DIR_CUR!" goto collect_new_dirs_done
+set "DIR_CUR=!DIR_PARENT!"
+goto collect_new_dirs
+:collect_new_dirs_done
+
 if not exist "!TARGET_DIR!" mkdir "!TARGET_DIR!"
 if not exist "!TARGET_DIR!" (
     echo MKDIR_FAILED
     exit /b 1
+)
+
+REM    把本次新建的层级归属到配置属主。Windows 下属主本身不带访问权（只隐含改权限的能力），
+REM    所以还要显式授权，否则该账号进不了自己的配置目录。
+REM    一律不带 (OI)(CI) 继承标记：权限只作用于目录本身，不影响目录内后续创建的文件。
+REM    任一 icacls 失败都必须终止并拆掉本次新建的空目录：目录已经在了，下次
+REM    NEW_DIR_COUNT=0，不会再修 ACL，任务却会一直报成功。
+for /l %%%%n in (1,1,!NEW_DIR_COUNT!) do (
+    set "NEW_DIR=!NEW_DIR_%%%%n!"
+    icacls "!NEW_DIR!" /setowner "%s" >nul
+    if !ERRORLEVEL! neq 0 (
+        echo ACL_FAILED
+        echo [ERROR] icacls /setowner failed on !NEW_DIR!, errorlevel=!ERRORLEVEL!
+        goto cleanup_new_dirs
+    )
+    icacls "!NEW_DIR!" /grant:r "%s:(F)" >nul
+    if !ERRORLEVEL! neq 0 (
+        echo ACL_FAILED
+        echo [ERROR] icacls grant owner failed on !NEW_DIR!, errorlevel=!ERRORLEVEL!
+        goto cleanup_new_dirs
+    )
+    icacls "!NEW_DIR!" /grant:r "%s:(RX)" >nul
+    if !ERRORLEVEL! neq 0 (
+        echo ACL_FAILED
+        echo [ERROR] icacls grant group failed on !NEW_DIR!, errorlevel=!ERRORLEVEL!
+        goto cleanup_new_dirs
+    )
 )
 
 if exist "!TARGET_PATH!" (
@@ -320,22 +435,55 @@ move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul || (
     exit /b 1
 )
 
-REM 6. 设置属主与权限。脚本以 Administrator 运行，
-REM    /setowner 需要接管所有权的特权，改为该账号执行后才能真正生效。
-REM    这里不静默丢弃错误，失败时回传 errorlevel 便于定位，但不终止下发。
+REM 6. 设置文件属主与权限。失败必须终止：目录已在时写文件已经发生，
+REM    若只打 WARN，坏属主仍会让任务报成功。
 icacls "%%TARGET_PATH%%" /setowner "%s" >nul
-if !ERRORLEVEL! neq 0 echo [WARN] icacls /setowner failed, errorlevel=!ERRORLEVEL!
+if !ERRORLEVEL! neq 0 (
+    echo ACL_FAILED
+    echo [ERROR] icacls /setowner failed, errorlevel=!ERRORLEVEL!
+    exit /b 1
+)
 icacls "%%TARGET_PATH%%" /grant:r "%s:(F)" >nul
-if !ERRORLEVEL! neq 0 echo [WARN] icacls grant owner full control failed, errorlevel=!ERRORLEVEL!
+if !ERRORLEVEL! neq 0 (
+    echo ACL_FAILED
+    echo [ERROR] icacls grant owner full control failed, errorlevel=!ERRORLEVEL!
+    exit /b 1
+)
 icacls "%%TARGET_PATH%%" /grant:r "%s:(R)" >nul
-if !ERRORLEVEL! neq 0 echo [WARN] icacls grant group read failed, errorlevel=!ERRORLEVEL!
+if !ERRORLEVEL! neq 0 (
+    echo ACL_FAILED
+    echo [ERROR] icacls grant group read failed, errorlevel=!ERRORLEVEL!
+    exit /b 1
+)
 
 REM 7. 校验
 dir "%%TARGET_PATH%%"
 certutil -hashfile "%%TARGET_PATH%%" MD5
 
 endlocal
-`, winPath, maxBackups, token, token, buildWindowsB64WriteLines(base64Content), owner, owner, group), nil
+goto :eof
+
+REM 从最深到最浅拆掉本次新建的空目录（NEW_DIR_1 是最深的那层），下次下发才能重新收集并授权。
+REM rmdir 不带 /s：目录里若已有无关内容就留着，避免误删。
+:cleanup_new_dirs
+for /l %%%%n in (1,1,!NEW_DIR_COUNT!) do (
+    set "NEW_DIR=!NEW_DIR_%%%%n!"
+    rmdir "!NEW_DIR!" >nul 2>&1
+)
+endlocal
+exit /b 1
+`,
+		winPath,
+		maxBackups,
+		windowsTranslateAccountCmd(owner),
+		windowsTranslateAccountCmd(group),
+		// 新建目录的属主与授权
+		owner, owner, group,
+		token, token,
+		buildWindowsB64WriteLines(base64Content),
+		// 目标文件的属主与授权
+		owner, owner, group,
+	), nil
 }
 
 // windowsB64ChunkSize 是 base64 中转文件每行写入的字符数。
@@ -434,7 +582,7 @@ func BuildScriptCommand(storeDir, scriptName string, fileMode table.FileMode) st
 }
 
 // GetExecutionUser 返回 GSE 脚本的执行账号
-// Linux 固定为 root，Windows 固定为 Administrator
+// Linux 固定为 root，Windows 固定为 system
 func GetExecutionUser(fileMode table.FileMode) string {
 	if fileMode == table.Windows {
 		return windowsExecutionUser
