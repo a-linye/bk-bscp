@@ -12,8 +12,8 @@
     </div>
     <div
       class="service-table"
-      :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '200px', overflowY: 'auto' }">
-      <bk-loading style="display: block; width: 100%" :loading="appsLoading">
+      :style="{ '--table-body-max-height': `${maxTableHeight}px` }">
+      <bk-loading style="min-height: 200px" :loading="appsLoading">
         <bk-table :data="appList" :empty-text="t('暂无未命名版本引用此套餐')">
           <bk-table-column :label="t('引用此套餐的服务')">
             <template #default="{ row }">
@@ -147,6 +147,9 @@
 
 <style lang="scss">
   .service-table {
+    .bk-table-body {
+      max-height: var(--table-body-max-height);
+    }
     thead th[colspan] {
       background-color: #f0f1f5 !important;
     }

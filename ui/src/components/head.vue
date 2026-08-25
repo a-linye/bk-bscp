@@ -710,7 +710,7 @@
     padding: 0 !important;
   }
   .dropdown {
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     margin-right: 10px;
@@ -718,7 +718,7 @@
     height: 40px;
     .dropdown-trigger {
       width: 28px;
-      height: 28px;
+      height: 28px !important;
       border-radius: 50%;
       &:hover {
         background-color: rgba($color: #96a2b9, $alpha: 0.3);

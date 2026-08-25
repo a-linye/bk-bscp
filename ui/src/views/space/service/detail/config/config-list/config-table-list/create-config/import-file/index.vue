@@ -4,7 +4,7 @@
     :title="t('批量导入')"
     :theme="'primary'"
     width="960"
-    class="import-file-dialog"
+    class="import-file-config-dialog"
     :before-close="handleBeforeClose"
     :quick-close="false"
     @closed="handleClose">
@@ -618,7 +618,7 @@
 </style>
 
 <style lang="scss">
-  .import-file-dialog {
+  .import-file-config-dialog {
     .bk-dialog-header {
       padding-bottom: 12px;
     }

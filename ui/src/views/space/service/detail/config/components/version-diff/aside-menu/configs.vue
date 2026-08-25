@@ -195,7 +195,9 @@
   watch(
     () => props.baseVersionId,
     () => {
-      initData();
+      if (isBaseVersionExist.value) {
+        initData();
+      }
     },
   );
 

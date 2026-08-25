@@ -43,8 +43,8 @@
       </p>
       <div
         class="service-table"
-        :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '100px', overflowY: 'auto' }">
-        <bk-loading style="display: block; width: 100%" :loading="loading">
+        :style="{ '--table-body-max-height': `${maxTableHeight}px` }">
+        <bk-loading style="min-height: 100px" :loading="loading">
           <bk-table :data="citedList">
             <bk-table-column :label="t('目标模板套餐')" prop="template_set_name"></bk-table-column>
             <bk-table-column :label="t('使用此套餐的服务')">
@@ -260,6 +260,13 @@
     .link-icon {
       flex-shrink: 0;
       margin-left: 10px;
+    }
+  }
+</style>
+<style lang="scss">
+  .add-configs-to-pkg-dialog .service-table {
+    .bk-table-body {
+      max-height: var(--table-body-max-height);
     }
   }
 </style>

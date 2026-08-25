@@ -12,8 +12,8 @@
     <p class="tips">{{ t('以下套餐及服务未命名版本中引用的此配置文件也将更新') }}</p>
     <div
       class="service-table"
-      :style="{ maxHeight: `${maxTableHeight}px`, minHeight: '100px', overflowY: 'auto' }">
-      <bk-loading style="display: block; width: 100%" :loading="loading">
+      :style="{ '--table-body-max-height': `${maxTableHeight}px` }">
+      <bk-loading style="min-height: 100px" :loading="loading">
         <bk-table :data="citedList">
           <bk-table-column :label="t('所在套餐')" prop="template_set_name"></bk-table-column>
           <bk-table-column :label="t('引用此模板的服务')">
@@ -150,6 +150,9 @@
     }
     .bk-modal-body {
       padding: 0;
+    }
+    .bk-table-body {
+      max-height: var(--table-body-max-height);
     }
   }
 </style>

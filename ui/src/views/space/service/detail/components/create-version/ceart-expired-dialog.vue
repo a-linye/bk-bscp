@@ -91,6 +91,7 @@
     width: 42px;
     height: 42px;
     position: relative;
+    isolation: isolate;
     &::after {
       content: '';
       position: absolute;
