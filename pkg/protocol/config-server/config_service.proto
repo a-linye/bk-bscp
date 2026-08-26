@@ -5895,6 +5895,7 @@ message CmdbGseStatusResp {
 
 message ProcessFilterOptionsReq {
   uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
+  string environment = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境" }];
 }
 
 message ProcessFilterOptionsResp {

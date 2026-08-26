@@ -2747,6 +2747,7 @@ message CmdbGseStatusResp {
 
 message ProcessFilterOptionsReq {
   uint32 biz_id = 1;
+  string environment = 2;
 }
 
 message ProcessFilterOptionsResp {

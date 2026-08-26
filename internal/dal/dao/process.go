@@ -46,7 +46,8 @@ type Process interface {
 	BatchUpdateWithTx(kit *kit.Kit, tx *gen.QueryTx, data []*table.Process) error
 	ListProcByBizIDWithTx(kit *kit.Kit, tx *gen.QueryTx, bizID uint32) ([]*table.Process, error)
 	UpdateSyncStatusWithTx(kit *kit.Kit, tx *gen.QueryTx, state string, ids []uint32) error
-	ListBizFilterOptions(kit *kit.Kit, bizID uint32, fields ...field.Expr) ([]*table.Process, error)
+	// ListBizFilterOptions 查询业务下的过滤选项去重值；environment 非空时仅返回该环境的数据。
+	ListBizFilterOptions(kit *kit.Kit, bizID uint32, environment string, fields ...field.Expr) ([]*table.Process, error)
 	// UpdateSelectedFields 更新指定字段
 	UpdateSelectedFields(kit *kit.Kit, bizID uint32, data map[string]any, conds ...rawgen.Condition) error
 	// GetProcByBizScvProc 按业务、服务实例、进程 ID 查询进程
@@ -301,7 +302,8 @@ func (dao *processDao) GetByID(kit *kit.Kit, bizID uint32, id uint32) (*table.Pr
 
 // ListBizFilterOptions implements Process.
 // fields = append(fields, field.NewString("", "id"))
-func (dao *processDao) ListBizFilterOptions(kit *kit.Kit, bizID uint32, fields ...field.Expr) (
+// environment 为空时不按环境过滤，非空时仅返回该环境的数据。
+func (dao *processDao) ListBizFilterOptions(kit *kit.Kit, bizID uint32, environment string, fields ...field.Expr) (
 	[]*table.Process, error) {
 	sql := `processes.cc_sync_status != ?
 			OR EXISTS (
@@ -314,6 +316,10 @@ func (dao *processDao) ListBizFilterOptions(kit *kit.Kit, bizID uint32, fields .
 	q := dao.genQ.Process.WithContext(kit.Ctx).
 		Where(dao.genQ.Process.BizID.Eq(bizID)).
 		Where(utils.RawCond(sql, "deleted", "running", "managed"))
+
+	if environment != "" {
+		q = q.Where(dao.genQ.Process.Environment.Eq(environment))
+	}
 
 	return q.Distinct(fields...).Select(fields...).Find()
 }

@@ -734,7 +734,8 @@ func needCMDBCompare(ccSyncStatus table.CCSyncStatus, op table.ProcessOperateTyp
 func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFilterOptionsReq) (
 	*pbds.ProcessFilterOptionsResp, error) {
 	kt := kit.FromGrpcContext(ctx)
-	sets, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(),
+
+	sets, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), req.GetEnvironment(),
 		field.NewUint32("", "set_id"), field.NewString("", "set_name"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
@@ -748,7 +749,7 @@ func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFil
 		})
 	}
 
-	modules, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(),
+	modules, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), req.GetEnvironment(),
 		field.NewUint32("", "module_id"), field.NewString("", "module_name"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
@@ -762,7 +763,7 @@ func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFil
 		})
 	}
 
-	svcInsts, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(),
+	svcInsts, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), req.GetEnvironment(),
 		field.NewUint32("", "service_instance_id"), field.NewString("", "service_name"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
@@ -776,7 +777,8 @@ func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFil
 		})
 	}
 
-	processIds, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), field.NewUint32("", "cc_process_id"))
+	processIds, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), req.GetEnvironment(),
+		field.NewUint32("", "cc_process_id"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kt, "list process filter options (CC process IDs) failed, err: %v", err))
@@ -789,7 +791,8 @@ func (s *Service) ProcessFilterOptions(ctx context.Context, req *pbds.ProcessFil
 		})
 	}
 
-	aliases, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), field.NewString("", "alias"))
+	aliases, err := s.dao.Process().ListBizFilterOptions(kt, req.GetBizId(), req.GetEnvironment(),
+		field.NewString("", "alias"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kt, "list process filter options (aliases) failed, err: %v", err))
@@ -1048,9 +1051,10 @@ func uniqueUint32(arr []uint32) []uint32 {
 	return res
 }
 
+// buildfilterOptions 组装 ListProcess 返回的基础过滤选项（不含环境相关维度）。
 func (s *Service) buildfilterOptions(kt *kit.Kit, bizID uint32) (*pbproc.FilterOptions, error) {
 
-	ips, err := s.dao.Process().ListBizFilterOptions(kt, bizID, field.NewString("", "inner_ip"))
+	ips, err := s.dao.Process().ListBizFilterOptions(kt, bizID, "", field.NewString("", "inner_ip"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s", i18n.T(kt, "list process filter options (inner IP) failed, err: %v", err))
 	}

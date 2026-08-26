@@ -23187,6 +23187,13 @@
             "required": true,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "environment",
+            "description": "环境",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
