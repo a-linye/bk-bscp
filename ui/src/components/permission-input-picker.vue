@@ -5,6 +5,7 @@
       theme="light"
       trigger="manual"
       placement="top"
+      reference-cls="perm-input-trigger"
       :is-show="showPrivilegeErrorTips">
       <bk-input
         v-model="privilegeInputVal"
@@ -133,8 +134,11 @@
     display: flex;
     align-items: center;
     width: 100%;
-    :deep(.bk-input) {
+    :deep(.perm-input-trigger) {
       width: calc(100% - 32px);
+    }
+    :deep(.bk-input) {
+      width: 100%;
       border-right: none;
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;

@@ -56,3 +56,7 @@ export interface IProcessFilterItem {
   value: string;
   list: Array<{ name: string; id: number }>;
 }
+
+export interface IProcessFilterQuery{
+  environment: string;
+}

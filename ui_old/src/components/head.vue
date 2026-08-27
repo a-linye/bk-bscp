@@ -6,6 +6,7 @@
           <img :src="appGlobalConfig.appLogo || logo" alt="BSCP" />
         </span>
         <span class="head-title"> {{ appGlobalConfig.i18n.name }} </span>
+        <span class="version-switch" @click.stop="handleVersionSwitch">「{{ t('新版体验') }}」</span>
       </div>
       <div class="head-routes">
         <div class="head-routes-scroll" ref="routesScrollRef" @scroll="handleRoutesScroll">
@@ -437,6 +438,15 @@
     window.open(`${BK_CC_HOST}/#/resource/business`); // eslint-disable-line no-undef
   };
 
+  // 切换新旧 UI 版本：当前窗口跳转到新版入口（NEW_UI_URL），并携带当前空间路径
+  const handleVersionSwitch = () => {
+    const newUiUrl = (window as any).NEW_UI_URL;
+    if (newUiUrl && spaceId.value) {
+      const base = newUiUrl.replace(/\/$/, '');
+      window.location.href = `${base}/space/${spaceId.value}/service/all`;
+    }
+  };
+
   // 切换语言
   const switchLanguage = (language: string) => {
     const domain = window.location.hostname.replace(/^[^.]+(.*)$/, '$1');
@@ -497,12 +507,17 @@
       flex: 1 1 0;
       min-width: 0;
       overflow: hidden;
-      gap: 24px;
+      gap: 12px;
       .logo {
         display: inline-flex;
         flex-shrink: 0;
         width: 30px;
         height: 30px;
+      }
+      .version-switch {
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
       }
       .head-routes {
         flex: 1 1 0;

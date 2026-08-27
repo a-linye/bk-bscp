@@ -1,4 +1,5 @@
 import http from '../request';
+import { IProcessFilterQuery } from '../../types/process';
 
 /**
  * 获取进程列表
@@ -30,8 +31,8 @@ export const getSyncStatus = (biz_id: string) =>
  * @param bizId 业务ID
  * @returns
  */
-export const getProcessFilter = (biz_id: string) =>
-  http.get(`/config/biz_id/${biz_id}/process/filter_options`).then((res) => res.data);
+export const getProcessFilter = (biz_id: string, params: IProcessFilterQuery) =>
+  http.get(`/config/biz_id/${biz_id}/process/filter_options`, { params }).then((res) => res.data);
 
 /**
  * 进程操作
