@@ -27,11 +27,17 @@
 | GET | /api/v1/config/biz_id/{bizId}/topo | [Config_BizTopo](#config-biz-topo) | 根据业务查询拓扑 |
 | POST | /api/v1/config/biz_id/{bizId}/config_instances/check | [Config_CheckConfig](#config-check-config) | 配置检查 |
 | POST | /api/v1/inner/config/biz_id/{bizId}/config_instances/check | [Config_CheckConfig2](#config-check-config2) | 配置检查 |
+| GET | /api/v1/config/biz_id/{bizId}/credential/{credentialName}/check | [Config_CheckCredentialName](#config-check-credential-name) | 检测客户端密钥名称 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialName}/check | [Config_CheckCredentialName2](#config-check-credential-name2) | 检测客户端密钥名称 |
 | GET | /api/v1/config/biz_id/{bizId}/sync/sync_status | [Config_CmdbGseStatus](#config-cmdb-gse-status) | 获取同步的状态 |
 | GET | /api/v1/inner/config/biz_id/{bizId}/sync/sync_status | [Config_CmdbGseStatus2](#config-cmdb-gse-status2) | 获取同步的状态 |
 | GET | /api/v1/config/biz_id/{bizId}/config_template/variable | [Config_ConfigTemplateVariable](#config-config-template-variable) | 配置模板变量 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template | [Config_CreateConfigTemplate](#config-create-config-template) | 创建配置模板 |
+| POST | /api/v1/config/biz_id/{bizId}/credentials | [Config_CreateCredentials](#config-create-credentials) | 创建客户端密钥 |
+| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/credentials | [Config_CreateCredentials2](#config-create-credentials2) | 创建客户端密钥 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs | [Config_CreateEnvironment](#config-create-environment) | 创建环境 |
+| POST | /api/v1/config/biz/{bizId}/hooks | [Config_CreateHook](#config-create-hook) | 创建脚本 |
+| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/hooks | [Config_CreateHook2](#config-create-hook2) | 创建脚本 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs | [Config_CreateKv](#config-create-kv) | 创建键值配置项 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/kvs | [Config_CreateKv2](#config-create-kv2) | 创建键值配置项 |
 | POST | /api/v1/config/biz/{bizId}/projects | [Config_CreateProject](#config-create-project) | 创建项目 |
@@ -40,6 +46,8 @@
 | POST | /api/v1/inner/config/create/release/release/app_id/{appId}/biz_id/{bizId} | [Config_CreateRelease3](#config-create-release3) | 生成版本 |
 | DELETE | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_DeleteConfigTemplate](#config-delete-config-template) | 删除配置模板 |
 | DELETE | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId} | [Config_DeleteEnvironment](#config-delete-environment) | 删除环境 |
+| DELETE | /api/v1/config/biz/{bizId}/hooks/{hookId} | [Config_DeleteHook](#config-delete-hook) | 删除脚本 |
+| DELETE | /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} | [Config_DeleteHook2](#config-delete-hook2) | 删除脚本 |
 | DELETE | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{id} | [Config_DeleteKv](#config-delete-kv) | 删除键值配置项 |
 | DELETE | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/kvs/{id} | [Config_DeleteKv2](#config-delete-kv2) | 删除键值配置项 |
 | DELETE | /api/v1/config/biz/{bizId}/projects/{projectId} | [Config_DeleteProject](#config-delete-project) | 删除项目 |
@@ -60,6 +68,8 @@
 | GET | /api/v1/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName](#config-get-group-by-name) | 按名称获取分组 |
 | GET | /api/v1/inner/config/biz/{bizId}/groups/query/name/{groupName} | [Config_GetGroupByName2](#config-get-group-by-name2) | 按名称获取分组 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/groups/query/name/{groupName} | [Config_GetGroupByName3](#config-get-group-by-name3) | 按名称获取分组 |
+| GET | /api/v1/config/biz/{bizId}/hooks/{hookId} | [Config_GetHook](#config-get-hook) | 获取脚本 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} | [Config_GetHook2](#config-get-hook2) | 获取脚本 |
 | GET | /api/v1/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView](#config-get-process-config-view) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/inner/config/biz_id/{bizId}/process_config_view | [Config_GetProcessConfigView2](#config-get-process-config-view2) | 查询指定业务是否开启进程与配置管理可见性 |
 | GET | /api/v1/config/biz_id/{bizId}/process_instance_topo | [Config_GetProcessInstanceTopo](#config-get-process-instance-topo) | 进程实例拓扑 |
@@ -68,17 +78,29 @@
 | GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName](#config-get-release-by-name) | 按服务版本名 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName2](#config-get-release-by-name2) | 按服务版本名 |
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/query/name/{releaseName} | [Config_GetReleaseByName3](#config-get-release-by-name3) | 按服务版本名 |
+| GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/hooks | [Config_GetReleaseHook](#config-get-release-hook) |  |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/hooks | [Config_GetReleaseHook2](#config-get-release-hook2) |  |
 | GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items/{id} | [Config_GetReleasedConfigItem](#config-get-released-config-item) | 获取已发布文件配置项 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/config_items/{id} | [Config_GetReleasedConfigItem2](#config-get-released-config-item2) | 获取已发布文件配置项 |
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items/{id} | [Config_GetReleasedConfigItem3](#config-get-released-config-item3) | 获取已发布文件配置项 |
+| GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs/{key} | [Config_GetReleasedKv](#config-get-released-kv) | 获取已生成版本键值配置项 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs/{key} | [Config_GetReleasedKv2](#config-get-released-kv2) | 获取已生成版本键值配置项 |
 | POST | /api/v1/config/biz_id/{bizId}/task_batch/{batchId}/detail | [Config_GetTaskBatchDetail](#config-get-task-batch-detail) | 任务批次详情 |
 | POST | /api/v1/inner/config/biz_id/{bizId}/task_batch/{batchId}/detail | [Config_GetTaskBatchDetail2](#config-get-task-batch-detail2) | 任务批次详情 |
+| POST | /api/v1/config/list/app/app/biz_id/{bizId} | [Config_ListAppsBySpaceRest](#config-list-apps-by-space-rest) | 按 space 查询 app 信息 |
+| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/list | [Config_ListAppsBySpaceRest2](#config-list-apps-by-space-rest2) | 按 space 查询 app 信息 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/config_items | [Config_ListConfigItems](#config-list-config-items) | 获取文件配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/config_items/list | [Config_ListConfigItems2](#config-list-config-items2) | 获取文件配置项列表 |
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/config_items | [Config_ListConfigItems3](#config-list-config-items3) | 获取文件配置项列表 |
 | POST | /api/v1/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate](#config-list-config-template) | 配置模板列表 |
 | POST | /api/v1/inner/config/biz_id/{bizId}/config_template/list | [Config_ListConfigTemplate2](#config-list-config-template2) | 配置模板列表 |
+| GET | /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scopes | [Config_ListCredentialScopes](#config-list-credential-scopes) | 获取客户端密钥关联服务的列表 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scopes | [Config_ListCredentialScopes2](#config-list-credential-scopes2) | 获取客户端密钥关联服务的列表 |
+| GET | /api/v1/config/biz_id/{bizId}/credentials | [Config_ListCredentials](#config-list-credentials) | 获取客户端密钥 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/credentials | [Config_ListCredentials2](#config-list-credentials2) | 获取客户端密钥 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/list | [Config_ListEnvironments](#config-list-environments) | 环境管理 |
+| GET | /api/v1/config/biz/{bizId}/hooks | [Config_ListHooks](#config-list-hooks) | 获取脚本列表 |
+| GET | /api/v1/config/biz/{bizId}/projects/{projectId}/hooks | [Config_ListHooks2](#config-list-hooks2) | 获取脚本列表 |
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs](#config-list-kvs) | 获取键值配置项列表 |
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/kvs/list | [Config_ListKvs2](#config-list-kvs2) | 获取键值配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/kvs/list | [Config_ListKvs3](#config-list-kvs3) | 获取键值配置项列表 |
@@ -92,6 +114,8 @@
 | POST | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems](#config-list-released-config-items) | 获取已发布文件配置项列表 |
 | POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems2](#config-list-released-config-items2) | 获取已发布文件配置项列表 |
 | POST | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items | [Config_ListReleasedConfigItems3](#config-list-released-config-items3) | 获取已发布文件配置项列表 |
+| POST | /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs | [Config_ListReleasedKvs](#config-list-released-kvs) | 获取已生成版本键值配置项列表 |
+| POST | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs | [Config_ListReleasedKvs2](#config-list-released-kvs2) | 获取已生成版本键值配置项列表 |
 | GET | /api/v1/config/biz/{bizId}/apps/{appId}/releases | [Config_ListReleases](#config-list-releases) | 获取服务版本列表 |
 | GET | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases | [Config_ListReleases2](#config-list-releases2) | 获取服务版本列表 |
 | GET | /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases | [Config_ListReleases3](#config-list-releases3) | 获取服务版本列表 |
@@ -111,8 +135,16 @@
 | GET | /api/v1/config/biz_id/{bizId}/service_template | [Config_ServiceTemplate](#config-service-template) | 根据业务查询服务模板列表 |
 | POST | /api/v1/config/biz_id/{bizId}/sync/cmdb_gse_status | [Config_SyncCmdbGseStatus](#config-sync-cmdb-gse-status) | 同步cc和gse状态 |
 | POST | /api/v1/inner/config/biz_id/{bizId}/sync/cmdb_gse_status | [Config_SyncCmdbGseStatus2](#config-sync-cmdb-gse-status2) | 同步cc和gse状态 |
+| PUT | /api/v1/config/biz/{bizId}/apps/{appId}/config_hooks | [Config_UpdateConfigHook](#config-update-config-hook) | 引用前后置脚本 |
+| PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/config_hooks | [Config_UpdateConfigHook2](#config-update-config-hook2) | 引用前后置脚本 |
 | PUT | /api/v1/config/biz_id/{bizId}/config_template/{configTemplateId} | [Config_UpdateConfigTemplate](#config-update-config-template) | 编辑配置模板 |
+| PUT | /api/v1/config/biz_id/{bizId}/credential | [Config_UpdateCredential](#config-update-credential) | 更新客户端密钥 |
+| PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{id} | [Config_UpdateCredential2](#config-update-credential2) | 更新客户端密钥 |
+| PUT | /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scope | [Config_UpdateCredentialScope](#config-update-credential-scope) | 更新客户端密钥关联服务规则 |
+| PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scope | [Config_UpdateCredentialScope2](#config-update-credential-scope2) | 更新客户端密钥关联服务规则 |
 | PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId} | [Config_UpdateEnvironment](#config-update-environment) | 更新环境 |
+| PUT | /api/v1/config/biz/{bizId}/hooks/{hookId} | [Config_UpdateHook](#config-update-hook) | 更新脚本 |
+| PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} | [Config_UpdateHook2](#config-update-hook2) | 更新脚本 |
 | PUT | /api/v1/config/biz/{bizId}/apps/{appId}/kvs/{key} | [Config_UpdateKv](#config-update-kv) | 更新键值配置项 |
 | PUT | /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/kvs/{key} | [Config_UpdateKv2](#config-update-kv2) | 更新键值配置项 |
 | PUT | /api/v1/config/biz/{bizId}/projects/{projectId} | [Config_UpdateProject](#config-update-project) | 更新项目 |
@@ -991,6 +1023,74 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-check-credential-name"></span> 检测客户端密钥名称 (*Config_CheckCredentialName*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/credential/{credentialName}/check
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialName | string | ✓ | 密钥名称 |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/credential/{credentialName}/check HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-check-credential-name2"></span> 检测客户端密钥名称 (*Config_CheckCredentialName2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialName}/check
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialName | string | ✓ | 密钥名称 |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialName}/check HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-cmdb-gse-status"></span> 获取同步的状态 (*Config_CmdbGseStatus*)
 
 ```
@@ -1148,6 +1248,89 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-create-credentials"></span> 创建客户端密钥 (*Config_CreateCredentials*)
+
+```
+POST /api/v1/config/biz_id/{bizId}/credentials
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| memo | string |  | 密钥描述 |
+| name | string | ✓ | 密钥名称 |
+| scope | []string |  | 暂未用到 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz_id/{bizId}/credentials HTTP/1.1
+Content-Type: application/json
+
+{
+  "memo": "",
+  "name": "",
+  "scope": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-create-credentials2"></span> 创建客户端密钥 (*Config_CreateCredentials2*)
+
+```
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/credentials
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| memo | string |  | 密钥描述 |
+| name | string | ✓ | 密钥名称 |
+| scope | []string |  | 暂未用到 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/credentials HTTP/1.1
+Content-Type: application/json
+
+{
+  "memo": "",
+  "name": "",
+  "scope": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-create-environment"></span> 创建环境 (*Config_CreateEnvironment*)
 
 ```
@@ -1178,6 +1361,101 @@ Content-Type: application/json
 {
   "memo": "",
   "name": "",
+  "type": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-create-hook"></span> 创建脚本 (*Config_CreateHook*)
+
+```
+POST /api/v1/config/biz/{bizId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| content | string | ✓ | 脚本内容 |
+| memo | string |  | 脚本描述 |
+| name | string | ✓ | 脚本名称 |
+| revisionName | string | ✓ | 版本号 |
+| tags | []string |  | 分类标签 |
+| type | string | ✓ | 脚本类型 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/hooks HTTP/1.1
+Content-Type: application/json
+
+{
+  "content": "",
+  "memo": "",
+  "name": "",
+  "revisionName": "",
+  "tags": [
+    {}
+  ],
+  "type": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-create-hook2"></span> 创建脚本 (*Config_CreateHook2*)
+
+```
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| content | string | ✓ | 脚本内容 |
+| memo | string |  | 脚本描述 |
+| name | string | ✓ | 脚本名称 |
+| revisionName | string | ✓ | 版本号 |
+| tags | []string |  | 分类标签 |
+| type | string | ✓ | 脚本类型 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/hooks HTTP/1.1
+Content-Type: application/json
+
+{
+  "content": "",
+  "memo": "",
+  "name": "",
+  "revisionName": "",
+  "tags": [
+    {}
+  ],
   "type": ""
 }
 ```
@@ -1534,6 +1812,76 @@ DELETE /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}
 
 ```bash
 DELETE /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-delete-hook"></span> 删除脚本 (*Config_DeleteHook*)
+
+```
+DELETE /api/v1/config/biz/{bizId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| force | boolean |  | 是否强制删除 |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+DELETE /api/v1/config/biz/{bizId}/hooks/{hookId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-delete-hook2"></span> 删除脚本 (*Config_DeleteHook2*)
+
+```
+DELETE /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| force | boolean |  | 是否强制删除 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+DELETE /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} HTTP/1.1
 Content-Type: application/json
 
 
@@ -2377,6 +2725,74 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-get-hook"></span> 获取脚本 (*Config_GetHook*)
+
+```
+GET /api/v1/config/biz/{bizId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/hooks/{hookId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-get-hook2"></span> 获取脚本 (*Config_GetHook2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-get-process-config-view"></span> 查询指定业务是否开启进程与配置管理可见性 (*Config_GetProcessConfigView*)
 
 ```
@@ -2647,6 +3063,78 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-get-release-hook"></span> config get release hook (*Config_GetReleaseHook*)
+
+```
+GET /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+| envId | int64 (formatted integer) |  | 环境ID |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/hooks HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-get-release-hook2"></span> config get release hook2 (*Config_GetReleaseHook2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| envId | int64 (formatted integer) | ✓ | 环境ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/hooks HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-get-released-config-item"></span> 获取已发布文件配置项 (*Config_GetReleasedConfigItem*)
 
 ```
@@ -2747,6 +3235,80 @@ GET /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_it
 
 ```bash
 GET /api/v1/inner/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/config_items/{id} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-get-released-kv"></span> 获取已生成版本键值配置项 (*Config_GetReleasedKv*)
+
+```
+GET /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs/{key}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| key | string | ✓ | 键值配置项的键 |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+| envId | int64 (formatted integer) |  | 环境ID |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs/{key} HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-get-released-kv2"></span> 获取已生成版本键值配置项 (*Config_GetReleasedKv2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs/{key}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| envId | int64 (formatted integer) | ✓ | 环境ID |
+| key | string | ✓ | 键值配置项的键 |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs/{key} HTTP/1.1
 Content-Type: application/json
 
 
@@ -2885,6 +3447,98 @@ Content-Type: application/json
   ],
   "start": 0,
   "status": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-apps-by-space-rest"></span> 按 space 查询 app 信息 (*Config_ListAppsBySpaceRest*)
+
+```
+POST /api/v1/config/list/app/app/biz_id/{bizId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| all | boolean |  | 是否获取所有 |
+| configType | string |  | 服务类型：文件型=file, 键值型=kv |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| search | [interface{}](#interface) |  | 搜索条件 |
+| start | int64 (formatted integer) |  | 当前页码 |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/list/app/app/biz_id/{bizId} HTTP/1.1
+Content-Type: application/json
+
+{
+  "all": false,
+  "configType": "",
+  "limit": 0,
+  "search": {},
+  "start": 0,
+  "topIds": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-apps-by-space-rest2"></span> 按 space 查询 app 信息 (*Config_ListAppsBySpaceRest2*)
+
+```
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/list
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| envId | int64 (formatted integer) | ✓ | 环境ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| all | boolean |  | 是否获取所有 |
+| configType | string |  | 服务类型：文件型=file, 键值型=kv |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| search | [interface{}](#interface) |  | 搜索条件 |
+| start | int64 (formatted integer) |  | 当前页码 |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/list HTTP/1.1
+Content-Type: application/json
+
+{
+  "all": false,
+  "configType": "",
+  "limit": 0,
+  "search": {},
+  "start": 0,
+  "topIds": ""
 }
 ```
 
@@ -3160,6 +3814,152 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-list-credential-scopes"></span> 获取客户端密钥关联服务的列表 (*Config_ListCredentialScopes*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scopes
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialId | int64 (formatted integer) | ✓ | 客户端密钥ID |
+| projectId | int64 (formatted integer) |  | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scopes HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-credential-scopes2"></span> 获取客户端密钥关联服务的列表 (*Config_ListCredentialScopes2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scopes
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialId | int64 (formatted integer) | ✓ | 客户端密钥ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scopes HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-credentials"></span> 获取客户端密钥 (*Config_ListCredentials*)
+
+```
+GET /api/v1/config/biz_id/{bizId}/credentials
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| all | boolean |  | 是否获取所有 |
+| enable | boolean |  | 是否启用：是=true,否=false |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| projectId | int64 (formatted integer) |  | 项目ID |
+| searchKey | string |  | 搜索的值 |
+| start | int64 (formatted integer) |  | 当前页码 |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz_id/{bizId}/credentials HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-credentials2"></span> 获取客户端密钥 (*Config_ListCredentials2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credentials
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| all | boolean |  | 是否获取所有 |
+| enable | boolean |  | 是否启用：是=true,否=false |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| searchKey | string |  | 搜索的值 |
+| start | int64 (formatted integer) |  | 当前页码 |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/credentials HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-list-environments"></span> 环境管理 (*Config_ListEnvironments*)
 
 ```
@@ -3194,6 +3994,88 @@ Content-Type: application/json
   "searchCondition": {},
   "start": 0
 }
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-hooks"></span> 获取脚本列表 (*Config_ListHooks*)
+
+```
+GET /api/v1/config/biz/{bizId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| all | boolean |  | 是否获取所有 |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| name | string |  |  |
+| notTag | boolean |  |  |
+| projectId | int64 (formatted integer) |  | 项目ID |
+| searchKey | string |  |  |
+| start | int64 (formatted integer) |  | 当前页码 |
+| tag | string |  |  |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/hooks HTTP/1.1
+Content-Type: application/json
+
+
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-hooks2"></span> 获取脚本列表 (*Config_ListHooks2*)
+
+```
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| all | boolean |  | 是否获取所有 |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| name | string |  |  |
+| notTag | boolean |  |  |
+| searchKey | string |  |  |
+| start | int64 (formatted integer) |  | 当前页码 |
+| tag | string |  |  |
+| topIds | string |  | 需要置顶ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+GET /api/v1/config/biz/{bizId}/projects/{projectId}/hooks HTTP/1.1
+Content-Type: application/json
+
+
 ```
 
 #### 输出示例
@@ -3878,6 +4760,118 @@ Content-Type: application/json
   "limit": 0,
   "projectId": 0,
   "search": {},
+  "start": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-released-kvs"></span> 获取已生成版本键值配置项列表 (*Config_ListReleasedKvs*)
+
+```
+POST /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+| all | boolean |  | 是否获取所有 |
+| key | []string |  |  |
+| kvType | []string |  |  |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| order | string |  |  |
+| search | [interface{}](#interface) |  |  |
+| sort | string |  |  |
+| start | int64 (formatted integer) |  | 当前页码 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/apps/{appId}/releases/{releaseId}/kvs HTTP/1.1
+Content-Type: application/json
+
+{
+  "all": false,
+  "key": [
+    {}
+  ],
+  "kvType": [
+    {}
+  ],
+  "limit": 0,
+  "order": "",
+  "search": {},
+  "sort": "",
+  "start": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-list-released-kvs2"></span> 获取已生成版本键值配置项列表 (*Config_ListReleasedKvs2*)
+
+```
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| envId | int64 (formatted integer) | ✓ | 环境ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| releaseId | int64 (formatted integer) | ✓ | 服务版本ID |
+| all | boolean |  | 是否获取所有 |
+| key | []string |  |  |
+| kvType | []string |  |  |
+| limit | int64 (formatted integer) |  | 每页条数 |
+| order | string |  |  |
+| search | [interface{}](#interface) |  |  |
+| sort | string |  |  |
+| start | int64 (formatted integer) |  | 当前页码 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+POST /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/releases/{releaseId}/kvs HTTP/1.1
+Content-Type: application/json
+
+{
+  "all": false,
+  "key": [
+    {}
+  ],
+  "kvType": [
+    {}
+  ],
+  "limit": 0,
+  "order": "",
+  "search": {},
+  "sort": "",
   "start": 0
 }
 ```
@@ -4687,6 +5681,84 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-update-config-hook"></span> 引用前后置脚本 (*Config_UpdateConfigHook*)
+
+```
+PUT /api/v1/config/biz/{bizId}/apps/{appId}/config_hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| postHookId | int64 (formatted integer) |  | 后置脚本：脚本ID |
+| preHookId | int64 (formatted integer) |  | 前置脚本：脚本ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/apps/{appId}/config_hooks HTTP/1.1
+Content-Type: application/json
+
+{
+  "postHookId": 0,
+  "preHookId": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-config-hook2"></span> 引用前后置脚本 (*Config_UpdateConfigHook2*)
+
+```
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/config_hooks
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| appId | int64 (formatted integer) | ✓ | 服务ID |
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| envId | int64 (formatted integer) | ✓ | 环境ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| postHookId | int64 (formatted integer) |  | 后置脚本：脚本ID |
+| preHookId | int64 (formatted integer) |  | 前置脚本：脚本ID |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/envs/{envId}/apps/{appId}/config_hooks HTTP/1.1
+Content-Type: application/json
+
+{
+  "postHookId": 0,
+  "preHookId": 0
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-update-config-template"></span> 编辑配置模板 (*Config_UpdateConfigTemplate*)
 
 ```
@@ -4747,6 +5819,201 @@ Content-Type: application/json
 {}
 ```
 
+### <span id="config-update-credential"></span> 更新客户端密钥 (*Config_UpdateCredential*)
+
+```
+PUT /api/v1/config/biz_id/{bizId}/credential
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| enable | boolean |  | 是否启用：是=true,否=false |
+| memo | string |  | 密钥描述 |
+| name | string |  | 密钥名称 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz_id/{bizId}/credential HTTP/1.1
+Content-Type: application/json
+
+{
+  "enable": false,
+  "memo": "",
+  "name": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-credential2"></span> 更新客户端密钥 (*Config_UpdateCredential2*)
+
+```
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{id}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| id | int64 (formatted integer) | ✓ | 客户端密钥ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| enable | boolean |  | 是否启用：是=true,否=false |
+| memo | string |  | 密钥描述 |
+| name | string |  | 密钥名称 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{id} HTTP/1.1
+Content-Type: application/json
+
+{
+  "enable": false,
+  "memo": "",
+  "name": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-credential-scope"></span> 更新客户端密钥关联服务规则 (*Config_UpdateCredentialScope*)
+
+```
+PUT /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scope
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialId | int64 (formatted integer) | ✓ | 密钥ID |
+| addScope | \[\][PbcrsCredentialScopeSpec](#pbcrs-credential-scope-spec) |  | 新增规则 |
+| alterScope | \[\][PbcrsUpdateScopeSpec](#pbcrs-update-scope-spec) |  | 更新规则 |
+| delId | []int64 (formatted integer) |  | 删除规则 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz_id/{bizId}/credential/{credentialId}/scope HTTP/1.1
+Content-Type: application/json
+
+{
+  "addScope": [
+    {
+      "app": "",
+      "envId": 0,
+      "envName": "",
+      "envType": "",
+      "scope": ""
+    }
+  ],
+  "alterScope": [
+    {
+      "app": "",
+      "envId": 0,
+      "id": 0,
+      "scope": ""
+    }
+  ],
+  "delId": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-credential-scope2"></span> 更新客户端密钥关联服务规则 (*Config_UpdateCredentialScope2*)
+
+```
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scope
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| credentialId | int64 (formatted integer) | ✓ | 密钥ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| addScope | \[\][PbcrsCredentialScopeSpec](#pbcrs-credential-scope-spec) |  | 新增规则 |
+| alterScope | \[\][PbcrsUpdateScopeSpec](#pbcrs-update-scope-spec) |  | 更新规则 |
+| delId | []int64 (formatted integer) |  | 删除规则 |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/credential/{credentialId}/scope HTTP/1.1
+Content-Type: application/json
+
+{
+  "addScope": [
+    {
+      "app": "",
+      "envId": 0,
+      "envName": "",
+      "envType": "",
+      "scope": ""
+    }
+  ],
+  "alterScope": [
+    {
+      "app": "",
+      "envId": 0,
+      "id": 0,
+      "scope": ""
+    }
+  ],
+  "delId": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
 ### <span id="config-update-environment"></span> 更新环境 (*Config_UpdateEnvironment*)
 
 ```
@@ -4775,6 +6042,87 @@ Content-Type: application/json
 
 {
   "memo": ""
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-hook"></span> 更新脚本 (*Config_UpdateHook*)
+
+```
+PUT /api/v1/config/biz/{bizId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| memo | string |  |  |
+| tags | []string |  |  |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/hooks/{hookId} HTTP/1.1
+Content-Type: application/json
+
+{
+  "memo": "",
+  "tags": [
+    {}
+  ]
+}
+```
+
+#### 输出示例
+
+```json
+{}
+```
+
+### <span id="config-update-hook2"></span> 更新脚本 (*Config_UpdateHook2*)
+
+```
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId}
+```
+
+#### 输入参数
+
+| 参数名称 | 类型 | 是否必填 | 描述 |
+|------|--------|------|---------|
+| bizId | int64 (formatted integer) | ✓ | 业务ID |
+| hookId | int64 (formatted integer) | ✓ | 脚本ID |
+| projectId | int64 (formatted integer) | ✓ | 项目ID |
+| memo | string |  |  |
+| tags | []string |  |  |
+
+#### 输出参数
+
+| 参数名称 | 类型 | 描述 |
+|------|--------|---------|
+
+#### 输入示例
+
+```bash
+PUT /api/v1/config/biz/{bizId}/projects/{projectId}/hooks/{hookId} HTTP/1.1
+Content-Type: application/json
+
+{
+  "memo": "",
+  "tags": [
+    {}
+  ]
 }
 ```
 
@@ -5309,6 +6657,23 @@ Content-Type: application/json
 
 
 
+### <span id="config-create-credentials-body"></span> ConfigCreateCredentialsBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| memo | string| `string` |  | | 密钥描述 |  |
+| name | string| `string` | ✓ | | 密钥名称 |  |
+| scope | []string| `[]string` |  | | 暂未用到 |  |
+
+
+
 ### <span id="config-create-environment-body"></span> ConfigCreateEnvironmentBody
 
 
@@ -5323,6 +6688,29 @@ Content-Type: application/json
 | memo | string| `string` |  | | 环境备注 |  |
 | name | string| `string` |  | | 环境名称 |  |
 | type | string| `string` |  | | 环境类型 |  |
+
+
+
+### <span id="config-create-hook-body"></span> ConfigCreateHookBody
+
+
+> 请求参数
+  
+
+
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| content | string| `string` | ✓ | | 脚本内容 |  |
+| memo | string| `string` |  | | 脚本描述 |  |
+| name | string| `string` | ✓ | | 脚本名称 |  |
+| revisionName | string| `string` | ✓ | | 版本号 |  |
+| tags | []string| `[]string` |  | | 分类标签 |  |
+| type | string| `string` | ✓ | | 脚本类型 |  |
 
 
 
@@ -5446,6 +6834,26 @@ Content-Type: application/json
 | setNames | []string| `[]string` |  | | 集群名称列表 |  |
 | start | int64 (formatted integer)| `int64` |  | | 起始位置 |  |
 | status | string| `string` |  | | 任务状态: INITIALIZING, RUNNING, SUCCESS, FAILURE |  |
+
+
+
+### <span id="config-list-apps-by-space-rest-body"></span> ConfigListAppsBySpaceRestBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| all | boolean| `bool` |  | | 是否获取所有 |  |
+| configType | string| `string` |  | | 服务类型：文件型=file, 键值型=kv |  |
+| limit | int64 (formatted integer)| `int64` |  | | 每页条数 |  |
+| search | [interface{}](#interface)| `interface{}` |  | | 搜索条件 |  |
+| start | int64 (formatted integer)| `int64` |  | | 当前页码 |  |
+| topIds | string| `string` |  | | 需要置顶ID |  |
 
 
 
@@ -5604,6 +7012,28 @@ Content-Type: application/json
 
 
 
+### <span id="config-list-released-kvs-body"></span> ConfigListReleasedKvsBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| all | boolean| `bool` |  | | 是否获取所有 |  |
+| key | []string| `[]string` |  | |  |  |
+| kvType | []string| `[]string` |  | |  |  |
+| limit | int64 (formatted integer)| `int64` |  | | 每页条数 |  |
+| order | string| `string` |  | |  |  |
+| search | [interface{}](#interface)| `interface{}` |  | |  |  |
+| sort | string| `string` |  | |  |  |
+| start | int64 (formatted integer)| `int64` |  | | 当前页码 |  |
+
+
+
 ### <span id="config-list-templates-not-bound-body"></span> ConfigListTemplatesNotBoundBody
 
 
@@ -5701,6 +7131,22 @@ Content-Type: application/json
 
 [interface{}](#interface)
 
+### <span id="config-update-config-hook-body"></span> ConfigUpdateConfigHookBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| postHookId | int64 (formatted integer)| `int64` |  | | 后置脚本：脚本ID |  |
+| preHookId | int64 (formatted integer)| `int64` |  | | 前置脚本：脚本ID |  |
+
+
+
 ### <span id="config-update-config-template-body"></span> ConfigUpdateConfigTemplateBody
 
 
@@ -5728,6 +7174,40 @@ Content-Type: application/json
 
 
 
+### <span id="config-update-credential-body"></span> ConfigUpdateCredentialBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| enable | boolean| `bool` |  | | 是否启用：是=true,否=false |  |
+| memo | string| `string` |  | | 密钥描述 |  |
+| name | string| `string` |  | | 密钥名称 |  |
+
+
+
+### <span id="config-update-credential-scope-body"></span> ConfigUpdateCredentialScopeBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| addScope | \[\][PbcrsCredentialScopeSpec](#pbcrs-credential-scope-spec)| `[]*PbcrsCredentialScopeSpec` |  | | 新增规则 |  |
+| alterScope | \[\][PbcrsUpdateScopeSpec](#pbcrs-update-scope-spec)| `[]*PbcrsUpdateScopeSpec` |  | | 更新规则 |  |
+| delId | []int64 (formatted integer)| `[]int64` |  | | 删除规则 |  |
+
+
+
 ### <span id="config-update-environment-body"></span> ConfigUpdateEnvironmentBody
 
 
@@ -5740,6 +7220,22 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | memo | string| `string` |  | | 环境备注 |  |
+
+
+
+### <span id="config-update-hook-body"></span> ConfigUpdateHookBody
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| memo | string| `string` |  | |  |  |
+| tags | []string| `[]string` |  | |  |  |
 
 
 
@@ -5777,6 +7273,21 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | memo | string| `string` |  | | 项目备注 |  |
 | name | string| `string` |  | | 项目名称 |  |
+
+
+
+### <span id="get-hook-info-spec-releases"></span> GetHookInfoSpecReleases
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| notReleaseId | int64 (formatted integer)| `int64` |  | |  |  |
 
 
 
@@ -6096,6 +7607,134 @@ Content-Type: application/json
 
 
 
+### <span id="pbcredential-credential-attachment"></span> pbcredentialCredentialAttachment
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bizId | int64 (formatted integer)| `int64` |  | | 业务ID |  |
+| projectId | int64 (formatted integer)| `int64` |  | | 项目ID |  |
+
+
+
+### <span id="pbcredential-credential-list"></span> pbcredentialCredentialList
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| attachment | [PbcredentialCredentialAttachment](#pbcredential-credential-attachment)| `PbcredentialCredentialAttachment` |  | |  |  |
+| credentialScopes | []string| `[]string` |  | | 关联规则 |  |
+| id | int64 (formatted integer)| `int64` |  | | 客户端密钥ID |  |
+| revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
+| spec | [PbcredentialCredentialSpec](#pbcredential-credential-spec)| `PbcredentialCredentialSpec` |  | |  |  |
+
+
+
+### <span id="pbcredential-credential-spec"></span> pbcredentialCredentialSpec
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| credentialType | string| `string` |  | | 凭证类型：(bearToken) |  |
+| enable | boolean| `bool` |  | | 是否启用：是=true，否=false |  |
+| encAlgorithm | string| `string` |  | | enc算法 |  |
+| encCredential | string| `string` |  | | enc凭证 |  |
+| memo | string| `string` |  | | 密钥说明 |  |
+| name | string| `string` |  | | 密钥名称 |  |
+
+
+
+### <span id="pbcrs-credential-scope-attachment"></span> pbcrsCredentialScopeAttachment
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bizId | int64 (formatted integer)| `int64` |  | | 业务ID |  |
+| credentialId | int64 (formatted integer)| `int64` |  | | 客户端密钥ID |  |
+| envId | int64 (formatted integer)| `int64` |  | | 环境ID |  |
+| projectId | int64 (formatted integer)| `int64` |  | | 项目ID |  |
+
+
+
+### <span id="pbcrs-credential-scope-list"></span> pbcrsCredentialScopeList
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| attachment | [PbcrsCredentialScopeAttachment](#pbcrs-credential-scope-attachment)| `PbcrsCredentialScopeAttachment` |  | |  |  |
+| id | int64 (formatted integer)| `int64` |  | | 客户端密钥关联服务ID |  |
+| revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
+| spec | [PbcrsCredentialScopeSpec](#pbcrs-credential-scope-spec)| `PbcrsCredentialScopeSpec` |  | |  |  |
+
+
+
+### <span id="pbcrs-credential-scope-spec"></span> pbcrsCredentialScopeSpec
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| app | string| `string` |  | | 服务名称 |  |
+| envId | int64 (formatted integer)| `int64` |  | | 环境ID |  |
+| envName | string| `string` |  | | 环境名称 |  |
+| envType | string| `string` |  | | 环境类型 |  |
+| scope | string| `string` |  | | 关联规则 |  |
+
+
+
+### <span id="pbcrs-update-scope-spec"></span> pbcrsUpdateScopeSpec
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| app | string| `string` |  | | 服务名称 |  |
+| envId | int64 (formatted integer)| `int64` |  | | 环境ID |  |
+| id | int64 (formatted integer)| `int64` |  | | 客户端密钥关联服务ID |  |
+| scope | string| `string` |  | | 关联规则 |  |
+
+
+
 ### <span id="pbcs-approval-callback-resp"></span> pbcsApprovalCallbackResp
 
 
@@ -6268,6 +7907,21 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-check-credential-name-resp"></span> pbcsCheckCredentialNameResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| exist | boolean| `bool` |  | | 是否存在：是=true,否=false |  |
+
+
+
 ### <span id="pbcs-cmdb-gse-status-resp"></span> pbcsCmdbGseStatusResp
 
 
@@ -6330,6 +7984,21 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-create-credential-resp"></span> pbcsCreateCredentialResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | | 客户端密钥ID |  |
+
+
+
 ### <span id="pbcs-create-environment-resp"></span> pbcsCreateEnvironmentResp
 
 
@@ -6342,6 +8011,21 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | id | int64 (formatted integer)| `int64` |  | | 环境ID |  |
+
+
+
+### <span id="pbcs-create-hook-resp"></span> pbcsCreateHookResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| id | int64 (formatted integer)| `int64` |  | | 脚本ID |  |
 
 
 
@@ -6398,6 +8082,13 @@ Content-Type: application/json
 [interface{}](#interface)
 
 ### <span id="pbcs-delete-environment-resp"></span> pbcsDeleteEnvironmentResp
+
+
+  
+
+[interface{}](#interface)
+
+### <span id="pbcs-delete-hook-resp"></span> pbcsDeleteHookResp
 
 
   
@@ -6481,6 +8172,43 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-get-hook-info-spec"></span> pbcsGetHookInfoSpec
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| memo | string| `string` |  | | 脚本描述 |  |
+| name | string| `string` |  | | 脚本名 |  |
+| releases | [GetHookInfoSpecReleases](#get-hook-info-spec-releases)| `GetHookInfoSpecReleases` |  | |  |  |
+| tags | []string| `[]string` |  | | 脚本标签 |  |
+| type | string| `string` |  | | 脚本类型：(shell、python、bat、powershell) |  |
+
+
+
+### <span id="pbcs-get-hook-resp"></span> pbcsGetHookResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| attachment | [PbhookHookAttachment](#pbhook-hook-attachment)| `PbhookHookAttachment` |  | |  |  |
+| id | int64 (formatted integer)| `int64` |  | | 脚本ID |  |
+| revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
+| spec | [PbcsGetHookInfoSpec](#pbcs-get-hook-info-spec)| `PbcsGetHookInfoSpec` |  | |  |  |
+
+
+
 ### <span id="pbcs-get-process-config-view-resp"></span> pbcsGetProcessConfigViewResp
 
 
@@ -6528,6 +8256,42 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-get-release-hook-resp"></span> pbcsGetReleaseHookResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| postHook | [PbcsGetReleaseHookRespHook](#pbcs-get-release-hook-resp-hook)| `PbcsGetReleaseHookRespHook` |  | |  |  |
+| preHook | [PbcsGetReleaseHookRespHook](#pbcs-get-release-hook-resp-hook)| `PbcsGetReleaseHookRespHook` |  | |  |  |
+
+
+
+### <span id="pbcs-get-release-hook-resp-hook"></span> pbcsGetReleaseHookRespHook
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| content | string| `string` |  | |  |  |
+| hookId | int64 (formatted integer)| `int64` |  | | 脚本ID |  |
+| hookName | string| `string` |  | |  |  |
+| hookRevisionId | int64 (formatted integer)| `int64` |  | |  |  |
+| hookRevisionName | string| `string` |  | |  |  |
+| type | string| `string` |  | |  |  |
+
+
+
 ### <span id="pbcs-get-released-config-item-resp"></span> pbcsGetReleasedConfigItemResp
 
 
@@ -6540,6 +8304,21 @@ Content-Type: application/json
 | Name | Type | Go type | Required | Default | Description | Example |
 |------|------|---------|:--------:| ------- |-------------|---------|
 | configItem | [PbrciReleasedConfigItem](#pbrci-released-config-item)| `PbrciReleasedConfigItem` |  | |  |  |
+
+
+
+### <span id="pbcs-get-released-kv-resp"></span> pbcsGetReleasedKvResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| kv | [PbrkvReleasedKv](#pbrkv-released-kv)| `PbrkvReleasedKv` |  | |  |  |
 
 
 
@@ -6559,6 +8338,24 @@ Content-Type: application/json
 | statistics | \[\][PbtbTaskStatusStatItem](#pbtb-task-status-stat-item)| `[]*PbtbTaskStatusStatItem` |  | | 状态统计列表 |  |
 | taskBatch | [PbtbTaskBatch](#pbtb-task-batch)| `PbtbTaskBatch` |  | | 任务批次信息 |  |
 | tasks | \[\][PbtbTaskDetail](#pbtb-task-detail)| `[]*PbtbTaskDetail` |  | | 任务详情列表 |  |
+
+
+
+### <span id="pbcs-list-apps-resp"></span> pbcsListAppsResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| count | int64 (formatted integer)| `int64` |  | | 总数 |  |
+| details | \[\][PbappApp](#pbapp-app)| `[]*PbappApp` |  | |  |  |
+| fileAppsCount | int64 (formatted integer)| `int64` |  | | 文件型服务总数 |  |
+| kvAppsCount | int64 (formatted integer)| `int64` |  | | 键值型服务总数 |  |
 
 
 
@@ -6614,6 +8411,38 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-list-credential-scopes-resp"></span> pbcsListCredentialScopesResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| count | int64 (formatted integer)| `int64` |  | | 总数 |  |
+| details | \[\][PbcrsCredentialScopeList](#pbcrs-credential-scope-list)| `[]*PbcrsCredentialScopeList` |  | |  |  |
+
+
+
+### <span id="pbcs-list-credentials-resp"></span> pbcsListCredentialsResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| count | int64 (formatted integer)| `int64` |  | | 总数 |  |
+| details | \[\][PbcredentialCredentialList](#pbcredential-credential-list)| `[]*PbcredentialCredentialList` |  | |  |  |
+
+
+
 ### <span id="pbcs-list-environments-resp"></span> pbcsListEnvironmentsResp
 
 
@@ -6629,6 +8458,41 @@ Content-Type: application/json
 | prodEnvironments | \[\][PbenvironmentEnvironment](#pbenvironment-environment)| `[]*PbenvironmentEnvironment` |  | | 生产环境列表 |  |
 | stagingEnvironments | \[\][PbenvironmentEnvironment](#pbenvironment-environment)| `[]*PbenvironmentEnvironment` |  | | 预发布环境列表 |  |
 | testEnvironments | \[\][PbenvironmentEnvironment](#pbenvironment-environment)| `[]*PbenvironmentEnvironment` |  | | 测试环境列表 |  |
+
+
+
+### <span id="pbcs-list-hooks-resp"></span> pbcsListHooksResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| count | int64 (formatted integer)| `int64` |  | | 总数 |  |
+| details | \[\][PbcsListHooksRespDetail](#pbcs-list-hooks-resp-detail)| `[]*PbcsListHooksRespDetail` |  | |  |  |
+| exclusionCount | int64 (formatted integer)| `int64` |  | |  |  |
+
+
+
+### <span id="pbcs-list-hooks-resp-detail"></span> pbcsListHooksRespDetail
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| boundNum | int64 (formatted integer)| `int64` |  | |  |  |
+| confirmDelete | boolean| `bool` |  | |  |  |
+| hook | [PbhookHook](#pbhook-hook)| `PbhookHook` |  | |  |  |
+| publishedRevisionId | int64 (formatted integer)| `int64` |  | |  |  |
 
 
 
@@ -6712,6 +8576,22 @@ Content-Type: application/json
 |------|------|---------|:--------:| ------- |-------------|---------|
 | count | int64 (formatted integer)| `int64` |  | | 总数 |  |
 | details | \[\][PbrciReleasedConfigItem](#pbrci-released-config-item)| `[]*PbrciReleasedConfigItem` |  | |  |  |
+
+
+
+### <span id="pbcs-list-released-kvs-resp"></span> pbcsListReleasedKvsResp
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| count | int64 (formatted integer)| `int64` |  | | 总数 |  |
+| details | \[\][PbrkvReleasedKv](#pbrkv-released-kv)| `[]*PbrkvReleasedKv` |  | |  |  |
 
 
 
@@ -6885,6 +8765,13 @@ Content-Type: application/json
 
 
 
+### <span id="pbcs-update-config-hook-resp"></span> pbcsUpdateConfigHookResp
+
+
+  
+
+[interface{}](#interface)
+
 ### <span id="pbcs-update-config-template-resp"></span> pbcsUpdateConfigTemplateResp
 
 
@@ -6892,7 +8779,28 @@ Content-Type: application/json
 
 [interface{}](#interface)
 
+### <span id="pbcs-update-credential-scope-resp"></span> pbcsUpdateCredentialScopeResp
+
+
+  
+
+[interface{}](#interface)
+
+### <span id="pbcs-update-credentials-resp"></span> pbcsUpdateCredentialsResp
+
+
+  
+
+[interface{}](#interface)
+
 ### <span id="pbcs-update-environment-resp"></span> pbcsUpdateEnvironmentResp
+
+
+  
+
+[interface{}](#interface)
+
+### <span id="pbcs-update-hook-resp"></span> pbcsUpdateHookResp
 
 
   
@@ -7287,6 +9195,60 @@ Content-Type: application/json
 | public | boolean| `bool` |  | `true`| 服务可见范围，公开=true，指定服务=false |  |
 | selector | [interface{}](#interface)| `interface{}` |  | |  |  |
 | uid | string| `string` |  | |  |  |
+
+
+
+### <span id="pbhook-hook"></span> pbhookHook
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| attachment | [PbhookHookAttachment](#pbhook-hook-attachment)| `PbhookHookAttachment` |  | |  |  |
+| id | int64 (formatted integer)| `int64` |  | | 脚本ID |  |
+| revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
+| spec | [PbhookHookSpec](#pbhook-hook-spec)| `PbhookHookSpec` |  | |  |  |
+
+
+
+### <span id="pbhook-hook-attachment"></span> pbhookHookAttachment
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| bizId | int64 (formatted integer)| `int64` |  | | 业务ID |  |
+| projectId | int64 (formatted integer)| `int64` |  | | 项目ID |  |
+
+
+
+### <span id="pbhook-hook-spec"></span> pbhookHookSpec
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| content | string| `string` |  | | 脚本内容 |  |
+| memo | string| `string` |  | | 脚本描述 |  |
+| name | string| `string` |  | | 脚本名称 |  |
+| revisionName | string| `string` |  | | 脚本版本号 |  |
+| tags | []string| `[]string` |  | | 脚本标签 |  |
+| type | string| `string` |  | | 脚本类型：(shell、python、bat、powershell) |  |
 
 
 
@@ -7792,6 +9754,26 @@ Content-Type: application/json
 | title | string| `string` |  | |  |  |
 | updatedAt | string| `string` |  | |  |  |
 | workflowId | string| `string` |  | |  |  |
+
+
+
+### <span id="pbrkv-released-kv"></span> pbrkvReleasedKv
+
+
+  
+
+
+
+**Properties**
+
+| Name | Type | Go type | Required | Default | Description | Example |
+|------|------|---------|:--------:| ------- |-------------|---------|
+| attachment | [PbkvKvAttachment](#pbkv-kv-attachment)| `PbkvKvAttachment` |  | |  |  |
+| contentSpec | [PbcontentContentSpec](#pbcontent-content-spec)| `PbcontentContentSpec` |  | |  |  |
+| id | int64 (formatted integer)| `int64` |  | | 服务版本键值配置项ID |  |
+| releaseId | int64 (formatted integer)| `int64` |  | | 服务版本ID |  |
+| revision | [PbbaseRevision](#pbbase-revision)| `PbbaseRevision` |  | |  |  |
+| spec | [PbkvKvSpec](#pbkv-kv-spec)| `PbkvKvSpec` |  | |  |  |
 
 
 
