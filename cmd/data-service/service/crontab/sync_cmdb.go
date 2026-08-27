@@ -15,9 +15,13 @@ package crontab
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 
 	"github.com/TencentBlueKing/bk-bscp/cmd/data-service/service"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkuser"
@@ -25,22 +29,29 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/shutdown"
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
+	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
 const (
-	defaultSyncCmdbTime = 20 * time.Minute
+	defaultSyncCmdbTime     = 30 * time.Minute
+	defaultSyncCmdbBizBatch = 10
+	syncCmdbGseBizCursorKey = "sync_cmdb_gse_biz_cursor"
+	syncCmdbGseBizCursorSep = ":"
 )
 
 // NewSyncCMDB init sync ticket status
 func NewSyncCMDB(set dao.Set, sd serviced.Service, svc *service.Service,
-	qpsLimit float64, cleanupInterval time.Duration) *syncCMDB {
+	qpsLimit float64, cleanupInterval time.Duration, bizBatchSize int) *syncCMDB {
 	if qpsLimit <= 0 || qpsLimit > findHostBizRelationsApiQpsLimit {
 		qpsLimit = findHostBizRelationsApiQpsLimit
 	}
 	if cleanupInterval <= 0 {
 		cleanupInterval = defaultSyncCmdbTime
+	}
+	if bizBatchSize <= 0 {
+		bizBatchSize = defaultSyncCmdbBizBatch
 	}
 	rateLimiter := rate.NewLimiter(rate.Limit(qpsLimit), 1)
 	return &syncCMDB{
@@ -49,6 +60,7 @@ func NewSyncCMDB(set dao.Set, sd serviced.Service, svc *service.Service,
 		svc:             svc,
 		rateLimiter:     rateLimiter,
 		cleanupInterval: cleanupInterval,
+		bizBatchSize:    bizBatchSize,
 	}
 }
 
@@ -59,6 +71,7 @@ type syncCMDB struct {
 	svc             *service.Service
 	rateLimiter     *rate.Limiter
 	cleanupInterval time.Duration
+	bizBatchSize    int
 }
 
 func (s *syncCMDB) Run() {
@@ -111,7 +124,7 @@ func (s *syncCMDB) syncCMDBByTenant(kt *kit.Kit) {
 
 		for _, tenant := range tenants {
 			tkt := kit.NewWithTenant(tenant.ID)
-			if err := s.svc.SynchronizeCmdbData(tkt.Ctx, tenant.ID, []int{}); err != nil {
+			if err := s.syncTenantBizBatch(tkt, tenant.ID); err != nil {
 				logs.Errorf(
 					"[syncCMDBAndGSE][error] rid=%s tenant=%s at=%s failed to synchronize cmdb/gse data: %v",
 					rid, tenant.ID, syncAt, err,
@@ -128,7 +141,7 @@ func (s *syncCMDB) syncCMDBByTenant(kt *kit.Kit) {
 	}
 
 	// 单租户模式：使用空租户ID
-	if err := s.svc.SynchronizeCmdbData(kt.Ctx, "", []int{}); err != nil {
+	if err := s.syncTenantBizBatch(kt, ""); err != nil {
 		logs.Errorf(
 			"[syncCMDBAndGSE][error] rid=%s at=%s failed to synchronize cmdb/gse data: %v (type=%T)",
 			rid, syncAt, err, err,
@@ -140,4 +153,100 @@ func (s *syncCMDB) syncCMDBByTenant(kt *kit.Kit) {
 			rid, syncAt, cost,
 		)
 	}
+}
+
+// syncTenantBizBatch 按游标分批同步已开启进程配置管理的业务
+func (s *syncCMDB) syncTenantBizBatch(kt *kit.Kit, tenantID string) error {
+	// 1. 获取开启进程配置管理的业务
+	bizIDs := s.svc.ListProcessConfigEnabledBizIDs()
+	if len(bizIDs) == 0 {
+		logs.Infof("[syncCMDBAndGSE] tenant=%s no enabled biz to sync", tenantID)
+		return nil
+	}
+
+	// 2. 读取同步游标
+	afterBizID, err := s.loadBizCursor(kt, tenantID)
+	if err != nil {
+		logs.Warnf("[syncCMDBAndGSE] load biz cursor failed, tenant=%s, err=%v, start from beginning", tenantID, err)
+		afterBizID = 0
+	}
+
+	// 3. 按游标取下一批业务
+	batch, lastBizID := nextBizBatch(bizIDs, afterBizID, s.bizBatchSize)
+	if len(batch) == 0 {
+		return nil
+	}
+
+	logs.Infof("[syncCMDBAndGSE] tenant=%s dispatch biz batch=%v size=%d afterBizID=%d",
+		tenantID, batch, len(batch), afterBizID)
+
+	if err := s.svc.SynchronizeCmdbData(kt.Ctx, tenantID, batch); err != nil {
+		return err
+	}
+
+	// 4. 写入同步游标
+	if err := s.saveBizCursor(kt, tenantID, lastBizID); err != nil {
+		logs.Errorf("[syncCMDBAndGSE] save biz cursor failed, tenant=%s lastBizID=%d, err=%v",
+			tenantID, lastBizID, err)
+	}
+	return nil
+}
+
+func syncCmdbGseBizCursorConfigKey(tenantID string) string {
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	return syncCmdbGseBizCursorKey + syncCmdbGseBizCursorSep + tenantID
+}
+
+func (s *syncCMDB) loadBizCursor(kt *kit.Kit, tenantID string) (int, error) {
+	cfg, err := s.set.Config().GetConfig(kt, syncCmdbGseBizCursorConfigKey(tenantID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	if cfg == nil || cfg.Value == "" {
+		return 0, nil
+	}
+	id, err := strconv.Atoi(cfg.Value)
+	if err != nil {
+		return 0, fmt.Errorf("parse biz cursor %q: %w", cfg.Value, err)
+	}
+	return id, nil
+}
+
+func (s *syncCMDB) saveBizCursor(kt *kit.Kit, tenantID string, lastBizID int) error {
+	return s.set.Config().UpsertConfig(kt, []*table.Config{{
+		Key:   syncCmdbGseBizCursorConfigKey(tenantID),
+		Value: strconv.Itoa(lastBizID),
+	}})
+}
+
+// nextBizBatch 从已排序的业务列表中，取 afterBizID 之后的下一批（环形）。
+// 返回本批业务 ID，以及本批最后一个业务 ID（作为下次游标）。
+func nextBizBatch(bizIDs []int, afterBizID, batchSize int) (batch []int, lastBizID int) {
+	if len(bizIDs) == 0 || batchSize <= 0 {
+		return nil, afterBizID
+	}
+	if batchSize > len(bizIDs) {
+		batchSize = len(bizIDs)
+	}
+
+	start := 0
+	if afterBizID != 0 {
+		for i, id := range bizIDs {
+			if id > afterBizID {
+				start = i
+				break
+			}
+		}
+	}
+
+	batch = make([]int, 0, batchSize)
+	for i := 0; i < batchSize; i++ {
+		batch = append(batch, bizIDs[(start+i)%len(bizIDs)])
+	}
+	return batch, batch[len(batch)-1]
 }

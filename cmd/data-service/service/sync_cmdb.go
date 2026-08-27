@@ -21,7 +21,6 @@ import (
 	"github.com/Tencent/bk-bcs/bcs-common/common/task/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
@@ -64,19 +63,9 @@ func (s *Service) SyncCmdbGseStatus(ctx context.Context, req *pbds.SyncCmdbGseSt
 // SynchronizeCmdbData 同步cmdb数据
 func (s *Service) SynchronizeCmdbData(ctx context.Context, tenantID string, bizIDs []int) error {
 	grpcKit := kit.FromGrpcContext(ctx)
-	// 不指定业务同步，表示同步所有业务
+	// 不指定业务同步，表示同步 configs.pcv_biz 白名单中的全部业务
 	if len(bizIDs) == 0 {
-		business, err := s.cmdb.SearchBusinessByAccount(ctx, bkcmdb.SearchSetReq{
-			Fields: []string{"bk_biz_id", "bk_biz_name"},
-		})
-		if err != nil {
-			return errf.Errorf(errf.ThirdPartyAPIError, "%s",
-				i18n.T(grpcKit, "get business data failed, err: %v", err))
-		}
-
-		for _, item := range business.Info {
-			bizIDs = append(bizIDs, item.BkBizID)
-		}
+		bizIDs = s.ListProcessConfigEnabledBizIDs()
 	}
 
 	for _, id := range bizIDs {

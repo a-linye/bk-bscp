@@ -15,6 +15,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -375,6 +376,38 @@ func (s *Service) IsProcessConfigViewEnabled(bizID uint32) bool {
 		}
 	}
 	return false
+}
+
+// ListProcessConfigEnabledBizIDs 从 configs.pcv_biz 解析已开启进程配置的业务 ID，按升序去重。
+// 定时全量同步以该名单为准，不请求 CMDB 拉全量业务，避免返回顺序变化影响轮转。
+func (s *Service) ListProcessConfigEnabledBizIDs() []int {
+	return parsePcvBizIDs(s.getConfigValue(ConfigKeyPcvBiz))
+}
+
+// parsePcvBizIDs 解析逗号分隔的业务白名单，非法值和 <=0 丢弃，结果按 ID 升序。
+func parsePcvBizIDs(val string) []int {
+	if val == "" {
+		return nil
+	}
+	seen := make(map[int]struct{})
+	ids := make([]int, 0)
+	for _, part := range strings.Split(val, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.Atoi(part)
+		if err != nil || id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	return ids
 }
 
 // getConfigValue 优先从缓存获取，缓存未命中则兜底查 DB。

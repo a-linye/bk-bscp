@@ -7,14 +7,12 @@
  * Unless required by applicable law or agreed to in writing, software distributed under
  * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
  * either express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- */
+    10| * limitations under the License.
+*/
 
 package cmdb
 
 import (
-	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -25,70 +23,9 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 )
 
-// TestMapOsType 校验 R-001：CC bk_os_type 数字编码到业务语义字符串的映射
-func TestMapOsType(t *testing.T) {
-	cases := []struct {
-		name string
-		raw  string
-		want string
-	}{
-		{"linux", "1", "linux"},
-		{"win", "2", "win"},
-		{"aix", "3", "aix"},
-		{"empty", "", ""},
-		{"unknown", "9", ""},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := mapOsType(c.raw); got != c.want {
-				t.Fatalf("mapOsType(%q) = %q, want %q", c.raw, got, c.want)
-			}
-		})
-	}
-}
-
-// TestBuildHostOsTypeIndex 校验按 (bk_cloud_id, bk_host_innerip) 建立映射后的 os_type 索引，
-// 空值与未覆盖编码不入索引（R-002 空值不参与覆盖）
-func TestBuildHostOsTypeIndex(t *testing.T) {
-	hosts := []bkcmdb.HostInfo{
-		{BkCloudID: 0, BkHostInnerIP: "127.0.0.1", BkOSType: "1"},
-		{BkCloudID: 1, BkHostInnerIP: "127.0.0.2", BkOSType: ""},
-		{BkCloudID: 2, BkHostInnerIP: "127.0.0.3", BkOSType: "9"},
-		{BkCloudID: 3, BkHostInnerIP: "127.0.0.4", BkOSType: "2"},
-	}
-
-	idx := buildHostOsTypeIndex(hosts)
-
-	if got := idx[hostOsTypeKey{cloudID: 0, innerIP: "127.0.0.1"}]; got != "linux" {
-		t.Fatalf("index linux = %q, want linux", got)
-	}
-	if got := idx[hostOsTypeKey{cloudID: 3, innerIP: "127.0.0.4"}]; got != "win" {
-		t.Fatalf("index win = %q, want win", got)
-	}
-	if _, ok := idx[hostOsTypeKey{cloudID: 1, innerIP: "127.0.0.2"}]; ok {
-		t.Fatal("empty bk_os_type should not be indexed")
-	}
-	if _, ok := idx[hostOsTypeKey{cloudID: 2, innerIP: "127.0.0.3"}]; ok {
-		t.Fatal("unknown bk_os_type should not be indexed")
-	}
-	if len(idx) != 2 {
-		t.Fatalf("index size = %d, want 2", len(idx))
-	}
-}
-
-// osTypeStubCMDB 仅实现 ListBizHosts，用于驱动 buildProcessEntities 的 os_type 补全逻辑
+// osTypeStubCMDB 空 CMDB 桩，供 buildProcessEntities 相关测试使用（已不再调用 ListBizHosts）
 type osTypeStubCMDB struct {
 	bkcmdb.Service
-	hosts []bkcmdb.HostInfo
-	err   error
-}
-
-func (m *osTypeStubCMDB) ListBizHosts(_ context.Context, _ *bkcmdb.ListBizHostsRequest) (
-	*bkcmdb.CMDBListData[bkcmdb.HostInfo], error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return &bkcmdb.CMDBListData[bkcmdb.HostInfo]{Count: len(m.hosts), Info: m.hosts}, nil
 }
 
 func newOsTypeProcessItem(cloudID int, innerIP string) *bkcmdb.ProcessRelatedInfoItem {
@@ -102,29 +39,22 @@ func newOsTypeProcessItem(cloudID int, innerIP string) *bkcmdb.ProcessRelatedInf
 	}
 }
 
-// TestBuildProcessEntitiesSetsOsType 校验 F-003：主机维度获取的 os_type 关联写入进程
-func TestBuildProcessEntitiesSetsOsType(t *testing.T) {
-	svc := &osTypeStubCMDB{
-		hosts: []bkcmdb.HostInfo{
-			{BkCloudID: 0, BkHostInnerIP: "127.0.0.1", BkOSType: "1"},
-		},
-	}
-	s := &syncCMDBService{bizID: 3, svc: svc}
-	kt := kit.New()
-
+// TestBuildProcessEntitiesDoesNotSetOsType 停同步 os_type 后，新路径不再通过 list_hosts 补全该字段
+func TestBuildProcessEntitiesDoesNotSetOsType(t *testing.T) {
+	s := &syncCMDBService{bizID: 3, svc: &osTypeStubCMDB{}}
 	data := []*bkcmdb.ProcessRelatedInfoItem{newOsTypeProcessItem(0, "127.0.0.1")}
 
-	procs := s.buildProcessEntities(kt, data, "default")
+	procs := s.buildProcessEntities(kit.New(), data, "default")
 
 	if len(procs) != 1 {
 		t.Fatalf("processes count = %d, want 1", len(procs))
 	}
-	if got := procs[0].Spec.OsType; got != "linux" {
-		t.Fatalf("process os_type = %q, want linux", got)
+	if got := procs[0].Spec.OsType; got != "" {
+		t.Fatalf("process os_type = %q, want empty", got)
 	}
 }
 
-// TestResolveOsType 校验进程重建时的 os_type 兜底：新值为空沿用旧值，避免空值覆盖（R-002）
+// TestResolveOsType 校验进程重建时的 os_type 兜底：新值为空沿用旧值，避免空值覆盖（R-002）。
 func TestResolveOsType(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -177,7 +107,7 @@ func (s *fakeReusableDaoSet) Process() dao.Process                 { return s.pr
 func (s *fakeReusableDaoSet) ProcessInstance() dao.ProcessInstance { return s.inst }
 
 // TestBuildProcessChangesReusableResolvesOsType 校验别名变更复用 deleted 记录恢复进程时，
-// 恢复后的进程 os_type 与主机一致：新值非空采用新值，新值为空沿用旧进程值（R-002）
+// 恢复后的进程 os_type：新值非空采用新值，新值为空沿用旧进程值（R-002）
 func TestBuildProcessChangesReusableResolvesOsType(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -228,24 +158,5 @@ func TestBuildProcessChangesReusableResolvesOsType(t *testing.T) {
 				t.Fatalf("restored process os_type = %q, want %q", got, c.wantRestored)
 			}
 		})
-	}
-}
-
-// TestBuildProcessEntitiesOsTypeFetchErrorDoesNotBlock 校验 list_hosts 异常时不阻断进程构建，
-// os_type 落为空字符串（不改变同步任务整体容错机制）
-func TestBuildProcessEntitiesOsTypeFetchErrorDoesNotBlock(t *testing.T) {
-	svc := &osTypeStubCMDB{err: errors.New("cmdb unavailable")}
-	s := &syncCMDBService{bizID: 3, svc: svc}
-	kt := kit.New()
-
-	data := []*bkcmdb.ProcessRelatedInfoItem{newOsTypeProcessItem(0, "127.0.0.1")}
-
-	procs := s.buildProcessEntities(kt, data, "default")
-
-	if len(procs) != 1 {
-		t.Fatalf("processes count = %d, want 1", len(procs))
-	}
-	if got := procs[0].Spec.OsType; got != "" {
-		t.Fatalf("process os_type = %q, want empty on fetch error", got)
 	}
 }
