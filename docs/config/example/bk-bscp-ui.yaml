@@ -38,5 +38,9 @@ frontend_conf:
     user_man_host: "[bkapi url]"
     # 用户中心(个人中心)跳转地址, 仅多租户环境配置, 填写完整 URL
     user_center_url: "[bkuser url]/personal-center"
+    # 新 UI 路径/地址, 用于跳转到新 UI 页面; 也可通过环境变量 BK_BSCP_NEW_UI_URL 配置(为空时生效)
+    new_ui_url: ""
+    # 旧 UI 路径/地址, 用于跳转回旧 UI 页面; 也可通过环境变量 BK_BSCP_OLD_UI_URL 配置(为空时生效)
+    old_ui_url: ""
   helper: "[helper]"
   enable_bk_notice: false

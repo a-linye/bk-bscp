@@ -29,3 +29,30 @@ func TestInitResBaseJSURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "http://repo.test.com/bk_bscp/base.js", conf.Host.BKSharedResBaseJSURL)
 }
+
+func TestHostConfGetFromEnv(t *testing.T) {
+	// 字段为空时, 从环境变量补充
+	t.Run("fill from env when empty", func(t *testing.T) {
+		t.Setenv(NewUIURLEnv, "https://new-ui.example.com")
+		t.Setenv(OldUIURLEnv, "https://old-ui.example.com")
+
+		h := &HostConf{}
+		h.getFromEnv()
+		assert.Equal(t, "https://new-ui.example.com", h.NewUIURL)
+		assert.Equal(t, "https://old-ui.example.com", h.OldUIURL)
+	})
+
+	// 字段非空时, 显式配置优先, 不被环境变量覆盖
+	t.Run("keep explicit config", func(t *testing.T) {
+		t.Setenv(NewUIURLEnv, "https://new-ui.example.com")
+		t.Setenv(OldUIURLEnv, "https://old-ui.example.com")
+
+		h := &HostConf{
+			NewUIURL: "https://explicit-new.example.com",
+			OldUIURL: "https://explicit-old.example.com",
+		}
+		h.getFromEnv()
+		assert.Equal(t, "https://explicit-new.example.com", h.NewUIURL)
+		assert.Equal(t, "https://explicit-old.example.com", h.OldUIURL)
+	})
+}

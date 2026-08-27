@@ -16,8 +16,16 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"path"
 	"strings"
+)
+
+const (
+	// NewUIURLEnv 新 UI 路径/地址对应的环境变量，用于不便于修改配置文件时通过环境变量覆盖
+	NewUIURLEnv = "BK_BSCP_NEW_UI_URL"
+	// OldUIURLEnv 旧 UI 路径/地址对应的环境变量，用于不便于修改配置文件时通过环境变量覆盖
+	OldUIURLEnv = "BK_BSCP_OLD_UI_URL"
 )
 
 // HostConf host conf
@@ -30,6 +38,18 @@ type HostConf struct {
 	BKSharedResBaseJSURL string `yaml:"-"`                 // 规则是${bkSharedResUrl}/${目录名 aka app_code}/base.js
 	UserManHost          string `yaml:"user_man_host"`     // 用户列表host
 	UserCenterURL        string `yaml:"user_center_url"`   // 用户中心(个人中心)跳转地址
+	NewUIURL             string `yaml:"new_ui_url"`        // 新 UI 路径/地址
+	OldUIURL             string `yaml:"old_ui_url"`        // 旧 UI 路径/地址
+}
+
+// getFromEnv 从环境变量补充配置，仅当对应字段为空时读取，避免覆盖显式配置
+func (h *HostConf) getFromEnv() {
+	if h.NewUIURL == "" {
+		h.NewUIURL = os.Getenv(NewUIURLEnv)
+	}
+	if h.OldUIURL == "" {
+		h.OldUIURL = os.Getenv(OldUIURLEnv)
+	}
 }
 
 // FrontendConf docs and host conf

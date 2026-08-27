@@ -192,6 +192,8 @@ func (s *WebServer) subRouter() http.Handler {
 		NodeManHost:          config.G.Frontend.Host.BKNODEMANHOST,
 		UserManHost:          config.G.Frontend.Host.UserManHost,
 		UserCenterURL:        config.G.Frontend.Host.UserCenterURL,
+		NewUIURL:             config.G.Frontend.Host.NewUIURL,
+		OldUIURL:             config.G.Frontend.Host.OldUIURL,
 	}
 
 	if shouldProxyAPI {

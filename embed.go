@@ -83,6 +83,8 @@ type IndexConfig struct {
 	NodeManHost          string
 	UserManHost          string
 	UserCenterURL        string // 用户中心(个人中心)跳转地址, 仅多租户环境配置
+	NewUIURL             string // 新 UI 路径/地址, 用于跳转到新 UI 页面
+	OldUIURL             string // 旧 UI 路径/地址, 用于跳转回旧 UI 页面
 }
 
 // EmbedWebServer 前端 web server
@@ -215,6 +217,8 @@ func (e *EmbedWeb) RenderIndexHandler(conf *IndexConfig) http.Handler {
 			"BK_NODE_HOST":              conf.NodeManHost,
 			"USER_MAN_HOST":             conf.UserManHost,
 			"USER_CENTER_URL":           conf.UserCenterURL,
+			"NEW_UI_URL":                conf.NewUIURL,
+			"OLD_UI_URL":                conf.OldUIURL,
 		}
 
 		// 本地开发模式 / 代理请求

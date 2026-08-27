@@ -41,6 +41,8 @@ func (c *Configuration) init() error {
 	if err := c.Web.init(); err != nil {
 		return err
 	}
+	c.Frontend.Host.getFromEnv()
+
 	if err := c.Frontend.initResBaseJSURL(c.Base.AppCode); err != nil {
 		return err
 	}
