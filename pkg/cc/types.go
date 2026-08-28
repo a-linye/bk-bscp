@@ -1368,6 +1368,8 @@ type SyncCmdbGseConfig struct {
 	Interval string `yaml:"interval"`
 	// QpsLimit defines the QPS limit for sync cmdb and gse requests
 	QpsLimit float64 `yaml:"qpsLimit"`
+	// BizBatchSize is the number of businesses dispatched per crontab tick
+	BizBatchSize int `yaml:"bizBatchSize"`
 }
 
 // CrontabConfig defines crontab task configuration options.
@@ -1465,6 +1467,10 @@ func (c CrontabConfig) validate() error {
 		return err
 	}
 
+	if err := c.SyncCmdbGse.validate(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1512,14 +1518,37 @@ func (c *WatchHostUpdatesConfig) trySetDefault() {
 	}
 }
 
-// trySetDefault try set the default value of watch host updates config
+// validate if the sync cmdb gse config is valid or not.
+func (c SyncCmdbGseConfig) validate() error {
+	if c.Interval != "" {
+		if _, err := time.ParseDuration(c.Interval); err != nil {
+			return fmt.Errorf("invalid syncCmdbGse interval duration: %s", c.Interval)
+		}
+	}
+
+	if c.QpsLimit < 0 {
+		return fmt.Errorf("invalid syncCmdbGse qpsLimit value: %f, should >= 0", c.QpsLimit)
+	}
+
+	if c.BizBatchSize < 0 {
+		return fmt.Errorf("invalid syncCmdbGse bizBatchSize value: %d, should >= 0", c.BizBatchSize)
+	}
+
+	return nil
+}
+
+// trySetDefault try set the default value of sync cmdb gse config
 func (c *SyncCmdbGseConfig) trySetDefault() {
 	if c.Interval == "" {
-		c.Interval = "20m" // 20m0s
+		c.Interval = "30m"
 	}
 
 	if c.QpsLimit == 0 {
 		c.QpsLimit = 80.0 // 80 QPS
+	}
+
+	if c.BizBatchSize == 0 {
+		c.BizBatchSize = 10
 	}
 }
 

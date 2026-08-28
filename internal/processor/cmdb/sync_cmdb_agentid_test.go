@@ -169,11 +169,7 @@ func TestBuildProcessChangesNoChangeWhenAgentIDEqual(t *testing.T) {
 
 // TestBuildProcessEntitiesEmptyAgentIDIsAbnormal 全量同步落库时空 agent_id 的 agent_status 为 abnormal
 func TestBuildProcessEntitiesEmptyAgentIDIsAbnormal(t *testing.T) {
-	svc := &osTypeStubCMDB{
-		hosts: []bkcmdb.HostInfo{
-			{BkCloudID: 0, BkHostInnerIP: "127.0.0.1", BkOSType: "1"},
-		},
-	}
+	svc := &osTypeStubCMDB{}
 	s := &syncCMDBService{bizID: 3, svc: svc}
 
 	data := []*bkcmdb.ProcessRelatedInfoItem{newOsTypeProcessItem(0, "127.0.0.1")}

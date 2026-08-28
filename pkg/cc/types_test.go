@@ -70,6 +70,29 @@ func TestWatchCmdbResourceDefaultDisabled(t *testing.T) {
 	}
 }
 
+func TestSyncCmdbGseConfigDefaults(t *testing.T) {
+	var conf SyncCmdbGseConfig
+	conf.trySetDefault()
+
+	if conf.Interval != "30m" {
+		t.Fatalf("interval = %q, want 30m", conf.Interval)
+	}
+	if conf.BizBatchSize != 10 {
+		t.Fatalf("bizBatchSize = %d, want 10", conf.BizBatchSize)
+	}
+}
+
+func TestSyncCmdbGseConfigRejectsNegativeBizBatchSize(t *testing.T) {
+	conf := SyncCmdbGseConfig{BizBatchSize: -1}
+	conf.trySetDefault()
+	if conf.BizBatchSize != -1 {
+		t.Fatalf("trySetDefault should not rewrite negative bizBatchSize, got %d", conf.BizBatchSize)
+	}
+	if err := conf.validate(); err == nil {
+		t.Fatal("expected validate to reject negative bizBatchSize")
+	}
+}
+
 func TestWatchCmdbResourceCanBeEnabled(t *testing.T) {
 	var conf CrontabConfig
 	if err := yaml.Unmarshal([]byte("watchCmdbResource:\n  enabled: true\n"), &conf); err != nil {
