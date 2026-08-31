@@ -67,9 +67,12 @@ const (
 	CallbackPath = "/api/v1/auth/iam/find/resource"
 )
 
-// 角色 ID。RoleBizViewer 至 RoleAuditViewer 为业务维度角色，
+// 角色 ID。RoleBizAccessor 至 RoleAuditViewer 为业务维度角色，
 // RoleAppOperator 至 RoleAppViewer 为服务维度角色
 const (
+	// RoleBizAccessor 业务访问，只含 find_business_resource。该操作既是所有业务接口的前置校验，
+	// 也是分组、脚本、模板、变量与环境 CRUD 的唯一鉴权点，因此本角色并非只读
+	RoleBizAccessor = "biz_accessor"
 	// RoleBizViewer 业务只读
 	RoleBizViewer = "biz_viewer"
 	// RoleBizOperator 业务运维

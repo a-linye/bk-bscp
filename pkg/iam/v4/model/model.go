@@ -53,6 +53,12 @@ func Actions() []client.Action {
 func Roles() []client.Role {
 	return []client.Role{
 		{
+			ID:          RoleBizAccessor,
+			Name:        "业务访问",
+			Description: "访问业务的基础权限，含分组、脚本、模板与变量的管理",
+			Actions:     bizScoped(ActionFindBusinessResource),
+		},
+		{
 			ID:          RoleBizViewer,
 			Name:        "业务只读",
 			Description: "查看业务下的服务、密钥、审计与进程配置",
@@ -130,6 +136,7 @@ func DisplayResourceTypes() map[string][]client.DisplayResourceType {
 	}
 
 	return map[string][]client.DisplayResourceType{
+		RoleBizAccessor:       bizScopeOnly,
 		RoleBizViewer:         bizScopeOnly,
 		RoleBizOperator:       bizScopeOnly,
 		RoleAppCreator:        bizScopeOnly,

@@ -48,8 +48,8 @@ func TestIDsMatchIAMPattern(t *testing.T) {
 func TestModelCounts(t *testing.T) {
 	require.Len(t, ResourceTypes(), 2)
 	require.Len(t, Actions(), 17)
-	require.Len(t, Roles(), 9)
-	require.Len(t, DisplayResourceTypes(), 9)
+	require.Len(t, Roles(), 10)
+	require.Len(t, DisplayResourceTypes(), 10)
 }
 
 func TestIDsAreUnique(t *testing.T) {
@@ -133,6 +133,24 @@ func TestEveryRoleGrantsBusinessAccess(t *testing.T) {
 		}
 		require.True(t, found, "role %s does not grant %s", role.ID, ActionFindBusinessResource)
 	}
+}
+
+// biz_accessor 是最小可授予角色，只放行业务访问前置校验。刻意不含任何 view 操作：
+// 一旦加入就与 biz_viewer 重合，本角色作为其他角色公共底座的定位也随之失效。
+func TestBizAccessorGrantsOnlyBusinessAccess(t *testing.T) {
+	for _, role := range Roles() {
+		if role.ID != RoleBizAccessor {
+			continue
+		}
+
+		require.Len(t, role.Actions, 1, "keep this role minimal")
+		require.Equal(t, ActionFindBusinessResource, role.Actions[0].ID)
+		require.Equal(t, ResourceTypeBiz, role.Actions[0].ResourceTypeID)
+
+		return
+	}
+
+	t.Fatalf("role %s not found", RoleBizAccessor)
 }
 
 // biz_operator 覆盖全部 17 个操作，是 V3 常用权限「业务运维」的等价物。
