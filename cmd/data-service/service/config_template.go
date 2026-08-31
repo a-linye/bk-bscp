@@ -539,12 +539,10 @@ func (s *Service) createTemplateAndRevision(kit *kit.Kit, tx *gen.QueryTx, templ
 			i18n.T(kit, "create template revision failed, err: %v", err))
 	}
 
-	templateSet.Spec.TemplateIDs = tools.MergeAndDeduplicate(templateSet.Spec.TemplateIDs, []uint32{templateID})
-
-	// 3. 添加至模板套餐中
-	err = s.dao.TemplateSet().BatchAddTmplsToTmplSetsWithTx(kit, tx, []*table.TemplateSet{templateSet}, true)
-	if err != nil {
-		logs.Errorf("batch add templates to template sets failed, err: %v, rid: %s", err, kit.Rid)
+	// 3. 添加至模板套餐中, 审计仅记录本次新增的模板
+	if err := s.dao.TemplateSet().AddTmplsToTmplSetsWithAuditTx(kit, tx, []uint32{templateID},
+		[]*table.TemplateSet{templateSet}); err != nil {
+		logs.Errorf("add template to template sets failed, err: %v, rid: %s", err, kit.Rid)
 		return 0, errf.Errorf(errf.DBOpFailed, "%s", i18n.T(kit, "batch add templates to template sets failed, err: %s", err))
 	}
 

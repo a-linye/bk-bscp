@@ -157,13 +157,9 @@ func (s *Service) CreateTemplate(ctx context.Context, req *pbds.CreateTemplateRe
 		}
 	}
 
-	for _, v := range templateSets {
-		v.Spec.TemplateIDs = tools.MergeAndDeduplicate(v.Spec.TemplateIDs, []uint32{templateID})
-	}
-
-	// 9. 添加至模板套餐中
-	if err := s.dao.TemplateSet().BatchAddTmplsToTmplSetsWithTx(kt, tx, templateSets, true); err != nil {
-		logs.Errorf("batch add templates to template sets failed, err: %v, rid: %s", err, kt.Rid)
+	// 9. 添加至模板套餐中, 审计仅记录本次新增的模板
+	if err := s.dao.TemplateSet().AddTmplsToTmplSetsWithAuditTx(kt, tx, []uint32{templateID}, templateSets); err != nil {
+		logs.Errorf("add template to template sets failed, err: %v, rid: %s", err, kt.Rid)
 		return nil, errf.Errorf(errf.DBOpFailed, i18n.T(kt, "batch add templates to template sets failed, err: %s", err))
 	}
 

@@ -85,6 +85,8 @@ type TemplateSet interface {
 	GetByTemplateSetByID(kit *kit.Kit, bizID, id uint32) (*table.TemplateSet, error)
 	// BatchAddTmplsToTmplSetsWithTx 批量添加至某个套餐中
 	BatchAddTmplsToTmplSetsWithTx(kit *kit.Kit, tx *gen.QueryTx, templateSet []*table.TemplateSet, needAudit bool) error
+	// AddTmplsToTmplSetsWithAuditTx 将模板添加至套餐中, 审计的 res_instance 仅记录本次新增的模板路径.
+	AddTmplsToTmplSetsWithAuditTx(kit *kit.Kit, tx *gen.QueryTx, tmplIDs []uint32, tmplSets []*table.TemplateSet) error
 	// ListByTemplateSpaceIdAndIds list template sets by template set ids and template_space_id.
 	ListByTemplateSpaceIdAndIds(kit *kit.Kit, templateSpaceID uint32, ids []uint32) ([]*table.TemplateSet, error)
 
@@ -212,6 +214,64 @@ func (dao *templateSetDao) BatchAddTmplsToTmplSetsWithTx(kit *kit.Kit, tx *gen.Q
 	}
 
 	return tx.TemplateSet.WithContext(kit.Ctx).Save(templateSet...)
+}
+
+// AddTmplsToTmplSetsWithAuditTx 将模板添加至套餐中并记录审计.
+// 与 BatchAddTmplsToTmplSetsWithTx 不同, 审计的 res_instance 仅记录本次新增的模板路径,
+// 不包含套餐内已有的模板, 避免操作记录中出现与本次操作无关的模板路径.
+// 若本次新增的模板关联了配置模板名称(配置模板场景), 额外记录 config_template_name;
+// 普通模板场景无配置模板名称, res_instance 保持原有格式不变.
+func (dao *templateSetDao) AddTmplsToTmplSetsWithAuditTx(kit *kit.Kit, tx *gen.QueryTx,
+	tmplIDs []uint32, tmplSets []*table.TemplateSet) error {
+	if len(tmplSets) == 0 {
+		return nil
+	}
+
+	// 仅查询本次新增的模板, 用于审计记录
+	templates, err := tx.Template.WithContext(kit.Ctx).Where(tx.Template.ID.In(tmplIDs...)).Find()
+	if err != nil {
+		return err
+	}
+
+	var templateNames []string
+	var configTemplateNames []string
+	for _, v := range templates {
+		templateNames = append(templateNames, path.Join(v.Spec.Path, v.Spec.Name))
+		if v.Spec.ConfigTemplateName != "" {
+			configTemplateNames = append(configTemplateNames, v.Spec.ConfigTemplateName)
+		}
+	}
+	tmplPaths := tools.TruncateWithHumanize(strings.Join(templateNames, constant.NameSeparator))
+
+	for i := range tmplSets {
+		tmplSets[i].Spec.TemplateIDs = tools.MergeAndDeduplicate(tmplSets[i].Spec.TemplateIDs, tmplIDs)
+
+		templateSpace, err := tx.TemplateSpace.WithContext(kit.Ctx).
+			Where(tx.TemplateSpace.ID.Eq(tmplSets[i].Attachment.TemplateSpaceID)).Take()
+		if err != nil {
+			return err
+		}
+
+		resInstance := fmt.Sprintf(constant.TemplateSpaceName+constant.ResSeparator+constant.TemplateSetName+
+			constant.ResSeparator+constant.TemplateAbsolutePath,
+			templateSpace.Spec.Name, tmplSets[i].Spec.Name, tmplPaths)
+		if len(configTemplateNames) > 0 {
+			resInstance = fmt.Sprintf(constant.TemplateSpaceName+constant.ResSeparator+constant.TemplateSetName+
+				constant.ResSeparator+constant.ConfigTemplateName+constant.ResSeparator+constant.TemplateAbsolutePath,
+				templateSpace.Spec.Name, tmplSets[i].Spec.Name,
+				strings.Join(configTemplateNames, constant.NameSeparator), tmplPaths)
+		}
+
+		ad := dao.auditDao.Decorator(kit, tmplSets[i].Attachment.BizID, &table.AuditField{
+			ResourceInstance: resInstance,
+			Status:           enumor.Success,
+		}).PrepareCreate(tmplSets[i])
+		if err = ad.Do(tx.Query); err != nil {
+			return err
+		}
+	}
+
+	return tx.TemplateSet.WithContext(kit.Ctx).Save(tmplSets...)
 }
 
 // GetByTemplateSetByID get template set by id
