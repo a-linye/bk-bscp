@@ -282,7 +282,7 @@ func (s *Service) handlerGw() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Route("/api/v1/feed", func(r chi.Router) {
 		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/app/{app}/files/*", s.DownloadFile)
-		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/projects/{project_id}/envs/{env_id}/app/{app}/files/*", s.DownloadFile)
+		r.With(s.UpdateLastConsumedTime).Get("/biz/{biz_id}/projects/{project_key}/envs/{env_name}/app/{app}/files/*", s.DownloadFile)
 		r.Mount("/", s.gwMux)
 	})
 	return r
@@ -339,37 +339,21 @@ func (s *Service) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 支持客户端传递 project_id 和 env_id（路径参数 > 默认值）
+	// 支持客户端传递 project_key 和 env_name（路径参数 > 默认值）
 	var projectID, envID uint32
 
-	// 1. 从路径参数获取（新路由 /projects/{project_id}/envs/{env_id}/...）
-	hasProjectPathParam := false
-	hasEnvPathParam := false
-	if p := chi.URLParam(r, "project_id"); p != "" {
-		hasProjectPathParam = true
-		if pid, errP := strconv.ParseUint(p, 10, 32); errP == nil {
-			projectID = uint32(pid)
+	// 1. 从路径参数获取（新路由 /projects/{project_key}/envs/{env_name}/...），按名称解析为 ID
+	projectKey := chi.URLParam(r, "project_key")
+	envName := chi.URLParam(r, "env_name")
+	if projectKey != "" || envName != "" {
+		var errR error
+		projectID, envID, errR = s.bll.AppCache().ResolveProjectEnvByName(kt, uint32(bizID), projectKey, envName)
+		if errR != nil {
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("resolve project/env by name failed, err: %v", errR)))
+			return
 		}
-	}
-	if e := chi.URLParam(r, "env_id"); e != "" {
-		hasEnvPathParam = true
-		if eid, errE := strconv.ParseUint(e, 10, 32); errE == nil {
-			envID = uint32(eid)
-		}
-	}
-
-	// 新路由场景下，project_id/env_id 必须是有效数字
-	if hasProjectPathParam && projectID == 0 {
-		render.Render(w, r, rest.BadRequest(errors.New("invalid project_id")))
-		return
-	}
-	if hasEnvPathParam && envID == 0 {
-		render.Render(w, r, rest.BadRequest(errors.New("invalid env_id")))
-		return
-	}
-
-	// 2. 路径参数未提供则查询默认值
-	if projectID == 0 || envID == 0 {
+	} else {
+		// 2. 路径参数未提供则查询默认值
 		projectID, envID = s.bll.AppCache().ResolveProjectEnv(kt, uint32(bizID), projectID, envID)
 	}
 
