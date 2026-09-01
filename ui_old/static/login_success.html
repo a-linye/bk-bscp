@@ -10,7 +10,8 @@
       if (window.opener) {
         document.addEventListener('DOMContentLoaded', function () {
           // 关闭登录弹出框
-          window.opener.postMessage('login', '*');
+          window.opener.postMessage('login', window.location.origin);
+          window.close();
         });
       } else {
         document.addEventListener('DOMContentLoaded', function () {

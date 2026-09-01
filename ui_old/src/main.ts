@@ -19,7 +19,6 @@ import VxeUIAll from 'vxe-pc-ui';
 import 'vxe-pc-ui/lib/style.css';
 import VxeUITable from 'vxe-table';
 import 'vxe-table/lib/style.css';
-import useGlobalStore from './store/global';
 import { PrimaryTable, TableColumn } from '@blueking/tdesign-ui';
 import '@blueking/tdesign-ui/vue3/index.css';
 
@@ -76,11 +75,7 @@ auth().then((userInfo) => {
 
 // 监听登录成功页通过postMessage发送的消息，刷新当前页面
 window.addEventListener('message', (event) => {
-  const globalStore = useGlobalStore(pinia);
-  if (event.origin === globalStore.loginOriginUrl) {
-    if (event.data === 'login') {
-      console.log('login');
-      window.location.reload();
-    }
+  if (event.origin === window.location.origin && event.data === 'login') {
+    window.location.reload();
   }
 });

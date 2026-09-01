@@ -10,7 +10,7 @@ export function getConfigTemplateEditParams() {
     file_mode: 'unix',
     user: 'root',
     user_group: 'root',
-    privilege: '644',
+    privilege: '775',
     charset: 'UTF-8',
     highlight_style: 'python',
     revision_name: `v${dayjs().format('YYYYMMDDHHmmss')}`,
