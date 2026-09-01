@@ -442,11 +442,15 @@ func (dao *taskBatchDao) CompleteTask(kit *kit.Kit, batchID uint32, taskID strin
 		cascadeCount := 0
 		extraChanged := false
 		waveSeq := table.ImmediateWaveSeq
+		// 获取任务所属波次
 		if extra.PriorityPlan != nil {
 			waveSeq = extra.PriorityPlan.WaveSeqOf(taskID)
 		}
+		// 如果任务所属波次不是立即任务，则需要推进优先级波次
 		if extra.PriorityPlan != nil && waveSeq != table.ImmediateWaveSeq {
+			// 推进优先级波次
 			next, cascade := table.AdvancePriorityPlan(extra.PriorityPlan, waveSeq, isSuccess)
+			// 设置下一个波次
 			result.NextWave = next
 			result.Cascade = cascade
 			if cascade != nil {

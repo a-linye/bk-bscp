@@ -19,6 +19,7 @@ import (
 	"time"
 
 	istep "github.com/Tencent/bk-bcs/bcs-common/common/task/steps/iface"
+	taskTypes "github.com/Tencent/bk-bcs/bcs-common/common/task/types"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/components/bkcmdb"
 	"github.com/TencentBlueKing/bk-bscp/internal/components/gse"
@@ -612,6 +613,41 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 		return fmt.Errorf("[Finalize STEP]: failed to update process instance: %w", err)
 	}
 
+	return nil
+}
+
+// RollbackPendingInstance 把因优先级级联阻断而被判失败的任务对应的进程实例恢复为操作前状态。
+// 这类任务一步都没执行过，也不会走 Callback，实例会一直停在下发时写入的中间态（如 starting），
+// 而中间态会让该实例后续所有操作都被判为非法，必须在这里显式回滚。
+func RollbackPendingInstance(kt *kit.Kit, daoSet dao.Set, t *taskTypes.Task) error {
+	if t == nil || daoSet == nil {
+		return nil
+	}
+
+	step, ok := t.GetStep(ValidateOperateProcessStepName.String())
+	if !ok {
+		return fmt.Errorf("task %s has no %s step", t.TaskID, ValidateOperateProcessStepName)
+	}
+
+	payload := &OperatePayload{}
+	if err := step.GetPayload(payload); err != nil {
+		return fmt.Errorf("get payload of task %s failed: %w", t.TaskID, err)
+	}
+	if payload.ProcessInstanceID == 0 {
+		return nil
+	}
+
+	m := daoSet.GenQuery().ProcessInstance
+	if err := daoSet.ProcessInstance().UpdateSelectedFields(kt, payload.BizID, map[string]any{
+		"status":            payload.OriginalProcStatus,
+		"managed_status":    payload.OriginalProcManagedStatus,
+		"status_updated_at": time.Now(),
+	}, m.ID.Eq(payload.ProcessInstanceID)); err != nil {
+		return fmt.Errorf("restore process instance %d failed: %w", payload.ProcessInstanceID, err)
+	}
+
+	logs.Infof("[PriorityCascade]: restored process instance %d to status=%s managed=%s, taskID: %s",
+		payload.ProcessInstanceID, payload.OriginalProcStatus, payload.OriginalProcManagedStatus, t.TaskID)
 	return nil
 }
 

@@ -49,6 +49,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/internal/space"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
+	processExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/process"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/register"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
@@ -261,6 +262,7 @@ func (ds *dataService) initTaskManager() error {
 	}
 	ds.taskManager = taskManager
 	priority.SetTaskManager(taskManager)
+	priority.SetPendingFailHook(processExecutor.RollbackPendingInstance)
 
 	go func() {
 		err := ds.taskManager.Run()

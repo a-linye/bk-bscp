@@ -27,6 +27,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/expression"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	processBuilder "github.com/TencentBlueKing/bk-bscp/internal/task/builder/process"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
@@ -248,7 +249,7 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 		}
 	}()
 
-	// 全量落库后按优先级只下发第一波（及托管类立即任务）
+	// 下发任务
 	dispatchedCount, err = dispatchProcessTasks(
 		kt,
 		s.dao,
@@ -606,12 +607,12 @@ func preResolveInstances(kt *kit.Kit, processInstances []*table.ProcessInstance,
 	return toDispatch, toDelete, nil
 }
 
-// dispatchProcessTasks 全量落库进程操作任务，并按下发第一波（及托管类立即任务）。
+// dispatchProcessTasks 全量落库进程操作任务，并按优先级下发。
 // 返回值是已落库的任务数，供批次失败计数兜底；后续波次由回调推进。
 func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskManager, bizID, batchID uint32, taskType string,
 	toDispatch []resolvedInstance, enableProcessRestart bool) (uint32, error) {
-	built := make([]*taskTypes.Task, 0, len(toDispatch))
 	items := make([]table.PriorityTaskItem, 0, len(toDispatch))
+	// 已落库的任务数
 	var persisted uint32
 
 	for _, item := range toDispatch {
@@ -658,7 +659,6 @@ func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskMan
 			Priority: priority,
 			OpType:   item.finalOpType,
 		})
-		built = append(built, taskObj)
 		persisted++
 	}
 
@@ -668,21 +668,11 @@ func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskMan
 		return persisted, err
 	}
 
-	taskByID := make(map[string]*taskTypes.Task, len(built))
-	for _, t := range built {
-		taskByID[t.TaskID] = t
-	}
-	for _, taskID := range dispatchIDs {
-		taskObj, ok := taskByID[taskID]
-		if !ok {
-			continue
-		}
-		logs.Infof("enqueue process operate task, taskID: %s, batchID: %d, rid: %s", taskID, batchID, kt.Rid)
-		if err := taskManager.Enqueue(taskObj); err != nil {
-			logs.Errorf("enqueue process operate task failed, taskID: %s, err: %v, rid: %s", taskID, err, kt.Rid)
-			return persisted, errf.Errorf(errf.Internal, "%s",
-				i18n.T(kt, "enqueue process operate task failed, err: %v", err))
-		}
+	logs.Infof("enqueue process operate tasks, taskIDs: %v, batchID: %d, rid: %s", dispatchIDs, batchID, kt.Rid)
+	if err := priority.EnqueueTasks(kt.Ctx, taskManager, dispatchIDs); err != nil {
+		logs.Errorf("enqueue process operate task failed, batchID: %d, err: %v, rid: %s", batchID, err, kt.Rid)
+		return persisted, errf.Errorf(errf.Internal, "%s",
+			i18n.T(kt, "enqueue process operate task failed, err: %v", err))
 	}
 	if plan != nil && len(plan.Waves) > 0 {
 		if err := daoSet.TaskBatch().MarkWaveDispatched(kt, batchID, plan.Waves[0].Seq); err != nil {

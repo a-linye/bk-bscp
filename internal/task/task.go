@@ -151,21 +151,25 @@ func (taskMgr *TaskManager) Enqueue(t *itypes.Task) error {
 }
 
 // FailPending 将尚未执行的任务置为失败并写入原因。已进入执行或已达终态的任务不改写。
-func (taskMgr *TaskManager) FailPending(ctx context.Context, taskID, msg string) error {
+// 返回值表示本次是否真的发生了状态流转，调用方据此决定要不要连带回滚任务占用的资源。
+func (taskMgr *TaskManager) FailPending(ctx context.Context, taskID, msg string) (bool, error) {
 	t, err := taskMgr.GetTaskWithID(ctx, taskID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	status := t.GetStatus()
 	if status != itypes.TaskStatusInit && status != itypes.TaskStatusNotStarted {
-		return nil
+		return false, nil
 	}
 	now := time.Now()
 	t.SetStatus(itypes.TaskStatusFailure)
 	t.SetMessage(msg)
 	t.SetEndTime(now)
 	t.SetExecutionTime(t.GetStartTime(), now)
-	return taskMgr.UpdateTask(ctx, t)
+	if err = taskMgr.UpdateTask(ctx, t); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // EnsureTable auto migration

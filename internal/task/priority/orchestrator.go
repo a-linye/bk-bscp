@@ -45,6 +45,29 @@ func getTaskManager() *task.TaskManager {
 	return taskMgr
 }
 
+// PendingFailHook 在任务因级联阻断被判失败后调用，用于把该任务对应的资源从中间态恢复。
+// 这类任务不会执行，也就不会触发自身的 Callback，中间态只能由这里收尾。
+// 以钩子形式注入是为了避免 priority 反向依赖 executor 形成循环引用。
+type PendingFailHook func(kt *kit.Kit, daoSet dao.Set, t *taskTypes.Task) error
+
+var (
+	pendingFailHookMu sync.RWMutex
+	pendingFailHook   PendingFailHook
+)
+
+// SetPendingFailHook 注入级联阻断后的资源状态回滚逻辑。
+func SetPendingFailHook(h PendingFailHook) {
+	pendingFailHookMu.Lock()
+	defer pendingFailHookMu.Unlock()
+	pendingFailHook = h
+}
+
+func getPendingFailHook() PendingFailHook {
+	pendingFailHookMu.RLock()
+	defer pendingFailHookMu.RUnlock()
+	return pendingFailHook
+}
+
 // HandleTaskComplete 在实例任务到达终态后推进批次计数与优先级波次。
 // 本波次全部成功则下发下一波；存在失败则级联阻断后续待执行任务。
 func HandleTaskComplete(kt *kit.Kit, daoSet dao.Set, batchID uint32, taskID string, isSuccess bool) (bool, error) {
@@ -67,7 +90,7 @@ func HandleTaskComplete(kt *kit.Kit, daoSet dao.Set, batchID uint32, taskID stri
 	}
 
 	if result.Cascade != nil {
-		if err = FailPendingTasks(kt.Ctx, mgr, result.Cascade); err != nil {
+		if err = FailPendingTasks(kt, daoSet, mgr, result.Cascade); err != nil {
 			logs.Errorf("fail pending tasks after cascade failed, batchID=%d, err=%v", batchID, err)
 		}
 	}
@@ -80,19 +103,35 @@ func HandleTaskComplete(kt *kit.Kit, daoSet dao.Set, batchID uint32, taskID stri
 	return result.AllCompleted, nil
 }
 
-// FailPendingTasks 将后续波次中尚未执行的任务置为失败
-func FailPendingTasks(ctx context.Context, mgr *task.TaskManager, cascade *table.PriorityCascade) error {
+// FailPendingTasks 将后续波次中尚未执行的任务置为失败，并回滚其占用的资源中间态
+func FailPendingTasks(kt *kit.Kit, daoSet dao.Set, mgr *task.TaskManager,
+	cascade *table.PriorityCascade) error {
 	if cascade == nil || len(cascade.PendingTaskIDs) == 0 {
 		return nil
 	}
 	msg := table.CascadeBlockMessage(cascade.FailedPriority, cascade.Order)
+	hook := getPendingFailHook()
 	var firstErr error
 	for _, taskID := range cascade.PendingTaskIDs {
-		if err := mgr.FailPending(ctx, taskID, msg); err != nil {
+		failed, err := mgr.FailPending(kt.Ctx, taskID, msg)
+		if err != nil {
 			logs.Errorf("fail pending task %s failed: %v", taskID, err)
 			if firstErr == nil {
 				firstErr = err
 			}
+			continue
+		}
+		// 未发生状态流转说明任务已被其他路径处理过，重复回滚会覆盖更准确的状态
+		if !failed || hook == nil || daoSet == nil {
+			continue
+		}
+		t, err := mgr.GetTaskWithID(kt.Ctx, taskID)
+		if err != nil {
+			logs.Errorf("get task %s for pending rollback failed: %v", taskID, err)
+			continue
+		}
+		if err = hook(kt, daoSet, t); err != nil {
+			logs.Errorf("rollback resource of pending task %s failed: %v", taskID, err)
 		}
 	}
 	return firstErr
@@ -104,8 +143,22 @@ func EnqueueWave(ctx context.Context, mgr *task.TaskManager, daoSet dao.Set, kt 
 	if wave == nil || len(wave.TaskIDs) == 0 {
 		return nil
 	}
+	firstErr := EnqueueTasks(ctx, mgr, wave.TaskIDs)
+	if daoSet != nil && kt != nil && firstErr == nil {
+		if err := daoSet.TaskBatch().MarkWaveDispatched(kt, batchID, wave.Seq); err != nil {
+			logs.Errorf("mark wave %d dispatched failed, batchID=%d, err=%v", wave.Seq, batchID, err)
+			return err
+		}
+	}
+	return firstErr
+}
+
+// EnqueueTasks 把已落库的任务投入执行队列，返回首个失败原因，其余任务继续尝试。
+// 必须先从存储读回任务再投递：新建任务在内存中 Start/End 仍是零值，
+// 直接投递会让底层的任务更新写出 '0000-00-00' 而被数据库拒绝。
+func EnqueueTasks(ctx context.Context, mgr *task.TaskManager, taskIDs []string) error {
 	var firstErr error
-	for _, taskID := range wave.TaskIDs {
+	for _, taskID := range taskIDs {
 		t, err := mgr.GetTaskWithID(ctx, taskID)
 		if err != nil {
 			logs.Errorf("get task %s for enqueue failed: %v", taskID, err)
@@ -124,12 +177,6 @@ func EnqueueWave(ctx context.Context, mgr *task.TaskManager, daoSet dao.Set, kt 
 			if firstErr == nil {
 				firstErr = err
 			}
-		}
-	}
-	if daoSet != nil && kt != nil && firstErr == nil {
-		if err := daoSet.TaskBatch().MarkWaveDispatched(kt, batchID, wave.Seq); err != nil {
-			logs.Errorf("mark wave %d dispatched failed, batchID=%d, err=%v", wave.Seq, batchID, err)
-			return err
 		}
 	}
 	return firstErr
@@ -181,7 +228,7 @@ func ResumeRunningPlans(kt *kit.Kit, daoSet dao.Set, mgr *task.TaskManager) erro
 			if len(pending) == 0 {
 				continue
 			}
-			_ = FailPendingTasks(kt.Ctx, mgr, &table.PriorityCascade{
+			_ = FailPendingTasks(kt, daoSet, mgr, &table.PriorityCascade{
 				FailedPriority: plan.BlockedPriority,
 				Order:          plan.Order,
 				PendingTaskIDs: pending,

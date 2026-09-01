@@ -710,7 +710,6 @@ func (s *Service) resolveRetryTask(kt *kit.Kit, bizID uint32, failedTask *taskTy
 	table.PriorityTaskItem, *table.ProcessInstance, table.ProcessOperateType, bool) {
 	item := table.PriorityTaskItem{
 		TaskID: failedTask.TaskID,
-		OpType: table.RegisterProcessOperate, // 缺省按托管类立即下发，避免未知步骤阻断重试
 	}
 
 	finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())

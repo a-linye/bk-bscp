@@ -8978,6 +8978,12 @@
         "funcName": {
           "type": "string",
           "description": "进程二进制文件名"
+        },
+        "priority": {
+          "type": "integer",
+          "format": "int32",
+          "description": "进程启动优先级",
+          "title": "改造前产生的历史任务不带该字段，此处用 optional 区分「优先级为 0」与「取不到优先级」"
         }
       },
       "title": "TaskPayload 任务的配置快照"
