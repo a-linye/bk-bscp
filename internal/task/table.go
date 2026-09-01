@@ -43,6 +43,9 @@ type Record struct {
 	TaskIndex           string            `gorm:"type:varchar(191);index:idx_task_index"`
 	TaskIndexType       string            `gorm:"type:varchar(191);index:idx_task_index"`
 	TaskName            string            `gorm:"type:varchar(255)"`
+	GroupID             string            `gorm:"type:varchar(191);index:idx_group_stage"`
+	StageSeq            int               `gorm:"index:idx_group_stage"`
+	GroupCounted        bool
 	CurrentStep         string            `gorm:"type:varchar(255)"`
 	StepSequence        []string          `gorm:"type:text;serializer:json"`
 	CallbackName        string            `gorm:"type:varchar(255)"`

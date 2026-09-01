@@ -17,7 +17,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
-	"time"
 
 	machineryConf "github.com/RichardKnop/machinery/v2/config"
 	"github.com/Tencent/bk-bcs/bcs-common/common/task"
@@ -137,45 +136,14 @@ func (taskMgr *TaskManager) Dispatch(t *itypes.Task) {
 	}
 }
 
-// Persist 仅将任务落库，不进入执行队列。用于优先级后续波次的「待执行」语义。
-func (taskMgr *TaskManager) Persist(t *itypes.Task) error {
-	if err := t.Validate(); err != nil {
-		return err
-	}
-	return task.GetGlobalStorage().CreateTask(context.Background(), t)
-}
-
-// Enqueue 将已落库的任务投入执行队列。对尚未执行的 INIT 任务与失败重试均适用。
-func (taskMgr *TaskManager) Enqueue(t *itypes.Task) error {
-	return taskMgr.RetryAll(t)
-}
-
-// FailPending 将尚未执行的任务置为失败并写入原因。已进入执行或已达终态的任务不改写。
-// 返回值表示本次是否真的发生了状态流转，调用方据此决定要不要连带回滚任务占用的资源。
-func (taskMgr *TaskManager) FailPending(ctx context.Context, taskID, msg string) (bool, error) {
-	t, err := taskMgr.GetTaskWithID(ctx, taskID)
-	if err != nil {
-		return false, err
-	}
-	status := t.GetStatus()
-	if status != itypes.TaskStatusInit && status != itypes.TaskStatusNotStarted {
-		return false, nil
-	}
-	now := time.Now()
-	t.SetStatus(itypes.TaskStatusFailure)
-	t.SetMessage(msg)
-	t.SetEndTime(now)
-	t.SetExecutionTime(t.GetStartTime(), now)
-	if err = taskMgr.UpdateTask(ctx, t); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
 // EnsureTable auto migration
 // 传入 bk-bscp 侧的表结构，避免框架默认结构把负载字段建成 text 导致超长负载被静默截断
 func (taskMgr *TaskManager) EnsureTable(ctx context.Context) error {
-	return task.GetGlobalStorage().EnsureTable(ctx, &Record{}, &StepRecord{})
+	if err := task.GetGlobalStorage().EnsureTable(ctx, &Record{}, &StepRecord{}); err != nil {
+		return err
+	}
+	// 任务组表沿用框架默认结构
+	return taskMgr.TaskManager.EnsureGroupTable(ctx)
 }
 
 func parseTLSConfig(tlsConfig *cc.TLSConfig) (*tls.Config, error) {

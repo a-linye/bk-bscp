@@ -28,7 +28,6 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/processor/cmdb"
 	gesprocessor "github.com/TencentBlueKing/bk-bscp/internal/processor/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
-	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -616,38 +615,72 @@ func (e *ProcessExecutor) Finalize(c *istep.Context) error {
 	return nil
 }
 
-// RollbackPendingInstance 把因优先级级联阻断而被判失败的任务对应的进程实例恢复为操作前状态。
-// 这类任务一步都没执行过，也不会走 Callback，实例会一直停在下发时写入的中间态（如 starting），
-// 而中间态会让该实例后续所有操作都被判为非法，必须在这里显式回滚。
+// pendingInstanceSnapshot 从任务的校验步骤中取出进程实例及其操作前状态。
+// 普通操作任务与更新托管任务的校验步骤名和 payload 结构不同，需分别识别。
+type pendingInstanceSnapshot struct {
+	bizID           uint32
+	instanceID      uint32
+	originalStatus  table.ProcessStatus
+	originalManaged table.ProcessManagedStatus
+}
+
+func getPendingInstanceSnapshot(t *taskTypes.Task) (*pendingInstanceSnapshot, error) {
+	if step, ok := t.GetStep(ValidateOperateProcessStepName.String()); ok {
+		payload := &OperatePayload{}
+		if err := step.GetPayload(payload); err != nil {
+			return nil, fmt.Errorf("get payload of task %s failed: %w", t.TaskID, err)
+		}
+		return &pendingInstanceSnapshot{
+			bizID:           payload.BizID,
+			instanceID:      payload.ProcessInstanceID,
+			originalStatus:  payload.OriginalProcStatus,
+			originalManaged: payload.OriginalProcManagedStatus,
+		}, nil
+	}
+
+	if step, ok := t.GetStep(ValidateOperateStepName.String()); ok {
+		payload := &UpdateRegisterPayload{}
+		if err := step.GetPayload(payload); err != nil {
+			return nil, fmt.Errorf("get payload of task %s failed: %w", t.TaskID, err)
+		}
+		return &pendingInstanceSnapshot{
+			bizID:           payload.BizID,
+			instanceID:      payload.ProcessInstanceID,
+			originalStatus:  payload.OriginalProcStatus,
+			originalManaged: payload.OriginalProcManagedStatus,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("task %s has no validate step", t.TaskID)
+}
+
+// RollbackPendingInstance 把尚未执行就被判失败的任务对应的进程实例恢复为操作前状态。
+// 优先级级联阻断与批次下发失败补偿都会走到这里：这类任务一步都没执行过，也不会走 Callback，
+// 实例会一直停在下发时写入的中间态（如 starting），而中间态会让该实例后续所有操作都被判为非法。
 func RollbackPendingInstance(kt *kit.Kit, daoSet dao.Set, t *taskTypes.Task) error {
 	if t == nil || daoSet == nil {
 		return nil
 	}
 
-	step, ok := t.GetStep(ValidateOperateProcessStepName.String())
-	if !ok {
-		return fmt.Errorf("task %s has no %s step", t.TaskID, ValidateOperateProcessStepName)
+	snapshot, err := getPendingInstanceSnapshot(t)
+	if err != nil {
+		return err
 	}
-
-	payload := &OperatePayload{}
-	if err := step.GetPayload(payload); err != nil {
-		return fmt.Errorf("get payload of task %s failed: %w", t.TaskID, err)
-	}
-	if payload.ProcessInstanceID == 0 {
+	if snapshot.instanceID == 0 {
 		return nil
 	}
 
 	m := daoSet.GenQuery().ProcessInstance
-	if err := daoSet.ProcessInstance().UpdateSelectedFields(kt, payload.BizID, map[string]any{
-		"status":            payload.OriginalProcStatus,
-		"managed_status":    payload.OriginalProcManagedStatus,
+	if err := daoSet.ProcessInstance().UpdateSelectedFields(kt, snapshot.bizID, map[string]any{
+		"status":            snapshot.originalStatus,
+		"managed_status":    snapshot.originalManaged,
 		"status_updated_at": time.Now(),
-	}, m.ID.Eq(payload.ProcessInstanceID)); err != nil {
-		return fmt.Errorf("restore process instance %d failed: %w", payload.ProcessInstanceID, err)
+	}, m.ID.Eq(snapshot.instanceID)); err != nil {
+		return fmt.Errorf("restore process instance %d failed: %w", snapshot.instanceID, err)
 	}
 
-	logs.Infof("[PriorityCascade]: restored process instance %d to status=%s managed=%s, taskID: %s",
-		payload.ProcessInstanceID, payload.OriginalProcStatus, payload.OriginalProcManagedStatus, t.TaskID)
+	logs.Infof("[PendingRollback]: restored process instance %d to status=%s managed=%s, taskID: %s",
+		snapshot.instanceID, snapshot.originalStatus, snapshot.originalManaged, t.TaskID)
 	return nil
 }
 
@@ -663,43 +696,16 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	kt := kit.NewWithTenant(payload.TenantID)
 
-	allCompleted := false
-	var err error
-	// 更新 TaskBatch 的完成计数，并按优先级推进下一波或级联阻断
+	// 只累加批次进度用于展示。阶段推进、级联阻断以及批次终态的收敛
+	// 都由任务框架的任务组编排负责，见 ProcessOperateGroupCallback。
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		allCompleted, err = priority.HandleTaskComplete(kt, e.Dao, payload.BatchID, c.GetTaskID(), isSuccess)
-		if err != nil {
-			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to complete task, "+
+		if _, err := e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess); err != nil {
+			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to increment completed count, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
 			// PASS 继续执行，不影响回滚逻辑
 		}
-
 	}
-
-	// 统一推送事件，只在批次收尾的那次回调发出，避免异步通知重复推送
-	if allCompleted {
-		e.AfterCallbackNotify(kt.Ctx, common.CallbackNotify{
-			TenantID: payload.TenantID,
-			BizID:    payload.BizID,
-			BatchID:  payload.BatchID,
-			Operator: payload.OperateUser,
-			CbErr:    cbErr,
-		})
-	}
-
-	defer func() {
-		// 只要批次任务全部完成，就触发一次 CMDB 模块实例序列更新，确保模块实例序列的正确性
-		if allCompleted {
-			if errR := cmdb.ComputeModuleInstSeqUpdates(
-				kt, e.Dao, payload.BizID, payload.ProcessID); errR != nil {
-
-				logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to reorder module instance sequence, "+
-					"bizID: %d, processID: %d, err: %v",
-					payload.BizID, payload.ProcessID, errR)
-			}
-		}
-	}()
 
 	// 如果任务成功，不需要回滚
 	if isSuccess {
@@ -873,4 +879,6 @@ func RegisterExecutor(e *ProcessExecutor) {
 	istep.Register(FinalizeOperateProcessStepName, istep.StepExecutorFunc(e.Finalize))
 	// 注册回调，用于任务失败时的状态回滚
 	istep.RegisterCallback(ProcessOperateCallbackName, istep.CallbackExecutorFunc(e.Callback))
+	// 任务组级回调：级联阻断后的实例状态回收与批次终态收敛
+	istep.RegisterGroupCallback(ProcessOperateGroupCallbackName, NewGroupCallback(e))
 }

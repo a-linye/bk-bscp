@@ -27,6 +27,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/expression"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
 	processBuilder "github.com/TencentBlueKing/bk-bscp/internal/task/builder/process"
+	processExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/process"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
@@ -228,29 +229,29 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 	}
 	logs.Infof("create task batch success, batchID: %d, totalCount: %d, rid: %s", batchID, totalCount, kt.Rid)
 
-	// 记录实际下发的任务数
-	var dispatchedCount uint32
+	// 会由 Callback 推进的任务数；下发中途失败时已落库任务会被就地终结，此处为 0
+	var callbackDrivenCount uint32
 
-	// 如果任务创建过程出错，需要处理部分创建的情况
+	// 不会有回调推进的那部分任务在此一次性计为失败，保证批次能达到完成计数并终结
 	defer func() {
-		if dispatchedCount == totalCount {
+		if callbackDrivenCount == totalCount {
 			// 所有任务都已创建，由 Callback 机制处理状态更新
 			return
 		}
 
-		// 计算未创建的任务数
-		failedToCreate := totalCount - dispatchedCount
+		// 计算无人推进的任务数
+		unaccounted := totalCount - callbackDrivenCount
 		logs.Warnf("task batch %d partially created: %d/%d tasks dispatched, %d failed to create, rid: %s",
-			batchID, dispatchedCount, totalCount, failedToCreate, kt.Rid)
+			batchID, callbackDrivenCount, totalCount, unaccounted, kt.Rid)
 
 		// 将未创建的任务直接计为失败
-		if updateErr := s.dao.TaskBatch().AddFailedCount(kt, batchID, failedToCreate); updateErr != nil {
+		if updateErr := s.dao.TaskBatch().AddFailedCount(kt, batchID, unaccounted); updateErr != nil {
 			logs.Errorf("add failed count for batch %d error, err: %v, rid: %s", batchID, updateErr, kt.Rid)
 		}
 	}()
 
 	// 下发任务
-	dispatchedCount, err = dispatchProcessTasks(
+	callbackDrivenCount, err = dispatchProcessTasks(
 		kt,
 		s.dao,
 		s.taskManager,
@@ -607,21 +608,17 @@ func preResolveInstances(kt *kit.Kit, processInstances []*table.ProcessInstance,
 	return toDispatch, toDelete, nil
 }
 
-// dispatchProcessTasks 全量落库进程操作任务，并按优先级下发。
-// 返回值是已落库的任务数，供批次失败计数兜底；后续波次由回调推进。
+// dispatchProcessTasks 把一次进程操作的全部实例任务作为一个任务组下发，按启动优先级分阶段执行。
+//
+// 返回值是「会由回调推进的任务数」：任务组落库失败时不会有任何任务被创建，
+// 此时回滚已写入的实例中间态并返回 0，由调用方把整个批次计为失败。
 func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskManager, bizID, batchID uint32, taskType string,
 	toDispatch []resolvedInstance, enableProcessRestart bool) (uint32, error) {
-	items := make([]table.PriorityTaskItem, 0, len(toDispatch))
-	// 已落库的任务数
-	var persisted uint32
 
+	// 阶段一：全内存构建任务，此阶段失败不产生任何副作用
+	tasks := make([]*taskTypes.Task, 0, len(toDispatch))
+	items := make([]priority.TaskItem, 0, len(toDispatch))
 	for _, item := range toDispatch {
-		// 更新进程实例状态
-		if err := updateProcessInstanceStatus(kt, daoSet, item.finalOpType, item.instance, enableProcessRestart); err != nil {
-			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
-			return persisted, err
-		}
-
 		// 构建任务（finalOpType 已确定，不再是 Delete）
 		taskObj, err := buildProcessTask(
 			daoSet,
@@ -640,76 +637,138 @@ func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskMan
 		)
 		if err != nil {
 			logs.Errorf("create process operate task failed, err: %v, rid: %s", err, kt.Rid)
-			return persisted, errf.Errorf(errf.Internal, "%s",
+			return 0, errf.Errorf(errf.Internal, "%s",
 				i18n.T(kt, "build process operate task failed, err: %v", err))
 		}
 
-		if err = taskManager.Persist(taskObj); err != nil {
-			logs.Errorf("persist process operate task failed, err: %v, rid: %s", err, kt.Rid)
-			return persisted, errf.Errorf(errf.Internal, "%s",
-				i18n.T(kt, "persist process operate task failed, err: %v", err))
-		}
-
-		priority := 0
+		prio := 0
 		if item.proc != nil && item.proc.Spec != nil {
-			priority = item.proc.Spec.Priority
+			prio = item.proc.Spec.Priority
 		}
-		items = append(items, table.PriorityTaskItem{
+		tasks = append(tasks, taskObj)
+		items = append(items, priority.TaskItem{
 			TaskID:   taskObj.TaskID,
-			Priority: priority,
+			Priority: prio,
 			OpType:   item.finalOpType,
 		})
-		persisted++
 	}
 
-	plan, immediate := table.BuildPriorityPlan(items)
-	dispatchIDs := table.FirstDispatchTaskIDs(plan, immediate)
-	if err := savePriorityPlan(kt, daoSet, batchID, plan); err != nil {
-		return persisted, err
+	// 阶段二：按优先级排出阶段序列，并把任务归入各自阶段
+	plan := priority.BuildStages(items)
+	for _, taskObj := range tasks {
+		taskObj.StageSeq = plan.StageSeq(taskObj.TaskID)
 	}
 
-	logs.Infof("enqueue process operate tasks, taskIDs: %v, batchID: %d, rid: %s", dispatchIDs, batchID, kt.Rid)
-	if err := priority.EnqueueTasks(kt.Ctx, taskManager, dispatchIDs); err != nil {
-		logs.Errorf("enqueue process operate task failed, batchID: %d, err: %v, rid: %s", batchID, err, kt.Rid)
-		return persisted, errf.Errorf(errf.Internal, "%s",
-			i18n.T(kt, "enqueue process operate task failed, err: %v", err))
+	group, err := buildProcessTaskGroup(kt, plan, batchID, bizID, taskType, toDispatch)
+	if err != nil {
+		return 0, err
 	}
-	if plan != nil && len(plan.Waves) > 0 {
-		if err := daoSet.TaskBatch().MarkWaveDispatched(kt, batchID, plan.Waves[0].Seq); err != nil {
-			logs.Errorf("mark first priority wave dispatched failed, batchID: %d, err: %v, rid: %s",
-				batchID, err, kt.Rid)
-			return persisted, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "mark first priority wave dispatched failed, err: %v", err))
+
+	// 阶段三：置实例中间态。任务组落库是原子的，因此只有实例状态需要补偿
+	for i, item := range toDispatch {
+		if err = updateProcessInstanceStatus(kt, daoSet, item.finalOpType,
+			item.instance, enableProcessRestart); err != nil {
+			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
+			// 当前这条更新失败未落库，只需回滚它之前已改动的实例
+			rollbackInstanceStatus(kt, daoSet, toDispatch[:i])
+			return 0, err
 		}
 	}
 
-	return persisted, nil
+	// 阶段四：任务组、阶段与全部任务在同一个事务内落库，随后只下发首个阶段
+	if err = taskManager.DispatchGroup(kt.Ctx, group, tasks); err != nil {
+		logs.Errorf("dispatch process operate task group failed, batchID: %d, err: %v, rid: %s",
+			batchID, err, kt.Rid)
+		rollbackInstanceStatus(kt, daoSet, toDispatch)
+		return 0, errf.Errorf(errf.Internal, "%s",
+			i18n.T(kt, "dispatch process operate task group failed, err: %v", err))
+	}
+
+	if err = saveTaskGroupID(kt, daoSet, batchID, group.GroupID); err != nil {
+		// 任务组已在执行，这里只影响批次与任务组的关联展示，不阻断本次操作
+		logs.Errorf("save task group id failed, batchID: %d, groupID: %s, err: %v, rid: %s",
+			batchID, group.GroupID, err, kt.Rid)
+	}
+
+	logs.Infof("dispatch process operate task group success, batchID: %d, groupID: %s, stages: %d, rid: %s",
+		batchID, group.GroupID, len(group.Stages), kt.Rid)
+	return uint32(len(tasks)), nil
 }
 
-func savePriorityPlan(kt *kit.Kit, daoSet dao.Set, batchID uint32, plan *table.PriorityPlan) error {
+// buildProcessTaskGroup 构建进程操作任务组，负载中带上批次收尾所需的信息
+func buildProcessTaskGroup(kt *kit.Kit, plan *priority.StagePlan, batchID, bizID uint32, taskType string,
+	toDispatch []resolvedInstance) (*taskTypes.TaskGroup, error) {
+
+	// 以批次 ID 作为任务组索引，便于按批次反查编排进度
+	group := taskTypes.NewTaskGroup(taskTypes.GroupInfo{
+		GroupType:      string(table.TaskObjectProcess),
+		GroupName:      taskType,
+		GroupIndex:     strconv.FormatUint(uint64(batchID), 10),
+		GroupIndexType: "task_batch",
+		Creator:        kt.User,
+	}, taskTypes.WithGroupCallback(processExecutor.ProcessOperateGroupCallbackName.String()))
+
+	// 装入按优先级排好序的阶段
+	for _, stage := range plan.Stages {
+		group.AddStage(stage)
+	}
+
+	// 去重收集本次涉及的进程，批次收尾时需要按进程更新 CMDB 模块实例序列
+	processIDs := make([]uint32, 0, len(toDispatch))
+	seen := make(map[uint32]struct{}, len(toDispatch))
+	for _, item := range toDispatch {
+		procID := item.instance.Attachment.ProcessID
+		if _, ok := seen[procID]; ok {
+			continue
+		}
+		seen[procID] = struct{}{}
+		processIDs = append(processIDs, procID)
+	}
+
+	// 任务组回调脱离请求上下文，批次收尾所需的信息只能随负载带上
+	if err := group.SetCommonPayload(&processExecutor.GroupPayload{
+		TenantID:    kt.TenantID,
+		BizID:       bizID,
+		BatchID:     batchID,
+		OperateUser: kt.User,
+		ProcessIDs:  processIDs,
+	}); err != nil {
+		return nil, errf.Errorf(errf.Internal, "%s",
+			i18n.T(kt, "set task group payload failed, err: %v", err))
+	}
+	return group, nil
+}
+
+// rollbackInstanceStatus 把实例恢复为操作前状态，用于任务组下发失败时收敛已写入的中间态
+func rollbackInstanceStatus(kt *kit.Kit, daoSet dao.Set, items []resolvedInstance) {
+	m := daoSet.GenQuery().ProcessInstance
+	for _, item := range items {
+		if err := daoSet.ProcessInstance().UpdateSelectedFields(kt, item.instance.Attachment.BizID, map[string]any{
+			"status":            item.originalStatus,
+			"managed_status":    item.originalManaged,
+			"status_updated_at": time.Now(),
+		}, m.ID.Eq(item.instance.ID)); err != nil {
+			logs.Errorf("rollback process instance %d status failed, err: %v, rid: %s",
+				item.instance.ID, err, kt.Rid)
+		}
+	}
+}
+
+// saveTaskGroupID 记录批次与任务框架任务组的关联
+func saveTaskGroupID(kt *kit.Kit, daoSet dao.Set, batchID uint32, groupID string) error {
 	batch, err := daoSet.TaskBatch().GetByID(kt, kt.BizID, batchID)
 	if err != nil {
-		logs.Errorf("get task batch failed when saving priority plan, batchID: %d, err: %v, rid: %s",
-			batchID, err, kt.Rid)
-		return errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kt, "get task batch %d failed, err: %v", batchID, err))
+		return err
 	}
 	extra, err := batch.Spec.GetExtraData()
 	if err != nil {
-		return errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kt, "get task batch extra data failed, err: %v", err))
+		return err
 	}
-	extra.PriorityPlan = plan
+	extra.GroupID = groupID
 	if err = batch.Spec.SetExtraData(extra); err != nil {
-		return errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kt, "set task batch extra data failed, err: %v", err))
+		return err
 	}
-	if err = daoSet.TaskBatch().UpdateExtraData(kt, batchID, batch.Spec.ExtraData); err != nil {
-		logs.Errorf("update task batch extra data failed, batchID: %d, err: %v, rid: %s", batchID, err, kt.Rid)
-		return errf.Errorf(errf.DBOpFailed, "%s",
-			i18n.T(kt, "update task batch extra data failed, err: %v", err))
-	}
-	return nil
+	return daoSet.TaskBatch().UpdateExtraData(kt, batchID, batch.Spec.ExtraData)
 }
 
 // resolveOperateType 判断最终的操作类型
