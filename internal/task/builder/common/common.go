@@ -74,6 +74,7 @@ func (builder *Builder) CommonProcessFinalize(task *types.Task, tenantID string,
 	if inst == nil {
 		return fmt.Errorf("no process instance found for id %d", processInstanceID)
 	}
+	priority := process.Spec.Priority
 	return task.SetCommonPayload(&common.TaskPayload{
 		ProcessPayload: &common.ProcessPayload{
 			SetName:       process.Spec.SetName,
@@ -89,6 +90,7 @@ func (builder *Builder) CommonProcessFinalize(task *types.Task, tenantID string,
 			ModuleInstSeq: inst.Spec.ModuleInstSeq,
 			ConfigData:    process.Spec.SourceData,
 			CloudID:       int(process.Attachment.CloudID),
+			Priority:      &priority,
 		},
 	})
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/processor/cmdb"
 	gesprocessor "github.com/TencentBlueKing/bk-bscp/internal/processor/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -628,12 +629,12 @@ func (e *ProcessExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	allCompleted := false
 	var err error
-	// 更新 TaskBatch 的完成计数
+	// 更新 TaskBatch 的完成计数，并按优先级推进下一波或级联阻断
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		allCompleted, err = e.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+		allCompleted, err = priority.HandleTaskComplete(kt, e.Dao, payload.BatchID, c.GetTaskID(), isSuccess)
 		if err != nil {
-			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to increment completed count, "+
+			logs.Errorf("[ProcessOperateCallback CALLBACK]: failed to complete task, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
 			// PASS 继续执行，不影响回滚逻辑
 		}

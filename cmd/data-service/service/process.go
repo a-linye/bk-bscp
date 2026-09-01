@@ -248,7 +248,7 @@ func (s *Service) OperateProcess(ctx context.Context, req *pbds.OperateProcessRe
 		}
 	}()
 
-	// 下发任务
+	// 全量落库后按优先级只下发第一波（及托管类立即任务）
 	dispatchedCount, err = dispatchProcessTasks(
 		kt,
 		s.dao,
@@ -364,7 +364,7 @@ func getByProcessInstanceIDs(kt *kit.Kit, dao dao.Set, bizID uint32, processInst
 			i18n.T(kt, "process instances not found for IDs %v", processInstanceIDs))
 	}
 
-	// 查询进程信息
+	// 指定实例时这些实例只属于同一个进程
 	process, err := dao.Process().GetByID(kt, bizID, insts[0].Attachment.ProcessID)
 	if err != nil {
 		logs.Errorf("get process failed, err: %v, rid: %s", err, kt.Rid)
@@ -606,21 +606,24 @@ func preResolveInstances(kt *kit.Kit, processInstances []*table.ProcessInstance,
 	return toDispatch, toDelete, nil
 }
 
-// dispatchProcessTasks 下发进程操作任务，返回实际下发的任务数
-// enableProcessRestart 用于判断是否启用进程重启，影响状态更新和任务构建逻辑
-func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManager, bizID, batchID uint32, taskType string,
+// dispatchProcessTasks 全量落库进程操作任务，并按下发第一波（及托管类立即任务）。
+// 返回值是已落库的任务数，供批次失败计数兜底；后续波次由回调推进。
+func dispatchProcessTasks(kt *kit.Kit, daoSet dao.Set, taskManager *task.TaskManager, bizID, batchID uint32, taskType string,
 	toDispatch []resolvedInstance, enableProcessRestart bool) (uint32, error) {
-	var dispatchedCount uint32
+	built := make([]*taskTypes.Task, 0, len(toDispatch))
+	items := make([]table.PriorityTaskItem, 0, len(toDispatch))
+	var persisted uint32
+
 	for _, item := range toDispatch {
 		// 更新进程实例状态
-		if err := updateProcessInstanceStatus(kt, dao, item.finalOpType, item.instance, enableProcessRestart); err != nil {
+		if err := updateProcessInstanceStatus(kt, daoSet, item.finalOpType, item.instance, enableProcessRestart); err != nil {
 			logs.Errorf("update process instance status failed, err: %v, rid: %s", err, kt.Rid)
-			return dispatchedCount, err
+			return persisted, err
 		}
 
 		// 构建任务（finalOpType 已确定，不再是 Delete）
 		taskObj, err := buildProcessTask(
-			dao,
+			daoSet,
 			kt.TenantID,
 			bizID,
 			batchID,
@@ -636,16 +639,87 @@ func dispatchProcessTasks(kt *kit.Kit, dao dao.Set, taskManager *task.TaskManage
 		)
 		if err != nil {
 			logs.Errorf("create process operate task failed, err: %v, rid: %s", err, kt.Rid)
-			return dispatchedCount, errf.Errorf(errf.Internal, "%s",
+			return persisted, errf.Errorf(errf.Internal, "%s",
 				i18n.T(kt, "build process operate task failed, err: %v", err))
 		}
 
-		logs.Infof("dispatch process operate task, taskObj: %+v", taskObj)
-		taskManager.Dispatch(taskObj)
-		dispatchedCount++
+		if err = taskManager.Persist(taskObj); err != nil {
+			logs.Errorf("persist process operate task failed, err: %v, rid: %s", err, kt.Rid)
+			return persisted, errf.Errorf(errf.Internal, "%s",
+				i18n.T(kt, "persist process operate task failed, err: %v", err))
+		}
+
+		priority := 0
+		if item.proc != nil && item.proc.Spec != nil {
+			priority = item.proc.Spec.Priority
+		}
+		items = append(items, table.PriorityTaskItem{
+			TaskID:   taskObj.TaskID,
+			Priority: priority,
+			OpType:   item.finalOpType,
+		})
+		built = append(built, taskObj)
+		persisted++
 	}
 
-	return dispatchedCount, nil
+	plan, immediate := table.BuildPriorityPlan(items)
+	dispatchIDs := table.FirstDispatchTaskIDs(plan, immediate)
+	if err := savePriorityPlan(kt, daoSet, batchID, plan); err != nil {
+		return persisted, err
+	}
+
+	taskByID := make(map[string]*taskTypes.Task, len(built))
+	for _, t := range built {
+		taskByID[t.TaskID] = t
+	}
+	for _, taskID := range dispatchIDs {
+		taskObj, ok := taskByID[taskID]
+		if !ok {
+			continue
+		}
+		logs.Infof("enqueue process operate task, taskID: %s, batchID: %d, rid: %s", taskID, batchID, kt.Rid)
+		if err := taskManager.Enqueue(taskObj); err != nil {
+			logs.Errorf("enqueue process operate task failed, taskID: %s, err: %v, rid: %s", taskID, err, kt.Rid)
+			return persisted, errf.Errorf(errf.Internal, "%s",
+				i18n.T(kt, "enqueue process operate task failed, err: %v", err))
+		}
+	}
+	if plan != nil && len(plan.Waves) > 0 {
+		if err := daoSet.TaskBatch().MarkWaveDispatched(kt, batchID, plan.Waves[0].Seq); err != nil {
+			logs.Errorf("mark first priority wave dispatched failed, batchID: %d, err: %v, rid: %s",
+				batchID, err, kt.Rid)
+			return persisted, errf.Errorf(errf.DBOpFailed, "%s",
+				i18n.T(kt, "mark first priority wave dispatched failed, err: %v", err))
+		}
+	}
+
+	return persisted, nil
+}
+
+func savePriorityPlan(kt *kit.Kit, daoSet dao.Set, batchID uint32, plan *table.PriorityPlan) error {
+	batch, err := daoSet.TaskBatch().GetByID(kt, kt.BizID, batchID)
+	if err != nil {
+		logs.Errorf("get task batch failed when saving priority plan, batchID: %d, err: %v, rid: %s",
+			batchID, err, kt.Rid)
+		return errf.Errorf(errf.DBOpFailed, "%s",
+			i18n.T(kt, "get task batch %d failed, err: %v", batchID, err))
+	}
+	extra, err := batch.Spec.GetExtraData()
+	if err != nil {
+		return errf.Errorf(errf.DBOpFailed, "%s",
+			i18n.T(kt, "get task batch extra data failed, err: %v", err))
+	}
+	extra.PriorityPlan = plan
+	if err = batch.Spec.SetExtraData(extra); err != nil {
+		return errf.Errorf(errf.DBOpFailed, "%s",
+			i18n.T(kt, "set task batch extra data failed, err: %v", err))
+	}
+	if err = daoSet.TaskBatch().UpdateExtraData(kt, batchID, batch.Spec.ExtraData); err != nil {
+		logs.Errorf("update task batch extra data failed, batchID: %d, err: %v, rid: %s", batchID, err, kt.Rid)
+		return errf.Errorf(errf.DBOpFailed, "%s",
+			i18n.T(kt, "update task batch extra data failed, err: %v", err))
+	}
+	return nil
 }
 
 // resolveOperateType 判断最终的操作类型
@@ -825,9 +899,12 @@ func queryFailedTasks(kt *kit.Kit, taskStorage istore.Store, batchID uint32, tas
 		listOpt := &istore.ListOption{
 			TaskIndex: fmt.Sprintf("%d", batchID),
 			TaskType:  taskType,
-			Status:    taskTypes.TaskStatusFailure,
-			Offset:    offset,
-			Limit:     limit,
+			StatusList: []string{
+				taskTypes.TaskStatusFailure,
+				taskTypes.TaskStatusTimeout,
+			},
+			Offset: offset,
+			Limit:  limit,
 		}
 
 		pagination, err := taskStorage.ListTask(kt.Ctx, listOpt)

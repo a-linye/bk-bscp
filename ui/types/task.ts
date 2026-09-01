@@ -43,5 +43,6 @@ export interface ITaskDetailItem {
     module_name: string;
     service_name: string;
     set_name: string;
+    priority?: number | null;
   };
 }

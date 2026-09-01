@@ -265,6 +265,7 @@ func (s *syncCMDBService) buildProcessEntities(kt *kit.Kit, data []*bkcmdb.Proce
 				OsType:       "",
 				CcSyncStatus: table.Synced,
 				AgentStatus:  agentState,
+				Priority:     item.Process.Priority,
 			},
 			Revision: &table.Revision{
 				CreatedAt: now,
@@ -544,6 +545,7 @@ func (s *syncCMDBService) SyncSingleBiz(ctx context.Context) error {
 				Name:              proc.Property.BkProcessName,
 				FuncName:          proc.Property.BkFuncName,
 				ProcNum:           proc.Property.ProcNum,
+				Priority:          proc.Property.Priority,
 				ProcessInfo: table.ProcessInfo{
 					BkStartParamRegex: proc.Property.BkStartParamRegex,
 					WorkPath:          proc.Property.WorkPath,
@@ -678,6 +680,7 @@ func (s *syncCMDBService) SyncByProcessIDs(ctx context.Context, processes []bkcm
 				Name:     p.BkProcessName,
 				FuncName: p.BkFuncName,
 				ProcNum:  p.ProcNum,
+				Priority: p.Priority,
 				ProcessInfo: table.ProcessInfo{
 					BkStartParamRegex: p.BkStartParamRegex,
 					WorkPath:          p.WorkPath,
@@ -992,6 +995,7 @@ func (s *syncCMDBService) UpdateProcess(ctx context.Context, processes []bkcmdb.
 		newSpec.Alias = p.BkProcessName
 		newSpec.ProcNum = normalizeProcNum(p.ProcNum)
 		newSpec.SourceData = string(sourceData)
+		newSpec.Priority = p.Priority
 
 		// 事件不含主机信息，attachment 直接复用 DB 旧值，
 		// 因此 agent_id 不会在这条链路上刷新，需要靠全量同步纠正
@@ -1133,6 +1137,7 @@ func buildProcessesFromSets(tenantID string, bizID int, sets []Set) []*table.Pro
 							FuncName:             proc.FuncName,
 							OsType:               "",
 							AgentStatus:          resolveAgentStatus(h.AgentID, table.AgentStatus(h.AgentState)),
+							Priority:             proc.Priority,
 						},
 						Revision: &table.Revision{
 							CreatedAt: now,
@@ -1588,12 +1593,14 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 	numChanged := newP.Spec.ProcNum != oldP.Spec.ProcNum
 	agentStatusChanged := newP.Spec.AgentStatus != "" && newP.Spec.AgentStatus != oldP.Spec.AgentStatus
 	osTypeChanged := newP.Spec.OsType != "" && newP.Spec.OsType != oldP.Spec.OsType
+	// 启动优先级只影响操作编排顺序，不属于进程启动配置，因此单独 diff 而不并入 source_data 的一致性对比
+	priorityChanged := newP.Spec.Priority != oldP.Spec.Priority
 	// 仅同步服务实例名称与集群环境类型两个拓扑字段；集群名称/模块名称本期不做 diff（范围决策 2026-07-21）
 	topoChanged := newP.Spec.ServiceName != oldP.Spec.ServiceName ||
 		newP.Spec.Environment != oldP.Spec.Environment
 
 	if !nameChanged && !infoChanged && !numChanged && !osTypeChanged &&
-		!agentStatusChanged && !agentIDChanged && !topoChanged {
+		!agentStatusChanged && !agentIDChanged && !topoChanged && !priorityChanged {
 		return result, nil
 	}
 
@@ -1613,6 +1620,10 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 
 	if agentStatusChanged {
 		oldP.Spec.AgentStatus = newP.Spec.AgentStatus
+	}
+
+	if priorityChanged {
+		oldP.Spec.Priority = newP.Spec.Priority
 	}
 
 	// 是否安全
@@ -1652,6 +1663,7 @@ func BuildProcessChanges(ctx *SyncContext, params *BuildProcessChangesParams) (*
 			// 恢复 deleted 记录时同步刷新拓扑字段，避免残留旧值
 			reusableProc.Spec.ServiceName = newP.Spec.ServiceName
 			reusableProc.Spec.Environment = newP.Spec.Environment
+			reusableProc.Spec.Priority = newP.Spec.Priority
 			reusableProc.Attachment = newP.Attachment
 			reusableProc.Revision = &table.Revision{UpdatedAt: ctx.Now}
 

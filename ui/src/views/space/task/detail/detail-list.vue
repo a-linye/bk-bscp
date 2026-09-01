@@ -43,6 +43,15 @@
           <TableColumn :title="$t('服务实例')" col-key="task_payload.service_name" ellipsis></TableColumn>
           <TableColumn :title="$t('进程别名')" col-key="task_payload.alias"></TableColumn>
           <TableColumn :title="$t('CC 进程 ID')" col-key="task_payload.cc_process_id"></TableColumn>
+          <TableColumn :title="$t('进程优先级')" col-key="task_payload.priority">
+            <template #default="{ row }">
+              {{
+                row.task_payload && row.task_payload.priority !== undefined && row.task_payload.priority !== null
+                  ? row.task_payload.priority
+                  : '--'
+              }}
+            </template>
+          </TableColumn>
           <TableColumn col-key="task_payload.module_inst_seq">
             <template #title>
               <span class="tips-title" v-bk-tooltips="{ content: $t('模块下唯一标识'), placement: 'top' }">

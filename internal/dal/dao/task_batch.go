@@ -18,6 +18,7 @@ import (
 
 	rawgen "gorm.io/gen"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/gen"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
@@ -35,15 +36,31 @@ type TaskBatchListFilter struct {
 	TimeRangeEnd   *time.Time // 时间范围终点
 }
 
+// TaskCompletion 单个实例任务到达终态后，批次维度的推进结果
+type TaskCompletion struct {
+	// AllCompleted 批次内全部任务已完成
+	AllCompleted bool
+	// NextWave 需要下发的下一个优先级波次，为空表示无需下发
+	NextWave *table.PriorityWave
+	// Cascade 需要级联阻断的信息，为空表示无需阻断
+	Cascade *table.PriorityCascade
+}
+
 // TaskBatch xxx
 type TaskBatch interface {
 	Create(kit *kit.Kit, taskBatch *table.TaskBatch) (uint32, error)
 	GetByID(kit *kit.Kit, bizID, batchID uint32) (*table.TaskBatch, error)
 	List(kit *kit.Kit, bizID uint32, filter *TaskBatchListFilter, opt *types.BasePage) ([]*table.TaskBatch, int64, error)
+	ListRunningByObject(kit *kit.Kit, taskObject table.TaskObject) ([]*table.TaskBatch, error)
 	UpdateStatus(kit *kit.Kit, batchID uint32, status table.TaskBatchStatus) error
 	ListExecutors(kit *kit.Kit, bizID uint32) ([]string, error)
 	// IncrementCompletedCount 增加完成任务计数，当所有任务完成时自动更新批次状态
 	IncrementCompletedCount(kit *kit.Kit, batchID uint32, isSuccess bool) (bool, error)
+	// CompleteTask 在同一事务内完成批次计数与优先级波次推进，
+	// 根据 taskID 定位波次；未纳入编排的任务只做计数
+	CompleteTask(kit *kit.Kit, batchID uint32, taskID string, isSuccess bool) (*TaskCompletion, error)
+	// MarkWaveDispatched 标记波次已下发，用于重启后的编排对账
+	MarkWaveDispatched(kit *kit.Kit, batchID uint32, waveSeq int) error
 	// ResetCountsForRetry 重置计数字段用于重试
 	ResetCountsForRetry(kit *kit.Kit, batchID uint32, totalCount uint32) error
 	// AddFailedCount 增加失败计数（用于任务创建失败的场景），同时增加 CompletedCount 和 FailedCount
@@ -403,4 +420,136 @@ func (dao *taskBatchDao) buildFilterConditions(filter *TaskBatchListFilter) []ra
 	}
 
 	return conds
+}
+
+// CompleteTask 在同一事务内完成批次计数与优先级波次推进
+func (dao *taskBatchDao) CompleteTask(kit *kit.Kit, batchID uint32, taskID string, isSuccess bool) (*TaskCompletion, error) {
+	result := &TaskCompletion{}
+	m := dao.genQ.TaskBatch
+
+	txFunc := func(tx *gen.Query) error {
+		q := tx.TaskBatch.WithContext(kit.Ctx)
+		batch, err := q.Where(m.ID.Eq(batchID)).Clauses(clause.Locking{Strength: "UPDATE"}).Take()
+		if err != nil {
+			return fmt.Errorf("get task batch failed: %w", err)
+		}
+
+		extra, err := batch.Spec.GetExtraData()
+		if err != nil {
+			return fmt.Errorf("get extra data failed: %w", err)
+		}
+
+		cascadeCount := 0
+		extraChanged := false
+		waveSeq := table.ImmediateWaveSeq
+		if extra.PriorityPlan != nil {
+			waveSeq = extra.PriorityPlan.WaveSeqOf(taskID)
+		}
+		if extra.PriorityPlan != nil && waveSeq != table.ImmediateWaveSeq {
+			next, cascade := table.AdvancePriorityPlan(extra.PriorityPlan, waveSeq, isSuccess)
+			result.NextWave = next
+			result.Cascade = cascade
+			if cascade != nil {
+				cascadeCount = len(cascade.PendingTaskIDs)
+			}
+			if err = batch.Spec.SetExtraData(extra); err != nil {
+				return fmt.Errorf("set extra data failed: %w", err)
+			}
+			extraChanged = true
+		}
+
+		updates := map[string]interface{}{
+			"completed_count": gorm.Expr("completed_count + ?", 1+cascadeCount),
+		}
+		if extraChanged {
+			updates[m.ExtraData.ColumnName().String()] = batch.Spec.ExtraData
+		}
+		if isSuccess {
+			updates["success_count"] = gorm.Expr("success_count + 1")
+			if cascadeCount > 0 {
+				updates["failed_count"] = gorm.Expr("failed_count + ?", cascadeCount)
+			}
+		} else {
+			updates["failed_count"] = gorm.Expr("failed_count + ?", 1+cascadeCount)
+		}
+
+		if _, err = q.Where(m.ID.Eq(batchID)).Updates(updates); err != nil {
+			return fmt.Errorf("update task batch counts failed: %w", err)
+		}
+
+		newCompleted := batch.Spec.CompletedCount + uint32(1+cascadeCount)
+		newSuccess := batch.Spec.SuccessCount
+		newFailed := batch.Spec.FailedCount
+		if isSuccess {
+			newSuccess++
+		} else {
+			newFailed++
+		}
+		newFailed += uint32(cascadeCount)
+
+		if newCompleted >= batch.Spec.TotalCount && batch.Spec.TotalCount > 0 {
+			result.AllCompleted = true
+			var newStatus table.TaskBatchStatus
+			if newFailed == 0 {
+				newStatus = table.TaskBatchStatusSucceed
+			} else if newSuccess == 0 {
+				newStatus = table.TaskBatchStatusFailed
+			} else {
+				newStatus = table.TaskBatchStatusPartlyFailed
+			}
+			now := time.Now()
+			if _, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+				"status": newStatus,
+				"end_at": &now,
+			}); err != nil {
+				return fmt.Errorf("update batch status failed: %w", err)
+			}
+		}
+		return nil
+	}
+
+	if err := dao.genQ.Transaction(txFunc); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// MarkWaveDispatched 标记波次已下发
+func (dao *taskBatchDao) MarkWaveDispatched(kit *kit.Kit, batchID uint32, waveSeq int) error {
+	m := dao.genQ.TaskBatch
+	return dao.genQ.Transaction(func(tx *gen.Query) error {
+		q := tx.TaskBatch.WithContext(kit.Ctx)
+		batch, err := q.Where(m.ID.Eq(batchID)).Clauses(clause.Locking{Strength: "UPDATE"}).Take()
+		if err != nil {
+			return fmt.Errorf("get task batch failed: %w", err)
+		}
+		extra, err := batch.Spec.GetExtraData()
+		if err != nil {
+			return fmt.Errorf("get extra data failed: %w", err)
+		}
+		if extra.PriorityPlan == nil {
+			return nil
+		}
+		wave := extra.PriorityPlan.WaveBySeq(waveSeq)
+		if wave == nil || wave.Dispatched {
+			return nil
+		}
+		wave.Dispatched = true
+		if err = batch.Spec.SetExtraData(extra); err != nil {
+			return fmt.Errorf("set extra data failed: %w", err)
+		}
+		_, err = q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+			m.ExtraData.ColumnName().String(): batch.Spec.ExtraData,
+		})
+		return err
+	})
+}
+
+// ListRunningByObject 查询指定任务对象下所有运行中的批次
+func (dao *taskBatchDao) ListRunningByObject(kit *kit.Kit, taskObject table.TaskObject) ([]*table.TaskBatch, error) {
+	m := dao.genQ.TaskBatch
+	return dao.genQ.TaskBatch.WithContext(kit.Ctx).Where(
+		m.TaskObject.Eq(string(taskObject)),
+		m.Status.Eq(string(table.TaskBatchStatusRunning)),
+	).Find()
 }

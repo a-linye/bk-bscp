@@ -20,6 +20,7 @@ import (
 	taskpkg "github.com/Tencent/bk-bcs/bcs-common/common/task"
 	istore "github.com/Tencent/bk-bcs/bcs-common/common/task/stores/iface"
 	taskTypes "github.com/Tencent/bk-bcs/bcs-common/common/task/types"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	commonExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
@@ -389,6 +390,10 @@ func convertTaskToDetail(kt *kit.Kit, task *taskTypes.Task) (*pbtb.TaskDetail, e
 			ModuleInstSeq: processPayload.ProcessPayload.ModuleInstSeq,
 			ConfigData:    processPayload.ProcessPayload.ConfigData,
 		}
+		// 历史任务负载没有优先级，保持字段缺省，由前端展示为 --
+		if p := processPayload.ProcessPayload.Priority; p != nil {
+			detail.TaskPayload.Priority = proto.Int32(int32(*p))
+		}
 	}
 
 	if processPayload.ConfigPayload != nil {
@@ -626,7 +631,7 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 		return 0, nil
 	}
 
-	// 查询该批次所有失败的任务
+	// 查询该批次所有失败的任务（含超时与被级联阻断的任务）
 	failedTasks, err := queryFailedTasks(kt, taskStorage, taskBatch.ID, string(taskBatch.Spec.TaskAction))
 	if err != nil {
 		logs.Errorf("query failed tasks failed, batchID: %d, err: %v, rid: %s", taskBatch.ID, err, kt.Rid)
@@ -638,54 +643,99 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 		return 0, nil
 	}
 
-	// 重置计数字段用于重试
-	retryCount := uint32(len(failedTasks))
+	retryTasks := make([]*taskTypes.Task, 0, len(failedTasks))
+	items := make([]table.PriorityTaskItem, 0, len(failedTasks))
+	for _, failedTask := range failedTasks {
+		item, inst, opType, skip := s.resolveRetryTask(kt, bizID, failedTask)
+		if skip {
+			logs.Warnf("skip retry task %s because process instance is gone, batchID: %d, rid: %s",
+				failedTask.TaskID, taskBatch.ID, kt.Rid)
+			continue
+		}
+		if inst != nil {
+			if err = updateProcessInstanceStatus(kt, s.dao, opType, inst, true); err != nil {
+				return 0, err
+			}
+		}
+		retryTasks = append(retryTasks, failedTask)
+		items = append(items, item)
+	}
+
+	if len(retryTasks) == 0 {
+		logs.Infof("no valid failed tasks to retry, batchID: %d, rid: %s", taskBatch.ID, kt.Rid)
+		return 0, nil
+	}
+
+	retryCount := uint32(len(retryTasks))
 	if err = s.dao.TaskBatch().ResetCountsForRetry(kt, taskBatch.ID, retryCount); err != nil {
 		logs.Errorf("reset counts for retry failed, batchID: %d, err: %v, rid: %s", taskBatch.ID, err, kt.Rid)
 		return 0, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kt, "reset task batch counts for retry failed, batchID: %d, err: %v", taskBatch.ID, err))
 	}
 
-	// 重试每个失败的任务
-	for _, failedTask := range failedTasks {
-		// 从进程操作完成步骤中获取进程操作负载，用于获取进程实例id
-		finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
-		if !ok {
-			logs.Errorf("operate step not found, taskID: %s, rid: %s", failedTask.TaskID, kt.Rid)
-			return 0, errf.Errorf(errf.Unknown, "%s",
-				i18n.T(kt, "operate process step not found for taskID: %s", failedTask.TaskID))
+	plan, immediate := table.BuildPriorityPlan(items)
+	dispatchIDs := table.FirstDispatchTaskIDs(plan, immediate)
+	if err = savePriorityPlan(kt, s.dao, taskBatch.ID, plan); err != nil {
+		return 0, err
+	}
+
+	dispatchSet := make(map[string]struct{}, len(dispatchIDs))
+	for _, id := range dispatchIDs {
+		dispatchSet[id] = struct{}{}
+	}
+	for _, failedTask := range retryTasks {
+		if _, ok := dispatchSet[failedTask.TaskID]; !ok {
+			continue
 		}
-		var processPayload process.OperatePayload
-		if err := finalizeStep.GetPayload(&processPayload); err != nil {
-			logs.Errorf("get payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
-			return 0, errf.Errorf(errf.Internal, "%s",
-				i18n.T(kt, "get operate payload from task step failed, taskID: %s, err: %v", failedTask.TaskID, err))
-		}
-		// 获取进程实例
-		processInstance, err := s.dao.ProcessInstance().GetByID(kt, bizID, processPayload.ProcessInstanceID)
-		if err != nil {
-			logs.Errorf("get process instance failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
-			return 0, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "get process instance by ID %d failed, err: %v", processPayload.ProcessInstanceID, err))
-		}
-		if processInstance == nil {
-			logs.Errorf("process instance not found, processInstanceID: %d, rid: %s", processPayload.ProcessInstanceID, kt.Rid)
-			return 0, errf.Errorf(errf.RecordNotFound, "%s",
-				i18n.T(kt, "process instance with ID %d does not exist", processPayload.ProcessInstanceID))
-		}
-		// 更新进程实例状态
-		if err = updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance, true); err != nil {
-			return 0, err
-		}
-		err = s.taskManager.RetryAll(failedTask)
-		if err != nil {
+		if err = s.taskManager.Enqueue(failedTask); err != nil {
 			logs.Errorf("retry failed task failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
 			return 0, errf.Errorf(errf.Unknown, "%s",
 				i18n.T(kt, "retry failed task %s failed, err: %v", failedTask.TaskID, err))
 		}
 	}
+	if plan != nil && len(plan.Waves) > 0 {
+		if err = s.dao.TaskBatch().MarkWaveDispatched(kt, taskBatch.ID, plan.Waves[0].Seq); err != nil {
+			logs.Errorf("mark retry first wave dispatched failed, batchID: %d, err: %v, rid: %s",
+				taskBatch.ID, err, kt.Rid)
+			return 0, errf.Errorf(errf.DBOpFailed, "%s",
+				i18n.T(kt, "mark first priority wave dispatched failed, err: %v", err))
+		}
+	}
 
 	return retryCount, nil
+}
+
+// resolveRetryTask 解析失败任务在重试时的优先级与实例。实例已删除时 skip=true。
+func (s *Service) resolveRetryTask(kt *kit.Kit, bizID uint32, failedTask *taskTypes.Task) (
+	table.PriorityTaskItem, *table.ProcessInstance, table.ProcessOperateType, bool) {
+	item := table.PriorityTaskItem{
+		TaskID: failedTask.TaskID,
+		OpType: table.RegisterProcessOperate, // 缺省按托管类立即下发，避免未知步骤阻断重试
+	}
+
+	finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
+	if !ok {
+		return item, nil, item.OpType, false
+	}
+	var processPayload process.OperatePayload
+	if err := finalizeStep.GetPayload(&processPayload); err != nil {
+		logs.Warnf("get operate payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
+		return item, nil, item.OpType, false
+	}
+	if processPayload.OperateType != "" {
+		item.OpType = processPayload.OperateType
+	}
+
+	processInstance, err := s.dao.ProcessInstance().GetByID(kt, bizID, processPayload.ProcessInstanceID)
+	if err != nil || processInstance == nil {
+		return item, nil, item.OpType, true
+	}
+
+	proc, err := s.dao.Process().GetByID(kt, bizID, processInstance.Attachment.ProcessID)
+	if err == nil && proc != nil && proc.Spec != nil {
+		item.Priority = proc.Spec.Priority
+	}
+	return item, processInstance, item.OpType, false
 }
 
 // retryPushConfigTask 重试下发

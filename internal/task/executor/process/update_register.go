@@ -29,6 +29,7 @@ import (
 	gesprocessor "github.com/TencentBlueKing/bk-bscp/internal/processor/gse"
 	"github.com/TencentBlueKing/bk-bscp/internal/runtime/lock"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	"github.com/TencentBlueKing/bk-bscp/pkg/dal/table"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -447,12 +448,12 @@ func (u *UpdateRegisterExecutor) Callback(c *istep.Context, cbErr error) error {
 
 	kt := kit.NewWithTenant(payload.TenantID)
 
-	// 更新 TaskBatch 的完成计数
+	// 更新 TaskBatch 的完成计数（托管类为单波次，CompleteTask 仅做计数）
 	isSuccess := cbErr == nil
 	if payload.BatchID > 0 {
-		allCompleted, err := u.Dao.TaskBatch().IncrementCompletedCount(kt, payload.BatchID, isSuccess)
+		allCompleted, err := priority.HandleTaskComplete(kt, u.Dao, payload.BatchID, c.GetTaskID(), isSuccess)
 		if err != nil {
-			logs.Errorf("[UpdateRegisterCallback CALLBACK]: failed to increment completed count, "+
+			logs.Errorf("[UpdateRegisterCallback CALLBACK]: failed to complete task, "+
 				"batchID: %d, err: %v", payload.BatchID, err)
 		}
 
@@ -572,15 +573,15 @@ func (u *UpdateRegisterExecutor) updateBatchExtraDataWithLock(tenantID string, b
 		return nil, err
 	}
 
-	// 2. 解析 ExtraData
-	extra, err := parseTaskBatchExtraData(task.Spec.ExtraData)
+	// 2. 解析 ExtraData，与优先级编排共用同一 JSON，避免互相覆盖
+	extra, err := task.Spec.GetExtraData()
 	if err != nil {
 		return nil, err
 	}
 
 	// RegisterProcessExtra 可能不存在，需兼容旧数据或首次写入场景
 	if extra.RegisterProcess == nil {
-		extra.RegisterProcess = &RegisterProcessExtra{}
+		extra.RegisterProcess = &table.RegisterProcessExtra{}
 	}
 
 	// 3. 累加
@@ -756,28 +757,4 @@ func registerProcessSuccessDelta(err error) uint32 {
 		return 0
 	}
 	return 1
-}
-
-// TaskBatchExtraData 扩展参数
-type TaskBatchExtraData struct {
-	RegisterProcess *RegisterProcessExtra `json:"register_process,omitempty"`
-}
-
-// RegisterProcessExtra 更新托管扩展参数
-type RegisterProcessExtra struct {
-	SuccessCount uint32 `json:"success_count"`
-}
-
-// parseTaskBatchExtraData 解析扩展参数
-func parseTaskBatchExtraData(raw string) (*TaskBatchExtraData, error) {
-	if raw == "" {
-		return &TaskBatchExtraData{}, nil
-	}
-
-	var extra TaskBatchExtraData
-	if err := json.Unmarshal([]byte(raw), &extra); err != nil {
-		return nil, err
-	}
-
-	return &extra, nil
 }

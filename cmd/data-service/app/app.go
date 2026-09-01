@@ -49,6 +49,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/internal/serviced"
 	"github.com/TencentBlueKing/bk-bscp/internal/space"
 	"github.com/TencentBlueKing/bk-bscp/internal/task"
+	"github.com/TencentBlueKing/bk-bscp/internal/task/priority"
 	"github.com/TencentBlueKing/bk-bscp/internal/task/register"
 	"github.com/TencentBlueKing/bk-bscp/internal/thirdparty/esb/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
@@ -259,6 +260,7 @@ func (ds *dataService) initTaskManager() error {
 		return fmt.Errorf("new task manager failed, err: %v", err)
 	}
 	ds.taskManager = taskManager
+	priority.SetTaskManager(taskManager)
 
 	go func() {
 		err := ds.taskManager.Run()
@@ -515,6 +517,8 @@ func (ds *dataService) startCronTasks() {
 	// 同步itsm 单据状态：避免单据没回被正确回调感知
 	status := crontab.NewSyncTicketStatus(ds.daoSet, ds.sd, ds.service)
 	status.Run()
+
+	priority.StartResumer(context.Background(), ds.daoSet, ds.taskManager, ds.sd.IsMaster)
 
 	// 在启动全量同步之前，先获取事件cursor，避免丢失全量同步期间发生的事件
 	timeAgo := time.Now().Add(-10 * time.Second).Unix()
