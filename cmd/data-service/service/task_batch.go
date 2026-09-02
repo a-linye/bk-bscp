@@ -652,6 +652,10 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 			continue
 		}
 		if inst != nil {
+			// 必须在置中间态之前刷新 payload，此时 inst 携带的还是实例操作前的真实状态
+			if err = s.refreshRetryTaskPayload(kt, failedTask, inst); err != nil {
+				return 0, err
+			}
 			if err = updateProcessInstanceStatus(kt, s.dao, opType, inst, true); err != nil {
 				return 0, err
 			}
@@ -685,6 +689,57 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 	}
 
 	return retryCount, nil
+}
+
+// refreshRetryTaskPayload 用实例当前状态改写任务各步骤 payload 里的原始状态字段。
+//
+// payload 里的原始状态是首次下发时的快照，仅用于失败回滚与前置校验。任务失败后回滚、
+// CMDB/GSE 状态同步、其他批次操作都会让实例真实状态与该快照脱节，此时沿用旧值会让
+// 前置校验按过期状态判定操作非法（例如实例已回滚为运行中，快照仍是已停止，重试停止
+// 会被判为「已停止无需再停」而永久失败）。
+//
+// 必须在 updateProcessInstanceStatus 之前调用，否则读到的是操作中间态。
+func (s *Service) refreshRetryTaskPayload(kt *kit.Kit, task *taskTypes.Task,
+	inst *table.ProcessInstance) error {
+
+	refreshed := false
+	for _, step := range task.Steps {
+		payload := &process.OperatePayload{}
+		if err := step.GetPayload(payload); err != nil {
+			logs.Warnf("get step %s payload failed, taskID: %s, err: %v, rid: %s",
+				step.GetName(), task.TaskID, err, kt.Rid)
+			continue
+		}
+		if payload.ProcessInstanceID != inst.ID {
+			continue
+		}
+		if payload.OriginalProcStatus == inst.Spec.Status &&
+			payload.OriginalProcManagedStatus == inst.Spec.ManagedStatus {
+			continue
+		}
+
+		payload.OriginalProcStatus = inst.Spec.Status
+		payload.OriginalProcManagedStatus = inst.Spec.ManagedStatus
+		if err := step.SetPayload(payload); err != nil {
+			logs.Errorf("set step %s payload failed, taskID: %s, err: %v, rid: %s",
+				step.GetName(), task.TaskID, err, kt.Rid)
+			return errf.Errorf(errf.Internal, "%s", i18n.T(kt,
+				"refresh retry task %s payload failed, err: %v", task.TaskID, err))
+		}
+		refreshed = true
+	}
+
+	if !refreshed {
+		return nil
+	}
+
+	if err := s.taskManager.UpdateTask(kt.Ctx, task); err != nil {
+		logs.Errorf("update retry task payload failed, taskID: %s, err: %v, rid: %s",
+			task.TaskID, err, kt.Rid)
+		return errf.Errorf(errf.DBOpFailed, "%s", i18n.T(kt,
+			"update retry task %s payload failed, err: %v", task.TaskID, err))
+	}
+	return nil
 }
 
 // taskGroupIDOf 取出批次关联的任务组 ID

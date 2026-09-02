@@ -143,7 +143,7 @@ func (taskMgr *TaskManager) EnsureTable(ctx context.Context) error {
 		return err
 	}
 	// 任务组表沿用框架默认结构
-	return taskMgr.TaskManager.EnsureGroupTable(ctx)
+	return taskMgr.EnsureGroupTable(ctx)
 }
 
 func parseTLSConfig(tlsConfig *cc.TLSConfig) (*tls.Config, error) {

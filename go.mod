@@ -11,7 +11,7 @@ replace (
 require (
 	github.com/RichardKnop/machinery/v2 v2.0.16
 	github.com/Tencent/bk-bcs/bcs-common v0.0.0-20250928112818-5b9818cc2e76
-	github.com/Tencent/bk-bcs/bcs-common/common/task v0.0.0-20251106062355-b5fb6f6fd54b
+	github.com/Tencent/bk-bcs/bcs-common/common/task v0.0.0-20260907061430-5b6be2b562eb
 	github.com/TencentBlueKing/bk-bscp/pkg v0.0.0-20240418123107-72b120390195
 	github.com/TencentBlueKing/iam-go-sdk v1.0.1
 	github.com/alicebob/miniredis/v2 v2.37.0
@@ -270,5 +270,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
-
-replace github.com/Tencent/bk-bcs/bcs-common/common/task => ../bk-bcs/bcs-common/common/task
