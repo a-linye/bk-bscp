@@ -102,7 +102,8 @@ func (s *Service) ListProcess(ctx context.Context, req *pbds.ListProcessReq) (*p
 
 	processes := pbproc.PbProcessesWithInstances(res, procInstMap, bindTemplateIds)
 
-	filterOptions, err := s.buildfilterOptions(kt, req.GetBizId())
+	// environment 由前端放在 search 条件中传递，而非顶层字段。
+	filterOptions, err := s.buildfilterOptions(kt, req.GetBizId(), req.GetSearch().GetEnvironment())
 	if err != nil {
 		return nil, err
 	}
@@ -1052,9 +1053,9 @@ func uniqueUint32(arr []uint32) []uint32 {
 }
 
 // buildfilterOptions 组装 ListProcess 返回的基础过滤选项（不含环境相关维度）。
-func (s *Service) buildfilterOptions(kt *kit.Kit, bizID uint32) (*pbproc.FilterOptions, error) {
+func (s *Service) buildfilterOptions(kt *kit.Kit, bizID uint32, environment string) (*pbproc.FilterOptions, error) {
 
-	ips, err := s.dao.Process().ListBizFilterOptions(kt, bizID, "", field.NewString("", "inner_ip"))
+	ips, err := s.dao.Process().ListBizFilterOptions(kt, bizID, environment, field.NewString("", "inner_ip"))
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s", i18n.T(kt, "list process filter options (inner IP) failed, err: %v", err))
 	}

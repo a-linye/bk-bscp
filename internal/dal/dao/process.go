@@ -452,10 +452,8 @@ func (dao *processDao) List(kit *kit.Kit, bizID uint32, search *process.ProcessS
 	if err != nil {
 		return nil, 0, err
 	}
-	conds = append(conds, q.Where(field.Or(
-		m.CcSyncStatus.Neq(table.Deleted.String()),
-		m.ID.In(pids...),
-	)))
+	// conds = append(conds, q.Where(m.CcSyncStatus.Neq(table.Deleted.String())).Or(m.ID.In(pids...)))
+	conds = append(conds, field.Or(m.CcSyncStatus.Neq(table.Deleted.String()), m.ID.In(pids...)))
 
 	d := q.Where(m.BizID.Eq(bizID)).Where(conds...).Order(m.ID.Desc())
 
