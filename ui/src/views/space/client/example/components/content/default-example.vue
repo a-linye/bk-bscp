@@ -92,9 +92,9 @@
   const emits = defineEmits(['selected-key-data']);
 
   const globalStore = useGlobalStore();
-  const { spaceFeatureFlags, projectId } = storeToRefs(globalStore);
+  const { spaceFeatureFlags, projectId, projectKey } = storeToRefs(globalStore);
 
-  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string> }>('basicInfo');
+  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string>; envName: Ref<string> }>('basicInfo');
   const { t } = useI18n();
   const route = useRoute();
 
@@ -294,7 +294,9 @@
       return str
         .replace('{{ .Bk_Bscp_Variable_BkBizId }}', bkBizId.value)
         .replace('{{ .Bk_Bscp_Variable_ServiceName }}', basicInfo!.serviceName.value)
-        .replaceAll('{{ .Bk_Bscp_Variable_FEED_ADDR }}', feedAddr);
+        .replaceAll('{{ .Bk_Bscp_Variable_FEED_ADDR }}', feedAddr)
+        .replaceAll('{{ .Bk_Bscp_Variable_ProjectKey }}', projectKey.value)
+        .replaceAll('{{ .Bk_Bscp_Variable_EnvName }}', basicInfo!.envName.value || '');
     };
     // 更新 replaceVal
     updateString = replacePlaceholders(updateString, feedAddrVal);
@@ -316,6 +318,14 @@
       replaceConfigVal.value = updateConfigString;
     }
   };
+  // 项目 Key 由路由参数异步解析（见 views/space/index.vue），若在示例首次渲染后才返回，
+  // 或用户切换了选中环境，均需基于原始模板重新渲染，避免占位符渲染结果滞后/失效
+  watch([projectKey, () => basicInfo!.envName.value], () => {
+    if (!codeVal.value) return;
+    replaceVal.value = codeVal.value;
+    replaceConfigVal.value = configVal.value;
+    nextTick(() => updateReplaceVal());
+  });
   const updateVariables = () => {
     variables.value = [
       {

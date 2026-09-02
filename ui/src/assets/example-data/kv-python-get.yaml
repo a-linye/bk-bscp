@@ -5,6 +5,8 @@ TOKEN = {{ .Bk_Bscp_Variable_ClientKey }}
 BIZ_ID = {{ .Bk_Bscp_Variable_BkBizId }}
 APP = "{{ .Bk_Bscp_Variable_ServiceName }}"
 LABELS = {{ .Bk_Bscp_Variable_Leabels }}
+PROJECT_KEY = "{{ .Bk_Bscp_Variable_ProjectKey }}"
+ENV_NAME = "{{ .Bk_Bscp_Variable_EnvName }}"
 
 def fetch_configuration_values(keys):
     """Fetch configuration values for given keys."""
@@ -14,7 +16,7 @@ def fetch_configuration_values(keys):
         uid="",
     )
     kvs = {}
-    with BscpClient(SERVER_ADDRS, TOKEN, BIZ_ID) as client:
+    with BscpClient(SERVER_ADDRS, TOKEN, BIZ_ID, PROJECT_KEY, ENV_NAME) as client:
         release = client.pull_kvs(APP, keys, options)
         for kv in release.kvs:
             pair = client.get(APP, kv.key, LABELS)

@@ -12,6 +12,10 @@ int main(int argc, char** argv)
     options.m_feedAddrs.push_back("{{ .Bk_Bscp_Variable_FEED_ADDR }}");
     options.m_token = {{ .Bk_Bscp_Variable_ClientKey }};
     options.m_bizID = {{ .Bk_Bscp_Variable_BkBizId }};
+    // 项目 key，可选；请赋值为服务所属项目的实际项目 key，不填写时服务端回退到默认项目
+    options.m_projectKey = "{{ .Bk_Bscp_Variable_ProjectKey }}";
+    // 环境名称，可选；请赋值为服务所属环境的实际环境名称，不填写时服务端回退到默认环境
+    options.m_envName = "{{ .Bk_Bscp_Variable_EnvName }}";
 
     // labels.
     std::map<std::string, std::string> labels{{ .Bk_Bscp_Variable_Leabels }};

@@ -15,7 +15,8 @@
   import applyPermPage from './apply-perm-page.vue';
   import { saveSpaceToProjectId } from '../../utils/project';
 
-  const { spaceId, projectId, spaceFeatureFlags, showPermApplyPage } = storeToRefs(useGlobalStore());
+  const globalStore = useGlobalStore();
+  const { spaceId, projectId, spaceFeatureFlags, showPermApplyPage } = storeToRefs(globalStore);
 
   const route = useRoute();
 
@@ -45,6 +46,10 @@
       if (pProjectId && pProjectId !== oldParams?.projectId) {
         projectId.value = pProjectId;
         saveSpaceToProjectId(pSpaceId, pProjectId);
+      }
+      // 项目 Key（spec.key）统一在路由层同步，不依赖顶部导航栏是否挂载（hideNav=1 的 iframe 场景下 Header 不渲染）
+      if (pSpaceId && pProjectId) {
+        globalStore.loadProjectKey(pSpaceId, pProjectId);
       }
     },
     { immediate: true },

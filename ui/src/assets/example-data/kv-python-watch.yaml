@@ -7,10 +7,12 @@ TOKEN = {{ .Bk_Bscp_Variable_ClientKey }}
 BIZ_ID = {{ .Bk_Bscp_Variable_BkBizId }}
 APP = "{{ .Bk_Bscp_Variable_ServiceName }}"
 LABELS = {{ .Bk_Bscp_Variable_Leabels }}
+PROJECT_KEY = "{{ .Bk_Bscp_Variable_ProjectKey }}"
+ENV_NAME = "{{ .Bk_Bscp_Variable_EnvName }}"
 
 def main():
     """Watch a single app."""
-    with BscpClient(SERVER_ADDRS, TOKEN, BIZ_ID) as client:
+    with BscpClient(SERVER_ADDRS, TOKEN, BIZ_ID, PROJECT_KEY, ENV_NAME) as client:
         for ev in client.watch_forever(app=APP, labels=LABELS):
             print(f"receive new release change event, release id:  {ev.release_id}")
             for key in ev.key_infos:

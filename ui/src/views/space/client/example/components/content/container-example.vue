@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, inject, Ref, nextTick } from 'vue';
+  import { ref, inject, Ref, nextTick, watch } from 'vue';
   import { copyToClipBoard } from '../../../../../../utils/index';
   import { IVariableEditParams } from '../../../../../../../types/variable';
   import BkMessage from 'bkui-vue/lib/message';
@@ -34,6 +34,8 @@
   import { useI18n } from 'vue-i18n';
   import { useRoute } from 'vue-router';
   import yamlString from '/src/assets/example-data/file-container.yaml?raw';
+  import useGlobalStore from '../../../../../../store/global';
+  import { storeToRefs } from 'pinia';
 
   const props = defineProps<{ contentScrollTop: Function; selectedKeyData: newICredentialItem['spec'] | null }>();
 
@@ -41,6 +43,8 @@
 
   const { t } = useI18n();
   const route = useRoute();
+  const globalStore = useGlobalStore();
+  const { projectKey } = storeToRefs(globalStore);
 
   const fileOptionRef = ref();
   // fileOption组件传递过来的数据汇总
@@ -58,7 +62,7 @@
   const localEnvId = ref(String(route.params.envId));
   const replaceVal = ref('');
   const copyReplaceVal = ref(''); // 渲染的值，用于复制未脱敏密钥的yaml数据
-  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string> }>('basicInfo');
+  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string>; envName: Ref<string> }>('basicInfo');
   const variables = ref<IVariableEditParams[]>();
 
   const getOptionData = (data: any) => {
@@ -76,7 +80,9 @@
     });
   };
   const updateReplaceVal = () => {
-    let updateString = replaceVal.value;
+    let updateString = yamlString; // 始终基于原始模板渲染，避免重复替换时占位符已丢失
+    updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_ProjectKey }}', projectKey.value);
+    updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_EnvName }}', basicInfo!.envName.value || '');
     updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_BkBizId }}', bkBizId.value);
     updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_ServiceName }}', basicInfo!.serviceName.value);
     updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_FEED_ADDR }}', (window as any).GRPC_ADDR);
@@ -135,6 +141,11 @@
     // 去除 动态插入的值为空的情况下产生的空白行
     replaceVal.value = updateString.replaceAll(/\r?\n\s+\r?\n/g, '\n');
   };
+  // 项目 Key 由路由参数异步解析（见 views/space/index.vue），若在示例首次渲染后才返回，
+  // 或用户切换了选中环境，均需基于原始模板重新渲染，避免占位符渲染结果滞后/失效
+  watch([projectKey, () => basicInfo!.envName.value], () => {
+    updateReplaceVal();
+  });
   // 高亮配置
   const updateVariables = () => {
     variables.value = [

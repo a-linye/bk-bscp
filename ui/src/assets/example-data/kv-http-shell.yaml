@@ -7,6 +7,10 @@ service_name="{{ .Bk_Bscp_Variable_ServiceName }}"
 key_name={{ .Bk_Bscp_Variable_KeyName }}
 token={{ .Bk_Bscp_Variable_ClientKey }}
 labels={{ .Bk_Bscp_Variable_Leabels }}
+# 项目 key，可选；请赋值为服务所属项目的实际项目 key，不填写时服务端回退到默认项目
+project_key="{{ .Bk_Bscp_Variable_ProjectKey }}"
+# 环境名称，可选；请赋值为服务所属环境的实际环境名称，不填写时服务端回退到默认环境
+env_name="{{ .Bk_Bscp_Variable_EnvName }}"
 
 # 使用参数构建URL
 url="${feed_addr}/api/v1/feed/biz/${biz_id}/kvs/value/${key_name}"
@@ -15,7 +19,7 @@ url="${feed_addr}/api/v1/feed/biz/${biz_id}/kvs/value/${key_name}"
 auth_header="Authorization: Bearer ${token}"
 
 # 设置请求数据
-data="{\"app_meta\": {\"app\": \"${service_name}\", \"labels\": ${labels}}}"
+data="{\"app_meta\": {\"app\": \"${service_name}\", \"labels\": ${labels}, \"project_key\": \"${project_key}\", \"env_name\": \"${env_name}\"}}"
 
 # 发送POST请求并保存响应
 response=$(curl -s -X POST -H "${auth_header}" -d "${data}" "${url}")

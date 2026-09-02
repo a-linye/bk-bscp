@@ -97,7 +97,13 @@ export const getDefaultProjectId = async (spaceId: string): Promise<string> => {
     }
   }
 
-  // 4. 否则，返回项目列表的第一个项目的 ID
+  // 4. 否则，返回项目列表中的默认项目（spec.is_default 为 true）的 ID
+  const defaultProject = projects.find((proj: IProjectItem) => proj.spec?.is_default);
+  if (defaultProject) {
+    return String(defaultProject.id);
+  }
+
+  // 5. 若没有默认项目，兜底返回项目列表的第一个项目的 ID
   if (projects.length > 0) {
     return String(projects[0].id);
   }

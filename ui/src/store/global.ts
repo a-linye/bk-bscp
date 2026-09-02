@@ -4,11 +4,13 @@ import { defineStore } from 'pinia';
 import { getPlatformConfig, setShortcutIcon, setDocumentTitle } from '@blueking/platform-config';
 import { localT } from '../i18n';
 import { ISpaceDetail, IPermissionResource, IPermissionQueryResourceItem } from '../../types/index';
+import { getCachedProjectList } from '../utils/project';
 
 export default defineStore('global', () => {
   const bscpVersion = ref(''); // 产品版本号
   const spaceId = ref(''); // 空间id
   const projectId = ref(''); // 项目id
+  const projectKey = ref(''); // 当前项目 Key（即项目 spec.key）
   const spaceFeatureFlags = ref<{ [key: string]: any }>({}); // 空间的配置开关
   const spaceList = ref<ISpaceDetail[]>([]);
   // @ts-ignore
@@ -65,10 +67,24 @@ export default defineStore('global', () => {
     setDocumentTitle(appGlobalConfig.value.i18n);
   };
 
+  /**
+   * 解析并缓存当前项目 Key（spec.key）
+   * 复用 utils/project 的模块级缓存
+   * @param bizId 空间 ID
+   * @param projId 项目 ID
+   */
+  const loadProjectKey = async (bizId: string, projId: string) => {
+    if (!bizId || !projId) return;
+    const projects = await getCachedProjectList(bizId);
+    const proj = projects.find((p) => String(p.id) === String(projId));
+    projectKey.value = proj?.spec?.key || '';
+  };
+
   return {
     bscpVersion,
     spaceId,
     projectId,
+    projectKey,
     spaceFeatureFlags,
     spaceList,
     showNotice,
@@ -80,6 +96,7 @@ export default defineStore('global', () => {
     permissionQuery,
     appGlobalConfig,
     getAppGlobalConfig,
+    loadProjectKey,
     loginOriginUrl,
   };
 });

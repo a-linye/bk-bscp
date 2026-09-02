@@ -17,10 +17,15 @@ service_name = "{{ .Bk_Bscp_Variable_ServiceName }}"
 file_path = {{ .Bk_Bscp_Variable_KeyName }}
 token = {{ .Bk_Bscp_Variable_ClientKey }}
 labels = {{ .Bk_Bscp_Variable_Leabels }}
+# 项目 key，可选；请赋值为服务所属项目的实际项目 key，不填写时服务端回退到默认项目
+project_key = "{{ .Bk_Bscp_Variable_ProjectKey }}"
+# 环境名称，可选；请赋值为服务所属环境的实际环境名称，不填写时服务端回退到默认环境
+env_name = "{{ .Bk_Bscp_Variable_EnvName }}"
 save_path = './'
 
 # 使用参数构建URL
-url = "{}/api/v1/feed/biz/{}/app/{}/files{}".format(feed_addr, biz_id, service_name, file_path)
+url = "{}/api/v1/feed/biz/{}/projects/{}/envs/{}/app/{}/files{}".format(
+    feed_addr, biz_id, project_key, env_name, service_name, file_path)
 
 # 设置请求头，包括Authorization token
 headers = {

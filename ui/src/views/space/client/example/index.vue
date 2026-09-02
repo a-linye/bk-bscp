@@ -2,7 +2,7 @@
   <section class="configuration-example-page">
     <div class="example-aside">
       <!-- 选择环境 -->
-      <EnvSelector v-model="localEnvId" class="sel-env">
+      <EnvSelector v-model="localEnvId" class="sel-env" @change="handleEnvChange">
         <template #trigger="{ selectInfo, isOpen }">
           <div
             v-if="selectInfo"
@@ -121,9 +121,14 @@
   const serviceType = ref('');
   const projectId = ref(String(route.params.projectId));
   const localEnvId = ref(String(route.params.envId || ''));
+  // 当前选中的环境名称，传递给客户端示例用于 env_name 占位符渲染
+  const selectedEnvName = ref('');
+  const handleEnvChange = (env: { spec?: { name?: string } }) => {
+    selectedEnvName.value = env?.spec?.name || '';
+  };
   const topTip = ref('');
   const loading = ref(true);
-  provide('basicInfo', { serviceName, serviceType });
+  provide('basicInfo', { serviceName, serviceType, envName: selectedEnvName });
 
   const navList = computed(() => {
     if (serviceType.value === 'kv') {

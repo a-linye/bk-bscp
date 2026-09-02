@@ -24,6 +24,8 @@ public class Main {
         Integer biz = {{ .Bk_Bscp_Variable_BkBizId }};
         String token = {{ .Bk_Bscp_Variable_ClientKey }};
         String app = "{{ .Bk_Bscp_Variable_ServiceName }}";
+        String projectKey = "{{ .Bk_Bscp_Variable_ProjectKey }}";
+        String envName = "{{ .Bk_Bscp_Variable_EnvName }}";
 
         Map<String, String> labels = new HashMap<>();
         {{ .Bk_Bscp_Variable_Leabels }}
@@ -33,6 +35,8 @@ public class Main {
                     OptionHelper.withFeedAddr(feedAddr),
                     OptionHelper.withBizID(biz),
                     OptionHelper.withToken(token),
+                    OptionHelper.withProjectKey(projectKey),
+                    OptionHelper.withEnvName(envName),
                     OptionHelper.withLabels(labels));
 
             List<AppOption> opts = new ArrayList<>();

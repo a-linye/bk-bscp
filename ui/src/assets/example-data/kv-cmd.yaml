@@ -1,6 +1,10 @@
 cat << EOF > ./bscp.yaml
 # 业务 ID，从当前环境自动获取，无需修改
 biz: {{ .Bk_Bscp_Variable_BkBizId }}
+# 项目 key，可选；请将 value 赋值为服务所属项目的实际项目 key，不填写时服务端回退到默认项目
+project_key: '{{ .Bk_Bscp_Variable_ProjectKey }}'
+# 环境名称，可选；请将 value 赋值为服务所属环境的实际环境名称，不填写时服务端回退到默认环境
+env_name: '{{ .Bk_Bscp_Variable_EnvName }}'
 
 # 服务订阅地址，从当前环境自动获取，无需修改
 feed_addr: {{ .Bk_Bscp_Variable_FEED_ADDR }}

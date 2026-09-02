@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, Ref, computed, inject, onMounted, nextTick } from 'vue';
+  import { ref, Ref, computed, inject, onMounted, nextTick, watch } from 'vue';
   import { copyToClipBoard } from '../../../../../../utils/index';
   import { IVariableEditParams } from '../../../../../../../types/variable';
   import { newICredentialItem } from '../../../../../../../types/client';
@@ -62,6 +62,8 @@
   import { CopyShape } from 'bkui-vue/lib/icon';
   import { useI18n } from 'vue-i18n';
   import { useRoute } from 'vue-router';
+  import useGlobalStore from '../../../../../../store/global';
+  import { storeToRefs } from 'pinia';
 
   const props = defineProps<{
     contentScrollTop: Function;
@@ -73,7 +75,9 @@
 
   const { t } = useI18n();
   const route = useRoute();
-  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string> }>('basicInfo');
+  const globalStore = useGlobalStore();
+  const { projectKey } = storeToRefs(globalStore);
+  const basicInfo = inject<{ serviceName: Ref<string>; serviceType: Ref<string>; envName: Ref<string> }>('basicInfo');
 
   const fileOptionRef = ref();
   const bkBizId = ref(String(route.params.spaceId));
@@ -305,6 +309,9 @@
     updateString = updateString.replace('{{ .Bk_Bscp_Variable_BkBizId }}', bkBizId.value);
     updateString = updateString.replace('{{ .Bk_Bscp_Variable_ServiceName }}', basicInfo!.serviceName.value);
     updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_FEED_ADDR }}', (window as any).GRPC_ADDR);
+    // 项目key、环境名称占位符渲染（参考 container-example.vue）
+    updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_ProjectKey }}', projectKey.value || '');
+    updateString = updateString.replaceAll('{{ .Bk_Bscp_Variable_EnvName }}', basicInfo!.envName.value || '');
     // 文件配置筛选规则动态增/删
     if (optionData.value.rules?.length) {
       const rulesPart = `
@@ -321,6 +328,13 @@
     // 去除 动态插入的值为空的情况下产生的空白行
     replaceVal.value = updateString.replaceAll(/(delete\r?\n|\r?\ndelete)/g, '');
   };
+  // 项目 Key 由路由参数异步解析（见 views/space/index.vue），若在示例首次渲染后才返回，
+  // 或用户切换了选中环境，均需基于原始模板重新渲染，避免占位符渲染结果滞后/失效
+  watch([projectKey, () => basicInfo!.envName.value], () => {
+    if (!codeVal.value) return;
+    replaceVal.value = codeVal.value;
+    nextTick(() => updateReplaceVal());
+  });
   const updateVariables = () => {
     variables.value = [
       {

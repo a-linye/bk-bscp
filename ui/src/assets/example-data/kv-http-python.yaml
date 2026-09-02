@@ -11,6 +11,10 @@ service_name = "{{ .Bk_Bscp_Variable_ServiceName }}"
 key_name = {{ .Bk_Bscp_Variable_KeyName }}
 token = {{ .Bk_Bscp_Variable_ClientKey }}
 labels = {{ .Bk_Bscp_Variable_Leabels }}
+# 项目 key，可选；请赋值为服务所属项目的实际项目 key，不填写时服务端回退到默认项目
+project_key = "{{ .Bk_Bscp_Variable_ProjectKey }}"
+# 环境名称，可选；请赋值为服务所属环境的实际环境名称，不填写时服务端回退到默认环境
+env_name = "{{ .Bk_Bscp_Variable_EnvName }}"
 
 # 使用参数构建URL
 # 在Python 2中使用format来替代f-string
@@ -26,6 +30,8 @@ data = {
     "app_meta": {
         "app": service_name,
         "labels": labels,
+        "project_key": project_key,
+        "env_name": env_name,
     }
 }
 
