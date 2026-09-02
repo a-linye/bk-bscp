@@ -159,6 +159,10 @@ var (
 
 		// bscp专用错误码
 		AppNotExists: "APP_NOT_EXISTS",
+
+		// 旧错误码：DB 操作失败属服务端错误，登记为 INTERNAL，
+		// 避免未登记时被兜底为 INVALID_REQUEST + HTTP 400 误导排查方向
+		DBOpFailed: "INTERNAL",
 	}
 
 	// BscpStatusMap bscp错误码->状态映射
@@ -201,5 +205,8 @@ var (
 
 		// bscp专用错误码
 		AppNotExists: http.StatusNotFound,
+
+		// 旧错误码：与 BscpCodeMap 中 DBOpFailed -> INTERNAL 对应
+		DBOpFailed: http.StatusInternalServerError,
 	}
 )

@@ -38,6 +38,8 @@ type Process interface {
 	// List released config items with options.
 	List(kit *kit.Kit, bizID uint32, search *process.ProcessSearchCondition,
 		opt *types.BasePage) ([]*table.Process, int64, error)
+	// ListTopoProcesses 查询构建进程实例拓扑所需的进程字段（列裁剪 + 两阶段过滤，无分页）。
+	ListTopoProcesses(kit *kit.Kit, bizID uint32) ([]*table.Process, error)
 	// BatcheUpsertWithTx 批量更新插入数据
 	BatcheUpsertWithTx(kit *kit.Kit, tx *gen.QueryTx, data []*table.Process) error
 	// BatchCreateWithTx batch create client instances with transaction.
@@ -282,12 +284,23 @@ func (dao *processDao) UpdateSelectedFields(kit *kit.Kit, bizID uint32, data map
 }
 
 // ListProcessesWithInstance implements Process.
+// 两阶段查询：先查出该业务下存在实例的进程 ID，再做 IN 集合过滤，
+// 替代原有无法命中索引的 EXISTS 依赖子查询（其唯一等值条件 process_id 位于
+// idx_tenantID_bizID_ccProcessID_processID 的第 4 列，不满足最左前缀原则）。
 func (dao *processDao) ListProcessesWithInstance(kit *kit.Kit, bizID uint32) ([]*table.Process, error) {
 	m := dao.genQ.Process
-	q := dao.genQ.Process.WithContext(kit.Ctx)
+	instQ := dao.genQ.ProcessInstance
 
-	return q.Where(m.BizID.Eq(bizID)).Where(utils.RawCond(
-		"EXISTS (SELECT 1 FROM process_instances pi WHERE pi.process_id = processes.id)")).
+	var pids []uint32
+	if err := instQ.WithContext(kit.Ctx).
+		Distinct(instQ.ProcessID).
+		Where(instQ.BizID.Eq(bizID)).
+		Pluck(instQ.ProcessID, &pids); err != nil {
+		return nil, err
+	}
+
+	return dao.genQ.Process.WithContext(kit.Ctx).
+		Where(m.BizID.Eq(bizID), m.ID.In(pids...)).
 		Find()
 }
 
@@ -305,23 +318,44 @@ func (dao *processDao) GetByID(kit *kit.Kit, bizID uint32, id uint32) (*table.Pr
 // environment 为空时不按环境过滤，非空时仅返回该环境的数据。
 func (dao *processDao) ListBizFilterOptions(kit *kit.Kit, bizID uint32, environment string, fields ...field.Expr) (
 	[]*table.Process, error) {
-	sql := `processes.cc_sync_status != ?
-			OR EXISTS (
-			SELECT 1
-			FROM process_instances AS pl
-			WHERE pl.process_id = processes.id
-			AND (pl.status = ? OR pl.managed_status = ?)
-			)`
+	pids, err := dao.listRunningOrManagedProcessIDs(kit, bizID)
+	if err != nil {
+		return nil, err
+	}
 
+	m := dao.genQ.Process
 	q := dao.genQ.Process.WithContext(kit.Ctx).
-		Where(dao.genQ.Process.BizID.Eq(bizID)).
-		Where(utils.RawCond(sql, "deleted", "running", "managed"))
+		Where(m.BizID.Eq(bizID)).
+		Where(field.Or(m.CcSyncStatus.Neq(table.Deleted.String()), m.ID.In(pids...)))
 
 	if environment != "" {
-		q = q.Where(dao.genQ.Process.Environment.Eq(environment))
+		q = q.Where(m.Environment.Eq(environment))
 	}
 
 	return q.Distinct(fields...).Select(fields...).Find()
+}
+
+// listRunningOrManagedProcessIDs 查询存在「运行中」或「托管中」进程实例的进程 ID 集合，
+// 是进程列表/拓扑类查询两阶段方案的第一阶段：本查询经 gorm 租户回调注入 tenant_id 条件后，
+// 可稳定命中 process_instances 的 (tenant_id, biz_id) 索引前缀；返回的 ID 集合用于第二阶段的
+// IN 过滤，替代原有逐行探测的 EXISTS 依赖子查询。pids 为空时 IN (NULL) 恒为假，
+// 第二阶段自然退化为仅保留 cc_sync_status != 'deleted' 的进程。
+func (dao *processDao) listRunningOrManagedProcessIDs(kit *kit.Kit, bizID uint32) ([]uint32, error) {
+	instQ := dao.genQ.ProcessInstance
+
+	var pids []uint32
+	if err := instQ.WithContext(kit.Ctx).
+		Distinct(instQ.ProcessID).
+		Where(instQ.BizID.Eq(bizID)).
+		Where(field.Or(
+			instQ.Status.Eq(table.ProcessStatusRunning.String()),
+			instQ.ManagedStatus.Eq(table.ProcessManagedStatusManaged.String()),
+		)).
+		Pluck(instQ.ProcessID, &pids); err != nil {
+		return nil, err
+	}
+
+	return pids, nil
 }
 
 func (dao *processDao) GetByIDs(kit *kit.Kit, bizID uint32, id []uint32) ([]*table.Process, error) {
@@ -412,14 +446,16 @@ func (dao *processDao) List(kit *kit.Kit, bizID uint32, search *process.ProcessS
 
 	// processes 状态不能是删除状态
 	// process_instances 的进程状态和托管状态只要有一条数据是运行中或者托管中的都需要显示
-	sql := `processes.cc_sync_status != ?
-			OR EXISTS (
-			SELECT 1
-			FROM process_instances AS pl
-			WHERE pl.process_id = processes.id
-			AND (pl.status = ? OR pl.managed_status = ?)
-			)`
-	conds = append(conds, q.Where(utils.RawCond(sql, "deleted", "running", "managed")))
+	// 两阶段查询：先查出存在运行中/托管中实例的进程 ID（阶段一命中 process_instances 的
+	// (tenant_id, biz_id) 索引前缀），再做 IN 集合过滤，替代原有逐行探测的 EXISTS 依赖子查询。
+	pids, err := dao.listRunningOrManagedProcessIDs(kit, bizID)
+	if err != nil {
+		return nil, 0, err
+	}
+	conds = append(conds, q.Where(field.Or(
+		m.CcSyncStatus.Neq(table.Deleted.String()),
+		m.ID.In(pids...),
+	)))
 
 	d := q.Where(m.BizID.Eq(bizID)).Where(conds...).Order(m.ID.Desc())
 
@@ -431,6 +467,26 @@ func (dao *processDao) List(kit *kit.Kit, bizID uint32, search *process.ProcessS
 		return result, int64(len(result)), err
 	}
 	return d.FindByPage(opt.Offset(), opt.LimitInt())
+}
+
+// ListTopoProcesses implements Process.
+// 拓扑构建仅使用 set/module/service_instance/cc_process_id/alias/proc_num 少量字段，
+// 列裁剪避免 source_data/prev_data 等大字段的扫描与传输；过滤条件与 List 保持一致。
+func (dao *processDao) ListTopoProcesses(kit *kit.Kit, bizID uint32) ([]*table.Process, error) {
+	m := dao.genQ.Process
+	q := dao.genQ.Process.WithContext(kit.Ctx)
+
+	pids, err := dao.listRunningOrManagedProcessIDs(kit, bizID)
+	if err != nil {
+		return nil, err
+	}
+
+	return q.
+		Select(m.SetID, m.SetName, m.ModuleID, m.ModuleName, m.ServiceInstanceID, m.ServiceName,
+			m.CcProcessID, m.Alias_, m.ProcNum).
+		Where(m.BizID.Eq(bizID)).
+		Where(field.Or(m.CcSyncStatus.Neq(table.Deleted.String()), m.ID.In(pids...))).
+		Find()
 }
 
 func (dao *processDao) handleSearch(kit *kit.Kit, bizID uint32,

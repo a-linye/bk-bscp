@@ -855,15 +855,15 @@ func (s *Service) GetProcessInstanceTopo(ctx context.Context, req *pbds.GetProce
 	*pbds.GetProcessInstanceTopoResp, error) {
 	kt := kit.FromGrpcContext(ctx)
 
-	processes, count, err := s.dao.Process().List(kt, req.BizId, nil, &types.BasePage{
-		All: true,
-	})
+	// 拓扑构建仅需少量字段，使用列裁剪的精简查询，避免全字段（含 source_data/prev_data
+	// 大字段）全量拉取；过滤条件与进程列表一致（未删除或存在运行中/托管中实例）。
+	processes, err := s.dao.Process().ListTopoProcesses(kt, req.BizId)
 	if err != nil {
 		return nil, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kt, "list processes failed for process instance topo, err: %v", err))
 	}
 
-	if count == 0 {
+	if len(processes) == 0 {
 		return &pbds.GetProcessInstanceTopoResp{}, nil
 	}
 
