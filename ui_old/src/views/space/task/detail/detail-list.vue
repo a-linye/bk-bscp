@@ -427,7 +427,8 @@
       if (taskAction && !checkPerm(taskAction)) {
         return;
       }
-      await retryTask(spaceId.value, taskId.value, action.value);
+      const retryAction = ['config_generate', 'config_publish'].includes(action.value) ? action.value : 'process_operations';
+      await retryTask(spaceId.value, taskId.value, retryAction);
       loadTaskList();
     } catch (error) {
       console.error(error);
