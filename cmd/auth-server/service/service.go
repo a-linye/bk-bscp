@@ -741,9 +741,24 @@ func (s *Service) VerifyEnv(ctx context.Context, req *pbas.VerifyEnvReq) (*pbas.
 		return nil, errors.New("project id is required")
 	}
 
+	// env_id 为空时按名称查询。名称的唯一性依附于项目，因此必须带上已解析的 projectID，禁止跨项目匹配。
 	envID := req.GetEnvId()
 	if envID == 0 {
-		return nil, errors.New("env id is required")
+		envName := req.GetEnvName()
+		if envName == "" {
+			return nil, errors.New("env id or env name is required")
+		}
+
+		env, err := s.client.DS.GetEnvironmentByName(kt.RpcCtx(), &pbds.GetEnvironmentByNameReq{
+			BizId:     bizID,
+			ProjectId: projectID,
+			EnvName:   envName,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return &pbas.VerifyEnvResp{Exists: true, EnvId: env.GetId()}, nil
 	}
 
 	_, err := s.client.DS.GetEnvironment(kt.RpcCtx(), &pbds.GetEnvironmentReq{
@@ -756,7 +771,7 @@ func (s *Service) VerifyEnv(ctx context.Context, req *pbas.VerifyEnvReq) (*pbas.
 		return nil, err
 	}
 
-	return &pbas.VerifyEnvResp{Exists: true}, nil
+	return &pbas.VerifyEnvResp{Exists: true, EnvId: envID}, nil
 }
 
 // VerifyProject implements [pbas.AuthServer].
@@ -767,9 +782,23 @@ func (s *Service) VerifyProject(ctx context.Context, req *pbas.VerifyProjectReq)
 		return nil, errors.New("biz id is required")
 	}
 
+	// project_id 为空时按 Key 查询，供持有项目 Key 而非数字 ID 的调用方（如标准运维插件）使用。
 	projectID := req.GetProjectId()
 	if projectID == 0 {
-		return nil, errors.New("project id is required")
+		projectKey := req.GetProjectKey()
+		if projectKey == "" {
+			return nil, errors.New("project id or project key is required")
+		}
+
+		proj, err := s.client.DS.GetProjectByKey(kt.RpcCtx(), &pbds.GetProjectByKeyReq{
+			BizId:      bizID,
+			ProjectKey: projectKey,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return &pbas.VerifyProjectResp{Exists: true, ProjectId: proj.GetId()}, nil
 	}
 
 	_, err := s.client.DS.GetProject(kt.RpcCtx(), &pbds.GetProjectReq{
@@ -781,7 +810,7 @@ func (s *Service) VerifyProject(ctx context.Context, req *pbas.VerifyProjectReq)
 		return nil, err
 	}
 
-	return &pbas.VerifyProjectResp{Exists: true}, nil
+	return &pbas.VerifyProjectResp{Exists: true, ProjectId: projectID}, nil
 }
 
 // getSystemToken 取当前启用版本的系统 token。

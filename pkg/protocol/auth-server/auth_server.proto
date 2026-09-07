@@ -327,18 +327,24 @@ message GrantResourceCreatorActionReq {
 message VerifyProjectReq {
   uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
   uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目ID" }];
+  string project_key = 3
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目Key，project_id 为空时按 Key 查询" }];
 }
 
 message VerifyProjectResp {
   bool exists = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目是否存在" }];
+  uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "解析出的项目ID" }];
 }
 
 message VerifyEnvReq {
   uint32 biz_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "业务ID" }];
   uint32 project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "项目ID" }];
   uint32 env_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境ID" }];
+  string env_name = 4
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境名称，env_id 为空时按名称查询" }];
 }
 
 message VerifyEnvResp {
   bool exists = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "环境是否存在" }];
+  uint32 env_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "解析出的环境ID" }];
 }

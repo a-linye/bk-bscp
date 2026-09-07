@@ -134,6 +134,7 @@ func (p *proxy) routers() http.Handler {
 					// 服务相关
 					r.Handle("/apps/list", p.cfgSvrMux)
 					r.Handle("/apps/clone", p.cfgSvrMux)
+					r.Handle("/apps/query/*", p.cfgSvrMux)
 					r.Route("/apps/{app_id}", func(r chi.Router) {
 						r.Use(p.AppProjectEnvVerified) // 校验 App 归属于该项目+环境
 						r.Mount("/", p.cfgSvrMux)

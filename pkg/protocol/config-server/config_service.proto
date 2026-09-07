@@ -87,6 +87,12 @@ service Config {
       get: "/api/v1/config/biz/{biz_id}/apps/query/name/{app_name}"
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps" }
       additional_bindings { get: "/api/v1/inner/config/biz/{biz_id}/apps/query/name/{app_name}" }
+      additional_bindings {
+        get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/query/name/{app_name}"
+      }
+      additional_bindings {
+        get: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/query/name/{app_name}"
+      }
     };
   }
   // 获取用户有权限的 spaces 所有的 apps
@@ -374,6 +380,9 @@ service Config {
         get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/releases/query/name/{release_name}"
       }
       additional_bindings { get: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/releases/query/name/{release_name}" }
+      additional_bindings {
+        get: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/releases/query/name/{release_name}"
+      }
     };
   }
   // 获取服务版本
@@ -1531,6 +1540,9 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       get: "/api/v1/config/biz/{biz_id}/groups/query/name/{group_name}"
       additional_bindings { get: "/api/v1/inner/config/biz/{biz_id}/groups/query/name/{group_name}" }
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/groups/query/name/{group_name}" }
+      additional_bindings {
+        get: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/groups/query/name/{group_name}"
+      }
     };
   }
   // 获取分组
@@ -1565,6 +1577,10 @@ option (google.api.method_visibility).restriction = "INTERNAL";
         post: "/api/v1/inner/config/update/strategy/publish/publish/release_id/{release_id}/app_id/{app_id}/biz_id/{biz_id}"
         body: "*"
       }
+      additional_bindings {
+        post: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/releases/{release_id}/publish"
+        body: "*"
+      }
     };
   }
   // 生成版本并发布
@@ -1578,6 +1594,10 @@ option (google.api.method_visibility).restriction = "INTERNAL";
         body: "*"
       }
       additional_bindings { post: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/publish" body: "*" }
+      additional_bindings {
+        post: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/publish"
+        body: "*"
+      }
     };
   }
   // 上线服务版本
@@ -1802,6 +1822,10 @@ option (google.api.method_visibility).restriction = "INTERNAL";
       additional_bindings { put: "/api/v1/inner/config/biz/{biz_id}/apps/{app_id}/kvs" body: "*" }
       additional_bindings {
         put: "/api/v1/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/kvs"
+        body: "*"
+      }
+      additional_bindings {
+        put: "/api/v1/inner/config/biz/{biz_id}/projects/{project_id}/envs/{env_id}/apps/{app_id}/kvs"
         body: "*"
       }
     };

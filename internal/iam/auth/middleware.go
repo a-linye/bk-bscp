@@ -13,6 +13,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -38,6 +40,7 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/errf"
 	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/uuid"
+	"github.com/TencentBlueKing/bk-bscp/pkg/criteria/validator"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/client"
 	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
@@ -442,7 +445,30 @@ func (a authorizer) BizVerified(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-// Project 校验中间件
+// projectKeyRegexp 项目 Key 的格式，由 table.GenerateProjectKey 生成：BK-BSCP- 前缀加主键 ID
+// 左补零至 5 位，ID 超过 99999 时会更长。
+var projectKeyRegexp = regexp.MustCompile(`^BK-BSCP-\d{5,}$`)
+
+// projectByKeyCtxKey 标记本次请求的项目是按 Key 解析的，供 VerifyEnvExists 判断 {env_id} 段
+// 该按 ID 还是按名称解析。环境名允许为纯数字，无法自行区分，只能沿用项目段的判定结果。
+type projectByKeyCtxKey struct{}
+
+// parseProjectParam 判定 URL 上的项目段是数字 ID 还是项目 Key，返回其中恰好一个有值。
+func parseProjectParam(seg string) (uint32, string, error) {
+	if projectID, err := strconv.ParseUint(seg, 10, 32); err == nil {
+		return uint32(projectID), "", nil
+	}
+
+	if !projectKeyRegexp.MatchString(seg) {
+		return 0, "", fmt.Errorf(
+			"invalid project %q, it should be a project id or a project key like BK-BSCP-00042", seg)
+	}
+
+	return 0, seg, nil
+}
+
+// Project 校验中间件。{project_id} 段可以是数字 ID（控制台调用）或项目 Key（持有 Key 的调用方，
+// 如经网关 inner 路由进来的标准运维插件）。两者可区分：项目 Key 必带 BK-BSCP- 前缀，不会是纯数字。
 func (a authorizer) VerifyProjectExists(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		kt := kit.MustGetKit(r.Context())
@@ -454,18 +480,18 @@ func (a authorizer) VerifyProjectExists(next http.Handler) http.Handler {
 			return
 		}
 
-		projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+		projectID, projectKey, err := parseProjectParam(projectIDStr)
 		if err != nil {
 			render.Render(w, r, rest.BadRequest(err))
 			return
 		}
 
-		resp, err := a.authClient.VerifyProject(kt.RpcCtx(), &pbas.VerifyProjectReq{
-			BizId:     kt.BizID,
-			ProjectId: uint32(projectID),
-		})
+		byKey := projectKey != ""
+		req := &pbas.VerifyProjectReq{BizId: kt.BizID, ProjectId: projectID, ProjectKey: projectKey}
+
+		resp, err := a.authClient.VerifyProject(kt.RpcCtx(), req)
 		if err != nil {
-			logs.Errorf("verify project failed, bizID: %d, projectID: %d, err: %v", kt.BizID, uint32(projectID), err)
+			logs.Errorf("verify project failed, bizID: %d, project: %s, err: %v", kt.BizID, projectIDStr, err)
 			msg := err.Error()
 			if st, ok := status.FromError(err); ok {
 				msg = st.Message()
@@ -476,17 +502,23 @@ func (a authorizer) VerifyProjectExists(next http.Handler) http.Handler {
 		}
 
 		if !resp.Exists {
-			render.Render(w, r, rest.BadRequest(fmt.Errorf("project_id %d does not exist", projectID)))
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("project %s does not exist", projectIDStr)))
 			return
 		}
 
-		kt.ProjectID = uint32(projectID)
+		kt.ProjectID = resp.ProjectId
 
-		next.ServeHTTP(w, r.WithContext(kit.WithKit(r.Context(), kt)))
+		ctx := kit.WithKit(r.Context(), kt)
+		if byKey {
+			ctx = context.WithValue(ctx, projectByKeyCtxKey{}, true)
+		}
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// Env 校验中间件
+// Env 校验中间件。{env_id} 段按 ID 还是按名称解析，取决于同一 URL 上的项目段用了哪种形态：
+// 环境名允许为纯数字（如 "2024"），本身无法与 ID 区分。
 func (a authorizer) VerifyEnvExists(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		kt := kit.MustGetKit(r.Context())
@@ -497,19 +529,27 @@ func (a authorizer) VerifyEnvExists(next http.Handler) http.Handler {
 			return
 		}
 
-		envID, err := strconv.ParseUint(envIDStr, 10, 32)
-		if err != nil {
-			render.Render(w, r, rest.BadRequest(err))
-			return
+		req := &pbas.VerifyEnvReq{BizId: kt.BizID, ProjectId: kt.ProjectID}
+
+		if byKey, _ := r.Context().Value(projectByKeyCtxKey{}).(bool); byKey {
+			if err := validator.ValidateEnvName(kt, envIDStr); err != nil {
+				render.Render(w, r, rest.BadRequest(err))
+				return
+			}
+			req.EnvName = envIDStr
+		} else {
+			envID, err := strconv.ParseUint(envIDStr, 10, 32)
+			if err != nil {
+				render.Render(w, r, rest.BadRequest(err))
+				return
+			}
+			req.EnvId = uint32(envID)
 		}
 
-		resp, err := a.authClient.VerifyEnv(kt.RpcCtx(), &pbas.VerifyEnvReq{
-			BizId:     kt.BizID,
-			ProjectId: kt.ProjectID,
-			EnvId:     uint32(envID),
-		})
+		resp, err := a.authClient.VerifyEnv(kt.RpcCtx(), req)
 		if err != nil {
-			logs.Errorf("verify env failed, bizID: %d, projectID: %d, envID: %d, err: %v", kt.BizID, kt.ProjectID, uint32(envID), err)
+			logs.Errorf("verify env failed, bizID: %d, projectID: %d, env: %s, err: %v",
+				kt.BizID, kt.ProjectID, envIDStr, err)
 			msg := err.Error()
 			if st, ok := status.FromError(err); ok {
 				msg = st.Message()
@@ -520,11 +560,11 @@ func (a authorizer) VerifyEnvExists(next http.Handler) http.Handler {
 		}
 
 		if !resp.Exists {
-			render.Render(w, r, rest.BadRequest(fmt.Errorf("env_id %d does not exist", envID)))
+			render.Render(w, r, rest.BadRequest(fmt.Errorf("env %s does not exist", envIDStr)))
 			return
 		}
 
-		kt.EnvID = uint32(envID)
+		kt.EnvID = resp.EnvId
 
 		next.ServeHTTP(w, r.WithContext(kit.WithKit(r.Context(), kt)))
 	})
