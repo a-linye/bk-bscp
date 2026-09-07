@@ -65,6 +65,8 @@ type ProcInst struct {
 	Name              string
 	FuncName          string
 	ProcNum           int
+	// Priority 启动优先级，来源 CMDB 进程属性，不参与 source_data 的配置一致性对比
+	Priority int
 	table.ProcessInfo
 }
 

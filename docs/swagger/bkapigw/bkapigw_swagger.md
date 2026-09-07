@@ -7931,6 +7931,7 @@ Content-Type: application/json
 | innerIp | string| `string` |  | | IP |  |
 | moduleInstSeq | int64 (formatted integer)| `int64` |  | | 模块级别的序号 |  |
 | moduleName | string| `string` |  | | 模块名 |  |
+| priority | int32 (formatted integer)| `int32` |  | | 进程启动优先级 |  |
 | serviceName | string| `string` |  | | 服务实例 |  |
 | setName | string| `string` |  | | 集群名 |  |
 

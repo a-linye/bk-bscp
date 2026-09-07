@@ -161,6 +161,9 @@ type ProcessPayload struct {
 	HostInstSeq   uint32 // HostInstSeq：主机级别的自增ID
 	ModuleInstSeq uint32 // ModuleInstSeq：模块级别的自增ID
 	ConfigData    string // 进程启动相关配置，比如启动脚本，优先级等
+	// Priority 进程启动优先级，来源 CMDB。改造前的历史任务负载没有该字段，
+	// 用指针区分「优先级为 0」与「取不到优先级」，后者在任务详情中展示为 --
+	Priority *int
 }
 
 // ConfigPayload 配置相关

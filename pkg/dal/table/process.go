@@ -70,6 +70,22 @@ func ValidateOperateType(operateType ProcessOperateType) error {
 	return nil
 }
 
+// ProcessOperatePriorityOrder 返回操作类型对应的优先级排序方向，与 gsekit 保持一致：
+// 启动 / 重载 / 强制停止按优先级升序（小的先执行），停止 / 重启按降序（大的先执行）。
+// 第二个返回值为 false 表示该操作不参与优先级分批，全部实例归为同一批并行下发；
+// 托管类操作（托管 / 取消托管 / 更新托管配置）不涉及启停依赖，属于这一类。
+// delete 在下发前已按实例状态拆解为 stop / unregister / 直接删库，不会以 delete 进入编排。
+func ProcessOperatePriorityOrder(opType ProcessOperateType) (PriorityOrder, bool) {
+	switch opType {
+	case StartProcessOperate, ReloadProcessOperate, KillProcessOperate:
+		return PriorityOrderAsc, true
+	case StopProcessOperate, RestartProcessOperate:
+		return PriorityOrderDesc, true
+	default:
+		return "", false
+	}
+}
+
 // Process defines an Process detail information
 type Process struct {
 	ID         uint32             `json:"id" gorm:"primaryKey"`
@@ -111,6 +127,7 @@ type ProcessSpec struct {
 	NewAlias             string       `gorm:"column:new_alias" json:"new_alias"`                             // 新进程别名
 	OsType               string       `gorm:"column:os_type" json:"os_type"`                                 // 系统类型(linux:1,win:2)
 	AgentStatus          AgentStatus  `gorm:"column:agent_status" json:"agent_status"`                       // agent状态
+	Priority             int          `gorm:"column:priority" json:"priority"`                               // 启动优先级，来源CMDB，bscp侧只读
 }
 
 func (p ProcessInfo) Value() (string, error) {

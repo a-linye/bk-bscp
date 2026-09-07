@@ -10470,6 +10470,12 @@
           "description": "模块名",
           "type": "string"
         },
+        "priority": {
+          "description": "进程启动优先级",
+          "type": "integer",
+          "format": "int32",
+          "title": "改造前产生的历史任务不带该字段，此处用 optional 区分「优先级为 0」与「取不到优先级」"
+        },
         "serviceName": {
           "description": "服务实例",
           "type": "string"

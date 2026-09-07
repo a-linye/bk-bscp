@@ -20,6 +20,7 @@ import (
 	taskpkg "github.com/Tencent/bk-bcs/bcs-common/common/task"
 	istore "github.com/Tencent/bk-bcs/bcs-common/common/task/stores/iface"
 	taskTypes "github.com/Tencent/bk-bcs/bcs-common/common/task/types"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/TencentBlueKing/bk-bscp/internal/dal/dao"
 	commonExecutor "github.com/TencentBlueKing/bk-bscp/internal/task/executor/common"
@@ -389,6 +390,10 @@ func convertTaskToDetail(kt *kit.Kit, task *taskTypes.Task) (*pbtb.TaskDetail, e
 			ModuleInstSeq: processPayload.ProcessPayload.ModuleInstSeq,
 			ConfigData:    processPayload.ProcessPayload.ConfigData,
 		}
+		// 历史任务负载没有优先级，保持字段缺省，由前端展示为 --
+		if p := processPayload.ProcessPayload.Priority; p != nil {
+			detail.TaskPayload.Priority = proto.Int32(int32(*p))
+		}
 	}
 
 	if processPayload.ConfigPayload != nil {
@@ -626,7 +631,7 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 		return 0, nil
 	}
 
-	// 查询该批次所有失败的任务
+	// 查询该批次所有失败的任务（含超时与被级联阻断的任务）
 	failedTasks, err := queryFailedTasks(kt, taskStorage, taskBatch.ID, string(taskBatch.Spec.TaskAction))
 	if err != nil {
 		logs.Errorf("query failed tasks failed, batchID: %d, err: %v, rid: %s", taskBatch.ID, err, kt.Rid)
@@ -638,54 +643,138 @@ func (s *Service) retryProcessTask(kt *kit.Kit, taskStorage istore.Store, bizID 
 		return 0, nil
 	}
 
-	// 重置计数字段用于重试
-	retryCount := uint32(len(failedTasks))
+	retryTasks := make([]*taskTypes.Task, 0, len(failedTasks))
+	for _, failedTask := range failedTasks {
+		inst, opType, skip := s.resolveRetryTask(kt, bizID, failedTask)
+		if skip {
+			logs.Warnf("skip retry task %s because process instance is gone, batchID: %d, rid: %s",
+				failedTask.TaskID, taskBatch.ID, kt.Rid)
+			continue
+		}
+		if inst != nil {
+			// 必须在置中间态之前刷新 payload，此时 inst 携带的还是实例操作前的真实状态
+			if err = s.refreshRetryTaskPayload(kt, failedTask, inst); err != nil {
+				return 0, err
+			}
+			if err = updateProcessInstanceStatus(kt, s.dao, opType, inst, true); err != nil {
+				return 0, err
+			}
+		}
+		retryTasks = append(retryTasks, failedTask)
+	}
+
+	if len(retryTasks) == 0 {
+		logs.Infof("no valid failed tasks to retry, batchID: %d, rid: %s", taskBatch.ID, kt.Rid)
+		return 0, nil
+	}
+
+	retryCount := uint32(len(retryTasks))
 	if err = s.dao.TaskBatch().ResetCountsForRetry(kt, taskBatch.ID, retryCount); err != nil {
 		logs.Errorf("reset counts for retry failed, batchID: %d, err: %v, rid: %s", taskBatch.ID, err, kt.Rid)
 		return 0, errf.Errorf(errf.DBOpFailed, "%s",
 			i18n.T(kt, "reset task batch counts for retry failed, batchID: %d, err: %v", taskBatch.ID, err))
 	}
 
-	// 重试每个失败的任务
-	for _, failedTask := range failedTasks {
-		// 从进程操作完成步骤中获取进程操作负载，用于获取进程实例id
-		finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
-		if !ok {
-			logs.Errorf("operate step not found, taskID: %s, rid: %s", failedTask.TaskID, kt.Rid)
-			return 0, errf.Errorf(errf.Unknown, "%s",
-				i18n.T(kt, "operate process step not found for taskID: %s", failedTask.TaskID))
-		}
-		var processPayload process.OperatePayload
-		if err := finalizeStep.GetPayload(&processPayload); err != nil {
-			logs.Errorf("get payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
-			return 0, errf.Errorf(errf.Internal, "%s",
-				i18n.T(kt, "get operate payload from task step failed, taskID: %s, err: %v", failedTask.TaskID, err))
-		}
-		// 获取进程实例
-		processInstance, err := s.dao.ProcessInstance().GetByID(kt, bizID, processPayload.ProcessInstanceID)
-		if err != nil {
-			logs.Errorf("get process instance failed, processInstanceID: %d, err: %v, rid: %s", processPayload.ProcessInstanceID, err, kt.Rid)
-			return 0, errf.Errorf(errf.DBOpFailed, "%s",
-				i18n.T(kt, "get process instance by ID %d failed, err: %v", processPayload.ProcessInstanceID, err))
-		}
-		if processInstance == nil {
-			logs.Errorf("process instance not found, processInstanceID: %d, rid: %s", processPayload.ProcessInstanceID, kt.Rid)
-			return 0, errf.Errorf(errf.RecordNotFound, "%s",
-				i18n.T(kt, "process instance with ID %d does not exist", processPayload.ProcessInstanceID))
-		}
-		// 更新进程实例状态
-		if err = updateProcessInstanceStatus(kt, s.dao, table.ProcessOperateType(taskBatch.Spec.TaskAction), processInstance, true); err != nil {
-			return 0, err
-		}
-		err = s.taskManager.RetryAll(failedTask)
-		if err != nil {
-			logs.Errorf("retry failed task failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
-			return 0, errf.Errorf(errf.Unknown, "%s",
-				i18n.T(kt, "retry failed task %s failed, err: %v", failedTask.TaskID, err))
-		}
+	// 任务组按原有阶段顺序重试：只有未成功的任务会被重新下发，
+	// 已成功的任务保持不变，阶段之间仍然串行且失败继续阻断后续。
+	groupID, err := taskGroupIDOf(taskBatch)
+	if err != nil {
+		return 0, err
+	}
+	if err = s.taskManager.RetryGroup(kt.Ctx, groupID); err != nil {
+		logs.Errorf("retry task group failed, batchID: %d, groupID: %s, err: %v, rid: %s",
+			taskBatch.ID, groupID, err, kt.Rid)
+		return 0, errf.Errorf(errf.Unknown, "%s",
+			i18n.T(kt, "retry task group %s failed, err: %v", groupID, err))
 	}
 
 	return retryCount, nil
+}
+
+// refreshRetryTaskPayload 用实例当前状态改写任务各步骤 payload 里的原始状态字段。
+//
+// payload 里的原始状态是首次下发时的快照，仅用于失败回滚与前置校验。任务失败后回滚、
+// CMDB/GSE 状态同步、其他批次操作都会让实例真实状态与该快照脱节，此时沿用旧值会让
+// 前置校验按过期状态判定操作非法（例如实例已回滚为运行中，快照仍是已停止，重试停止
+// 会被判为「已停止无需再停」而永久失败）。
+//
+// 必须在 updateProcessInstanceStatus 之前调用，否则读到的是操作中间态。
+func (s *Service) refreshRetryTaskPayload(kt *kit.Kit, task *taskTypes.Task,
+	inst *table.ProcessInstance) error {
+
+	refreshed := false
+	for _, step := range task.Steps {
+		payload := &process.OperatePayload{}
+		if err := step.GetPayload(payload); err != nil {
+			logs.Warnf("get step %s payload failed, taskID: %s, err: %v, rid: %s",
+				step.GetName(), task.TaskID, err, kt.Rid)
+			continue
+		}
+		if payload.ProcessInstanceID != inst.ID {
+			continue
+		}
+		if payload.OriginalProcStatus == inst.Spec.Status &&
+			payload.OriginalProcManagedStatus == inst.Spec.ManagedStatus {
+			continue
+		}
+
+		payload.OriginalProcStatus = inst.Spec.Status
+		payload.OriginalProcManagedStatus = inst.Spec.ManagedStatus
+		if err := step.SetPayload(payload); err != nil {
+			logs.Errorf("set step %s payload failed, taskID: %s, err: %v, rid: %s",
+				step.GetName(), task.TaskID, err, kt.Rid)
+			return errf.Errorf(errf.Internal, "%s", i18n.T(kt,
+				"refresh retry task %s payload failed, err: %v", task.TaskID, err))
+		}
+		refreshed = true
+	}
+
+	if !refreshed {
+		return nil
+	}
+
+	if err := s.taskManager.UpdateTask(kt.Ctx, task); err != nil {
+		logs.Errorf("update retry task payload failed, taskID: %s, err: %v, rid: %s",
+			task.TaskID, err, kt.Rid)
+		return errf.Errorf(errf.DBOpFailed, "%s", i18n.T(kt,
+			"update retry task %s payload failed, err: %v", task.TaskID, err))
+	}
+	return nil
+}
+
+// taskGroupIDOf 取出批次关联的任务组 ID
+func taskGroupIDOf(taskBatch *table.TaskBatch) (string, error) {
+	extra, err := taskBatch.Spec.GetExtraData()
+	if err != nil {
+		return "", errf.Errorf(errf.DBOpFailed, "get task batch %d extra data failed, err: %v", taskBatch.ID, err)
+	}
+	if extra.GroupID == "" {
+		return "", errf.Errorf(errf.InvalidParameter,
+			"task batch %d has no task group, retry is not supported", taskBatch.ID)
+	}
+	return extra.GroupID, nil
+}
+
+// resolveRetryTask 解析失败任务对应的进程实例与操作类型，用于重试前重置实例状态。
+// 实例已删除时 skip=true，该任务不再重试。
+func (s *Service) resolveRetryTask(kt *kit.Kit, bizID uint32, failedTask *taskTypes.Task) (
+	*table.ProcessInstance, table.ProcessOperateType, bool) {
+
+	finalizeStep, ok := failedTask.GetStep(process.FinalizeOperateProcessStepName.String())
+	if !ok {
+		return nil, "", false
+	}
+	var processPayload process.OperatePayload
+	if err := finalizeStep.GetPayload(&processPayload); err != nil {
+		logs.Warnf("get operate payload failed, taskID: %s, err: %v, rid: %s", failedTask.TaskID, err, kt.Rid)
+		return nil, "", false
+	}
+
+	processInstance, err := s.dao.ProcessInstance().GetByID(kt, bizID, processPayload.ProcessInstanceID)
+	if err != nil || processInstance == nil {
+		return nil, processPayload.OperateType, true
+	}
+	return processInstance, processPayload.OperateType, false
 }
 
 // retryPushConfigTask 重试下发

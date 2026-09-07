@@ -1473,6 +1473,7 @@ export default {
   '搜索 集群/模块/服务实例/进程别名/CC 进程 ID/Inst_id/内网 IP':
     'Search by Cluster / Module / Service instance / Process alias / CC process ID / Inst_id / Internal IP',
   'CC 进程 ID': 'CC process ID',
+  进程优先级: 'Process Priority',
   查看配置: 'View Config',
   等待执行: 'Pending execution',
   执行成功: 'Execution succeeded',

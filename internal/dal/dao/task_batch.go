@@ -44,6 +44,10 @@ type TaskBatch interface {
 	ListExecutors(kit *kit.Kit, bizID uint32) ([]string, error)
 	// IncrementCompletedCount 增加完成任务计数，当所有任务完成时自动更新批次状态
 	IncrementCompletedCount(kit *kit.Kit, batchID uint32, isSuccess bool) (bool, error)
+	// FinishBatch 以权威计数收敛批次终态。
+	// 由任务组回调调用：任务框架在单个事务内维护任务组计数，比逐个任务累加的进度更准确，
+	// 也覆盖了被级联阻断、从未执行因而不会触发自身回调的那部分任务。
+	FinishBatch(kit *kit.Kit, batchID uint32, successCount, failedCount uint32) error
 	// ResetCountsForRetry 重置计数字段用于重试
 	ResetCountsForRetry(kit *kit.Kit, batchID uint32, totalCount uint32) error
 	// AddFailedCount 增加失败计数（用于任务创建失败的场景），同时增加 CompletedCount 和 FailedCount
@@ -403,4 +407,36 @@ func (dao *taskBatchDao) buildFilterConditions(filter *TaskBatchListFilter) []ra
 	}
 
 	return conds
+}
+
+// FinishBatch 以任务组的权威计数收敛批次终态
+func (dao *taskBatchDao) FinishBatch(kit *kit.Kit, batchID uint32, successCount, failedCount uint32) error {
+	m := dao.genQ.TaskBatch
+
+	return dao.genQ.Transaction(func(tx *gen.Query) error {
+		q := tx.TaskBatch.WithContext(kit.Ctx)
+
+		var status table.TaskBatchStatus
+		switch {
+		case failedCount == 0:
+			status = table.TaskBatchStatusSucceed
+		case successCount == 0:
+			status = table.TaskBatchStatusFailed
+		default:
+			status = table.TaskBatchStatusPartlyFailed
+		}
+
+		now := time.Now()
+		_, err := q.Where(m.ID.Eq(batchID)).Updates(map[string]interface{}{
+			"completed_count": successCount + failedCount,
+			"success_count":   successCount,
+			"failed_count":    failedCount,
+			"status":          status,
+			"end_at":          &now,
+		})
+		if err != nil {
+			return fmt.Errorf("finish task batch failed: %w", err)
+		}
+		return nil
+	})
 }

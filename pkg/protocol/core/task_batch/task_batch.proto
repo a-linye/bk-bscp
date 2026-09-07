@@ -62,6 +62,9 @@ message TaskPayload {
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程启动相关配置" }];
   string func_name = 12
       [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程二进制文件名" }];
+  // 改造前产生的历史任务不带该字段，此处用 optional 区分「优先级为 0」与「取不到优先级」
+  optional int32 priority = 13
+      [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = { description: "进程启动优先级" }];
 }
 
 // TaskDetail 任务详情
