@@ -99,7 +99,7 @@ service Config {
   }
   // 按 space 查询 app 信息
   rpc ListAppsBySpaceRest(ListAppsBySpaceRestReq) returns (ListAppsResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/list/app/app/biz_id/{biz_id}"
       body: "*"
@@ -296,7 +296,7 @@ service Config {
   }
   // 获取已生成版本键值配置项
   rpc GetReleasedKv(GetReleasedKvReq) returns (GetReleasedKvResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/kvs/{key}"
       additional_bindings {
@@ -306,7 +306,7 @@ service Config {
   }
   // 获取已生成版本键值配置项列表
   rpc ListReleasedKvs(ListReleasedKvsReq) returns (ListReleasedKvsResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/kvs"
       body: "*"
@@ -328,7 +328,7 @@ service Config {
   }
   // 引用前后置脚本
   rpc UpdateConfigHook(UpdateConfigHookReq) returns (UpdateConfigHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       put: "/api/v1/config/biz/{biz_id}/apps/{app_id}/config_hooks"
       body: "*"
@@ -432,7 +432,7 @@ service Config {
   }
   // 创建脚本
   rpc CreateHook(CreateHookReq) returns (CreateHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz/{biz_id}/hooks"
       body: "*"
@@ -441,7 +441,7 @@ service Config {
   }
   // 删除脚本
   rpc DeleteHook(DeleteHookReq) returns (DeleteHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       delete: "/api/v1/config/biz/{biz_id}/hooks/{hook_id}"
       additional_bindings { delete: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/{hook_id}" }
@@ -458,7 +458,7 @@ service Config {
   }
   // 更新脚本
   rpc UpdateHook(UpdateHookReq) returns (UpdateHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       put: "/api/v1/config/biz/{biz_id}/hooks/{hook_id}"
       body: "*"
@@ -467,7 +467,7 @@ service Config {
   }
   // 获取脚本列表
   rpc ListHooks(ListHooksReq) returns (ListHooksResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/hooks"
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks" }
@@ -483,7 +483,7 @@ service Config {
   }
   // 获取脚本
   rpc GetHook(GetHookReq) returns (GetHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/hooks/{hook_id}"
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/hooks/{hook_id}" }
@@ -579,7 +579,7 @@ service Config {
     };
   }
   rpc GetReleaseHook(GetReleaseHookReq) returns (GetReleaseHookResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz/{biz_id}/apps/{app_id}/releases/{release_id}/hooks"
       additional_bindings {
@@ -1663,7 +1663,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
 
   // 创建客户端密钥
   rpc CreateCredentials(CreateCredentialReq) returns (CreateCredentialResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       post: "/api/v1/config/biz_id/{biz_id}/credentials"
       body: "*"
@@ -1672,7 +1672,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 获取客户端密钥
   rpc ListCredentials(ListCredentialsReq) returns (ListCredentialsResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz_id/{biz_id}/credentials"
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/credentials" }
@@ -1688,7 +1688,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 更新客户端密钥
   rpc UpdateCredential(UpdateCredentialsReq) returns (UpdateCredentialsResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       put: "/api/v1/config/biz_id/{biz_id}/credential"
       body: "*"
@@ -1697,7 +1697,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 检测客户端密钥名称
   rpc CheckCredentialName(CheckCredentialNameReq) returns (CheckCredentialNameResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz_id/{biz_id}/credential/{credential_name}/check"
       additional_bindings {
@@ -1707,7 +1707,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 获取客户端密钥关联服务的列表
   rpc ListCredentialScopes(ListCredentialScopesReq) returns (ListCredentialScopesResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       get: "/api/v1/config/biz_id/{biz_id}/credential/{credential_id}/scopes"
       additional_bindings { get: "/api/v1/config/biz/{biz_id}/projects/{project_id}/credential/{credential_id}/scopes" }
@@ -1715,7 +1715,7 @@ option (google.api.method_visibility).restriction = "INTERNAL";
   }
   // 更新客户端密钥关联服务规则
   rpc UpdateCredentialScope(UpdateCredentialScopeReq) returns (UpdateCredentialScopeResp) {
-    option (google.api.method_visibility).restriction = "INTERNAL";
+    option (google.api.method_visibility).restriction = "INTERNAL,BKAPIGW";
     option (google.api.http) = {
       put: "/api/v1/config/biz_id/{biz_id}/credential/{credential_id}/scope"
       body: "*"
