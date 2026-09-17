@@ -158,38 +158,6 @@ class MakoNodeVisitor(ast.NodeVisitor):
         "xpath",
     }
 
-    WHITE_LIST_LAMBDA_METHODS = {
-        "format",
-        "lower",
-    }
-
-    WHITE_LIST_LAMBDA_FUNCTIONS = {
-        "bool",
-        "float",
-        "int",
-        "str",
-    }
-
-    WHITE_LIST_LAMBDA_BINOPS = (
-        ast.Add,
-        ast.Sub,
-        ast.Mult,
-        ast.Div,
-        ast.FloorDiv,
-        ast.Mod,
-    )
-
-    WHITE_LIST_LAMBDA_COMPARE_OPS = (
-        ast.Eq,
-        ast.NotEq,
-        ast.Lt,
-        ast.LtE,
-        ast.Gt,
-        ast.GtE,
-        ast.In,
-        ast.NotIn,
-    )
-
     # 仅允许模板显式抛出的异常类型（raise Exception(...) / raise ValueError(...)）。
     WHITE_LIST_EXCEPTIONS = {
         "Exception",
@@ -713,78 +681,6 @@ class MakoNodeVisitor(ast.NodeVisitor):
             return
         self._reject("发现非法语法使用:[raise]，请修改")
 
-    def _validate_lambda_slice(self, node, param_names):
-        if isinstance(node, ast.Tuple):
-            for element in node.elts:
-                self._validate_lambda_slice(element, param_names)
-            return
-        if isinstance(node, ast.Constant):
-            return
-        if isinstance(node, ast.Name) and node.id in param_names:
-            return
-        self._reject("发现非法语法使用:[Lambda下标]，请修改")
-
-    def _validate_lambda_body(self, node, param_names):
-        """仅允许 sorted(key=...) 等简单取值和基础类型转换。"""
-        if isinstance(node, ast.Constant):
-            return
-        if isinstance(node, ast.Name):
-            if node.id in param_names or node.id in ("True", "False", "None"):
-                return
-            self._validate_binding_name(node.id)
-            return
-        if isinstance(node, ast.Subscript):
-            self._validate_lambda_body(node.value, param_names)
-            self._validate_lambda_slice(node.slice, param_names)
-            return
-        if isinstance(node, ast.Attribute):
-            if self._is_dunder(node.attr):
-                self._reject("发现非法语法使用:[Lambda属性]，请修改")
-            self._validate_lambda_body(node.value, param_names)
-            return
-        if isinstance(node, (ast.List, ast.Tuple)):
-            for element in node.elts:
-                self._validate_lambda_body(element, param_names)
-            return
-        if isinstance(node, ast.IfExp):
-            self._validate_lambda_body(node.test, param_names)
-            self._validate_lambda_body(node.body, param_names)
-            self._validate_lambda_body(node.orelse, param_names)
-            return
-        if isinstance(node, ast.Compare):
-            self._validate_lambda_body(node.left, param_names)
-            for op in node.ops:
-                if not isinstance(op, self.WHITE_LIST_LAMBDA_COMPARE_OPS):
-                    self._reject("发现非法语法使用:[Lambda比较]，请修改")
-            for comparator in node.comparators:
-                self._validate_lambda_body(comparator, param_names)
-            return
-        if isinstance(node, ast.BinOp):
-            if not isinstance(node.op, self.WHITE_LIST_LAMBDA_BINOPS):
-                self._reject("发现非法语法使用:[Lambda运算]，请修改")
-            self._validate_lambda_body(node.left, param_names)
-            self._validate_lambda_body(node.right, param_names)
-            return
-        if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in self.WHITE_LIST_LAMBDA_FUNCTIONS:
-                for arg in node.args:
-                    self._validate_lambda_body(arg, param_names)
-                for keyword in node.keywords:
-                    if keyword.arg is None:
-                        self._reject("发现非法语法使用:[Lambda参数]，请修改")
-                    self._validate_lambda_body(keyword.value, param_names)
-                return
-            if isinstance(node.func, ast.Attribute) and node.func.attr in self.WHITE_LIST_LAMBDA_METHODS:
-                self._validate_lambda_body(node.func.value, param_names)
-                for arg in node.args:
-                    self._validate_lambda_body(arg, param_names)
-                for keyword in node.keywords:
-                    if keyword.arg is None:
-                        self._reject("发现非法语法使用:[Lambda参数]，请修改")
-                    self._validate_lambda_body(keyword.value, param_names)
-                return
-        self._reject("发现非法语法使用:[Lambda表达式]，请修改")
-
     def generic_visit(self, node):
         if isinstance(node, self.FORBIDDEN_NODE_TYPES):
             self._reject("发现非法语法使用:[{}]，请修改".format(node.__class__.__name__))
@@ -963,7 +859,10 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self.visit(node.cause)
 
     def visit_Lambda(self, node):
-        """仅允许单参数、无函数调用的简单 key 函数（如 sorted(..., key=lambda i: i['id'])）。"""
+        """仅允许单参数 lambda（如 sorted(..., key=lambda i: i['id'])）。
+
+        函数体沿用模板其它位置相同的白名单，lambda 里能做的事不会超出普通语句。
+        """
         if (
             len(node.args.args) > 1
             or node.args.vararg
@@ -975,8 +874,28 @@ class MakoNodeVisitor(ast.NodeVisitor):
             self._reject("发现非法语法使用:[Lambda参数]，请修改")
         for default in node.args.defaults:
             self.visit(default)
-        param_names = {arg.arg for arg in node.args.args}
-        self._validate_lambda_body(node.body, param_names)
+
+        # 参数名遮蔽同名的模块/函数绑定，避免 lambda datetime: datetime.datetime.now() 绕过校验
+        outer_bindings = (
+            self.allowed_module_bindings,
+            self.allowed_import_bindings,
+            self.allowed_template_functions,
+            self.allowed_lambda_bindings,
+        )
+        self.allowed_module_bindings = dict(self.allowed_module_bindings)
+        self.allowed_import_bindings = dict(self.allowed_import_bindings)
+        self.allowed_template_functions = set(self.allowed_template_functions)
+        self.allowed_lambda_bindings = set(self.allowed_lambda_bindings)
+        self._remove_allowed_bindings(self._function_argument_names(node))
+        try:
+            self.visit(node.body)
+        finally:
+            (
+                self.allowed_module_bindings,
+                self.allowed_import_bindings,
+                self.allowed_template_functions,
+                self.allowed_lambda_bindings,
+            ) = outer_bindings
 
     def visit_ListComp(self, node):
         """允许单层列表推导式，禁止嵌套推导。"""
