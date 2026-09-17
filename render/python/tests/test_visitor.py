@@ -1027,13 +1027,86 @@ if flag:
         self.assertTrue(check_mako_template_safety(template))
         self.assertEqual("ok", mako_render(template, {}))
 
+    def test_allows_lambda_body_with_common_template_syntax(self):
+        """lambda 体沿用模板其它位置的白名单，兼容 GSEKit 历史模板写法。"""
+        cases = [
+            (
+                """<%
+zones = [{"zonenum": 3}, {"zonenum": 1}]
+zones.sort(key=lambda k: (k.get("zonenum")))
+result = ",".join([str(z["zonenum"]) for z in zones])
+%>${result}""",
+                "1,3",
+            ),
+            (
+                """<%
+zones = [{"id": 1}, {"id": 3}]
+result = ",".join([str(z["id"]) for z in sorted(zones, key=lambda z: -z["id"])])
+%>${result}""",
+                "3,1",
+            ),
+            (
+                """<%
+names = ["bbb", "a"]
+result = ",".join(sorted(names, key=lambda n: len(n)))
+%>${result}""",
+                "a,bbb",
+            ),
+            (
+                """<%
+items = [{"w": 2}, {"w": 0}]
+result = ",".join([str(i["w"]) for i in sorted(items, key=lambda i: i.get("w") or 0)])
+%>${result}""",
+                "0,2",
+            ),
+            (
+                """<%
+names = [" b ", "a"]
+result = ",".join(sorted(names, key=lambda n: n.strip()))
+%>${result}""",
+                "a, b ",
+            ),
+            (
+                """<%
+field = "id"
+rows = [{"id": 2}, {"id": 1}]
+result = ",".join([str(r["id"]) for r in sorted(rows, key=lambda r: r[field])])
+%>${result}""",
+                "1,2",
+            ),
+            (
+                """<%
+result = ",".join(map(lambda i: f"n{i}", [1, 2]))
+%>${result}""",
+                "n1,n2",
+            ),
+            (
+                """<%
+result = ",".join(map(lambda n: n.replace("a", "b"), ["aa"]))
+%>${result}""",
+                "bb",
+            ),
+        ]
+
+        for template, expected in cases:
+            with self.subTest(template=template):
+                self.assertTrue(check_mako_template_safety(template))
+                self.assertIn(expected, mako_render(template, {}))
+
     def test_rejects_unsafe_lambda_and_dict_methods_abuse(self):
         cases = [
             '<% x = sorted([1], key=lambda: open("/etc/passwd")) %>',
             '<% x = sorted([1], key=lambda a, b: a) %>',
             '<% x = sorted([1], key=lambda i: __import__("os")) %>',
             '<% x = sorted([1], key=lambda i: open("/etc/passwd") if i < 2 else str(i)) %>',
-            '<% x = sorted([{"name": "a"}], key=lambda i: i["name"].replace("a", "b")) %>',
+            '<% x = sorted([1], key=lambda i: i.__class__) %>',
+            '<% x = sorted([1], key=lambda i: eval("1")) %>',
+            '<% x = sorted([1], key=lambda i: i.system("ls")) %>',
+            '<% x = sorted([1], key=lambda i: globals()) %>',
+            """<%
+import datetime
+x = sorted([1], key=lambda datetime: datetime.datetime.now())
+%>""",
             '<% this.cc_set.attrib.update({"k": "v"}) %>',
             '<% this.cc_set.attrib["k"] = "v" %>',
             '<% cc[0]["k"] = "v" %>',
