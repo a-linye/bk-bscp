@@ -13,8 +13,10 @@
 package render
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRenderCommandEnvUsesGSEKitTimezone(t *testing.T) {
@@ -24,6 +26,39 @@ func TestRenderCommandEnvUsesGSEKitTimezone(t *testing.T) {
 
 	if got := envValue(env, "TZ"); got != "Asia/Shanghai" {
 		t.Fatalf("TZ = %q, want Asia/Shanghai", got)
+	}
+}
+
+func TestNewRendererTimeoutFromEnv(t *testing.T) {
+	pythonRoot, err := filepath.Abs("python")
+	if err != nil {
+		t.Fatalf("failed to resolve python dir: %v", err)
+	}
+	t.Setenv("BSCP_PYTHON_RENDER_PATH", pythonRoot)
+
+	tests := []struct {
+		name string
+		env  string
+		want time.Duration
+	}{
+		{name: "unset falls back to default", env: "", want: defaultTimeoutSec * time.Second},
+		{name: "override", env: "600", want: 600 * time.Second},
+		{name: "invalid falls back to default", env: "abc", want: defaultTimeoutSec * time.Second},
+		{name: "non-positive falls back to default", env: "0", want: defaultTimeoutSec * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(timeoutSecEnv, tt.env)
+
+			r, err := NewRenderer()
+			if err != nil {
+				t.Fatalf("NewRenderer() error = %v", err)
+			}
+			if r.timeout != tt.want {
+				t.Fatalf("timeout = %v, want %v", r.timeout, tt.want)
+			}
+		})
 	}
 }
 

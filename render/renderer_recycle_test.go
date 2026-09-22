@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 // startIdleWorker 用一个空转进程模拟 worker，避免测试依赖 uv/python 环境
@@ -40,6 +41,52 @@ func TestWorkerRSSMBReadsCurrentProcess(t *testing.T) {
 	}
 	if rssMB <= 0 {
 		t.Fatalf("workerRSSMB = %d, want > 0", rssMB)
+	}
+}
+
+// 线上 worker 是 uv 壳进程 fork 出 python3，内存都在子进程上，
+// 只统计壳进程会让回收永远不触发
+func TestWorkerRSSMBIncludesChildProcesses(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "sleep 60 & wait")
+	if err := cmd.Start(); err != nil {
+		t.Skipf("cannot start helper process: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	pid := cmd.Process.Pid
+	var children []int
+	for i := 0; i < 50; i++ {
+		if children = childPIDs(pid); len(children) > 0 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if len(children) == 0 {
+		t.Skip("child process is not observable on this platform")
+	}
+
+	selfKB, ok := processRSSKB(pid)
+	if !ok {
+		t.Skip("process RSS is unavailable on this platform")
+	}
+	wantKB := selfKB
+	for _, child := range children {
+		childKB, childOK := processRSSKB(child)
+		if !childOK {
+			t.Skip("child RSS is unavailable on this platform")
+		}
+		wantKB += childKB
+	}
+
+	got, ok := workerRSSMB(pid)
+	if !ok {
+		t.Fatal("workerRSSMB returned ok=false")
+	}
+	if got != wantKB/1024 {
+		t.Fatalf("workerRSSMB = %d MB, want %d MB (self+children)", got, wantKB/1024)
 	}
 }
 

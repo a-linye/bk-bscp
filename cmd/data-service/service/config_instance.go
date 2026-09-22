@@ -1045,7 +1045,7 @@ func (s *Service) PreviewConfig(ctx context.Context, req *pbds.PreviewConfigReq)
 	}
 
 	// 6. 渲染模板
-	renderedContent, err := render.Template(templateContent, contextParams)
+	renderedContent, err := render.Template(grpcKit.Ctx, templateContent, contextParams)
 	if err != nil {
 		logs.Errorf("render template failed, template content: %s, err: %v, rid: %s", req.GetTemplateContent(), err, grpcKit.Rid)
 		return nil, errf.Errorf(errf.Internal, "%s",

@@ -106,7 +106,7 @@ func (e *CheckConfigExecutor) CheckConfigMD5(c *istep.Context) error {
 		commonPayload.ConfigPayload.ConfigInstanceKey,
 		commonPayload.ProcessPayload.AgentID)
 
-	fullPath, err := renderFullPath(commonPayload)
+	fullPath, err := renderFullPath(kt.Ctx, commonPayload)
 	if err != nil {
 		return fmt.Errorf("render full path failed: %w", err)
 	}
@@ -286,7 +286,7 @@ func (e *CheckConfigExecutor) FetchConfigContent(c *istep.Context) error {
 	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
-	fullPath, err := renderFullPath(commonPayload)
+	fullPath, err := renderFullPath(kt.Ctx, commonPayload)
 	if err != nil {
 		return fmt.Errorf("render full path failed: %w", err)
 	}

@@ -210,7 +210,7 @@ func (e *GenerateConfigExecutor) GenerateConfig(c *istep.Context) error {
 			contextParams, generatePayload.TemplateRevision.Attachment.TemplateID)
 		// 使用公共方法渲染模板
 		var err error
-		renderedContent, err = render.Template(configContent, contextParams)
+		renderedContent, err = render.Template(kt.Ctx, configContent, contextParams)
 		if err != nil {
 			logs.Errorf("[GenerateConfig STEP]: render template failed,cost: %s template id: %d, error: %v", time.Since(renderStart),
 				generatePayload.TemplateRevision.Attachment.TemplateID, err)

@@ -168,7 +168,8 @@ func BuildProcessContext(params ProcessContextParams) map[string]interface{} {
 
 // Template 渲染模板的便捷函数
 // 自动构建 context 并执行渲染
-func Template(template string, params ProcessContextParams) (string, error) {
+// ctx 用于传递调用方的超时/取消信号，渲染实际超时取 ctx 与渲染器自身超时中较早者
+func Template(ctx context.Context, template string, params ProcessContextParams) (string, error) {
 	if template == "" {
 		return "", nil
 	}
@@ -181,10 +182,10 @@ func Template(template string, params ProcessContextParams) (string, error) {
 	}
 
 	// 构建 context
-	context := BuildProcessContext(params)
+	renderCtx := BuildProcessContext(params)
 
 	// 执行渲染
-	return renderer.Render(template, context)
+	return renderer.RenderWithContext(ctx, template, renderCtx)
 }
 
 // ProcessInfoSource 进程信息源接口
