@@ -129,7 +129,7 @@ func (e *PushConfigExecutor) ReleaseConfig(c *istep.Context) error {
 		commonPayload.ProcessPayload.AgentID)
 
 	// 渲染完整文件路径（路径+文件名）
-	fullPath, err := renderFullPath(commonPayload)
+	fullPath, err := renderFullPath(kt.Ctx, commonPayload)
 	if err != nil {
 		logs.Errorf("[ReleaseConfig STEP]: render full path failed: %v", err)
 		return fmt.Errorf("render full path failed: %w", err)
@@ -386,7 +386,7 @@ func (e *PushConfigExecutor) PushConfig(c *istep.Context) error {
 	kt := kit.NewWithTenant(payload.TenantID)
 	kt.BizID = payload.BizID
 
-	fullPath, err := renderFullPath(commonPayload)
+	fullPath, err := renderFullPath(kt.Ctx, commonPayload)
 	if err != nil {
 		logs.Errorf("[PushConfig STEP]: render full path failed: %v", err)
 		return fmt.Errorf("render full path failed: %w", err)
@@ -521,7 +521,7 @@ func (e *PushConfigExecutor) DownloadConfig(c *istep.Context) error {
 // 支持 Windows 和 Linux 两种路径格式：
 //   - 内部统一使用 `/` 进行 path.Join，避免 POSIX path 库无法处理 `\` 的问题
 //   - Windows 平台最终输出转回 `\`
-func renderFullPath(commonPayload *common.TaskPayload) (string, error) {
+func renderFullPath(ctx context.Context, commonPayload *common.TaskPayload) (string, error) {
 	cfg := commonPayload.ConfigPayload
 	proc := commonPayload.ProcessPayload
 
@@ -554,7 +554,7 @@ func renderFullPath(commonPayload *common.TaskPayload) (string, error) {
 		WithHelp: false,
 	}
 
-	renderedPath, err := render.Template(fullPath, contextParams)
+	renderedPath, err := render.Template(ctx, fullPath, contextParams)
 	if err != nil {
 		return "", fmt.Errorf("render full path failed: %w", err)
 	}

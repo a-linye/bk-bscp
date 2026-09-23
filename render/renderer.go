@@ -51,6 +51,11 @@ const (
 	workerMaxUsesEnv = "BSCP_RENDER_WORKER_MAX_USES"
 	// defaultWorkerMaxUses 读不到进程常驻内存时，按渲染次数兜底重建
 	defaultWorkerMaxUses = 500
+	// timeoutSecEnv 覆盖单次渲染超时(秒)的环境变量
+	timeoutSecEnv = "BSCP_RENDER_TIMEOUT_SEC"
+	// defaultTimeoutSec 单次渲染的默认超时，含排队等待空闲 worker 的时间。
+	// 刻意放宽，让实际约束落在 step 的 maxExecution 上，这里只作为进程卡死的兜底。
+	defaultTimeoutSec = 900
 )
 
 // GetDefaultRenderer returns a singleton Renderer instance
@@ -163,7 +168,7 @@ func NewRenderer(opts ...RendererOption) (*Renderer, error) {
 	r := &Renderer{
 		uvPath:           "uv", // default to uv in PATH
 		scriptPath:       defaultScriptPath,
-		timeout:          60 * time.Second,
+		timeout:          time.Duration(intFromEnv(timeoutSecEnv, defaultTimeoutSec)) * time.Second,
 		poolSize:         poolSizeFromEnv(),
 		workerRSSLimitMB: intFromEnv(workerRSSLimitEnv, defaultWorkerRSSLimitMB),
 		workerMaxUses:    intFromEnv(workerMaxUsesEnv, defaultWorkerMaxUses),
@@ -324,8 +329,24 @@ func (r *Renderer) recycleIfNeeded(w *renderWorker) {
 	w.dead = true
 }
 
-// workerRSSMB 读取进程常驻内存(MB)；非 Linux 或读取失败时返回 ok=false。
+// workerRSSMB 读取 worker 进程树的常驻内存(MB)；非 Linux 或读取失败时返回 ok=false。
+// uv 只是个约 20MB 的壳进程，模板缓存实际驻留在它 fork 出的 python3 里，
+// 只统计 uv 自身会永远够不到阈值，故必须连子进程一起算。
 func workerRSSMB(pid int) (int, bool) {
+	kb, ok := processRSSKB(pid)
+	if !ok {
+		return 0, false
+	}
+	for _, child := range childPIDs(pid) {
+		if childKB, childOK := processRSSKB(child); childOK {
+			kb += childKB
+		}
+	}
+	return kb / 1024, true
+}
+
+// processRSSKB 读取单个进程的常驻内存(KB)
+func processRSSKB(pid int) (int, bool) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/statm", pid))
 	if err != nil {
 		return 0, false
@@ -339,7 +360,47 @@ func workerRSSMB(pid int) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return int(pages * int64(os.Getpagesize()) / (1024 * 1024)), true
+	return int(pages * int64(os.Getpagesize()) / 1024), true
+}
+
+// childPIDs 返回 ppid 的直接子进程。
+// /proc/<pid>/task/<tid>/children 依赖内核 CONFIG_PROC_CHILDREN，线上实测读到空，
+// 故直接扫描 /proc；容器内进程数很少，开销可忽略。
+func childPIDs(ppid int) []int {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil
+	}
+	var children []int
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		if parentPID(pid) == ppid {
+			children = append(children, pid)
+		}
+	}
+	return children
+}
+
+// parentPID 读取进程的父进程 PID，读取失败返回 0
+func parentPID(pid int) int {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "PPid:") {
+			continue
+		}
+		ppid, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "PPid:")))
+		if err != nil {
+			return 0
+		}
+		return ppid
+	}
+	return 0
 }
 
 // exchange 在当前 goroutine 内同步完成一次「写请求-读响应」。
