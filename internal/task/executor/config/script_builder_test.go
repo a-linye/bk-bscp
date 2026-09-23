@@ -500,13 +500,13 @@ func TestBuildWindowsPushScriptUsesUniqueTempPath(t *testing.T) {
 
 	assert.NotContains(t, first, "%RANDOM%", "唯一性不能依赖 cmd 的 %RANDOM%")
 	assert.NotContains(t, first, "%TEMP%",
-		"临时文件必须与目标同目录：%TEMP% 全机共享，且跨卷 move 不是原子操作")
+		"%TEMP% 全机共享，且与目标常常不在同一个卷上，跨卷 move 不是原子操作")
 
 	firstTmp, firstOut := windowsTempPaths(t, first)
 	secondTmp, secondOut := windowsTempPaths(t, second)
 	thirdTmp, thirdOut := windowsTempPaths(t, third)
 
-	assert.Contains(t, firstTmp, `!TARGET_DIR!!TARGET_NAME!.`, "临时文件应落在目标同目录")
+	assert.Contains(t, firstOut, `!TARGET_DIR!!TARGET_NAME!.`, "解码产物必须与目标同目录")
 	assert.NotEqual(t, firstTmp, firstOut, "中转文件与解码产物不能同名")
 	assert.NotEqual(t, firstTmp, secondTmp)
 	assert.NotEqual(t, firstOut, secondOut)
@@ -719,6 +719,94 @@ func TestBuildWindowsPushScriptHandlesEmptyContent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, script, `>>"!BSCP_TMP!" echo.`)
+}
+
+// TestBuildWindowsPushScriptVerifiesDecodedSizeBeforeMove 分块写盘解决了 cmd 单行 8191
+// 的截断，但每一行 `>> echo` 的重定向失败既不会中断脚本，也不体现在退出码上：杀软扫描、
+// 文件系统过滤器、句柄占用或磁盘空间不足都可能让后面若干行静默写不进去。每段长度都是 4
+// 的倍数，残缺的 base64 依然是合法输入，certutil 会把「前 N 段」照样解码成一个语法上看
+// 起来正常的文件，move 与退出码全部正常，任务报成功——现场就出现过 10052 字节的 web.config
+// 落盘成 6912（前 9 段）和 2304（前 3 段）。
+// 因此必须拿服务端已知的期望字节数在 move 之前自校验；放到 move 之后即使报错，残缺配置也
+// 已经覆盖到目标文件上了。
+func TestBuildWindowsPushScriptVerifiesDecodedSizeBeforeMove(t *testing.T) {
+	raw := strings.Repeat("<add key=\"k\" value=\"v\" />\r\n", 400)
+	b64 := base64.StdEncoding.EncodeToString([]byte(raw))
+
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+	script, err := builder.BuildConfigPushScript(
+		b64, `D:\bnsserver\ManagementWeb\web.config`, "", "Administrator", "Administrators")
+	require.NoError(t, err)
+
+	assert.Contains(t, script, `set "EXPECTED_SIZE=`+strconv.Itoa(len(raw))+`"`,
+		"期望长度必须由服务端算好写进脚本，目标机没有第二份可信来源")
+	assert.Regexp(t, `(?m)^if not "!OUT_SIZE!"=="!EXPECTED_SIZE!" \($`, script,
+		"必须按解码产物的字节数比对，而不是只判断文件存在")
+
+	// 原有的两个标记不能因为改成重试而消失，运维排查是按标记检索任务输出的
+	for _, marker := range []string{"WRITE_TMP_FAILED", "DECODE_FAILED", "WRITE_TMP_TRUNCATED"} {
+		assert.Contains(t, script, marker)
+	}
+
+	writeAt := strings.Index(script, ":write_b64")
+	sizeCheckAt := strings.Index(script, `if not "!OUT_SIZE!"=="!EXPECTED_SIZE!"`)
+	truncatedAt := strings.Index(script, `set "WRITE_FAIL=WRITE_TMP_TRUNCATED"`)
+	moveAt := strings.Index(script, `move /y "!BSCP_OUT!"`)
+	require.NotEqual(t, -1, writeAt, "写盘段必须有可重试的入口标签")
+	require.NotEqual(t, -1, sizeCheckAt)
+	require.NotEqual(t, -1, truncatedAt, "校验失败必须打出可检索的标记")
+	require.NotEqual(t, -1, moveAt)
+
+	assert.Less(t, sizeCheckAt, moveAt, "长度校验必须早于 move，否则残缺内容已经覆盖上去了")
+	assert.Less(t, truncatedAt, moveAt)
+
+	// 重试必须回到第一段之前整份重写：只补后面几段会让残留的 .b64 与新内容拼在一起
+	firstWrite := windowsB64WriteRe.FindStringIndex(script)
+	require.NotNil(t, firstWrite)
+	assert.Less(t, writeAt, firstWrite[0])
+	assert.Less(t, firstWrite[1], sizeCheckAt)
+
+	// 校验失败必须走已有的持锁失败路径：先释放锁，再以非零码退出，任务才会报失败
+	failTail := script[truncatedAt:]
+	assert.Regexp(t, `(?m)^goto :fail$`, failTail[:strings.Index(failTail, ":write_ok")],
+		"校验失败必须 goto :fail（释放锁 + exit /b 1），不能继续往下走")
+}
+
+// TestBuildWindowsPushScriptKeepsB64OutOfTargetDir base64 中转文件不能落在目标同目录：
+// 目标常常是 IIS 应用根，ASP.NET 的 FileChangesMonitor 与杀软、索引都会对该目录里新出现
+// 的文件做 open，而中转文件要被连续追加十几段，任何一次 open 失败都会静默少写一段。现场
+// 那批并发下发里，同一秒 30 多个目标只有 IIS 应用根下的 web.config 写残。
+// 它改放脚本自身所在目录（GSE 的脚本落地目录）：脚本自己就在那儿且已明文含同一份 base64，
+// 不引入新的暴露面，也不用建目录；中转文件只被 certutil 读一次随后删除，不参与 move，
+// 所以不要求与目标同卷。
+// 解码产物必须留在目标同目录：move 只有同卷内才是原子 rename，且同卷 move 不会重新继承
+// 目标目录的 ACL，换个目录创建就会把那个目录的继承权限带到配置文件上。
+func TestBuildWindowsPushScriptKeepsB64OutOfTargetDir(t *testing.T) {
+	builder := &ScriptBuilder{FileMode: table.Windows, MaxBackups: 5}
+
+	script, err := builder.BuildConfigPushScript(
+		"Y29udGVudA==", `D:\bnsserver\ManagementWeb\web.config`, "", "Administrator", "Administrators")
+	require.NoError(t, err)
+
+	tmp, out := windowsTempPaths(t, script)
+	assert.Equal(t, `%~dp0!TARGET_NAME!.bscp.`, tmp[:strings.LastIndex(tmp, ".bscp.")+6],
+		"中转文件必须落在脚本自身所在目录，不能在目标目录里反复追加")
+	assert.Contains(t, out, `!TARGET_DIR!!TARGET_NAME!.`,
+		"解码产物必须与目标同目录，move 才是同卷内的原子 rename")
+
+	// 脚本目录连文件都创建不出来时要退回目标同目录，即本次改动前的行为
+	fallback := `if "!WRITE_FAIL!"=="WRITE_TMP_FAILED" set "BSCP_TMP=!TARGET_DIR!!TARGET_NAME!.bscp.`
+	assert.Contains(t, script, fallback)
+	assert.Less(t, strings.Index(script, fallback), strings.Index(script, "goto write_b64"),
+		"退回赋值必须在跳回重写之前生效")
+}
+
+// TestBase64DecodedSize 期望长度算错会让所有下发都失败，padding 的三种情况都要覆盖。
+func TestBase64DecodedSize(t *testing.T) {
+	for _, raw := range []string{"", "a", "ab", "abc", "abcd", "abcde", strings.Repeat("x", 10052)} {
+		b64 := base64.StdEncoding.EncodeToString([]byte(raw))
+		assert.Equal(t, len(raw), base64DecodedSize(b64), "raw=%q b64=%q", raw, b64)
+	}
 }
 
 // TestBuildWindowsPushScriptSerializesSameTarget 并发下发同一目标文件时，Windows 的

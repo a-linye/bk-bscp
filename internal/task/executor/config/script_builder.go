@@ -293,21 +293,10 @@ func windowsTranslateOwnerCmd() string {
 		`.Translate([System.Security.Principal.SecurityIdentifier]) } catch { exit 1 }"`
 }
 
-// buildWindowsPushScript 构建 Windows 配置下发脚本
+// buildWindowsPushScript 构建 Windows 配置下发脚本。
 //
-// base64 中转文件与解码产物都放在目标同目录，而不是曾经的 %TEMP%：
-// 一是 %TEMP% 全机共享，同一台主机上多个任务下发同名配置（若干个 .NET 服务各有一份
-// Web.config，只是目录不同）会撞进同一个命名空间；
-// 二是 %TEMP% 与目标常常不在同一个卷上，move 会退化成「拷贝 + 删除」，
-// 业务进程有机会读到只写了一半的配置，放同目录后才能走同卷内的原子 rename。
-// 中转文件、解码产物与备份文件名的唯一后缀由服务端生成（见 newTempToken），
-// 不依赖 cmd 的 %RANDOM%。
-//
-// 同一台主机的多个任务并发下发同一目标文件时，脚本以目标同目录下的
-// <目标名>.bscp.lock 目录锁串行执行：Windows 的 move 替换已存在的目标要求以 DELETE
-// 访问打开它，而备份 copy、icacls、certutil -hashfile 打开目标文件时都不带
-// FILE_SHARE_DELETE，任何一方在窗口期持有句柄，另一方的 move 就会拿到
-// Access is denied（MOVE_FAILED）。
+// 脚本里只保留结构性的 REM 小标题。可读示例（含语法速查）见
+// windows_push_script.example.bat；设计原因见 windows_push_script.md。
 // nolint:funlen
 func (b *ScriptBuilder) buildWindowsPushScript(base64Content, absPath, owner string, maxBackups int) (string, error) {
 	if !windowsAbsPathRe.MatchString(absPath) {
@@ -324,18 +313,13 @@ set "TARGET_PATH=%s"
 set /a MAX_BACKUPS=%d
 set "BSCP_OWNER=%s"
 
-REM 0. 写盘之前先确认属主能解析成 SID（与 icacls 同一套 LookupAccountName）。
-REM    同目录并发时多个任务都会在这里失败，不会 mkdir，已存在的 conf 也不会被改属主。
+REM 0. 校验属主可解析为 SID
 %s
 if !ERRORLEVEL! neq 0 (
     echo OWNER_NOT_FOUND
     exit /b 1
 )
 
-REM    属组固定用内置管理员组，不再动态查询用户所属组：
-REM    部分账号（域账号、服务账号等）通过 WMI 查不到关联组，查询本身还容易受
-REM    WMI 服务状态影响。按 SID 而非组名授权：组名随区域设置本地化且可被重命名，
-REM    SID（icacls 的 * 前缀）在任何机器上都稳定存在。
 set "TARGET_GROUP=%s"
 
 REM 1. 解析目录和文件名
@@ -344,8 +328,7 @@ for %%%%i in ("%%TARGET_PATH%%") do (
     set "TARGET_NAME=%%%%~nxi"
 )
 
-REM 2. 创建目标目录。临时文件也落在这里，建不出来就必须立刻失败，
-REM    否则错误会一路滑到后面的 move，报成含义完全不同的「找不到文件」。
+REM 2. 创建目标目录
 set "DIR_CUR=!TARGET_DIR!"
 if "!DIR_CUR:~-1!"=="\" set "DIR_CUR=!DIR_CUR:~0,-1!"
 set /a NEW_DIR_COUNT=0
@@ -355,7 +338,6 @@ set /a NEW_DIR_COUNT+=1
 set "NEW_DIR_!NEW_DIR_COUNT!=!DIR_CUR!"
 for %%%%i in ("!DIR_CUR!") do set "DIR_PARENT=%%%%~dpi"
 if "!DIR_PARENT:~-1!"=="\" set "DIR_PARENT=!DIR_PARENT:~0,-1!"
-REM 上溯到驱动器根后父目录不再变化，据此收尾，避免路径异常时死循环
 if "!DIR_PARENT!"=="!DIR_CUR!" goto collect_new_dirs_done
 set "DIR_CUR=!DIR_PARENT!"
 goto collect_new_dirs
@@ -367,7 +349,7 @@ if not exist "!TARGET_DIR!" (
     exit /b 1
 )
 
-REM 把本次新建的层级归属到配置属主。
+REM 只给本次新建的层级设属主
 for /l %%%%n in (1,1,!NEW_DIR_COUNT!) do (
     set "NEW_DIR=!NEW_DIR_%%%%n!"
     icacls "!NEW_DIR!" /setowner "!BSCP_OWNER!" >nul
@@ -390,9 +372,7 @@ for /l %%%%n in (1,1,!NEW_DIR_COUNT!) do (
     )
 )
 
-REM ----------------- 临界区互斥锁（解决同一机器并发写入/覆盖冲突） -----------------
-REM 锁按目标文件名区分并落在目标同目录，不同文件的并发下发互不阻塞；
-REM 用 md 的原子性抢锁，抢不到就自旋等待。
+REM ----------------- 临界区互斥锁 -----------------
 set "LOCK_DIR=!TARGET_DIR!!TARGET_NAME!.bscp.lock"
 set /a LOCK_WAIT_SEC=0
 set /a MAX_LOCK_WAIT=60
@@ -406,9 +386,6 @@ if !LOCK_WAIT_SEC! gtr !MAX_LOCK_WAIT! (
     echo LOCK_TIMEOUT
     exit /b 1
 )
-REM 用 ping 自己实现约 1 秒的睡眠（-n 2 即两次探测的默认间隔），
-REM 让出 CPU 后再重试。不能用 timeout：它在 stdin 被重定向的 GSE 环境
-REM 下会直接报 Input redirection is not supported。
 ping 127.0.0.1 -n 2 >nul
 goto lock_acquire
 
@@ -464,34 +441,65 @@ if exist "!TARGET_PATH!" (
     echo [INFO] 目标文件不存在，跳过备份。
 )
 
-REM 4. 写入临时文件并解码
-set "BSCP_TMP=!TARGET_DIR!!TARGET_NAME!.bscp.%s.b64"
+REM 4. 写 base64 中转文件并解码，按期望长度校验，不通过则整份重写
+set "BSCP_TMP=%%~dp0!TARGET_NAME!.bscp.%s.b64"
 set "BSCP_OUT=!TARGET_DIR!!TARGET_NAME!.bscp.%s.out"
+set "EXPECTED_SIZE=%d"
+set "WRITE_FAIL=WRITE_TMP_FAILED"
+set /a WRITE_TRY=0
+set /a MAX_WRITE_TRY=3
+
+:write_b64
+set /a WRITE_TRY+=1
 del /f /q "!BSCP_TMP!" >nul 2>&1
 del /f /q "!BSCP_OUT!" >nul 2>&1
 %s
 if not exist "!BSCP_TMP!" (
-    echo WRITE_TMP_FAILED
-    goto :fail
+    set "WRITE_FAIL=WRITE_TMP_FAILED"
+    echo [WARN] base64 中转文件未生成, try=!WRITE_TRY!
+    goto write_retry
 )
 
 certutil -f -decode "!BSCP_TMP!" "!BSCP_OUT!" >nul
 if !ERRORLEVEL! neq 0 (
-    echo DECODE_FAILED
-    del /f /q "!BSCP_TMP!" >nul 2>&1
-    del /f /q "!BSCP_OUT!" >nul 2>&1
-    goto :fail
+    set "WRITE_FAIL=DECODE_FAILED"
+    echo [WARN] certutil 解码失败, errorlevel=!ERRORLEVEL! try=!WRITE_TRY!
+    goto write_retry
 )
+
+set "OUT_SIZE="
+for %%%%i in ("!BSCP_OUT!") do set "OUT_SIZE=%%%%~zi"
+if not "!OUT_SIZE!"=="!EXPECTED_SIZE!" (
+    set "WRITE_FAIL=WRITE_TMP_TRUNCATED"
+    echo [WARN] 解码长度不符: got=!OUT_SIZE! want=!EXPECTED_SIZE! try=!WRITE_TRY!
+    goto write_retry
+)
+goto write_ok
+
+:write_retry
+REM 中转文件创建不出来时退回目标同目录；写残则仍在脚本目录里重写
+if "!WRITE_FAIL!"=="WRITE_TMP_FAILED" set "BSCP_TMP=!TARGET_DIR!!TARGET_NAME!.bscp.%s.b64"
+if !WRITE_TRY! lss !MAX_WRITE_TRY! (
+    ping 127.0.0.1 -n 2 >nul
+    goto write_b64
+)
+echo !WRITE_FAIL!
+echo [ERROR] base64 写盘校验连续 !MAX_WRITE_TRY! 次失败，目标文件保持原内容不变
+del /f /q "!BSCP_TMP!" >nul 2>&1
+del /f /q "!BSCP_OUT!" >nul 2>&1
+goto :fail
+
+:write_ok
+echo [OK] 解码产物长度校验通过: !OUT_SIZE! 字节, try=!WRITE_TRY!
 del /f /q "!BSCP_TMP!" >nul 2>&1
 
-REM 5. 覆盖到目标文件（重试机制抵抗业务偶发轻微句柄占用）
+REM 5. 覆盖到目标文件
 set /a MOVE_RETRY=0
 :try_move
 move /y "!BSCP_OUT!" "%%TARGET_PATH%%" >nul 2>&1
 if !ERRORLEVEL! equ 0 goto move_success
 set /a MOVE_RETRY+=1
 if !MOVE_RETRY! leq 10 (
-    REM 同样用 ping 睡约 1 秒再重试，给业务进程时间释放文件句柄
     ping 127.0.0.1 -n 2 >nul
     goto try_move
 )
@@ -531,7 +539,6 @@ endlocal
 goto :eof
 
 REM ----------------- 异常处理标签 -----------------
-REM 持锁后的失败路径统一走 :fail：先释放锁，再以非零码退出
 :fail
 call :release_lock
 endlocal
@@ -556,7 +563,9 @@ exit /b 1
 		windowsAdminGroup,
 		token, // 用于备份文件名后缀防重叠
 		token, token,
+		base64DecodedSize(base64Content),
 		buildWindowsB64WriteLines(base64Content),
+		token, // 中转文件退回目标同目录时的同名后缀
 	), nil
 }
 
@@ -566,6 +575,13 @@ exit /b 1
 // 的文件，move 和退出码全部正常，下发任务照样报成功——故障只能靠人工比对配置才能发现。
 // 必须是 4 的倍数，否则行尾会切在 base64 四字符组中间。
 const windowsB64ChunkSize = 1024
+
+// base64DecodedSize 返回标准 base64（带 padding）解码后的字节数，作为脚本写盘后的期望长度。
+// 去掉 padding 再按 3/4 取整即为精确值：4k 长度配 p 个 '=' 时，(4k-p)*3/4 的整数除法
+// 恰好等于 3k-p。不直接解码一遍是为了避免为大配置多复制一份内容。
+func base64DecodedSize(b64 string) int {
+	return len(strings.TrimRight(b64, "=")) * 3 / 4
+}
 
 // buildWindowsB64WriteLines 把 base64 内容切成多行 echo，逐行追加进中转文件。
 //
