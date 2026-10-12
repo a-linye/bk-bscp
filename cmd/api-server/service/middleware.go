@@ -21,6 +21,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/TencentBlueKing/bk-bscp/pkg/kit"
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
@@ -123,7 +125,9 @@ func (p *proxy) checkOrCreateDefaultProjectEnv(next http.Handler) http.Handler {
 		in := &pbcs.EnsureDefaultProjectEnvReq{BizId: kt.BizID}
 		resp, err := p.cfgClient.EnsureDefaultProjectEnv(kt.RpcCtx(), in)
 		if err != nil {
-			render.Render(w, r, rest.BadRequest(err))
+			// 保留 gRPC 状态码与详情。无权限时是 PermissionDenied，里面带申请链接；
+			// 用 BadRequest 会变成 400，前端只弹报错、打不开权限申请页。
+			render.Render(w, r, rest.GRPCErr(err))
 			return
 		}
 
@@ -169,6 +173,12 @@ func (p *proxy) AppProjectEnvVerified(next http.Handler) http.Handler {
 		if err != nil {
 			logs.Errorf("verify app project/env failed, bizId=%d appId=%d projectId=%d envId=%d err=%v rid=%s",
 				kt.BizID, appID32, kt.ProjectID, kt.EnvID, err, kt.Rid)
+			// GetApp 同时校验业务访问与服务查看。无权限时保留 403 和申请链接，
+			// 其它失败仍按归属校验返回，避免把「服务不存在」暴露成鉴权错误。
+			if status.Code(err) == codes.PermissionDenied {
+				render.Render(w, r, rest.GRPCErr(err))
+				return
+			}
 			render.Render(w, r, rest.BadRequest(fmt.Errorf("app does not belong to the specified project or environment")))
 			return
 		}
