@@ -29,6 +29,9 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/tools"
 )
 
+// iamTenantID init-iam 注册模型时携带的租户 ID，由 --tenant-id 指定，为空时按租户模式选择。
+var iamTenantID string
+
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "auth-server migrations tool",
@@ -54,10 +57,14 @@ var migrateInitCmd = &cobra.Command{
 			fmt.Printf("new iam sys failed, err: %v\n", err)
 		}
 
-		// 添加默认租户ID, 兼容多租户和非租户环境
+		tenantID := iamTenantID
+		if tenantID == "" {
+			tenantID = modelTenantID()
+		}
+
 		kt := &kit.Kit{
 			Ctx:      context.Background(),
-			TenantID: constant.DefaultTenantID,
+			TenantID: tenantID,
 		}
 
 		if err := iamSys.Register(kt.InternalRpcCtx(), cc.AuthServer().Esb.BscpHost); err != nil {
@@ -66,6 +73,20 @@ var migrateInitCmd = &cobra.Command{
 		}
 
 	},
+}
+
+// modelTenantID 注册权限模型时携带的租户，调用前需已加载配置。
+// 模型属于平台而非业务租户，多租户环境用运营租户 system，单租户环境用 default，与 IAM 版本无关。
+func modelTenantID() string {
+	return resolveModelTenantID(cc.AuthServer().FeatureFlags.EnableMultiTenantMode)
+}
+
+func resolveModelTenantID(multiTenant bool) string {
+	if multiTenant {
+		return constant.SystemTenantID
+	}
+
+	return constant.DefaultTenantID
 }
 
 // NewIamSys new a iamSystem
@@ -110,6 +131,8 @@ func init() {
 	migrateCmd.PersistentFlags().BoolP("debug", "d", false,
 		"whether to debug output the execution process,, default is false")
 
+	migrateInitCmd.Flags().StringVar(&iamTenantID, "tenant-id", "",
+		"the tenant id used to register the model, defaults to system in multi-tenant mode, otherwise default")
 	migrateCmd.AddCommand(migrateInitCmd)
 
 	// Add "migrate" command to the root command

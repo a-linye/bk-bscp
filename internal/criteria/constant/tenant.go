@@ -13,7 +13,7 @@
 package constant
 
 const (
-	// DefaultTenantID 默认租户ID,鉴权和权限初始化时使用
+	// DefaultTenantID 默认租户ID,单租户环境使用
 	DefaultTenantID = "default"
 	// SystemTenantID 系统租户ID,系统内部使用
 	SystemTenantID = "system"

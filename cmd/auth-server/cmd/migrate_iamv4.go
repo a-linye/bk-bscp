@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-bscp/internal/criteria/constant"
 	"github.com/TencentBlueKing/bk-bscp/pkg/cc"
 	clientv4 "github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/client"
 	"github.com/TencentBlueKing/bk-bscp/pkg/iam/v4/model"
@@ -31,10 +30,10 @@ import (
 	"github.com/TencentBlueKing/bk-bscp/pkg/logs"
 )
 
-// iamV4TenantID 调用权限中心时携带的租户 ID，由 --tenant-id 指定。
+// iamV4TenantID 调用权限中心时携带的租户 ID，由 --tenant-id 指定，为空时按租户模式选择。
 //
 // 多租户环境的网关要求 X-Bk-Tenant-Id 非空，缺失时直接返回跨租户禁止而非继续调用；
-// 权限模型本身不属于任何租户，取默认租户即可，环境的租户 ID 不是 default 时用该 flag 覆盖。
+// 多租户的 IAM 不认 default 租户，因此多租户环境必须用 system。
 var iamV4TenantID string
 
 var migrateInitIAMV4Cmd = &cobra.Command{
@@ -182,7 +181,7 @@ func prepareIAMV4() (*modelsync.Syncer, error) {
 	logs.InitLogger(cc.AuthServer().Log.Logs())
 
 	if iamV4TenantID == "" {
-		return nil, errors.New("租户 ID 为空，请用 --tenant-id 指定")
+		iamV4TenantID = modelTenantID()
 	}
 
 	settings := cc.AuthServer().IAM.V4
@@ -254,8 +253,9 @@ func init() {
 	for _, sub := range []*cobra.Command{
 		migrateInitIAMV4Cmd, migrateDiffIAMV4Cmd, migratePruneIAMV4Cmd,
 	} {
-		sub.Flags().StringVar(&iamV4TenantID, "tenant-id", constant.DefaultTenantID,
-			"the tenant id carried in the X-Bk-Tenant-Id header when requesting bkiam")
+		sub.Flags().StringVar(&iamV4TenantID, "tenant-id", "",
+			"the tenant id carried in the X-Bk-Tenant-Id header when requesting bkiam, "+
+				"defaults to system in multi-tenant mode, otherwise default")
 		migrateCmd.AddCommand(sub)
 	}
 }

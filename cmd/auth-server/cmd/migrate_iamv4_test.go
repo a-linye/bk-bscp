@@ -33,13 +33,30 @@ func TestNewIAMV4KitCarriesTenantID(t *testing.T) {
 	require.NotNil(t, kt.Ctx)
 }
 
-// 三个子命令都得能指定租户，漏注册会让该命令在多租户环境直接被网关拒绝。
-func TestIAMV4CommandsRegisterTenantFlag(t *testing.T) {
+// 模型注册命令都得能指定租户；默认值留空，由租户模式决定，避免多租户环境带上 IAM 不认的 default。
+func TestModelCommandsRegisterTenantFlag(t *testing.T) {
 	for _, sub := range []*cobra.Command{
-		migrateInitIAMV4Cmd, migrateDiffIAMV4Cmd, migratePruneIAMV4Cmd,
+		migrateInitCmd, migrateInitIAMV4Cmd, migrateDiffIAMV4Cmd, migratePruneIAMV4Cmd,
 	} {
 		flag := sub.Flags().Lookup("tenant-id")
 		require.NotNilf(t, flag, "command %q should register --tenant-id", sub.Use)
-		require.Equal(t, constant.DefaultTenantID, flag.DefValue)
+		require.Emptyf(t, flag.DefValue, "command %q should leave --tenant-id empty by default", sub.Use)
+	}
+}
+
+func TestResolveModelTenantID(t *testing.T) {
+	cases := []struct {
+		name        string
+		multiTenant bool
+		want        string
+	}{
+		{name: "multi tenant uses system", multiTenant: true, want: constant.SystemTenantID},
+		{name: "single tenant uses default", multiTenant: false, want: constant.DefaultTenantID},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, resolveModelTenantID(c.multiTenant))
+		})
 	}
 }

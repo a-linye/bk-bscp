@@ -143,6 +143,6 @@ update_role_display_resource_types
 | `X-Bk-Tenant-Id` | 当前租户 ID，`kit.Kit.TenantID` 非空时携带 | 全部接口 |
 | `X-Bkiam-Operator` | 操作人，创建者授权时填创建者本人 | 授权类接口 |
 
-多租户环境下 `X-Bk-Tenant-Id` 不是可选的：应用为 `tenant_mode=global` 时，网关要求该头必须存在且非空，否则返回 `1640302 Cross tenant forbidden`。运行时的租户 ID 来自请求上下文，而 `migrate` 命令没有请求上下文，由 `--tenant-id` 指定，默认取 `default`。权限模型本身不属于任何租户，这个值只用于通过网关的租户校验。
+多租户环境下 `X-Bk-Tenant-Id` 不是可选的：应用为 `tenant_mode=global` 时，网关要求该头必须存在且非空，否则返回 `1640302 Cross tenant forbidden`。运行时的租户 ID 来自请求上下文，而 `migrate` 命令没有请求上下文：未传 `--tenant-id` 时按租户模式选择，开启多租户（`featureFlags.enableTenantMode`）用运营租户 `system`，否则用 `default`。权限模型属于平台而非业务租户，这条规则与 IAM 版本无关，V3 的 `init-iam` 同样适用。多租户 IAM 不认 `default`，误用会返回 `Invalid tenant ID default`。
 
 响应处理上有两点需要留意：成功状态码不止 200，创建类返回 201、全量更新与删除类返回 204 且无响应体；错误分网关层与应用层两套体系，前者 `code` 是整数（形如 1640001）、后者是字符串枚举，排障时以响应中的 `request_id` 为准。
