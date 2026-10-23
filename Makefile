@@ -172,13 +172,13 @@ build_vault:
 # 新 UI（ui）产出 ui/dist，供 embed.go 编译期嵌入
 .PHONY: build_frontend_new
 build_frontend_new:
-	@echo "tips: ensure you have installed node and npm"
+	@echo "tips: ensure you have installed Node.js 22.23.4 and npm"
 	cd ui; npm install --legacy-peer-deps; npm run build
 
 # 旧 UI（ui_old）产出 ui_old/dist，供 embed.go 编译期嵌入
 .PHONY: build_frontend_old
 build_frontend_old:
-	@echo "tips: ensure you have installed node and npm"
+	@echo "tips: ensure you have installed Node.js 22.23.4 and npm"
 	cd ui_old; npm install --legacy-peer-deps; npm run build
 
 # embed.go 编译期同时嵌入 ui/dist 与 ui_old/dist，故默认前端构建必须产出新旧两套，

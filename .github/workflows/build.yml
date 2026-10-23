@@ -37,6 +37,12 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
+      # 固定已修复 CVE-2026-111497 的 Node.js 版本
+      - name: setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.23.4'
+
       # 设置 Go 环境
       - name: setup go
         uses: actions/setup-go@v3

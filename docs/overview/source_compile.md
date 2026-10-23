@@ -7,7 +7,7 @@
 - protoc-gen-go v1.28.0
 - protoc-gen-go-grpc v1.2
 - protoc-gen-grpc-gateway v1.16.0
-- node >= 18
+- node >= 22.23.4, < 23
 - npm >10
 
 **注：** BSCP源码文件中的 <u>pkg/protocol/README.md</u> 包含了 protoc 相关依赖的安装教程。
