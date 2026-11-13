@@ -31,7 +31,6 @@ render/python/build/
 .agents/skills/*
 !.agents/skills/bkbscp-file-config/
 !.agents/skills/bkbscp-kv-config/
-!.agents/skills/bkbscp-process-config/
 
 **/.graphify_root
 **/.graphify_python
